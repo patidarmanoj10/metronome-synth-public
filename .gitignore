@@ -1,0 +1,26 @@
+.DS_STORE
+
+# Node
+node_modules
+
+# Truffle
+build
+
+# Env
+.env
+
+# Eslint
+.eslintcache
+
+# Hard hat
+artifacts
+cache
+typechain
+
+# Solidity coverage
+coverage
+coverage.json
+.coverage*
+
+*.iml
+.idea
