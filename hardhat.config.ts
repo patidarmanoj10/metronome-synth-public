@@ -7,6 +7,7 @@ import 'hardhat-log-remover'
 import 'hardhat-gas-reporter'
 import 'hardhat-contract-sizer'
 import '@typechain/hardhat'
+import 'hardhat-spdx-license-identifier'
 import dotenv from 'dotenv'
 
 dotenv.config()
@@ -58,6 +59,10 @@ const config: HardhatUserConfig = {
         runs: 200,
       },
     },
+  },
+  spdxLicenseIdentifier: {
+    overwrite: true,
+    runOnCompile: true,
   },
   mocha: {
     timeout: 200000,
