@@ -17,6 +17,7 @@ import "hardhat/console.sol";
 contract MBox is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
+    /// @notice Represents MET collateral deposits (mBOX-MET token)
     IDepositLedger public depositLedger;
 
     /**
@@ -25,7 +26,7 @@ contract MBox is Ownable, ReentrancyGuard {
      */
     IERC20 public met;
 
-    /// @notice Synthetics' underlying assets rate oracle
+    /// @notice Synthetics' underlying assets  oracle
     IOracle public oracle;
 
     /**
@@ -153,8 +154,7 @@ contract MBox is Ownable, ReentrancyGuard {
                 delete availableSyntheticAssets[i];
 
                 // Copy the last mAsset into the place of the one we just deleted
-                // If there's only one mAsset, this is synths[0] = synths[0]
-                // If we're deleting the last one, it's also a NOOP in the same way
+                // If there's only one mAsset, this is availableSyntheticAssets[0] = availableSyntheticAssets[0]
                 availableSyntheticAssets[i] = availableSyntheticAssets[availableSyntheticAssets.length - 1];
 
                 // Decrease the size of the array by one
