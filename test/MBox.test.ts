@@ -47,7 +47,7 @@ describe('MBox', function () {
     mEth = await mETHFactory.deploy('Metronome ETH', 'mEth', collateralizationRatio, underlyingAsset)
 
     const mBoxFactory = new MBox__factory(deployer)
-    mBOX = await mBoxFactory.deploy(met.address, mEth.address, collateral.address, oracle.address)
+    mBOX = await mBoxFactory.deploy(met.address, collateral.address, oracle.address)
 
     // Deployment tasks
     await mEth.transferOwnership(mBOX.address)
@@ -79,11 +79,6 @@ describe('MBox', function () {
     })
 
     describe('removeSyntheticAsset', function () {
-      it('should revert if trying to remove mEth', async function () {
-        const tx = mBOX.removeSyntheticAsset(mEth.address)
-        await expect(tx).to.revertedWith('can-not-remove-meth')
-      })
-
       it('should remove synthetic asset', async function () {
         // given
         const metMockFactory = new METMock__factory(deployer)

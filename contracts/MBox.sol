@@ -28,12 +28,6 @@ contract MBox is Ownable, ReentrancyGuard {
     /// @notice Synthetics' underlying assets  oracle
     IOracle public oracle;
 
-    /**
-     * @notice mEth synthetic asset
-     * @dev Can't be removed
-     */
-    ISyntheticAsset public mEth;
-
     /// @notice Avaliable synthetic assets
     ISyntheticAsset[] public availableSyntheticAssets;
     mapping(address => ISyntheticAsset) public syntheticAssetsByAddress;
@@ -45,13 +39,11 @@ contract MBox is Ownable, ReentrancyGuard {
 
     constructor(
         IERC20 _met,
-        ISyntheticAsset _mETH,
         ICollateral _collateral,
         IOracle _oracle
     ) {
         require(address(_met) != address(0), "met-address-is-null");
         met = _met;
-        mEth = _mETH;
         collateral = _collateral;
         oracle = _oracle;
     }
@@ -144,7 +136,6 @@ contract MBox is Ownable, ReentrancyGuard {
     /// @notice Remove synthetic token from mBOX offerings
     function removeSyntheticAsset(ISyntheticAsset _synthetic) public onlyOwner onlyIfSyntheticAssetExists(_synthetic) {
         require(_synthetic.totalSupply() == 0, "synthetic-asset-with-supply");
-        require(_synthetic != mEth, "can-not-remove-meth");
 
         address _syntheticAddress = address(_synthetic);
 
