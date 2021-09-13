@@ -15,6 +15,8 @@ import {
   OracleMock__factory,
   SyntheticAsset,
   SyntheticAsset__factory,
+  Debt,
+  Debt__factory,
 } from '../typechain'
 import {WETH} from './helpers'
 
@@ -25,6 +27,7 @@ describe('MBox', function () {
   let met: METMock
   let collateral: Collateral
   let oracle: OracleMock
+  let debtToken: Debt
   let mEth: SyntheticAsset
   let mBOX: MBox
 
@@ -32,26 +35,36 @@ describe('MBox', function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[deployer, user1, user2] = await ethers.getSigners()
 
-    const metMockFactory = new METMock__factory(deployer)
-    met = await metMockFactory.deploy()
-
     const oracleMock = new OracleMock__factory(deployer)
     oracle = <OracleMock>await oracleMock.deploy()
+    await oracle.deployed()
+
+    const metMockFactory = new METMock__factory(deployer)
+    met = await metMockFactory.deploy()
+    await met.deployed()
 
     const collateralFactory = new Collateral__factory(deployer)
-    collateral = await collateralFactory.deploy()
+    collateral = await collateralFactory.deploy(met.address)
+    await collateral.deployed()
+
+    const debtTokenFactory = new Debt__factory(deployer)
+    debtToken = await debtTokenFactory.deploy('mETH Debt', 'mEth-Debt')
+    await debtToken.deployed()
 
     const mETHFactory = new SyntheticAsset__factory(deployer)
     const underlyingAsset = WETH
     const collateralizationRatio = parseEther('1.5')
-    mEth = await mETHFactory.deploy('Metronome ETH', 'mEth', collateralizationRatio, underlyingAsset)
+    mEth = await mETHFactory.deploy('Metronome ETH', 'mEth', underlyingAsset, debtToken.address, collateralizationRatio)
+    await mEth.deployed()
 
     const mBoxFactory = new MBox__factory(deployer)
-    mBOX = await mBoxFactory.deploy(met.address, collateral.address, oracle.address)
+    mBOX = await mBoxFactory.deploy(collateral.address, oracle.address)
+    await mBOX.deployed()
 
     // Deployment tasks
     await mEth.transferOwnership(mBOX.address)
     await collateral.transferOwnership(mBOX.address)
+    await debtToken.transferOwnership(mBOX.address)
     await mBOX.addSyntheticAsset(mEth.address)
 
     // mint some MET to users
@@ -127,7 +140,7 @@ describe('MBox', function () {
   })
 
   describe('mint', function () {
-    const collateralAmount = parseEther('6000')
+    const collateralDeposit = parseEther('6000')
     let ethRate: BigNumber
     let metRate: BigNumber
     let collateralizationRatio: BigNumber
@@ -137,12 +150,12 @@ describe('MBox', function () {
 
     beforeEach(async function () {
       await met.connect(user1).approve(mBOX.address, ethers.constants.MaxUint256)
-      await mBOX.connect(user1).deposit(collateralAmount)
+      await mBOX.connect(user1).deposit(collateralDeposit)
 
       ethRate = await oracle.rateOf(WETH)
       metRate = await oracle.rateOf(met.address)
       collateralizationRatio = await mEth.collateralizationRatio()
-      collateralInUsd = await oracle.convertToUSD(met.address, collateralAmount)
+      collateralInUsd = await oracle.convertToUSD(met.address, collateralDeposit)
       maxIssuableInUsd = collateralInUsd.mul(parseEther('1')).div(collateralizationRatio)
       maxIssuableInEth = maxIssuableInUsd.mul(parseEther('1')).div(ethRate)
     })
@@ -175,19 +188,30 @@ describe('MBox', function () {
       await expect(tx).to.revertedWith('zero-synthetic-amount')
     })
 
-    it('should lock mBOX-MET and mint mEth', async function () {
+    it('should mint mEth', async function () {
+      // given
+      const {_maxIssuable: maxIssuableBefore, _freeCollateral: freeCollateralBefore} = await mBOX.issuanceReportOf(
+        user1.address,
+        mEth.address
+      )
+      expect(maxIssuableBefore).to.eq(parseEther('4')) // 4 ETH = $16K
+      expect(freeCollateralBefore).to.eq(parseEther('6000')) // 6K MET = $24K
+
       // when
       const amountToMint = parseEther('1')
       const tx = () => mBOX.connect(user1).mint(mEth.address, amountToMint)
-      const lockedBefore = await collateral.lockedBalanceOf(user1.address)
 
       // then
       await expect(tx).changeTokenBalances(mEth, [user1], [amountToMint])
-      const lockedAfter = await collateral.lockedBalanceOf(user1.address)
-      const expectedAmountToLock = amountToMint.mul(collateralizationRatio).mul(ethRate).div(metRate).div(`${1e18}`)
-      expect(lockedAfter).to.eq(lockedBefore.add(expectedAmountToLock))
+      const {_maxIssuable: maxIssuableAfter, _freeCollateral: freeCollateralAfter} = await mBOX.issuanceReportOf(
+        user1.address,
+        mEth.address
+      )
+      expect(maxIssuableAfter).to.eq(maxIssuableBefore.sub(amountToMint)).and.to.eq(parseEther('3')) // 3 ETH = $12K
+      expect(freeCollateralAfter).to.eq(parseEther('4500')) // 4.5K MET = $18K
 
       // Note: the calls below will make additional transfers
+      await expect(tx).changeTokenBalances(debtToken, [user1], [amountToMint])
       await expect(tx).changeTokenBalances(met, [mBOX], [0])
       await expect(tx()).to.emit(mBOX, 'CollateralMinted').withArgs(user1.address, amountToMint)
     })

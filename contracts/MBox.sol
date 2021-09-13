@@ -19,17 +19,11 @@ contract MBox is Ownable, ReentrancyGuard {
     /// @notice Represents MET collateral deposits (mBOX-MET token)
     ICollateral public collateral;
 
-    /**
-     * @notice Collateral (MET)
-     * @dev For now, we only support MET as collateral
-     */
-    IERC20 public met;
-
     /// @notice Synthetics' underlying assets  oracle
     IOracle public oracle;
 
     /// @notice Avaliable synthetic assets
-    ISyntheticAsset[] public availableSyntheticAssets;
+    ISyntheticAsset[] public syntheticAssets;
     mapping(address => ISyntheticAsset) public syntheticAssetsByAddress;
 
     event CollateralDeposited(address indexed account, uint256 amount);
@@ -37,13 +31,7 @@ contract MBox is Ownable, ReentrancyGuard {
     event SyntheticAssetAdded(address indexed syntheticAsset);
     event SyntheticAssetRemoved(address indexed syntheticAsset);
 
-    constructor(
-        IERC20 _met,
-        ICollateral _collateral,
-        IOracle _oracle
-    ) {
-        require(address(_met) != address(0), "met-address-is-null");
-        met = _met;
+    constructor(ICollateral _collateral, IOracle _oracle) {
         collateral = _collateral;
         oracle = _oracle;
     }
@@ -60,6 +48,7 @@ contract MBox is Ownable, ReentrancyGuard {
     function deposit(uint256 _amount) external nonReentrant {
         require(_amount > 0, "zero-collateral-amount");
         address _from = _msgSender();
+        IERC20 met = IERC20(collateral.underlyingAsset());
         met.safeTransferFrom(_from, address(this), _amount);
         collateral.mint(_from, _amount);
         emit CollateralDeposited(_from, _amount);
@@ -68,23 +57,36 @@ contract MBox is Ownable, ReentrancyGuard {
     /// @notice Burn mBOX-MET and withdraw MET
     function withdraw(uint256 _amount) external nonReentrant {}
 
+    /**
+     * @notice Total debt of a user in USD
+     * @dev We can optimize this function by storing an array of which synthetic the user minted avoiding looping all
+     */
+    function _debtInUsdOf(address _account) private view returns (uint256 _debtInUsd) {
+        for (uint256 i = 0; i < syntheticAssets.length; ++i) {
+            uint256 amount = syntheticAssets[i].balanceOf(_account);
+            if (amount > 0) {
+                _debtInUsd += oracle.convertToUSD(syntheticAssets[i].underlyingAsset(), amount);
+            }
+        }
+    }
+
     /// @notice Get debt report from an account
-    function _issuanceReportOf(address _account, ISyntheticAsset _syntheticAsset)
-        private
-        returns (
-            uint256 _maxIssuable,
-            uint256 _maxIssuableInUsd,
-            uint256 _freeCollateral,
-            uint256 _lockedCollateral,
-            uint256 _totalCollateral
-        )
+    function issuanceReportOf(address _account, ISyntheticAsset _syntheticAsset)
+        public
+        view
+        returns (uint256 _maxIssuable, uint256 _freeCollateral)
     {
-        _freeCollateral = collateral.freeBalanceOf(_account);
-        _lockedCollateral = collateral.lockedBalanceOf(_account);
-        _totalCollateral = collateral.balanceOf(_account);
-        _maxIssuableInUsd =
-            (oracle.convertToUSD(address(met), _freeCollateral) * 1e18) /
-            _syntheticAsset.collateralizationRatio();
+        uint256 _collateral = collateral.balanceOf(_account);
+        uint256 _collateralInUsd = oracle.convertToUSD(collateral.underlyingAsset(), _collateral);
+        uint256 _debtInUsd = _debtInUsdOf(_account);
+
+        uint256 _freeCollateralInUsd = _collateralInUsd -
+            ((_debtInUsd * _syntheticAsset.collateralizationRatio()) / 1e18);
+
+        _freeCollateral = oracle.convertFromUSD(collateral.underlyingAsset(), _freeCollateralInUsd);
+
+        uint256 _maxIssuableInUsd = (_freeCollateralInUsd * 1e18) / _syntheticAsset.collateralizationRatio();
+
         _maxIssuable = oracle.convertFromUSD(_syntheticAsset.underlyingAsset(), _maxIssuableInUsd);
     }
 
@@ -98,14 +100,11 @@ contract MBox is Ownable, ReentrancyGuard {
 
         address _from = _msgSender();
 
-        (uint256 _maxIssuable, , , , ) = _issuanceReportOf(_from, _syntheticAsset);
+        (uint256 _maxIssuable, ) = issuanceReportOf(_from, _syntheticAsset);
 
         require(_amount <= _maxIssuable, "not-enough-collateral");
 
-        uint256 _collateralToLock = (oracle.convert(_syntheticAsset.underlyingAsset(), address(met), _amount) *
-            _syntheticAsset.collateralizationRatio()) / 1e18;
-
-        collateral.lock(_from, _collateralToLock);
+        _syntheticAsset.debtToken().mint(_from, _amount);
 
         _syntheticAsset.mint(_from, _amount);
 
@@ -127,7 +126,7 @@ contract MBox is Ownable, ReentrancyGuard {
         require(_syntheticAddress != address(0), "address-is-null");
         require(address(syntheticAssetsByAddress[_syntheticAddress]) == address(0), "synthetic-asset-exists");
 
-        availableSyntheticAssets.push(_synthetic);
+        syntheticAssets.push(_synthetic);
         syntheticAssetsByAddress[_syntheticAddress] = _synthetic;
 
         emit SyntheticAssetAdded(_syntheticAddress);
@@ -139,16 +138,16 @@ contract MBox is Ownable, ReentrancyGuard {
 
         address _syntheticAddress = address(_synthetic);
 
-        for (uint256 i = 0; i < availableSyntheticAssets.length; i++) {
-            if (availableSyntheticAssets[i] == _synthetic) {
-                delete availableSyntheticAssets[i];
+        for (uint256 i = 0; i < syntheticAssets.length; i++) {
+            if (syntheticAssets[i] == _synthetic) {
+                delete syntheticAssets[i];
 
                 // Copy the last mAsset into the place of the one we just deleted
-                // If there's only one mAsset, this is availableSyntheticAssets[0] = availableSyntheticAssets[0]
-                availableSyntheticAssets[i] = availableSyntheticAssets[availableSyntheticAssets.length - 1];
+                // If there's only one mAsset, this is syntheticAssets[0] = syntheticAssets[0]
+                syntheticAssets[i] = syntheticAssets[syntheticAssets.length - 1];
 
                 // Decrease the size of the array by one
-                availableSyntheticAssets.pop();
+                syntheticAssets.pop();
 
                 break;
             }
