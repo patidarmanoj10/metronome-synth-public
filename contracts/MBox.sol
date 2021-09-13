@@ -27,7 +27,7 @@ contract MBox is Ownable, ReentrancyGuard {
     mapping(address => ISyntheticAsset) public syntheticAssetsByAddress;
 
     event CollateralDeposited(address indexed account, uint256 amount);
-    event CollateralMinted(address indexed account, uint256 amount);
+    event SyntheticAssetMinted(address indexed account, uint256 amount);
     event SyntheticAssetAdded(address indexed syntheticAsset);
     event SyntheticAssetRemoved(address indexed syntheticAsset);
 
@@ -108,7 +108,7 @@ contract MBox is Ownable, ReentrancyGuard {
 
         _syntheticAsset.mint(_from, _amount);
 
-        emit CollateralMinted(_from, _amount);
+        emit SyntheticAssetMinted(_from, _amount);
     }
 
     /// @notice Unlock mBOX-MET and burn mEth

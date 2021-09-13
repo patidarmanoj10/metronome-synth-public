@@ -213,13 +213,13 @@ describe('MBox', function () {
       // Note: the calls below will make additional transfers
       await expect(tx).changeTokenBalances(debtToken, [user1], [amountToMint])
       await expect(tx).changeTokenBalances(met, [mBOX], [0])
-      await expect(tx()).to.emit(mBOX, 'CollateralMinted').withArgs(user1.address, amountToMint)
+      await expect(tx()).to.emit(mBOX, 'SyntheticAssetMinted').withArgs(user1.address, amountToMint)
     })
 
     it('should mint max issuable amount', async function () {
       const amount = maxIssuableInEth
       const tx = mBOX.connect(user1).mint(mEth.address, amount)
-      await expect(tx).to.emit(mBOX, 'CollateralMinted').withArgs(user1.address, amount)
+      await expect(tx).to.emit(mBOX, 'SyntheticAssetMinted').withArgs(user1.address, amount)
     })
   })
 })
