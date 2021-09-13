@@ -4,7 +4,7 @@ pragma solidity 0.8.3;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-interface IDepositLedger is IERC20 {
+interface ICollateral is IERC20 {
     function lockedBalanceOf(address _account) external view returns (uint256 _freeBalance);
 
     function mint(address _to, uint256 _amount) external;

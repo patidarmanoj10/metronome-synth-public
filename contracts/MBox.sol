@@ -8,8 +8,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./interface/ISyntheticAsset.sol";
 import "./interface/IOracle.sol";
-import "./interface/IDepositLedger.sol";
-import "hardhat/console.sol";
+import "./interface/ICollateral.sol";
 
 /**
  * @title mBOX main contract
@@ -18,7 +17,7 @@ contract MBox is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     /// @notice Represents MET collateral deposits (mBOX-MET token)
-    IDepositLedger public depositLedger;
+    ICollateral public collateral;
 
     /**
      * @notice Collateral (MET)
@@ -47,13 +46,13 @@ contract MBox is Ownable, ReentrancyGuard {
     constructor(
         IERC20 _met,
         ISyntheticAsset _mETH,
-        IDepositLedger _depositLedger,
+        ICollateral _collateral,
         IOracle _oracle
     ) {
         require(address(_met) != address(0), "met-address-is-null");
         met = _met;
         mEth = _mETH;
-        depositLedger = _depositLedger;
+        collateral = _collateral;
         oracle = _oracle;
     }
 
@@ -70,7 +69,7 @@ contract MBox is Ownable, ReentrancyGuard {
         require(_amount > 0, "zero-collateral-amount");
         address _from = _msgSender();
         met.safeTransferFrom(_from, address(this), _amount);
-        depositLedger.mint(_from, _amount);
+        collateral.mint(_from, _amount);
         emit CollateralDeposited(_from, _amount);
     }
 
@@ -88,9 +87,9 @@ contract MBox is Ownable, ReentrancyGuard {
             uint256 _totalCollateral
         )
     {
-        _freeCollateral = depositLedger.freeBalanceOf(_account);
-        _lockedCollateral = depositLedger.lockedBalanceOf(_account);
-        _totalCollateral = depositLedger.balanceOf(_account);
+        _freeCollateral = collateral.freeBalanceOf(_account);
+        _lockedCollateral = collateral.lockedBalanceOf(_account);
+        _totalCollateral = collateral.balanceOf(_account);
         _maxIssuableInUsd =
             (oracle.convertToUSD(address(met), _freeCollateral) * 1e18) /
             _syntheticAsset.collateralizationRatio();
@@ -114,7 +113,7 @@ contract MBox is Ownable, ReentrancyGuard {
         uint256 _collateralToLock = (oracle.convert(_syntheticAsset.underlyingAsset(), address(met), _amount) *
             _syntheticAsset.collateralizationRatio()) / 1e18;
 
-        depositLedger.lock(_from, _collateralToLock);
+        collateral.lock(_from, _collateralToLock);
 
         _syntheticAsset.mint(_from, _amount);
 

@@ -5,8 +5,8 @@ import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
 import {
-  DepositLedger,
-  DepositLedger__factory,
+  Collateral,
+  Collateral__factory,
   MBox,
   MBox__factory,
   METMock,
@@ -23,7 +23,7 @@ describe('MBox', function () {
   let user1: SignerWithAddress
   let user2: SignerWithAddress
   let met: METMock
-  let depositLedger: DepositLedger
+  let collateral: Collateral
   let oracle: OracleMock
   let mEth: SyntheticAsset
   let mBOX: MBox
@@ -38,8 +38,8 @@ describe('MBox', function () {
     const oracleMock = new OracleMock__factory(deployer)
     oracle = <OracleMock>await oracleMock.deploy()
 
-    const depositLedgerFactory = new DepositLedger__factory(deployer)
-    depositLedger = await depositLedgerFactory.deploy()
+    const collateralFactory = new Collateral__factory(deployer)
+    collateral = await collateralFactory.deploy()
 
     const mETHFactory = new SyntheticAsset__factory(deployer)
     const underlyingAsset = WETH
@@ -47,11 +47,11 @@ describe('MBox', function () {
     mEth = await mETHFactory.deploy('Metronome ETH', 'mEth', collateralizationRatio, underlyingAsset)
 
     const mBoxFactory = new MBox__factory(deployer)
-    mBOX = await mBoxFactory.deploy(met.address, mEth.address, depositLedger.address, oracle.address)
+    mBOX = await mBoxFactory.deploy(met.address, mEth.address, collateral.address, oracle.address)
 
     // Deployment tasks
     await mEth.transferOwnership(mBOX.address)
-    await depositLedger.transferOwnership(mBOX.address)
+    await collateral.transferOwnership(mBOX.address)
     await mBOX.addSyntheticAsset(mEth.address)
 
     // mint some MET to users
@@ -126,7 +126,7 @@ describe('MBox', function () {
 
       // then
       await expect(tx).changeTokenBalances(met, [user1, mBOX], [amount.mul('-1'), amount])
-      await expect(tx).changeTokenBalances(depositLedger, [user1, mBOX], [amount, 0])
+      await expect(tx).changeTokenBalances(collateral, [user1, mBOX], [amount, 0])
       await expect(tx()).to.emit(mBOX, 'CollateralDeposited').withArgs(user1.address, amount)
     })
   })
@@ -184,11 +184,11 @@ describe('MBox', function () {
       // when
       const amountToMint = parseEther('1')
       const tx = () => mBOX.connect(user1).mint(mEth.address, amountToMint)
-      const lockedBefore = await depositLedger.lockedBalanceOf(user1.address)
+      const lockedBefore = await collateral.lockedBalanceOf(user1.address)
 
       // then
       await expect(tx).changeTokenBalances(mEth, [user1], [amountToMint])
-      const lockedAfter = await depositLedger.lockedBalanceOf(user1.address)
+      const lockedAfter = await collateral.lockedBalanceOf(user1.address)
       const expectedAmountToLock = amountToMint.mul(collateralizationRatio).mul(ethRate).div(metRate).div(`${1e18}`)
       expect(lockedAfter).to.eq(lockedBefore.add(expectedAmountToLock))
 

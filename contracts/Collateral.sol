@@ -4,11 +4,11 @@ pragma solidity 0.8.3;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./interface/IDepositLedger.sol";
+import "./interface/ICollateral.sol";
 
 /// @title Represents the users' deposits for a given collateral
 /// @dev For now, we support only MET as collateral
-contract DepositLedger is ERC20, Ownable, IDepositLedger {
+contract Collateral is ERC20, Ownable, ICollateral {
     /// @notice Returns the amount of tokens owned and locked by `account`.
     mapping(address => uint256) public override lockedBalanceOf;
 
