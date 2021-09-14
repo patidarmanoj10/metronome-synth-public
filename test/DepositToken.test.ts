@@ -71,15 +71,15 @@ describe('DepositToken', function () {
       })
 
       it('should transfer if amount <= free amount', async function () {
-        const {_freeCollateral} = await mBox.debtPositionOf(user.address)
+        const {_unlockedCollateral} = await mBox.debtPositionOf(user.address)
         expect(await depositToken.balanceOf(user.address)).to.eq(amount)
-        await depositToken.connect(user).transfer(deployer.address, _freeCollateral)
-        expect(await depositToken.balanceOf(user.address)).to.eq(amount.sub(_freeCollateral))
+        await depositToken.connect(user).transfer(deployer.address, _unlockedCollateral)
+        expect(await depositToken.balanceOf(user.address)).to.eq(amount.sub(_unlockedCollateral))
       })
 
       it('should revert if amount > free amount', async function () {
-        const {_freeCollateral} = await mBox.debtPositionOf(user.address)
-        const tx = depositToken.connect(user).transfer(deployer.address, _freeCollateral.add('1'))
+        const {_unlockedCollateral} = await mBox.debtPositionOf(user.address)
+        const tx = depositToken.connect(user).transfer(deployer.address, _unlockedCollateral.add('1'))
         await expect(tx).to.revertedWith('not-enough-free-balance')
       })
     })

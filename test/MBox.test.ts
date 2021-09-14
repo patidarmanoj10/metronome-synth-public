@@ -140,99 +140,147 @@ describe('MBox', function () {
       await expect(tx).changeTokenBalances(depositToken, [user1, mBOX], [amount, 0])
       await expect(tx()).to.emit(mBOX, 'CollateralDeposited').withArgs(user1.address, amount)
     })
-  })
 
-  describe('mint', function () {
-    const collateralDeposit = parseEther('6000')
-    let ethRate: BigNumber
-    let metRate: BigNumber
-    let collateralizationRatio: BigNumber
-    let collateralInUsd: BigNumber
-    let maxIssuableInUsd: BigNumber
-    let maxIssuableInEth: BigNumber
+    describe('when user deposited some MET', function () {
+      const depositAmount = parseEther('6000')
 
-    beforeEach(async function () {
-      await met.connect(user1).approve(mBOX.address, ethers.constants.MaxUint256)
-      await mBOX.connect(user1).deposit(collateralDeposit)
+      beforeEach(async function () {
+        await met.connect(user1).approve(mBOX.address, ethers.constants.MaxUint256)
+        await mBOX.connect(user1).deposit(depositAmount)
+      })
 
-      ethRate = await oracle.rateOf(WETH)
-      metRate = await oracle.rateOf(met.address)
-      collateralizationRatio = await mEth.collateralizationRatio()
-      collateralInUsd = await oracle.convertToUSD(met.address, collateralDeposit)
-      maxIssuableInUsd = collateralInUsd.mul(parseEther('1')).div(collateralizationRatio)
-      maxIssuableInEth = maxIssuableInUsd.mul(parseEther('1')).div(ethRate)
-    })
+      describe('mint', function () {
+        let ethRate: BigNumber
+        let metRate: BigNumber
+        let collateralizationRatio: BigNumber
+        let collateralInUsd: BigNumber
+        let maxIssuableInUsd: BigNumber
+        let maxIssuableInEth: BigNumber
 
-    it('should reject if synthetic is not active', async function () {
-      // when
-      const toIssue = maxIssuableInEth.add(parseEther('1'))
-      const invalidSynthetic = met
-      const tx = mBOX.mint(invalidSynthetic.address, toIssue)
+        beforeEach(async function () {
+          ethRate = await oracle.rateOf(WETH)
+          metRate = await oracle.rateOf(met.address)
+          collateralizationRatio = await mEth.collateralizationRatio()
+          collateralInUsd = await oracle.convertToUSD(met.address, depositAmount)
+          maxIssuableInUsd = collateralInUsd.mul(parseEther('1')).div(collateralizationRatio)
+          maxIssuableInEth = maxIssuableInUsd.mul(parseEther('1')).div(ethRate)
+        })
 
-      // then
-      await expect(tx).to.revertedWith('synthetic-asset-does-not-exists')
-    })
+        it('should reject if synthetic is not active', async function () {
+          // when
+          const toIssue = maxIssuableInEth.add(parseEther('1'))
+          const invalidSynthetic = met
+          const tx = mBOX.mint(invalidSynthetic.address, toIssue)
 
-    it('should reject if user has not enough collateral deposited', async function () {
-      // when
-      const toIssue = maxIssuableInEth.add(parseEther('1'))
-      const tx = mBOX.connect(user1).mint(mEth.address, toIssue)
+          // then
+          await expect(tx).to.revertedWith('synthetic-asset-does-not-exists')
+        })
 
-      // then
-      await expect(tx).to.revertedWith('not-enough-collateral')
-    })
+        it('should reject if user has not enough collateral deposited', async function () {
+          // when
+          const toIssue = maxIssuableInEth.add(parseEther('1'))
+          const tx = mBOX.connect(user1).mint(mEth.address, toIssue)
 
-    it('should reject if amount to mint is 0', async function () {
-      // when
-      const toIssue = 0
-      const tx = mBOX.connect(user1).mint(mEth.address, toIssue)
+          // then
+          await expect(tx).to.revertedWith('not-enough-collateral')
+        })
 
-      // then
-      await expect(tx).to.revertedWith('zero-synthetic-amount')
-    })
+        it('should reject if amount to mint is 0', async function () {
+          // when
+          const toIssue = 0
+          const tx = mBOX.connect(user1).mint(mEth.address, toIssue)
 
-    it('should mint mEth', async function () {
-      // given
-      const maxIssuableBefore = await mBOX.maxIssuableFor(user1.address, mEth.address)
-      expect(maxIssuableBefore).to.eq(
-        collateralDeposit.mul(metRate).div(collateralizationRatio).mul(parseEther('1')).div(ethRate)
-      ) // 4 ETH
+          // then
+          await expect(tx).to.revertedWith('amount-to-mint-is-zero')
+        })
 
-      expect(await mBOX.debtPositionOf(user1.address)).to.deep.eq([
-        BigNumber.from(0), // _debtInUsd
-        collateralDeposit.mul(metRate).div(parseEther('1')), // _collateralInUsd
-        collateralDeposit, // _collateral
-        collateralDeposit, // _freeCollateral
-        BigNumber.from(0), // _lockedCollateral
-      ])
+        it('should mint mEth', async function () {
+          // given
+          const maxIssuableBefore = await mBOX.maxIssuableFor(user1.address, mEth.address)
+          expect(maxIssuableBefore).to.eq(
+            depositAmount.mul(metRate).div(collateralizationRatio).mul(parseEther('1')).div(ethRate)
+          ) // 4 ETH
 
-      // when
-      const amountToMint = parseEther('1')
-      const tx = () => mBOX.connect(user1).mint(mEth.address, amountToMint)
+          expect(await mBOX.debtPositionOf(user1.address)).to.deep.eq([
+            BigNumber.from(0), // _debtInUsd
+            depositAmount.mul(metRate).div(parseEther('1')), // _collateralInUsd
+            depositAmount, // _collateral
+            depositAmount, // _unlockedCollateral
+            BigNumber.from(0), // _lockedCollateral
+          ])
 
-      // then
-      await expect(tx).changeTokenBalances(mEth, [user1], [amountToMint])
-      const maxIssuableAfter = await mBOX.maxIssuableFor(user1.address, mEth.address)
-      expect(maxIssuableAfter).to.eq(maxIssuableBefore.sub(amountToMint)).and.to.eq(parseEther('3')) // 3 ETH = $12K
-      const expectedLocked = amountToMint.mul(ethRate).mul(collateralizationRatio).div(metRate).div(parseEther('1'))
-      expect(await mBOX.debtPositionOf(user1.address)).to.deep.eq([
-        amountToMint.mul(ethRate).div(parseEther('1')), // _debtInUsd
-        collateralDeposit.mul(metRate).div(parseEther('1')), // _collateralInUsd
-        collateralDeposit, // _collateral
-        collateralDeposit.sub(expectedLocked), // _freeCollateral
-        expectedLocked, // _lockedCollateral
-      ])
+          // when
+          const amountToMint = parseEther('1')
+          const tx = () => mBOX.connect(user1).mint(mEth.address, amountToMint)
 
-      // Note: the calls below will make additional transfers
-      await expect(tx).changeTokenBalances(debtToken, [user1], [amountToMint])
-      await expect(tx).changeTokenBalances(met, [mBOX], [0])
-      await expect(tx()).to.emit(mBOX, 'SyntheticAssetMinted').withArgs(user1.address, amountToMint)
-    })
+          // then
+          await expect(tx).changeTokenBalances(mEth, [user1], [amountToMint])
+          const maxIssuableAfter = await mBOX.maxIssuableFor(user1.address, mEth.address)
+          expect(maxIssuableAfter).to.eq(maxIssuableBefore.sub(amountToMint)).and.to.eq(parseEther('3')) // 3 ETH = $12K
+          const expectedLocked = amountToMint.mul(ethRate).mul(collateralizationRatio).div(metRate).div(parseEther('1'))
+          expect(await mBOX.debtPositionOf(user1.address)).to.deep.eq([
+            amountToMint.mul(ethRate).div(parseEther('1')), // _debtInUsd
+            depositAmount.mul(metRate).div(parseEther('1')), // _collateralInUsd
+            depositAmount, // _collateral
+            depositAmount.sub(expectedLocked), // _unlockedCollateral
+            expectedLocked, // _lockedCollateral
+          ])
 
-    it('should mint max issuable amount', async function () {
-      const amount = maxIssuableInEth
-      const tx = mBOX.connect(user1).mint(mEth.address, amount)
-      await expect(tx).to.emit(mBOX, 'SyntheticAssetMinted').withArgs(user1.address, amount)
+          // Note: the calls below will make additional transfers
+          await expect(tx).changeTokenBalances(debtToken, [user1], [amountToMint])
+          await expect(tx).changeTokenBalances(met, [mBOX], [0])
+          await expect(tx()).to.emit(mBOX, 'SyntheticAssetMinted').withArgs(user1.address, amountToMint)
+        })
+
+        it('should mint max issuable amount', async function () {
+          const amount = maxIssuableInEth
+          const tx = mBOX.connect(user1).mint(mEth.address, amount)
+          await expect(tx).to.emit(mBOX, 'SyntheticAssetMinted').withArgs(user1.address, amount)
+        })
+      })
+
+      describe('withdraw', function () {
+        describe('when user minted some mETH', function () {
+          beforeEach(async function () {
+            await mBOX.connect(user1).mint(mEth.address, parseEther('1'))
+          })
+
+          it('should revert if amount is 0', async function () {
+            // when
+            const tx = mBOX.connect(user1).withdraw(0)
+
+            // then
+            await expect(tx).to.revertedWith('amount-to-withdraw-is-zero')
+          })
+
+          it('should revert if amount > unlocked collateral amount', async function () {
+            // given
+            const {_unlockedCollateral} = await mBOX.debtPositionOf(user1.address)
+
+            // when
+            const tx = mBOX.connect(user1).withdraw(_unlockedCollateral.add('1'))
+
+            // then
+            await expect(tx).to.revertedWith('amount-to-withdraw-gt-unlocked')
+          })
+
+          it('should withdraw if amount <= unlocked collateral amount', async function () {
+            // given
+            const {_unlockedCollateral: unlockedCollateralBefore} = await mBOX.debtPositionOf(user1.address)
+            const metBalanceBefore = await met.balanceOf(user1.address)
+            const depositBefore = await depositToken.balanceOf(user1.address)
+
+            // when
+            await mBOX.connect(user1).withdraw(unlockedCollateralBefore)
+
+            // then
+            expect(await met.balanceOf(user1.address)).to.eq(metBalanceBefore.add(unlockedCollateralBefore))
+            expect(await depositToken.balanceOf(user1.address)).to.eq(depositBefore.sub(unlockedCollateralBefore))
+            const {_unlockedCollateral: unlockedCollateralAfter} = await mBOX.debtPositionOf(user1.address)
+            expect(unlockedCollateralAfter).to.eq(0)
+          })
+        })
+      })
     })
   })
 })

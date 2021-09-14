@@ -59,8 +59,8 @@ contract DepositToken is ERC20, Ownable, IDepositToken {
             return;
         }
 
-        (, , , uint256 _freeCollateral, ) = mBox.debtPositionOf(from);
-        require(_freeCollateral >= amount, "not-enough-free-balance");
+        (, , , uint256 _unlockedCollateral, ) = mBox.debtPositionOf(from);
+        require(_unlockedCollateral >= amount, "not-enough-free-balance");
     }
 
     /**

@@ -25,7 +25,7 @@ contract MBoxMock is IMBox {
             uint256 _debtInUsd,
             uint256 _collateralInUsd,
             uint256 _collateral,
-            uint256 _freeCollateral,
+            uint256 _unlockedCollateral,
             uint256 _lockedCollateral
         )
     {
@@ -33,6 +33,6 @@ contract MBoxMock is IMBox {
         _collateralInUsd = 0;
         _collateral = depositToken.balanceOf(_account);
         _lockedCollateral = lockedCollateral;
-        _freeCollateral = _collateral - _lockedCollateral;
+        _unlockedCollateral = _collateral - _lockedCollateral;
     }
 }

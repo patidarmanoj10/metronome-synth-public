@@ -39,6 +39,11 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
     event CollateralDeposited(address indexed account, uint256 amount);
 
     /**
+     * @notice Event emitted when collateral is withdrawn
+     */
+    event CollateralWithdrawn(address indexed account, uint256 amount);
+
+    /**
      * @notice Event emitted when synthetic asset is minted
      */
     event SyntheticAssetMinted(address indexed account, uint256 amount);
@@ -123,7 +128,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
      * @return _debtInUsd The total debt (in USD) without consider collateralization ratio
      * @return _collateralInUsd The total collateral deposited (in USD)
      * @return _collateral The total collateral deposited
-     * @return _freeCollateral The amount of collateral that isn't covering the user's debt
+     * @return _unlockedCollateral The amount of collateral that isn't covering the user's debt
      * @return _lockedCollateral The amount of collateral that is covering the user's debt
      */
     function debtPositionOf(address _account)
@@ -134,7 +139,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
             uint256 _debtInUsd,
             uint256 _collateralInUsd,
             uint256 _collateral,
-            uint256 _freeCollateral,
+            uint256 _unlockedCollateral,
             uint256 _lockedCollateral
         )
     {
@@ -142,7 +147,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
         _collateral = depositToken.balanceOf(_account);
         _collateralInUsd = oracle.convertToUSD(depositToken.underlying(), _collateral);
         _lockedCollateral = _lockedCollateralOf(_account);
-        _freeCollateral = _collateral - _lockedCollateral;
+        _unlockedCollateral = _collateral - _lockedCollateral;
     }
 
     /**
@@ -157,11 +162,11 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
         onlyIfSyntheticAssetExists(_syntheticAsset)
         returns (uint256 _maxIssuable)
     {
-        (, , , uint256 _freeCollateral, ) = debtPositionOf(_account);
+        (, , , uint256 _unlockedCollateral, ) = debtPositionOf(_account);
 
-        uint256 _freeCollateralInUsd = oracle.convertToUSD(depositToken.underlying(), _freeCollateral);
+        uint256 _unlockedCollateralInUsd = oracle.convertToUSD(depositToken.underlying(), _unlockedCollateral);
 
-        uint256 _maxIssuableInUsd = (_freeCollateralInUsd * 1e18) / _syntheticAsset.collateralizationRatio();
+        uint256 _maxIssuableInUsd = (_unlockedCollateralInUsd * 1e18) / _syntheticAsset.collateralizationRatio();
 
         _maxIssuable = oracle.convertFromUSD(_syntheticAsset.underlying(), _maxIssuableInUsd);
     }
@@ -176,7 +181,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
         onlyIfSyntheticAssetExists(_syntheticAsset)
         nonReentrant
     {
-        require(_amount > 0, "zero-synthetic-amount");
+        require(_amount > 0, "amount-to-mint-is-zero");
 
         address _account = _msgSender();
 
@@ -194,7 +199,23 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
     /**
      * @notice  @notice Burn mBOX-MET and withdraw MET
      */
-    function withdraw(uint256 _amount) external nonReentrant {}
+    function withdraw(uint256 _amount) external nonReentrant {
+        require(_amount > 0, "amount-to-withdraw-is-zero");
+
+        address _account = _msgSender();
+
+        (, , , uint256 _unlockedCollateral, ) = debtPositionOf(_account);
+
+        require(_amount <= _unlockedCollateral, "amount-to-withdraw-gt-unlocked");
+
+        depositToken.burn(_account, _amount);
+
+        IERC20 met = IERC20(depositToken.underlying());
+
+        met.safeTransfer(_account, _amount);
+
+        emit CollateralWithdrawn(_account, _amount);
+    }
 
     /**
      * @notice Unlock mBOX-MET and burn mEth
