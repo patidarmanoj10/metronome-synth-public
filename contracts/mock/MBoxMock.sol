@@ -3,14 +3,14 @@
 pragma solidity 0.8.3;
 
 import "../interface/IMBox.sol";
-import "../interface/ICollateral.sol";
+import "../interface/IDepositToken.sol";
 
 contract MBoxMock is IMBox {
-    ICollateral public collateral;
+    IDepositToken public depositToken;
     uint256 public lockedCollateral;
 
-    constructor(ICollateral _collateral) {
-        collateral = _collateral;
+    constructor(IDepositToken _depositToken) {
+        depositToken = _depositToken;
     }
 
     function updateLockedCollateral(uint256 _lockedCollateral) external {
@@ -31,7 +31,7 @@ contract MBoxMock is IMBox {
     {
         _debtInUsd = 0;
         _collateralInUsd = 0;
-        _collateral = collateral.balanceOf(_account);
+        _collateral = depositToken.balanceOf(_account);
         _lockedCollateral = lockedCollateral;
         _freeCollateral = _collateral - _lockedCollateral;
     }

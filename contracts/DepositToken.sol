@@ -4,18 +4,18 @@ pragma solidity 0.8.3;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./interface/ICollateral.sol";
+import "./interface/IDepositToken.sol";
 import "./interface/IMBox.sol";
 
 /**
  * @title Represents the users' deposits
  * @dev For now, we only support MET as collateral
  */
-contract Collateral is ERC20, Ownable, ICollateral {
+contract DepositToken is ERC20, Ownable, IDepositToken {
     /**
      * @notice Deposit underlying asset (i.e. MET)
      */
-    address public override underlyingAsset;
+    address public override underlying;
 
     /**
      * @notice mBox contract
@@ -23,8 +23,8 @@ contract Collateral is ERC20, Ownable, ICollateral {
      */
     IMBox public mBox;
 
-    constructor(address _underlyingAsset) ERC20("Tokenized deposit position", "mBOX-MET") {
-        underlyingAsset = _underlyingAsset;
+    constructor(address _underlying) ERC20("Tokenized deposit position", "mBOX-MET") {
+        underlying = _underlying;
     }
 
     /**

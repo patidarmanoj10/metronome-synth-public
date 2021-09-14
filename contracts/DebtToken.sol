@@ -4,12 +4,12 @@ pragma solidity 0.8.3;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./interface/IDebt.sol";
+import "./interface/IDebtToken.sol";
 
 /**
  * @title Non-transferable token that represents users' debts
  */
-contract Debt is ERC20, Ownable, IDebt {
+contract DebtToken is ERC20, Ownable, IDebtToken {
     constructor(string memory _name, string memory _symbol) ERC20(_name, _symbol) {}
 
     /**

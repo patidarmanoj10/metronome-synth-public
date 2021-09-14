@@ -5,8 +5,8 @@ import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
 import {
-  Collateral,
-  Collateral__factory,
+  DepositToken,
+  DepositToken__factory,
   MBox,
   MBox__factory,
   METMock,
@@ -15,8 +15,8 @@ import {
   OracleMock__factory,
   SyntheticAsset,
   SyntheticAsset__factory,
-  Debt,
-  Debt__factory,
+  DebtToken,
+  DebtToken__factory,
 } from '../typechain'
 import {WETH} from './helpers'
 
@@ -25,9 +25,9 @@ describe('MBox', function () {
   let user1: SignerWithAddress
   let user2: SignerWithAddress
   let met: METMock
-  let collateral: Collateral
+  let depositToken: DepositToken
   let oracle: OracleMock
-  let debtToken: Debt
+  let debtToken: DebtToken
   let mEth: SyntheticAsset
   let mBOX: MBox
 
@@ -43,18 +43,18 @@ describe('MBox', function () {
     met = await metMockFactory.deploy()
     await met.deployed()
 
-    const collateralFactory = new Collateral__factory(deployer)
-    collateral = await collateralFactory.deploy(met.address)
-    await collateral.deployed()
+    const depositTokenFactory = new DepositToken__factory(deployer)
+    depositToken = await depositTokenFactory.deploy(met.address)
+    await depositToken.deployed()
 
-    const debtTokenFactory = new Debt__factory(deployer)
+    const debtTokenFactory = new DebtToken__factory(deployer)
     debtToken = await debtTokenFactory.deploy('mETH Debt', 'mEth-Debt')
     await debtToken.deployed()
 
     const mETHFactory = new SyntheticAsset__factory(deployer)
-    const underlyingAsset = WETH
+    const underlying = WETH
     const collateralizationRatio = parseEther('1.5')
-    mEth = await mETHFactory.deploy('Metronome ETH', 'mEth', underlyingAsset, debtToken.address, collateralizationRatio)
+    mEth = await mETHFactory.deploy('Metronome ETH', 'mEth', underlying, debtToken.address, collateralizationRatio)
     await mEth.deployed()
 
     const mBoxFactory = new MBox__factory(deployer)
@@ -63,10 +63,10 @@ describe('MBox', function () {
 
     // Deployment tasks
     await mEth.transferOwnership(mBOX.address)
-    await collateral.setMBox(mBOX.address)
-    await collateral.transferOwnership(mBOX.address)
+    await depositToken.setMBox(mBOX.address)
+    await depositToken.transferOwnership(mBOX.address)
     await debtToken.transferOwnership(mBOX.address)
-    await mBOX.setCollateral(collateral.address)
+    await mBOX.setDepositToken(depositToken.address)
     await mBOX.setOracle(oracle.address)
     await mBOX.addSyntheticAsset(mEth.address)
 
@@ -75,7 +75,7 @@ describe('MBox', function () {
     await met.mint(user2.address, parseEther(`${1e6}`))
 
     // initialize mocked oracle
-    await oracle.updateRate(await mEth.underlyingAsset(), parseEther('4000')) // 1 ETH = $4000
+    await oracle.updateRate(await mEth.underlying(), parseEther('4000')) // 1 ETH = $4000
     await oracle.updateRate(met.address, parseEther('4')) // 1 MET = $4
   })
 
@@ -137,7 +137,7 @@ describe('MBox', function () {
 
       // then
       await expect(tx).changeTokenBalances(met, [user1, mBOX], [amount.mul('-1'), amount])
-      await expect(tx).changeTokenBalances(collateral, [user1, mBOX], [amount, 0])
+      await expect(tx).changeTokenBalances(depositToken, [user1, mBOX], [amount, 0])
       await expect(tx()).to.emit(mBOX, 'CollateralDeposited').withArgs(user1.address, amount)
     })
   })

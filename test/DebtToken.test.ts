@@ -3,12 +3,12 @@ import {parseEther} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
-import {Debt, Debt__factory} from '../typechain'
+import {DebtToken, DebtToken__factory} from '../typechain'
 
-describe('Debt', function () {
+describe('DebtToken', function () {
   let deployer: SignerWithAddress
   let user: SignerWithAddress
-  let debtToken: Debt
+  let debtToken: DebtToken
   const name = 'mETH Debt'
   const symbol = 'mEth-Debt'
 
@@ -16,7 +16,7 @@ describe('Debt', function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[deployer, user] = await ethers.getSigners()
 
-    const debtTokenFactory = new Debt__factory(deployer)
+    const debtTokenFactory = new DebtToken__factory(deployer)
     debtToken = await debtTokenFactory.deploy(name, symbol)
     await debtToken.deployed()
   })

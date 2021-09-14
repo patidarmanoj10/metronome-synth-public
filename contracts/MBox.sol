@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./interface/ISyntheticAsset.sol";
 import "./interface/IOracle.sol";
-import "./interface/ICollateral.sol";
+import "./interface/IDepositToken.sol";
 import "./interface/IMBox.sol";
 
 /**
@@ -20,7 +20,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
     /**
      * @notice Represents MET collateral deposits (mBOX-MET token)
      */
-    ICollateral public collateral;
+    IDepositToken public depositToken;
 
     /**
      * @notice Prices oracle
@@ -73,11 +73,11 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
 
         address _account = _msgSender();
 
-        IERC20 met = IERC20(collateral.underlyingAsset());
+        IERC20 met = IERC20(depositToken.underlying());
 
         met.safeTransferFrom(_account, address(this), _amount);
 
-        collateral.mint(_account, _amount);
+        depositToken.mint(_account, _amount);
 
         emit CollateralDeposited(_account, _amount);
     }
@@ -102,7 +102,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
                     debtAmount = (debtAmount * syntheticAssets[i].collateralizationRatio()) / 1e18;
                 }
 
-                _debtInUsd += oracle.convertToUSD(syntheticAssets[i].underlyingAsset(), debtAmount);
+                _debtInUsd += oracle.convertToUSD(syntheticAssets[i].underlying(), debtAmount);
             }
         }
     }
@@ -114,7 +114,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
      */
     function _lockedCollateralOf(address _account) private view returns (uint256 _lockedCollateral) {
         uint256 _debtInUsdWithCollateralizationRatio = _debtInUsdOf(_account, true);
-        _lockedCollateral = oracle.convertFromUSD(collateral.underlyingAsset(), _debtInUsdWithCollateralizationRatio);
+        _lockedCollateral = oracle.convertFromUSD(depositToken.underlying(), _debtInUsdWithCollateralizationRatio);
     }
 
     /**
@@ -139,8 +139,8 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
         )
     {
         _debtInUsd = _debtInUsdOf(_account, false);
-        _collateral = collateral.balanceOf(_account);
-        _collateralInUsd = oracle.convertToUSD(collateral.underlyingAsset(), _collateral);
+        _collateral = depositToken.balanceOf(_account);
+        _collateralInUsd = oracle.convertToUSD(depositToken.underlying(), _collateral);
         _lockedCollateral = _lockedCollateralOf(_account);
         _freeCollateral = _collateral - _lockedCollateral;
     }
@@ -159,11 +159,11 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
     {
         (, , , uint256 _freeCollateral, ) = debtPositionOf(_account);
 
-        uint256 _freeCollateralInUsd = oracle.convertToUSD(collateral.underlyingAsset(), _freeCollateral);
+        uint256 _freeCollateralInUsd = oracle.convertToUSD(depositToken.underlying(), _freeCollateral);
 
         uint256 _maxIssuableInUsd = (_freeCollateralInUsd * 1e18) / _syntheticAsset.collateralizationRatio();
 
-        _maxIssuable = oracle.convertFromUSD(_syntheticAsset.underlyingAsset(), _maxIssuableInUsd);
+        _maxIssuable = oracle.convertFromUSD(_syntheticAsset.underlying(), _maxIssuableInUsd);
     }
 
     /**
@@ -256,8 +256,8 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
     /**
      * @notice @notice Set collateral (mBOX-MET) contract
      */
-    function setCollateral(ICollateral _collateral) public onlyOwner {
-        collateral = _collateral;
+    function setDepositToken(IDepositToken _depositToken) public onlyOwner {
+        depositToken = _depositToken;
     }
 
     /**

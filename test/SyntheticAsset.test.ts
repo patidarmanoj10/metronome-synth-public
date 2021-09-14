@@ -3,29 +3,29 @@ import {parseEther} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
-import {SyntheticAsset, SyntheticAsset__factory, Debt, Debt__factory} from '../typechain'
+import {SyntheticAsset, SyntheticAsset__factory, DebtToken, DebtToken__factory} from '../typechain'
 import {WETH} from './helpers'
 
 describe('SyntheticAsset', function () {
   let deployer: SignerWithAddress
   let user: SignerWithAddress
   let mAsset: SyntheticAsset
-  let debtToken: Debt
+  let debtToken: DebtToken
   const name = 'Metronome ETH'
   const symbol = 'mEth'
   const collateralizationRatio = parseEther('1.5')
-  const underlyingAsset = WETH
+  const underlying = WETH
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[deployer, user] = await ethers.getSigners()
 
-    const debtTokenFactory = new Debt__factory(deployer)
+    const debtTokenFactory = new DebtToken__factory(deployer)
     debtToken = await debtTokenFactory.deploy('mETH Debt', 'mEth-Debt')
     await debtToken.deployed()
 
     const mETHFactory = new SyntheticAsset__factory(deployer)
-    mAsset = await mETHFactory.deploy(name, symbol, underlyingAsset, debtToken.address, collateralizationRatio)
+    mAsset = await mETHFactory.deploy(name, symbol, underlying, debtToken.address, collateralizationRatio)
     await mAsset.deployed()
   })
 

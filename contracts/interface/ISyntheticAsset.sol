@@ -3,12 +3,12 @@
 pragma solidity 0.8.3;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./IDebt.sol";
+import "./IDebtToken.sol";
 
 interface ISyntheticAsset is IERC20 {
-    function underlyingAsset() external view returns (address);
+    function underlying() external view returns (address);
 
-    function debtToken() external view returns (IDebt);
+    function debtToken() external view returns (IDebtToken);
 
     function collateralizationRatio() external view returns (uint256);
 
