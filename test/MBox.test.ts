@@ -229,22 +229,22 @@ describe('MBox', function () {
           // Note: the calls below will make additional transfers
           await expect(tx).changeTokenBalances(debtToken, [user1], [amountToMint])
           await expect(tx).changeTokenBalances(met, [mBOX], [0])
-          await expect(tx()).to.emit(mBOX, 'SyntheticAssetMinted').withArgs(user1.address, amountToMint)
+          await expect(tx()).to.emit(mBOX, 'SyntheticAssetMinted').withArgs(user1.address, mEth.address, amountToMint)
         })
 
         it('should mint max issuable amount', async function () {
           const amount = maxIssuableInEth
           const tx = mBOX.connect(user1).mint(mEth.address, amount)
-          await expect(tx).to.emit(mBOX, 'SyntheticAssetMinted').withArgs(user1.address, amount)
+          await expect(tx).to.emit(mBOX, 'SyntheticAssetMinted').withArgs(user1.address, mEth.address, amount)
         })
       })
 
-      describe('withdraw', function () {
-        describe('when user minted some mETH', function () {
-          beforeEach(async function () {
-            await mBOX.connect(user1).mint(mEth.address, parseEther('1'))
-          })
+      describe('when user minted some mETH', function () {
+        beforeEach(async function () {
+          await mBOX.connect(user1).mint(mEth.address, parseEther('1'))
+        })
 
+        describe('withdraw', function () {
           it('should revert if amount is 0', async function () {
             // when
             const tx = mBOX.connect(user1).withdraw(0)
@@ -266,18 +266,56 @@ describe('MBox', function () {
 
           it('should withdraw if amount <= unlocked collateral amount', async function () {
             // given
-            const {_unlockedCollateral: unlockedCollateralBefore} = await mBOX.debtPositionOf(user1.address)
+            const {_unlockedCollateral: amountToWithdraw} = await mBOX.debtPositionOf(user1.address)
             const metBalanceBefore = await met.balanceOf(user1.address)
             const depositBefore = await depositToken.balanceOf(user1.address)
 
             // when
-            await mBOX.connect(user1).withdraw(unlockedCollateralBefore)
+            const tx = mBOX.connect(user1).withdraw(amountToWithdraw)
+            await expect(tx).to.emit(mBOX, 'CollateralWithdrawn').withArgs(user1.address, amountToWithdraw)
 
             // then
-            expect(await met.balanceOf(user1.address)).to.eq(metBalanceBefore.add(unlockedCollateralBefore))
-            expect(await depositToken.balanceOf(user1.address)).to.eq(depositBefore.sub(unlockedCollateralBefore))
+            expect(await met.balanceOf(user1.address)).to.eq(metBalanceBefore.add(amountToWithdraw))
+            expect(await depositToken.balanceOf(user1.address)).to.eq(depositBefore.sub(amountToWithdraw))
             const {_unlockedCollateral: unlockedCollateralAfter} = await mBOX.debtPositionOf(user1.address)
             expect(unlockedCollateralAfter).to.eq(0)
+          })
+        })
+
+        describe('repay', function () {
+          it('should revert if amount is 0', async function () {
+            // when
+            const tx = mBOX.connect(user1).repay(mEth.address, 0)
+
+            // then
+            await expect(tx).to.revertedWith('amount-to-repay-is-zero')
+          })
+
+          it('should revert if amount > unlocked collateral amount', async function () {
+            // given
+            const debtAmount = await debtToken.balanceOf(user1.address)
+
+            // when
+            const tx = mBOX.connect(user1).repay(mEth.address, debtAmount.add('1'))
+
+            // then
+            await expect(tx).to.revertedWith('amount-to-repay-gt-debt')
+          })
+
+          it('should repay if amount <= debt', async function () {
+            // given
+            const debtAmount = await debtToken.balanceOf(user1.address)
+            const {_lockedCollateral: lockedCollateralBefore} = await mBOX.debtPositionOf(user1.address)
+            expect(lockedCollateralBefore).to.gt(0)
+
+            // when
+            const tx = mBOX.connect(user1).repay(mEth.address, debtAmount)
+            await expect(tx).to.emit(mBOX, 'DebtRepayed').withArgs(user1.address, mEth.address, debtAmount)
+
+            // then
+            expect(await debtToken.balanceOf(user1.address)).to.eq(0)
+            const {_lockedCollateral: lockedCollateralAfter} = await mBOX.debtPositionOf(user1.address)
+            expect(lockedCollateralAfter).to.eq(0)
           })
         })
       })

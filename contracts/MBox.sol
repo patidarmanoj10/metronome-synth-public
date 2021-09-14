@@ -34,27 +34,32 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
     mapping(address => ISyntheticAsset) public syntheticAssetsByAddress;
 
     /**
-     * @notice Event emitted when collateral is deposited
+     * @notice Emitted when collateral is deposited
      */
     event CollateralDeposited(address indexed account, uint256 amount);
 
     /**
-     * @notice Event emitted when collateral is withdrawn
+     * @notice Emitted when collateral is withdrawn
      */
     event CollateralWithdrawn(address indexed account, uint256 amount);
 
     /**
-     * @notice Event emitted when synthetic asset is minted
+     * @notice Emitted when synthetic asset is minted
      */
-    event SyntheticAssetMinted(address indexed account, uint256 amount);
+    event SyntheticAssetMinted(address indexed account, address syntheticAsseet, uint256 amount);
 
     /**
-     * @notice Event emitted when synthetic asset is enabled
+     * @notice Emitted when synthetic's debt is repayed
+     */
+    event DebtRepayed(address indexed account, address syntheticAsseet, uint256 amount);
+
+    /**
+     * @notice Emitted when synthetic asset is enabled
      */
     event SyntheticAssetAdded(address indexed syntheticAsset);
 
     /**
-     * @notice Event emitted when synthetic asset is disabled
+     * @notice Emitted when synthetic asset is disabled
      */
     event SyntheticAssetRemoved(address indexed syntheticAsset);
 
@@ -177,7 +182,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
      * @param _amount The amount to mint
      */
     function mint(ISyntheticAsset _syntheticAsset, uint256 _amount)
-        public
+        external
         onlyIfSyntheticAssetExists(_syntheticAsset)
         nonReentrant
     {
@@ -193,7 +198,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
 
         _syntheticAsset.mint(_account, _amount);
 
-        emit SyntheticAssetMinted(_account, _amount);
+        emit SyntheticAssetMinted(_account, address(_syntheticAsset), _amount);
     }
 
     /**
@@ -220,7 +225,23 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
     /**
      * @notice Unlock mBOX-MET and burn mEth
      */
-    function repay(uint256 _amount) external nonReentrant {}
+    function repay(ISyntheticAsset _syntheticAsset, uint256 _amount)
+        external
+        onlyIfSyntheticAssetExists(_syntheticAsset)
+        nonReentrant
+    {
+        require(_amount > 0, "amount-to-repay-is-zero");
+
+        address _account = _msgSender();
+
+        require(_amount <= _syntheticAsset.debtToken().balanceOf(_account), "amount-to-repay-gt-debt");
+
+        _syntheticAsset.burn(_account, _amount);
+
+        _syntheticAsset.debtToken().burn(_account, _amount);
+
+        emit DebtRepayed(_account, address(_syntheticAsset), _amount);
+    }
 
     /**
      * @notice Burn mEth, unlock mBOX-MET and send liquidator fee

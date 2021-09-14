@@ -14,5 +14,7 @@ interface ISyntheticAsset is IERC20 {
 
     function mint(address _to, uint256 amount) external;
 
+    function burn(address _from, uint256 amount) external;
+
     function setCollateralizationRatio(uint256 _newCollateralizationRatio) external;
 }

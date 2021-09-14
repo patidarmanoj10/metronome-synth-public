@@ -49,6 +49,15 @@ contract SyntheticAsset is ERC20, Ownable, ISyntheticAsset {
     }
 
     /**
+     * @notice Burn synthetic asset
+     * @param _from The account to burn from
+     * @param _amount The amount to burn
+     */
+    function burn(address _from, uint256 _amount) public override onlyOwner {
+        _burn(_from, _amount);
+    }
+
+    /**
      * @notice Set collateralization ratio
      * @param _newCollateralizationRatio The new CR value
      */
