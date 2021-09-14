@@ -88,7 +88,7 @@ contract MBox is Ownable, ReentrancyGuard {
         _lockedCollateral = oracle.convertFromUSD(collateral.underlyingAsset(), _debtInUsdWithCollateralizationRatio);
     }
 
-    /// @notice Get debt report from an account
+    /// @notice Get debt position from an account
     function debtPositionOf(address _account)
         public
         view

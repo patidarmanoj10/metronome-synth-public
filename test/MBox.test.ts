@@ -191,9 +191,17 @@ describe('MBox', function () {
     it('should mint mEth', async function () {
       // given
       const maxIssuableBefore = await mBOX.maxIssuableFor(user1.address, mEth.address)
-      const {_freeCollateral: freeCollateralBefore} = await mBOX.debtPositionOf(user1.address)
-      expect(maxIssuableBefore).to.eq(parseEther('4')) // 4 ETH = $16K
-      expect(freeCollateralBefore).to.eq(parseEther('6000')) // 6K MET = $24K
+      expect(maxIssuableBefore).to.eq(
+        collateralDeposit.mul(metRate).div(collateralizationRatio).mul(parseEther('1')).div(ethRate)
+      ) // 4 ETH
+
+      expect(await mBOX.debtPositionOf(user1.address)).to.deep.eq([
+        BigNumber.from(0), // _debtInUsd
+        collateralDeposit.mul(metRate).div(parseEther('1')), // _collateralInUsd
+        collateralDeposit, // _collateral
+        collateralDeposit, // _freeCollateral
+        BigNumber.from(0), // _lockedCollateral
+      ])
 
       // when
       const amountToMint = parseEther('1')
@@ -202,9 +210,15 @@ describe('MBox', function () {
       // then
       await expect(tx).changeTokenBalances(mEth, [user1], [amountToMint])
       const maxIssuableAfter = await mBOX.maxIssuableFor(user1.address, mEth.address)
-      const {_freeCollateral: freeCollateralAfter} = await mBOX.debtPositionOf(user1.address)
-      expect(freeCollateralAfter).to.eq(parseEther('4500')) // 4.5K MET = $18K
       expect(maxIssuableAfter).to.eq(maxIssuableBefore.sub(amountToMint)).and.to.eq(parseEther('3')) // 3 ETH = $12K
+      const expectedLocked = amountToMint.mul(ethRate).mul(collateralizationRatio).div(metRate).div(parseEther('1'))
+      expect(await mBOX.debtPositionOf(user1.address)).to.deep.eq([
+        amountToMint.mul(ethRate).div(parseEther('1')), // _debtInUsd
+        collateralDeposit.mul(metRate).div(parseEther('1')), // _collateralInUsd
+        collateralDeposit, // _collateral
+        collateralDeposit.sub(expectedLocked), // _freeCollateral
+        expectedLocked, // _lockedCollateral
+      ])
 
       // Note: the calls below will make additional transfers
       await expect(tx).changeTokenBalances(debtToken, [user1], [amountToMint])
