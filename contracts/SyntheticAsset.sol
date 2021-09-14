@@ -7,16 +7,24 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interface/ISyntheticAsset.sol";
 import "./interface/IDebt.sol";
 
-/// @title Synthetic Asset contract
+/**
+ * @title Synthetic Asset contract
+ */
 contract SyntheticAsset is ERC20, Ownable, ISyntheticAsset {
-    /// @notice Synthetic underlying asset
+    /**
+     * @notice Synthetic underlying asset
+     */
     address public override underlyingAsset;
 
-    /// @notice Non-transferable token that represents users' debts
+    /**
+     * @notice Non-transferable token that represents users' debts
+     */
     IDebt public override debtToken;
 
-    /// @notice Collaterization ration for the synthetic asset
-    /// @dev Use 18 decimals (e.g. 15e17 = 150%)
+    /**
+     * @notice Collaterization ration for the synthetic asset
+     * @dev Use 18 decimals (e.g. 15e17 = 150%)
+     */
     uint256 public override collateralizationRatio;
 
     constructor(
@@ -31,10 +39,19 @@ contract SyntheticAsset is ERC20, Ownable, ISyntheticAsset {
         setCollateralizationRatio(_collateralizationRatio);
     }
 
+    /**
+     * @notice Mint synthetic asset
+     * @param _to The account to mint to
+     * @param _amount The amount to mint
+     */
     function mint(address _to, uint256 _amount) public override onlyOwner {
         _mint(_to, _amount);
     }
 
+    /**
+     * @notice Set collateralization ratio
+     * @param _newCollateralizationRatio The new CR value
+     */
     function setCollateralizationRatio(uint256 _newCollateralizationRatio) public override onlyOwner {
         require(_newCollateralizationRatio >= 1e18, "collaterization-ratio-lt-100%");
         collateralizationRatio = _newCollateralizationRatio;
