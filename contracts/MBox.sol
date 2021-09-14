@@ -9,11 +9,12 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./interface/ISyntheticAsset.sol";
 import "./interface/IOracle.sol";
 import "./interface/ICollateral.sol";
+import "./interface/IMBox.sol";
 
 /**
  * @title mBOX main contract
  */
-contract MBox is Ownable, ReentrancyGuard {
+contract MBox is Ownable, ReentrancyGuard, IMBox {
     using SafeERC20 for IERC20;
 
     /// @notice Represents MET collateral deposits (mBOX-MET token)
@@ -30,11 +31,6 @@ contract MBox is Ownable, ReentrancyGuard {
     event SyntheticAssetMinted(address indexed account, uint256 amount);
     event SyntheticAssetAdded(address indexed syntheticAsset);
     event SyntheticAssetRemoved(address indexed syntheticAsset);
-
-    constructor(ICollateral _collateral, IOracle _oracle) {
-        collateral = _collateral;
-        oracle = _oracle;
-    }
 
     modifier onlyIfSyntheticAssetExists(ISyntheticAsset _syntheticAsset) {
         require(
@@ -92,6 +88,7 @@ contract MBox is Ownable, ReentrancyGuard {
     function debtPositionOf(address _account)
         public
         view
+        override
         returns (
             uint256 _debtInUsd,
             uint256 _collateralInUsd,
@@ -192,5 +189,15 @@ contract MBox is Ownable, ReentrancyGuard {
         delete syntheticAssetsByAddress[_syntheticAddress];
 
         emit SyntheticAssetRemoved(_syntheticAddress);
+    }
+
+    /// @notice Set collateral (mBOX-MET) contract
+    function setCollateral(ICollateral _collateral) public onlyOwner {
+        collateral = _collateral;
+    }
+
+    /// @notice Set price oracle contract
+    function setOracle(IOracle _oracle) public onlyOwner {
+        oracle = _oracle;
     }
 }

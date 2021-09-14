@@ -58,13 +58,16 @@ describe('MBox', function () {
     await mEth.deployed()
 
     const mBoxFactory = new MBox__factory(deployer)
-    mBOX = await mBoxFactory.deploy(collateral.address, oracle.address)
+    mBOX = await mBoxFactory.deploy()
     await mBOX.deployed()
 
     // Deployment tasks
     await mEth.transferOwnership(mBOX.address)
+    await collateral.setMBox(mBOX.address)
     await collateral.transferOwnership(mBOX.address)
     await debtToken.transferOwnership(mBOX.address)
+    await mBOX.setCollateral(collateral.address)
+    await mBOX.setOracle(oracle.address)
     await mBOX.addSyntheticAsset(mEth.address)
 
     // mint some MET to users
