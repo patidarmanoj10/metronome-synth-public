@@ -59,31 +59,67 @@ contract MBox is Ownable, ReentrancyGuard {
 
     /**
      * @notice Total debt of a user in USD
-     * @dev We can optimize this function by storing an array of which synthetic the user minted avoiding looping all
+     * @dev We can optimize this function by storing an array of which synthetics the user minted avoiding looping all
      */
-    function _debtInUsdOf(address _account) private view returns (uint256 _debtInUsd) {
+    function _debtInUsdOf(address _account, bool _withCollateralizationRatio)
+        private
+        view
+        returns (uint256 _debtInUsd)
+    {
         for (uint256 i = 0; i < syntheticAssets.length; ++i) {
             uint256 amount = syntheticAssets[i].balanceOf(_account);
+
             if (amount > 0) {
+                if (_withCollateralizationRatio) {
+                    amount = (amount * syntheticAssets[i].collateralizationRatio()) / 1e18;
+                }
+
                 _debtInUsd += oracle.convertToUSD(syntheticAssets[i].underlyingAsset(), amount);
             }
         }
     }
 
+    /**
+     * @notice Get total amount of collateral that's covering the user's debt
+     * @dev We can optimize this function by storing an array of which synthetics the user minted avoiding looping all
+     */
+    function _lockedCollateralOf(address _account) private view returns (uint256 _lockedCollateral) {
+        uint256 _debtInUsdWithCollateralizationRatio = _debtInUsdOf(_account, true);
+        _lockedCollateral = oracle.convertFromUSD(collateral.underlyingAsset(), _debtInUsdWithCollateralizationRatio);
+    }
+
     /// @notice Get debt report from an account
-    function issuanceReportOf(address _account, ISyntheticAsset _syntheticAsset)
+    function debtPositionOf(address _account)
         public
         view
-        returns (uint256 _maxIssuable, uint256 _freeCollateral)
+        returns (
+            uint256 _debtInUsd,
+            uint256 _collateralInUsd,
+            uint256 _collateral,
+            uint256 _freeCollateral,
+            uint256 _lockedCollateral
+        )
     {
-        uint256 _collateral = collateral.balanceOf(_account);
-        uint256 _collateralInUsd = oracle.convertToUSD(collateral.underlyingAsset(), _collateral);
-        uint256 _debtInUsd = _debtInUsdOf(_account);
+        _debtInUsd = _debtInUsdOf(_account, false);
 
-        uint256 _freeCollateralInUsd = _collateralInUsd -
-            ((_debtInUsd * _syntheticAsset.collateralizationRatio()) / 1e18);
+        _collateral = collateral.balanceOf(_account);
 
-        _freeCollateral = oracle.convertFromUSD(collateral.underlyingAsset(), _freeCollateralInUsd);
+        _collateralInUsd = oracle.convertToUSD(collateral.underlyingAsset(), _collateral);
+
+        _lockedCollateral = _lockedCollateralOf(_account);
+
+        _freeCollateral = _collateral - _lockedCollateral;
+    }
+
+    /// @notice Get max amount issuable for a synthetic asset
+    function maxIssuableFor(address _account, ISyntheticAsset _syntheticAsset)
+        public
+        view
+        returns (uint256 _maxIssuable)
+    {
+        (, , , uint256 _freeCollateral, ) = debtPositionOf(_account);
+
+        uint256 _freeCollateralInUsd = oracle.convertToUSD(collateral.underlyingAsset(), _freeCollateral);
 
         uint256 _maxIssuableInUsd = (_freeCollateralInUsd * 1e18) / _syntheticAsset.collateralizationRatio();
 
@@ -100,7 +136,7 @@ contract MBox is Ownable, ReentrancyGuard {
 
         address _from = _msgSender();
 
-        (uint256 _maxIssuable, ) = issuanceReportOf(_from, _syntheticAsset);
+        uint256 _maxIssuable = maxIssuableFor(_from, _syntheticAsset);
 
         require(_amount <= _maxIssuable, "not-enough-collateral");
 

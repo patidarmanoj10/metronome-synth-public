@@ -190,10 +190,8 @@ describe('MBox', function () {
 
     it('should mint mEth', async function () {
       // given
-      const {_maxIssuable: maxIssuableBefore, _freeCollateral: freeCollateralBefore} = await mBOX.issuanceReportOf(
-        user1.address,
-        mEth.address
-      )
+      const maxIssuableBefore = await mBOX.maxIssuableFor(user1.address, mEth.address)
+      const {_freeCollateral: freeCollateralBefore} = await mBOX.debtPositionOf(user1.address)
       expect(maxIssuableBefore).to.eq(parseEther('4')) // 4 ETH = $16K
       expect(freeCollateralBefore).to.eq(parseEther('6000')) // 6K MET = $24K
 
@@ -203,12 +201,10 @@ describe('MBox', function () {
 
       // then
       await expect(tx).changeTokenBalances(mEth, [user1], [amountToMint])
-      const {_maxIssuable: maxIssuableAfter, _freeCollateral: freeCollateralAfter} = await mBOX.issuanceReportOf(
-        user1.address,
-        mEth.address
-      )
-      expect(maxIssuableAfter).to.eq(maxIssuableBefore.sub(amountToMint)).and.to.eq(parseEther('3')) // 3 ETH = $12K
+      const maxIssuableAfter = await mBOX.maxIssuableFor(user1.address, mEth.address)
+      const {_freeCollateral: freeCollateralAfter} = await mBOX.debtPositionOf(user1.address)
       expect(freeCollateralAfter).to.eq(parseEther('4500')) // 4.5K MET = $18K
+      expect(maxIssuableAfter).to.eq(maxIssuableBefore.sub(amountToMint)).and.to.eq(parseEther('3')) // 3 ETH = $12K
 
       // Note: the calls below will make additional transfers
       await expect(tx).changeTokenBalances(debtToken, [user1], [amountToMint])
