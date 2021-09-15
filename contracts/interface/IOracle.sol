@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.3;
+pragma solidity 0.8.6;
 
 interface IOracle {
     function rateOf(address _asset) external returns (uint256);

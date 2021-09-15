@@ -63,7 +63,7 @@
     "lodash": "^4.17.21",
     "p-series": "^3.0.0",
     "prettier-plugin-solidity": "^1.0.0-beta.18",
-    "solc": "0.8.3",
+    "solc": "0.8.6",
     "solhint": "^3.3.6",
     "solhint-plugin-prettier": "^0.0.5",
     "solidity-coverage": "^0.7.17",

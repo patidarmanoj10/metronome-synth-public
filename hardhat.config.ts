@@ -52,7 +52,7 @@ const config: HardhatUserConfig = {
     enabled: process.env.REPORT_GAS === 'true',
   },
   solidity: {
-    version: '0.8.3',
+    version: '0.8.6',
     settings: {
       optimizer: {
         enabled: true,
