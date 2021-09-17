@@ -3,12 +3,19 @@ import {parseEther} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
-import {DepositToken__factory, DepositToken, METMock__factory, METMock, MBoxMock, MBoxMock__factory} from '../typechain'
+import {
+  DepositToken__factory,
+  DepositToken,
+  ERC20Mock__factory,
+  ERC20Mock,
+  MBoxMock,
+  MBoxMock__factory,
+} from '../typechain'
 
 describe('DepositToken', function () {
   let deployer: SignerWithAddress
   let user: SignerWithAddress
-  let met: METMock
+  let met: ERC20Mock
   let mBox: MBoxMock
   let depositToken: DepositToken
 
@@ -16,8 +23,8 @@ describe('DepositToken', function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[deployer, user] = await ethers.getSigners()
 
-    const metMockFactory = new METMock__factory(deployer)
-    met = await metMockFactory.deploy()
+    const metMockFactory = new ERC20Mock__factory(deployer)
+    met = await metMockFactory.deploy('Metronome', 'MET')
     await met.deployed()
 
     const depositTokenFactory = new DepositToken__factory(deployer)
@@ -71,16 +78,33 @@ describe('DepositToken', function () {
       })
 
       it('should transfer if amount <= free amount', async function () {
-        const {_unlockedCollateral} = await mBox.debtPositionOf(user.address)
+        const {_unlockedDeposit} = await mBox.debtPositionOf(user.address)
         expect(await depositToken.balanceOf(user.address)).to.eq(amount)
-        await depositToken.connect(user).transfer(deployer.address, _unlockedCollateral)
-        expect(await depositToken.balanceOf(user.address)).to.eq(amount.sub(_unlockedCollateral))
+        await depositToken.connect(user).transfer(deployer.address, _unlockedDeposit)
+        expect(await depositToken.balanceOf(user.address)).to.eq(amount.sub(_unlockedDeposit))
       })
 
       it('should revert if amount > free amount', async function () {
-        const {_unlockedCollateral} = await mBox.debtPositionOf(user.address)
-        const tx = depositToken.connect(user).transfer(deployer.address, _unlockedCollateral.add('1'))
+        const {_unlockedDeposit} = await mBox.debtPositionOf(user.address)
+        const tx = depositToken.connect(user).transfer(deployer.address, _unlockedDeposit.add('1'))
         await expect(tx).to.revertedWith('not-enough-free-balance')
+      })
+    })
+
+    describe('seize', function () {
+      it('should revert if not owner', async function () {
+        const tx = depositToken.connect(user).seize(user.address, deployer.address, parseEther('10'))
+        await expect(tx).to.revertedWith('Ownable: caller is not the owner')
+      })
+
+      it('should seize tokens', async function () {
+        const amountToSeize = parseEther('10')
+        const tx = () => depositToken.seize(user.address, deployer.address, amountToSeize)
+        await expect(tx).to.changeTokenBalances(
+          depositToken,
+          [user, deployer],
+          [amountToSeize.mul('-1'), amountToSeize]
+        )
       })
     })
   })

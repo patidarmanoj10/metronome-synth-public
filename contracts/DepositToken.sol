@@ -28,6 +28,15 @@ contract DepositToken is ERC20, Ownable, IDepositToken {
     }
 
     /**
+     * @notice Requires that amount is lower than the account's unlocked balance
+     */
+    modifier onlyIfNotLocked(address _account, uint256 _amount) {
+        (, , , , , uint256 _unlockedDeposit, ) = mBox.debtPositionOf(_account);
+        require(_unlockedDeposit >= _amount, "not-enough-free-balance");
+        _;
+    }
+
+    /**
      * @notice Mint deposit token
      * @param _to The account to mint to
      * @param _amount The amount to mint
@@ -41,26 +50,40 @@ contract DepositToken is ERC20, Ownable, IDepositToken {
      * @param _from The account to burn from
      * @param _amount The amount to burn
      */
-    function burn(address _from, uint256 _amount) public override onlyOwner {
+    function burn(address _from, uint256 _amount) public override onlyOwner onlyIfNotLocked(_from, _amount) {
         _burn(_from, _amount);
     }
 
-    /**
-     * @notice Use _beforeTokenTransfer hook to lock collateral that's covering debt position
-     * @dev Should skip check when minting
-     */
-    function _beforeTokenTransfer(
-        address from,
-        address, /*to*/
-        uint256 amount
-    ) internal view override {
-        // allow minting
-        if (from == address(0)) {
-            return;
-        }
+    function transfer(address _to, uint256 _amount)
+        public
+        override(ERC20, IERC20)
+        onlyIfNotLocked(_msgSender(), _amount)
+        returns (bool)
+    {
+        return ERC20.transfer(_to, _amount);
+    }
 
-        (, , , uint256 _unlockedCollateral, ) = mBox.debtPositionOf(from);
-        require(_unlockedCollateral >= amount, "not-enough-free-balance");
+    function transferFrom(
+        address _sender,
+        address _recipient,
+        uint256 _amount
+    ) public override(ERC20, IERC20) onlyIfNotLocked(_sender, _amount) returns (bool) {
+        return ERC20.transferFrom(_sender, _recipient, _amount);
+    }
+
+    /**
+     * @notice Seize deposit token
+     * @dev Same as _transfer
+     * @param _from The account to burn from
+     * @param _to The acount to receive token
+     * @param _amount The amount to burn
+     */
+    function seize(
+        address _from,
+        address _to,
+        uint256 _amount
+    ) public override onlyOwner {
+        _transfer(_from, _to, _amount);
     }
 
     /**

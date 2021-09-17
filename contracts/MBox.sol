@@ -18,7 +18,12 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
     using SafeERC20 for IERC20;
 
     /**
-     * @notice Represents MET collateral deposits (mBOX-MET token)
+     * @notice The fee that is used as liquidation incentive
+     */
+    uint256 public liquidatorFee;
+
+    /**
+     * @notice Represents MET collateral's deposits (mBOX-MET token)
      */
     IDepositToken public depositToken;
 
@@ -52,6 +57,17 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
      * @notice Emitted when synthetic's debt is repayed
      */
     event DebtRepayed(address indexed account, address syntheticAsseet, uint256 amount);
+
+    /**
+     * @notice Emitted when a position is liquidated
+     */
+    event PositionLiquidated(
+        address indexed liquidator,
+        address indexed account,
+        address syntheticAsseet,
+        uint256 debtRepayed,
+        uint256 depositSeized
+    );
 
     /**
      * @notice Emitted when synthetic asset is enabled
@@ -93,66 +109,82 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
     }
 
     /**
-     * @notice Get total debt of a user in USD
-     * @dev We can optimize this function by storing an array of which synthetics the user minted avoiding looping all
+     * @notice Get account's debt in USD
+     * @dev We can optimize this function by storing an array of which synthetics the account minted avoiding looping all
      * @param _account The account to check
-     * @param _withCollateralizationRatio Whether should consider the total of collateralization of just the debt itself
      * @return _debtInUsd The debt value in USD
+     * @return _debtInUsdWithCollateralization The debt value in USD considering collateralization ratios
      */
-    function _debtInUsdOf(address _account, bool _withCollateralizationRatio)
+    function _debtOf(address _account)
         private
         view
-        returns (uint256 _debtInUsd)
+        returns (uint256 _debtInUsd, uint256 _debtInUsdWithCollateralization)
     {
         for (uint256 i = 0; i < syntheticAssets.length; ++i) {
-            uint256 debtAmount = syntheticAssets[i].debtToken().balanceOf(_account);
+            uint256 _amount = syntheticAssets[i].debtToken().balanceOf(_account);
+            if (_amount > 0) {
+                uint256 _amountInUsd = oracle.convertToUSD(syntheticAssets[i].underlying(), _amount);
 
-            if (debtAmount > 0) {
-                if (_withCollateralizationRatio) {
-                    debtAmount = (debtAmount * syntheticAssets[i].collateralizationRatio()) / 1e18;
-                }
-
-                _debtInUsd += oracle.convertToUSD(syntheticAssets[i].underlying(), debtAmount);
+                _debtInUsd += _amountInUsd;
+                _debtInUsdWithCollateralization += (_amountInUsd * syntheticAssets[i].collateralizationRatio()) / 1e18;
             }
         }
     }
 
     /**
-     * @notice Get total amount of collateral that's covering the user's debt
+     * @notice Get total amount of deposit that's covering the account's debt
      * @param _account The account to check
-     * @return _lockedCollateral The amount of collateral token that's covering the user's debt
+     * @return _deposit The total amount of account's deposits
+     * @return _unlockedDeposit The amount of deposit that isn't covering the account's debt
+     * @return _lockedDeposit The amount of deposit that's covering the account's debt
      */
-    function _lockedCollateralOf(address _account) private view returns (uint256 _lockedCollateral) {
-        uint256 _debtInUsdWithCollateralizationRatio = _debtInUsdOf(_account, true);
-        _lockedCollateral = oracle.convertFromUSD(depositToken.underlying(), _debtInUsdWithCollateralizationRatio);
+    function _depositOf(address _account)
+        private
+        view
+        returns (
+            uint256 _deposit,
+            uint256 _unlockedDeposit,
+            uint256 _lockedDeposit
+        )
+    {
+        (, uint256 _debtInUsdWithCollateralization) = _debtOf(_account);
+        _lockedDeposit = oracle.convertFromUSD(depositToken.underlying(), _debtInUsdWithCollateralization);
+        _deposit = depositToken.balanceOf(_account);
+        if (_lockedDeposit > _deposit) {
+            _lockedDeposit = _deposit;
+        }
+        _unlockedDeposit = _deposit - _lockedDeposit;
     }
 
     /**
      * @notice Get debt position from an account
      * @param _account The account to check
-     * @return _debtInUsd The total debt (in USD) without consider collateralization ratio
-     * @return _collateralInUsd The total collateral deposited (in USD)
-     * @return _collateral The total collateral deposited
-     * @return _unlockedCollateral The amount of collateral that isn't covering the user's debt
-     * @return _lockedCollateral The amount of collateral that is covering the user's debt
+     * @return _isHealthy Whether the account's position is healthy
+     * @return _debtInUsd The total debt in USD
+     * @return _debtInUsdWithCollateralization The total debt in USD considering collateralization ratio
+     * @return _depositInUsd The total collateral deposited in USD
+     * @return _deposit The total amount of account's deposits
+     * @return _unlockedDeposit The amount of deposit that isn't covering the account's debt
+     * @return _lockedDeposit The amount of deposit that's covering the account's debt
      */
     function debtPositionOf(address _account)
         public
         view
         override
         returns (
+            bool _isHealthy,
             uint256 _debtInUsd,
-            uint256 _collateralInUsd,
-            uint256 _collateral,
-            uint256 _unlockedCollateral,
-            uint256 _lockedCollateral
+            uint256 _debtInUsdWithCollateralization,
+            uint256 _depositInUsd,
+            uint256 _deposit,
+            uint256 _unlockedDeposit,
+            uint256 _lockedDeposit
         )
     {
-        _debtInUsd = _debtInUsdOf(_account, false);
-        _collateral = depositToken.balanceOf(_account);
-        _collateralInUsd = oracle.convertToUSD(depositToken.underlying(), _collateral);
-        _lockedCollateral = _lockedCollateralOf(_account);
-        _unlockedCollateral = _collateral - _lockedCollateral;
+        (_deposit, _unlockedDeposit, _lockedDeposit) = _depositOf(_account);
+        _depositInUsd = oracle.convertToUSD(depositToken.underlying(), _deposit);
+        (_debtInUsd, _debtInUsdWithCollateralization) = _debtOf(_account);
+        _isHealthy = _depositInUsd >= _debtInUsdWithCollateralization;
     }
 
     /**
@@ -167,11 +199,11 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
         onlyIfSyntheticAssetExists(_syntheticAsset)
         returns (uint256 _maxIssuable)
     {
-        (, , , uint256 _unlockedCollateral, ) = debtPositionOf(_account);
+        (, , , , , uint256 _unlockedDeposit, ) = debtPositionOf(_account);
 
-        uint256 _unlockedCollateralInUsd = oracle.convertToUSD(depositToken.underlying(), _unlockedCollateral);
+        uint256 _unlockedDepositInUsd = oracle.convertToUSD(depositToken.underlying(), _unlockedDeposit);
 
-        uint256 _maxIssuableInUsd = (_unlockedCollateralInUsd * 1e18) / _syntheticAsset.collateralizationRatio();
+        uint256 _maxIssuableInUsd = (_unlockedDepositInUsd * 1e18) / _syntheticAsset.collateralizationRatio();
 
         _maxIssuable = oracle.convertFromUSD(_syntheticAsset.underlying(), _maxIssuableInUsd);
     }
@@ -202,16 +234,17 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
     }
 
     /**
-     * @notice  @notice Burn mBOX-MET and withdraw MET
+     * @notice Burn mBOX-MET and withdraw MET
+     * @param _amount The amount of MET to withdraw
      */
     function withdraw(uint256 _amount) external nonReentrant {
         require(_amount > 0, "amount-to-withdraw-is-zero");
 
         address _account = _msgSender();
 
-        (, , , uint256 _unlockedCollateral, ) = debtPositionOf(_account);
+        (, , , , , uint256 _unlockedDeposit, ) = debtPositionOf(_account);
 
-        require(_amount <= _unlockedCollateral, "amount-to-withdraw-gt-unlocked");
+        require(_amount <= _unlockedDeposit, "amount-to-withdraw-gt-unlocked");
 
         depositToken.burn(_account, _amount);
 
@@ -223,30 +256,69 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
     }
 
     /**
-     * @notice Unlock mBOX-MET and burn mEth
+     * @notice Send synthetic asset to decrease debt
+     * @dev Burn synthetic asset and equivalent debt token to unlock deposit token (mBOX-MET)
+     * @param _syntheticAsset The synthetic asset to burn
+     * @param _account The account that will have debt decreased
+     * @param _payer The account to burn synthetic asset from
+     * @param _amount The amount of synthetic asset to burn
      */
-    function repay(ISyntheticAsset _syntheticAsset, uint256 _amount)
-        external
-        onlyIfSyntheticAssetExists(_syntheticAsset)
-        nonReentrant
-    {
+    function _repay(
+        ISyntheticAsset _syntheticAsset,
+        address _account,
+        address _payer,
+        uint256 _amount
+    ) private onlyIfSyntheticAssetExists(_syntheticAsset) {
         require(_amount > 0, "amount-to-repay-is-zero");
-
-        address _account = _msgSender();
-
-        require(_amount <= _syntheticAsset.debtToken().balanceOf(_account), "amount-to-repay-gt-debt");
-
-        _syntheticAsset.burn(_account, _amount);
+        require(_amount <= _syntheticAsset.debtToken().balanceOf(_account), "amount-gt-burnable-debt");
+        require(_amount <= _syntheticAsset.balanceOf(_payer), "amount-gt-burnable-synthetic");
 
         _syntheticAsset.debtToken().burn(_account, _amount);
+        _syntheticAsset.burn(_payer, _amount);
 
         emit DebtRepayed(_account, address(_syntheticAsset), _amount);
     }
 
     /**
+     * @notice Send synthetic asset to decrease debt
+     * @dev The msg.sender is the payer and the account beneficied
+     * @param _syntheticAsset The synthetic asset to burn
+     * @param _amount The amount of synthetic asset to burn
+     */
+    function repay(ISyntheticAsset _syntheticAsset, uint256 _amount) external nonReentrant {
+        _repay(_syntheticAsset, _msgSender(), _msgSender(), _amount);
+    }
+
+    /**
      * @notice Burn mEth, unlock mBOX-MET and send liquidator fee
      */
-    function liquidate(address _account, uint256 _amountToRepay) external nonReentrant {}
+    function liquidate(
+        ISyntheticAsset _syntheticAsset,
+        address _account,
+        uint256 _amountToRepay
+    ) external nonReentrant {
+        require(_amountToRepay > 0, "amount-to-repay-is-zero");
+        address _liquidator = _msgSender();
+        require(_liquidator != _account, "can-not-liquidate-own-position");
+
+        (bool _isHealthy, , , , uint256 _depositBalance, , ) = debtPositionOf(_account);
+
+        require(!_isHealthy, "position-is-health");
+
+        _repay(_syntheticAsset, _account, _liquidator, _amountToRepay);
+
+        uint256 _amountToRepayInUsd = oracle.convertToUSD(_syntheticAsset.underlying(), _amountToRepay);
+
+        uint256 depositToSeizeInUsd = _amountToRepayInUsd + (_amountToRepayInUsd * liquidatorFee) / 1e18;
+
+        uint256 _depositToSeize = oracle.convertFromUSD(depositToken.underlying(), depositToSeizeInUsd);
+
+        require(_depositToSeize <= _depositBalance, "amount-to-repay-it-too-high");
+
+        depositToken.seize(_account, _liquidator, _depositToSeize);
+
+        emit PositionLiquidated(_liquidator, _account, address(_syntheticAsset), _amountToRepay, _depositToSeize);
+    }
 
     /**
      * @notice Deploy MET to yield generation strategy
@@ -296,7 +368,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
     }
 
     /**
-     * @notice @notice Set collateral (mBOX-MET) contract
+     * @notice Set deposit (mBOX-MET) contract
      */
     function setDepositToken(IDepositToken _depositToken) public onlyOwner {
         depositToken = _depositToken;
@@ -307,5 +379,12 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
      */
     function setOracle(IOracle _oracle) public onlyOwner {
         oracle = _oracle;
+    }
+
+    /**
+     * @notice Set liquidator fee
+     */
+    function setLiquidatorFee(uint256 _liquidatorFee) public onlyOwner {
+        liquidatorFee = _liquidatorFee;
     }
 }

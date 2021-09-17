@@ -13,8 +13,8 @@ contract MBoxMock is IMBox {
         depositToken = _depositToken;
     }
 
-    function updateLockedCollateral(uint256 _lockedCollateral) external {
-        lockedCollateral = _lockedCollateral;
+    function updateLockedCollateral(uint256 _lockedDeposit) external {
+        lockedCollateral = _lockedDeposit;
     }
 
     function debtPositionOf(address _account)
@@ -22,17 +22,21 @@ contract MBoxMock is IMBox {
         view
         override
         returns (
+            bool _isHealthy,
             uint256 _debtInUsd,
-            uint256 _collateralInUsd,
-            uint256 _collateral,
-            uint256 _unlockedCollateral,
-            uint256 _lockedCollateral
+            uint256 _debtInUsdWithCollateralization,
+            uint256 _depositInUsd,
+            uint256 _deposit,
+            uint256 _unlockedDeposit,
+            uint256 _lockedDeposit
         )
     {
+        _isHealthy = true;
         _debtInUsd = 0;
-        _collateralInUsd = 0;
-        _collateral = depositToken.balanceOf(_account);
-        _lockedCollateral = lockedCollateral;
-        _unlockedCollateral = _collateral - _lockedCollateral;
+        _debtInUsdWithCollateralization = 0;
+        _depositInUsd = 0;
+        _deposit = depositToken.balanceOf(_account);
+        _lockedDeposit = lockedCollateral;
+        _unlockedDeposit = _deposit - _lockedDeposit;
     }
 }
