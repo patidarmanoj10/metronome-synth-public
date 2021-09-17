@@ -301,19 +301,19 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
         address _liquidator = _msgSender();
         require(_liquidator != _account, "can-not-liquidate-own-position");
 
-        (bool _isHealthy, , , , uint256 _depositBalance, , ) = debtPositionOf(_account);
+        (bool _isHealthy, , , , uint256 _deposit, , ) = debtPositionOf(_account);
 
-        require(!_isHealthy, "position-is-health");
+        require(!_isHealthy, "position-is-healthy");
 
         _repay(_syntheticAsset, _account, _liquidator, _amountToRepay);
 
         uint256 _amountToRepayInUsd = oracle.convertToUSD(_syntheticAsset.underlying(), _amountToRepay);
 
-        uint256 depositToSeizeInUsd = _amountToRepayInUsd + (_amountToRepayInUsd * liquidatorFee) / 1e18;
+        uint256 _depositToSeizeInUsd = _amountToRepayInUsd + (_amountToRepayInUsd * liquidatorFee) / 1e18;
 
-        uint256 _depositToSeize = oracle.convertFromUSD(depositToken.underlying(), depositToSeizeInUsd);
+        uint256 _depositToSeize = oracle.convertFromUSD(depositToken.underlying(), _depositToSeizeInUsd);
 
-        require(_depositToSeize <= _depositBalance, "amount-to-repay-it-too-high");
+        require(_depositToSeize <= _deposit, "amount-to-repay-is-too-high");
 
         depositToken.seize(_account, _liquidator, _depositToSeize);
 

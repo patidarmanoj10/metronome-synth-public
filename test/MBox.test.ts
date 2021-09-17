@@ -392,7 +392,7 @@ describe('MBox', function () {
             const tx = mBOX.liquidate(mEth.address, user.address, parseEther('1'))
 
             // then
-            await expect(tx).to.revertedWith('position-is-health')
+            await expect(tx).to.revertedWith('position-is-healthy')
           })
 
           describe('when the position is unhealty (colalteral:debt >= 1)', function () {
@@ -618,7 +618,7 @@ describe('MBox', function () {
               const tx = mBOX.connect(liquidator).liquidate(mEth.address, user.address, amountToRepay)
 
               // then
-              await expect(tx).to.revertedWith('amount-to-repay-it-too-high')
+              await expect(tx).to.revertedWith('amount-to-repay-is-too-high')
             })
 
             it('should liquidate by repaying max enough debt to seize all deposit', async function () {
