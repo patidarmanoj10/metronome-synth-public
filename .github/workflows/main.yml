@@ -4,6 +4,7 @@ on:
     paths:
       - "test/*.js"
       - "contracts/**/*.sol"
+      - package*.json
 
 jobs:
   vesper-pool-test:
