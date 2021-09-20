@@ -50,6 +50,9 @@ const config: HardhatUserConfig = {
   },
   gasReporter: {
     enabled: process.env.REPORT_GAS === 'true',
+    outputFile: 'gas-report.txt',
+    noColors: true,
+    excludeContracts: ['mock/'],
   },
   solidity: {
     version: '0.8.6',

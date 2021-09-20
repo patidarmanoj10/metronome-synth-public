@@ -199,7 +199,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
         onlyIfSyntheticAssetExists(_syntheticAsset)
         returns (uint256 _maxIssuable)
     {
-        (, , , , , uint256 _unlockedDeposit, ) = debtPositionOf(_account);
+        (, uint256 _unlockedDeposit, ) = _depositOf(_account);
 
         uint256 _unlockedDepositInUsd = oracle.convertToUSD(depositToken.underlying(), _unlockedDeposit);
 
@@ -242,7 +242,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
 
         address _account = _msgSender();
 
-        (, , , , , uint256 _unlockedDeposit, ) = debtPositionOf(_account);
+        (, uint256 _unlockedDeposit, ) = _depositOf(_account);
 
         require(_amount <= _unlockedDeposit, "amount-to-withdraw-gt-unlocked");
 
