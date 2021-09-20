@@ -356,6 +356,82 @@ describe('MBox', function () {
           })
         })
 
+        describe('swap', function () {
+          it('should revert if amount == 0', async function () {
+            // when
+            const tx = mBOX.connect(user).swap(mEth.address, mDoge.address, 0)
+
+            // then
+            await expect(tx).to.revertedWith('amount-in-is-zero')
+          })
+
+          it('should revert if user has not enough balance', async function () {
+            // given
+            const mAssetInBalance = await mEth.balanceOf(user.address)
+
+            // when
+            const amountIn = mAssetInBalance.add('1')
+            const tx = mBOX.connect(user).swap(mEth.address, mDoge.address, amountIn)
+
+            // then
+            await expect(tx).to.revertedWith('amount-in-gt-synthetic-balance')
+          })
+
+          it('should revert if debt posistion becomes unhealty', async function () {
+            // Note: Using all MET collateral to mint max mETH possible (that has 150% CR)
+            // and try to swap all balance for mDOGE that has 200% CR
+
+            // given
+            const maxIssuable = await mBOX.maxIssuableFor(user.address, mEth.address)
+            await mBOX.connect(user).mint(mEth.address, maxIssuable)
+            const mAssetInBalance = await mEth.balanceOf(user.address)
+
+            // when
+            const amountIn = mAssetInBalance
+            const tx = mBOX.connect(user).swap(mEth.address, mDoge.address, amountIn)
+
+            // then
+            await expect(tx).to.revertedWith('debt-position-becomes-unhealthy')
+          })
+
+          it('should swap synthetic assets', async function () {
+            // given
+            const mAssetInBalanceBefore = await mEth.balanceOf(user.address)
+            const mAssetInDebtBalanceBefore = await mEthDebtToken.balanceOf(user.address)
+            const mAssetOutBalanceBefore = await mDoge.balanceOf(user.address)
+            const mAssetOutDebtBalanceBefore = await mDogeDebtToken.balanceOf(user.address)
+            expect(mAssetOutBalanceBefore).to.eq(0)
+            expect(mAssetOutDebtBalanceBefore).to.eq(0)
+            const {_debtInUsd: debtInUsdBefore} = await mBOX.debtPositionOf(user.address)
+
+            // when
+            const mAssetIn = mEth.address
+            const mAssetOut = mDoge.address
+            const amountIn = mAssetInBalanceBefore
+            const amountInUsd = amountIn.mul(ethRate).div(parseEther('1'))
+            const tx = await mBOX.connect(user).swap(mAssetIn, mAssetOut, amountIn)
+
+            // then
+            const expectedAmountOut = amountInUsd.mul(parseEther('1')).div(dogeRate)
+
+            await expect(tx)
+              .to.emit(mBOX, 'SyntheticAssetSwapped')
+              .withArgs(user.address, mAssetIn, mAssetOut, amountIn, expectedAmountOut)
+
+            const mAssetInBalanceAfter = await mEth.balanceOf(user.address)
+            const mAssetInDebtBalanceAfter = await mEthDebtToken.balanceOf(user.address)
+            const mAssetOutBalanceAfter = await mDoge.balanceOf(user.address)
+            const mAssetOutDebtBalanceAfter = await mDogeDebtToken.balanceOf(user.address)
+            const {_debtInUsd: debtInUsdAfter} = await mBOX.debtPositionOf(user.address)
+
+            expect(debtInUsdAfter).to.eq(debtInUsdBefore)
+            expect(mAssetInBalanceAfter).to.eq(mAssetInBalanceBefore.sub(amountIn))
+            expect(mAssetInDebtBalanceAfter).to.eq(mAssetInDebtBalanceBefore.sub(amountIn))
+            expect(mAssetOutBalanceAfter).to.eq(mAssetOutBalanceBefore.add(expectedAmountOut))
+            expect(mAssetOutDebtBalanceAfter).to.eq(mAssetOutDebtBalanceBefore.add(expectedAmountOut))
+          })
+        })
+
         describe('liquidate', function () {
           const liquidatorDepositAmount = parseEther('100000')
           const liquidatorMintAmount = parseEther('2')

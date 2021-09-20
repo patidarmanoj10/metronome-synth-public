@@ -70,6 +70,17 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
     );
 
     /**
+     * @notice Emitted when synthetic asset is swapped
+     */
+    event SyntheticAssetSwapped(
+        address indexed account,
+        address syntheticAsseetIn,
+        address syntheticAsseetOut,
+        uint256 amountIn,
+        uint256 amountOut
+    );
+
+    /**
      * @notice Emitted when synthetic asset is enabled
      */
     event SyntheticAssetAdded(address indexed syntheticAsset);
@@ -318,6 +329,50 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
         depositToken.seize(_account, _liquidator, _depositToSeize);
 
         emit PositionLiquidated(_liquidator, _account, address(_syntheticAsset), _amountToRepay, _depositToSeize);
+    }
+
+    /**
+     * @notice Swap synthetic assets
+     * @param _syntheticAssetIn Synthetic asset to sell
+     * @param _syntheticAssetOut Synthetic asset to buy
+     * @param _amountIn Amount to swap
+     */
+    function swap(
+        ISyntheticAsset _syntheticAssetIn,
+        ISyntheticAsset _syntheticAssetOut,
+        uint256 _amountIn
+    )
+        external
+        onlyIfSyntheticAssetExists(_syntheticAssetIn)
+        onlyIfSyntheticAssetExists(_syntheticAssetOut)
+        returns (uint256 _amountOut)
+    {
+        require(_amountIn > 0, "amount-in-is-zero");
+        address _account = _msgSender();
+        require(_amountIn <= _syntheticAssetIn.balanceOf(_account), "amount-in-gt-synthetic-balance");
+
+        uint256 _amountInUsd = oracle.convertToUSD(_syntheticAssetIn.underlying(), _amountIn);
+        _amountOut = oracle.convertFromUSD(_syntheticAssetOut.underlying(), _amountInUsd);
+
+        _syntheticAssetIn.burn(_account, _amountIn);
+        _syntheticAssetIn.debtToken().burn(_account, _amountIn);
+
+        _syntheticAssetOut.mint(_account, _amountOut);
+        _syntheticAssetOut.debtToken().mint(_account, _amountOut);
+
+        (bool _isHealthy, , , , , , ) = debtPositionOf(_account);
+
+        // Note: Keeping this check here for the sake of the business logic quick implementation
+        // TODO: Try to move this check to the top of this block for security reasons
+        require(_isHealthy, "debt-position-becomes-unhealthy");
+
+        emit SyntheticAssetSwapped(
+            _account,
+            address(_syntheticAssetIn),
+            address(_syntheticAssetOut),
+            _amountIn,
+            _amountOut
+        );
     }
 
     /**
