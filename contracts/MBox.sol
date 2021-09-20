@@ -34,6 +34,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
 
     /**
      * @notice Avaliable synthetic assets
+     * @dev The syntheticAssets[0] is mETH
      */
     ISyntheticAsset[] public syntheticAssets;
     mapping(address => ISyntheticAsset) public syntheticAssetsByAddress;
@@ -79,6 +80,11 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
         uint256 amountIn,
         uint256 amountOut
     );
+
+    /**
+     * @notice Emitted when debt is refinancied
+     */
+    event DebtRefinancied(address indexed account, address syntheticAsset, uint256 amount);
 
     /**
      * @notice Emitted when synthetic asset is enabled
@@ -333,22 +339,23 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
 
     /**
      * @notice Swap synthetic assets
+     * @param _account The account
      * @param _syntheticAssetIn Synthetic asset to sell
      * @param _syntheticAssetOut Synthetic asset to buy
      * @param _amountIn Amount to swap
      */
-    function swap(
+    function _swap(
+        address _account,
         ISyntheticAsset _syntheticAssetIn,
         ISyntheticAsset _syntheticAssetOut,
         uint256 _amountIn
     )
-        external
+        private
         onlyIfSyntheticAssetExists(_syntheticAssetIn)
         onlyIfSyntheticAssetExists(_syntheticAssetOut)
         returns (uint256 _amountOut)
     {
         require(_amountIn > 0, "amount-in-is-zero");
-        address _account = _msgSender();
         require(_amountIn <= _syntheticAssetIn.balanceOf(_account), "amount-in-gt-synthetic-balance");
 
         uint256 _amountInUsd = oracle.convertToUSD(_syntheticAssetIn.underlying(), _amountIn);
@@ -364,7 +371,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
 
         // Note: Keeping this check here for the sake of the business logic quick implementation
         // TODO: Try to move this check to the top of this block for security reasons
-        require(_isHealthy, "debt-position-becomes-unhealthy");
+        require(_isHealthy, "debt-position-ended-up-unhealthy");
 
         emit SyntheticAssetSwapped(
             _account,
@@ -373,6 +380,44 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
             _amountIn,
             _amountOut
         );
+    }
+
+    /**
+     * @notice Swap synthetic assets
+     * @param _syntheticAssetIn Synthetic asset to sell
+     * @param _syntheticAssetOut Synthetic asset to buy
+     * @param _amountIn Amount to swap
+     */
+    function swap(
+        ISyntheticAsset _syntheticAssetIn,
+        ISyntheticAsset _syntheticAssetOut,
+        uint256 _amountIn
+    ) external nonReentrant returns (uint256 _amountOut) {
+        address _account = _msgSender();
+        (bool _isHealthy, , , , , , ) = debtPositionOf(_account);
+        require(_isHealthy, "debt-position-is-unhealthy");
+
+        return _swap(_account, _syntheticAssetIn, _syntheticAssetOut, _amountIn);
+    }
+
+    /**
+     * @notice Refinance debt by swaping for mETH (that has lower collateralization ratio)
+     * @param _syntheticAssetIn Synthetic asset to sell
+     * @param _amountToRefinance Amount to refinance
+     */
+    function refinance(ISyntheticAsset _syntheticAssetIn, uint256 _amountToRefinance) external nonReentrant {
+        ISyntheticAsset _syntheticAssetOut = syntheticAssets[0]; // mETH
+        require(
+            _syntheticAssetIn.collateralizationRatio() > _syntheticAssetOut.collateralizationRatio(),
+            "in-cratio-is-lte-out-cratio"
+        );
+        address _account = _msgSender();
+        (bool _isHealthy, , , , , , ) = debtPositionOf(_account);
+        require(!_isHealthy, "debt-position-is-healthy");
+
+        _swap(_account, _syntheticAssetIn, _syntheticAssetOut, _amountToRefinance);
+
+        emit DebtRefinancied(_account, address(_syntheticAssetIn), _amountToRefinance);
     }
 
     /**
@@ -404,6 +449,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
 
         for (uint256 i = 0; i < syntheticAssets.length; i++) {
             if (syntheticAssets[i] == _synthetic) {
+                require(i > 0, "can-not-delete-meth");
                 delete syntheticAssets[i];
 
                 // Copy the last synthetic asset into the place of the one we just deleted
