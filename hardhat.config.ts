@@ -7,6 +7,7 @@ import 'hardhat-log-remover'
 import 'hardhat-gas-reporter'
 import 'hardhat-contract-sizer'
 import '@typechain/hardhat'
+import 'hardhat-spdx-license-identifier'
 import dotenv from 'dotenv'
 
 dotenv.config()
@@ -51,13 +52,17 @@ const config: HardhatUserConfig = {
     enabled: process.env.REPORT_GAS === 'true',
   },
   solidity: {
-    version: '0.8.3',
+    version: '0.8.6',
     settings: {
       optimizer: {
         enabled: true,
         runs: 200,
       },
     },
+  },
+  spdxLicenseIdentifier: {
+    overwrite: true,
+    runOnCompile: true,
   },
   mocha: {
     timeout: 200000,
