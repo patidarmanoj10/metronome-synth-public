@@ -109,24 +109,20 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
     }
 
     /**
-     * @notice Get account's debt in USD
+     * @notice Get account's debt
      * @dev We can optimize this function by storing an array of which synthetics the account minted avoiding looping all
      * @param _account The account to check
      * @return _debtInUsd The debt value in USD
-     * @return _debtInUsdWithCollateralization The debt value in USD considering collateralization ratios
+     * @return _lockedDepositInUsd The USD amount that's covering the debt (considering collateralization ratios)
      */
-    function _debtOf(address _account)
-        private
-        view
-        returns (uint256 _debtInUsd, uint256 _debtInUsdWithCollateralization)
-    {
+    function _debtOf(address _account) private view returns (uint256 _debtInUsd, uint256 _lockedDepositInUsd) {
         for (uint256 i = 0; i < syntheticAssets.length; ++i) {
             uint256 _amount = syntheticAssets[i].debtToken().balanceOf(_account);
             if (_amount > 0) {
                 uint256 _amountInUsd = oracle.convertToUSD(syntheticAssets[i].underlying(), _amount);
 
                 _debtInUsd += _amountInUsd;
-                _debtInUsdWithCollateralization += (_amountInUsd * syntheticAssets[i].collateralizationRatio()) / 1e18;
+                _lockedDepositInUsd += (_amountInUsd * syntheticAssets[i].collateralizationRatio()) / 1e18;
             }
         }
     }
@@ -147,8 +143,8 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
             uint256 _lockedDeposit
         )
     {
-        (, uint256 _debtInUsdWithCollateralization) = _debtOf(_account);
-        _lockedDeposit = oracle.convertFromUSD(depositToken.underlying(), _debtInUsdWithCollateralization);
+        (, uint256 _lockedDepositInUsd) = _debtOf(_account);
+        _lockedDeposit = oracle.convertFromUSD(depositToken.underlying(), _lockedDepositInUsd);
         _deposit = depositToken.balanceOf(_account);
         if (_lockedDeposit > _deposit) {
             _lockedDeposit = _deposit;
@@ -161,7 +157,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
      * @param _account The account to check
      * @return _isHealthy Whether the account's position is healthy
      * @return _debtInUsd The total debt in USD
-     * @return _debtInUsdWithCollateralization The total debt in USD considering collateralization ratio
+     * @return _lockedDepositInUsd The amount of deposit (is USD) that's covering all debt (considering collateralization ratios)
      * @return _depositInUsd The total collateral deposited in USD
      * @return _deposit The total amount of account's deposits
      * @return _unlockedDeposit The amount of deposit that isn't covering the account's debt
@@ -174,7 +170,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
         returns (
             bool _isHealthy,
             uint256 _debtInUsd,
-            uint256 _debtInUsdWithCollateralization,
+            uint256 _lockedDepositInUsd,
             uint256 _depositInUsd,
             uint256 _deposit,
             uint256 _unlockedDeposit,
@@ -183,8 +179,8 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
     {
         (_deposit, _unlockedDeposit, _lockedDeposit) = _depositOf(_account);
         _depositInUsd = oracle.convertToUSD(depositToken.underlying(), _deposit);
-        (_debtInUsd, _debtInUsdWithCollateralization) = _debtOf(_account);
-        _isHealthy = _depositInUsd >= _debtInUsdWithCollateralization;
+        (_debtInUsd, _lockedDepositInUsd) = _debtOf(_account);
+        _isHealthy = _depositInUsd >= _lockedDepositInUsd;
     }
 
     /**
