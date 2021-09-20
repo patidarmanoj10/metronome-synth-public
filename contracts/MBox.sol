@@ -74,8 +74,8 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
      */
     event SyntheticAssetSwapped(
         address indexed account,
-        address syntheticAsseetIn,
-        address syntheticAsseetOut,
+        address syntheticAssetIn,
+        address syntheticAssetOut,
         uint256 amountIn,
         uint256 amountOut
     );
