@@ -18,6 +18,8 @@ import {
   SyntheticAsset__factory,
   DebtToken,
   DebtToken__factory,
+  Treasury,
+  Treasury__factory,
 } from '../typechain'
 import {getMaxLiquidationAmountInUsd, getMinLiquidationAmountInUsd, WETH} from './helpers'
 
@@ -31,6 +33,7 @@ describe('MBox', function () {
   let mDogeDebtToken: DebtToken
   let mEth: SyntheticAsset
   let mDoge: SyntheticAsset
+  let treasury: Treasury
   let depositToken: DepositToken
   let oracle: OracleMock
   let mBOX: MBox
@@ -57,6 +60,10 @@ describe('MBox', function () {
     const dogeMockFactory = new ERC20Mock__factory(deployer)
     doge = await dogeMockFactory.deploy('Dogecoin', 'DOGE')
     await doge.deployed()
+
+    const treasuryFactory = new Treasury__factory(deployer)
+    treasury = await treasuryFactory.deploy(met.address)
+    await treasury.deployed()
 
     const depositTokenFactory = new DepositToken__factory(deployer)
     depositToken = await depositTokenFactory.deploy(met.address)
@@ -91,10 +98,12 @@ describe('MBox', function () {
     // Deployment tasks
     await depositToken.setMBox(mBOX.address)
     await depositToken.transferOwnership(mBOX.address)
+    await treasury.transferOwnership(mBOX.address)
     await mEth.transferOwnership(mBOX.address)
     await mDoge.transferOwnership(mBOX.address)
     await mEthDebtToken.transferOwnership(mBOX.address)
     await mDogeDebtToken.transferOwnership(mBOX.address)
+    await mBOX.setTreasury(treasury.address)
     await mBOX.setDepositToken(depositToken.address)
     await mBOX.setOracle(oracle.address)
     await mBOX.setLiquidatorFee(liquidatorFee)
@@ -179,7 +188,7 @@ describe('MBox', function () {
       const tx = () => mBOX.connect(user).deposit(amount)
 
       // then
-      await expect(tx).changeTokenBalances(met, [user, mBOX], [amount.mul('-1'), amount])
+      await expect(tx).changeTokenBalances(met, [user, treasury], [amount.mul('-1'), amount])
       await expect(tx).changeTokenBalances(depositToken, [user, mBOX], [amount, 0])
       await expect(tx()).to.emit(mBOX, 'CollateralDeposited').withArgs(user.address, amount)
     })
@@ -195,7 +204,7 @@ describe('MBox', function () {
       const expectedMintedAmount = amount.mul(parseEther('1').sub(depositFee)).div(parseEther('1')) // 10 * (1 - 0.01)
 
       // then
-      await expect(tx).changeTokenBalances(met, [user, mBOX], [amount.mul('-1'), amount])
+      await expect(tx).changeTokenBalances(met, [user, treasury], [amount.mul('-1'), amount])
       await expect(tx).changeTokenBalances(depositToken, [user, mBOX], [expectedMintedAmount, 0])
       await expect(tx()).to.emit(mBOX, 'CollateralDeposited').withArgs(user.address, expectedMintedAmount)
     })

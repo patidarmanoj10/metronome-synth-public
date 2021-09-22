@@ -11,6 +11,7 @@ import "./interface/IOracle.sol";
 import "./interface/IDepositToken.sol";
 import "./interface/IMBox.sol";
 import "./lib/WadRayMath.sol";
+import "./interface/ITreasury.sol";
 
 /**
  * @title mBOX main contract
@@ -66,6 +67,11 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
      * @dev Use 18 decimals (e.g. 1e16 = 1%)
      */
     uint256 public liquidateFee;
+
+    /**
+     * @notice Treasury contract
+     */
+    ITreasury public treasury;
 
     /**
      * @notice Represents MET collateral's deposits (mBOX-MET token)
@@ -169,7 +175,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
 
         IERC20 met = IERC20(depositToken.underlying());
 
-        met.safeTransferFrom(_account, address(this), _amount);
+        met.safeTransferFrom(_account, address(treasury), _amount);
 
         uint256 _amountToMint = depositFee > 0 ? _amount.wadMul(1e18 - depositFee) : _amount;
 
@@ -334,7 +340,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
 
         uint256 _amountToWithdraw = withdrawFee > 0 ? _amount - _amount.wadMul(withdrawFee) : _amount;
 
-        met.safeTransfer(_account, _amountToWithdraw);
+        treasury.pull(_account, _amountToWithdraw);
 
         emit CollateralWithdrawn(_account, _amountToWithdraw);
     }
@@ -557,6 +563,13 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
         delete syntheticAssetsByAddress[_syntheticAddress];
 
         emit SyntheticAssetRemoved(_syntheticAddress);
+    }
+
+    /**
+     * @notice Set treasury contract
+     */
+    function setTreasury(ITreasury _treasury) public onlyOwner {
+        treasury = _treasury;
     }
 
     /**
