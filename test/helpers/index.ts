@@ -19,10 +19,10 @@ export const getMinLiquidationAmountInUsd = async function (
 ): Promise<BigNumber> {
   const {_lockedDepositInUsd, _depositInUsd} = await mBOX.debtPositionOf(accountAddress)
   const mAssetCR = await mAsset.collateralizationRatio()
-  const liquidatorFee = await mBOX.liquidatorFee()
+  const fee = (await mBOX.liquidatorFee()).add(await mBOX.liquidateFee())
 
   const numerator = _depositInUsd.sub(_lockedDepositInUsd)
-  const denominator = liquidatorFee.sub(mAssetCR.sub(parseEther('1')))
+  const denominator = fee.sub(mAssetCR.sub(parseEther('1')))
 
   return numerator.mul(parseEther('1')).div(denominator)
 }
@@ -34,10 +34,10 @@ export const getMinLiquidationAmountInUsd = async function (
  */
 export const getMaxLiquidationAmountInUsd = async function (mBOX: MBox, accountAddress: string): Promise<BigNumber> {
   const {_depositInUsd} = await mBOX.debtPositionOf(accountAddress)
-  const liquidatorFee = await mBOX.liquidatorFee()
+  const fee = (await mBOX.liquidatorFee()).add(await mBOX.liquidateFee())
 
   const numerator = _depositInUsd
-  const denominator = parseEther('1').add(liquidatorFee)
+  const denominator = parseEther('1').add(fee)
 
   return numerator.mul(parseEther('1')).div(denominator)
 }

@@ -9,6 +9,8 @@ interface IDepositToken is IERC20 {
 
     function mint(address _to, uint256 _amount) external;
 
+    function burnUnlocked(address _to, uint256 _amount) external;
+
     function burn(address _to, uint256 _amount) external;
 
     function seize(
