@@ -24,7 +24,7 @@ contract MBoxMock is IMBox {
         returns (
             bool _isHealthy,
             uint256 _debtInUsd,
-            uint256 _debtInUsdWithCollateralization,
+            uint256 _lockedDepositInUsd,
             uint256 _depositInUsd,
             uint256 _deposit,
             uint256 _unlockedDeposit,
@@ -33,7 +33,7 @@ contract MBoxMock is IMBox {
     {
         _isHealthy = true;
         _debtInUsd = 0;
-        _debtInUsdWithCollateralization = 0;
+        _lockedDepositInUsd = 0;
         _depositInUsd = 0;
         _deposit = depositToken.balanceOf(_account);
         _lockedDeposit = lockedCollateral;

@@ -230,7 +230,7 @@ describe('MBox', function () {
           expect(await mBOX.debtPositionOf(user.address)).to.deep.eq([
             true, // _isHealthy
             BigNumber.from(0), // _debtInUsd
-            BigNumber.from(0), // _debtInUsdWithCollateralization
+            BigNumber.from(0), // _lockedDepositInUsd
             userDepositAmount.mul(metRate).div(parseEther('1')), // _depositInUsd
             userDepositAmount, // _deposit
             userDepositAmount, // _unlockedDeposit
@@ -253,7 +253,7 @@ describe('MBox', function () {
           expect(await mBOX.debtPositionOf(user.address)).to.deep.eq([
             true, // _isHealthy
             amountToMint.mul(ethRate).div(parseEther('1')), // _debtInUsd
-            // _debtInUsdWithCollateralization
+            // _lockedDepositInUsd
             amountToMint.mul(ethRate).div(parseEther('1')).mul(mEthCollateralizationRatio).div(parseEther('1')),
             userDepositAmount.mul(metRate).div(parseEther('1')), // _depositInUsd
             userDepositAmount, // _deposit
@@ -480,7 +480,7 @@ describe('MBox', function () {
               expect(await mBOX.debtPositionOf(user.address)).to.deep.eq([
                 false, // _isHealthy
                 userMintAmount.mul(ethRate).div(parseEther('1')), // _debtInUsd
-                // _debtInUsdWithCollateralization
+                // _lockedDepositInUsd
                 userMintAmount.mul(ethRate).div(parseEther('1')).mul(mEthCollateralizationRatio).div(parseEther('1')),
                 userDepositAmount.mul(newMetRate).div(parseEther('1')), // _depositInUsd
                 userDepositAmount, // _deposit
@@ -785,10 +785,10 @@ describe('MBox', function () {
               // then
               const {
                 _isHealthy: isHealthyAfter,
-                _debtInUsdWithCollateralization: debtInUsdWithCollateralizationAfter,
+                _lockedDepositInUsd: lockedDepositInUsdAfter,
                 _depositInUsd: _depositInUsdAfter,
               } = await mBOX.debtPositionOf(user.address)
-              expect(debtInUsdWithCollateralizationAfter).to.eq(_depositInUsdAfter)
+              expect(lockedDepositInUsdAfter).to.eq(_depositInUsdAfter)
               expect(isHealthyAfter).to.true
             })
           })

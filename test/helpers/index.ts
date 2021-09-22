@@ -17,11 +17,11 @@ export const getMinLiquidationAmountInUsd = async function (
   accountAddress: string,
   mAsset: SyntheticAsset
 ): Promise<BigNumber> {
-  const {_debtInUsdWithCollateralization, _depositInUsd} = await mBOX.debtPositionOf(accountAddress)
+  const {_lockedDepositInUsd, _depositInUsd} = await mBOX.debtPositionOf(accountAddress)
   const mAssetCR = await mAsset.collateralizationRatio()
   const liquidatorFee = await mBOX.liquidatorFee()
 
-  const numerator = _depositInUsd.sub(_debtInUsdWithCollateralization)
+  const numerator = _depositInUsd.sub(_lockedDepositInUsd)
   const denominator = liquidatorFee.sub(mAssetCR.sub(parseEther('1')))
 
   return numerator.mul(parseEther('1')).div(denominator)
