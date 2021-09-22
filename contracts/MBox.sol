@@ -10,7 +10,10 @@ import "./interface/ISyntheticAsset.sol";
 import "./interface/IOracle.sol";
 import "./interface/IDepositToken.sol";
 import "./interface/IMBox.sol";
+<<<<<<< HEAD
 import "./lib/WadRayMath.sol";
+=======
+>>>>>>> Use treasury contract to hold MET tokens
 import "./interface/ITreasury.sol";
 
 /**
@@ -339,7 +342,11 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
 
         depositToken.burnUnlocked(_account, _amount);
 
+<<<<<<< HEAD
         uint256 _amountToWithdraw = withdrawFee > 0 ? _amount - _amount.wadMul(withdrawFee) : _amount;
+=======
+        uint256 _amountToWithdraw = withdrawFee > 0 ? _amount - ((_amount * withdrawFee) / 1e18) : _amount;
+>>>>>>> Use treasury contract to hold MET tokens
 
         treasury.pull(_account, _amountToWithdraw);
 
