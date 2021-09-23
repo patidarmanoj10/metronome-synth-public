@@ -1057,7 +1057,7 @@ describe('MBox', function () {
               // FIXME: Related to https://github.com/bloqpriv/mbox/issues/20
               expect(await depositToken.balanceOf(liquidator.address)).to.closeTo(
                 liquidatorDepositAmount.add(expectedDepositToLiquidator),
-                2200
+                2137
               )
               expect(await mEth.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount.sub(amountToRepay))
               expect(await mEthDebtToken.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount)
@@ -1140,7 +1140,7 @@ describe('MBox', function () {
               // FIXME: Related to https://github.com/bloqpriv/mbox/issues/20
               expect(await depositToken.balanceOf(liquidator.address)).to.closeTo(
                 liquidatorDepositAmount.add(expectedDepositToLiquidator),
-                4000
+                3918
               )
               expect(await mEth.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount.sub(amountToRepay))
               expect(await mEthDebtToken.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount)
@@ -1222,7 +1222,7 @@ describe('MBox', function () {
               // expect(isHealthyAfter).to.true
               expect(isHealthyAfter).to.false
               // FIXME: Related to https://github.com/bloqpriv/mbox/issues/20
-              expect(lockedDepositAfter).to.closeTo(expectedLocked, 1200)
+              expect(lockedDepositAfter).to.closeTo(expectedLocked, 1134)
               expect(depositAfter).to.eq(depositBefore.sub(depositSeized))
               expect(unlockedDepositAfter).to.eq(depositAfter.sub(lockedDepositAfter))
               expect(await depositToken.balanceOf(user.address)).to.eq(depositBefore.sub(depositSeized))
@@ -1231,7 +1231,7 @@ describe('MBox', function () {
               // FIXME: Related to https://github.com/bloqpriv/mbox/issues/20
               expect(await depositToken.balanceOf(liquidator.address)).to.closeTo(
                 liquidatorDepositAmount.add(expectedDepositToLiquidator),
-                3300
+                3207
               )
               expect(await mEth.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount.sub(amountToRepay))
               expect(await mEthDebtToken.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount)
@@ -1310,7 +1310,7 @@ describe('MBox', function () {
               // FIXME: Related to https://github.com/bloqpriv/mbox/issues/20
               expect(await depositToken.balanceOf(liquidator.address)).to.closeTo(
                 liquidatorDepositAmount.add(expectedDepositToLiquidator),
-                6000
+                5944
               )
               expect(await mEth.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount.sub(amountToRepay))
               expect(await mEthDebtToken.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount)
@@ -1393,7 +1393,7 @@ describe('MBox', function () {
               // FIXME: Related to https://github.com/bloqpriv/mbox/issues/20
               expect(await depositToken.balanceOf(liquidator.address)).to.closeTo(
                 liquidatorDepositAmount.add(expectedDepositToLiquidator),
-                7500
+                7372
               )
               expect(await mEth.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount.sub(amountToRepay))
               expect(await mEthDebtToken.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount)
