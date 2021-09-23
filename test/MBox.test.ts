@@ -904,7 +904,7 @@ describe('MBox', function () {
               const [, , , , depositSeized] = PositionLiquidated.args!
 
               const amountToSeizeInUsd = debtInUsdBefore.mul(parseEther('1').add(liquidatorFee)).div(parseEther('1'))
-              const expectedDepositSeized = amountToSeizeInUsd.mul(parseEther('1')).div(newMetRate)
+              const expectedDepositSeized = await oracle.convertFromUSD(met.address, amountToSeizeInUsd)
               const expectedDepositAfter = collateralInUsdBefore
                 .sub(amountToSeizeInUsd)
                 .mul(parseEther('1'))
@@ -913,8 +913,7 @@ describe('MBox', function () {
 
               expect(_isHealthy).to.true
               expect(depositSeized).to.eq(expectedDepositSeized)
-              // FIXME: Related to https://github.com/bloqpriv/mbox/issues/20
-              expect(await depositToken.balanceOf(user.address)).to.closeTo(expectedDepositAfter, 1)
+              expect(await depositToken.balanceOf(user.address)).to.eq(expectedDepositAfter)
               expect(await mEth.balanceOf(user.address)).to.eq(userMintAmount)
               expect(await mEthDebtToken.balanceOf(user.address)).to.eq(0)
               expect(await depositToken.balanceOf(liquidator.address)).to.eq(liquidatorDepositAmount.add(depositSeized))
@@ -926,9 +925,7 @@ describe('MBox', function () {
               // given
               const liquidateFee = parseEther('0.01') // 1%
               await mBOX.setLiquidateFee(liquidateFee)
-              const {_debtInUsd: debtInUsdBefore, _depositInUsd: collateralInUsdBefore} = await mBOX.debtPositionOf(
-                user.address
-              )
+              const {_debtInUsd: debtInUsdBefore, _deposit: depositBefore} = await mBOX.debtPositionOf(user.address)
 
               // when
               const amountToRepay = userMintAmount // repay all user's debt
@@ -945,21 +942,19 @@ describe('MBox', function () {
               const expectedDepositToLiquidator = debtInUsdBefore
                 .mul(parseEther('1').add(liquidatorFee))
                 .div(newMetRate)
-              const expectedDepositSeized = depositToSeizeInUsd.mul(parseEther('1')).div(newMetRate)
-              const expectedDepositAfter = collateralInUsdBefore
-                .sub(depositToSeizeInUsd)
-                .mul(parseEther('1'))
-                .div(newMetRate)
+              const expectedDepositSeized = await oracle.convertFromUSD(met.address, depositToSeizeInUsd)
+              const expectedDepositAfter = depositBefore.sub(expectedDepositSeized)
+
               const {_isHealthy} = await mBOX.debtPositionOf(user.address)
 
               expect(_isHealthy).to.true
               expect(depositSeized).to.eq(expectedDepositSeized)
-              // FIXME: Related to https://github.com/bloqpriv/mbox/issues/20
-              expect(await depositToken.balanceOf(user.address)).to.closeTo(expectedDepositAfter, 1)
+              expect(await depositToken.balanceOf(user.address)).to.eq(expectedDepositAfter)
               expect(await mEth.balanceOf(user.address)).to.eq(userMintAmount)
               expect(await mEthDebtToken.balanceOf(user.address)).to.eq(0)
-              expect(await depositToken.balanceOf(liquidator.address)).to.eq(
-                liquidatorDepositAmount.add(expectedDepositToLiquidator)
+              expect(await depositToken.balanceOf(liquidator.address)).to.closeTo(
+                liquidatorDepositAmount.add(expectedDepositToLiquidator),
+                1
               )
               expect(await mEth.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount.sub(amountToRepay))
               expect(await mEthDebtToken.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount)
@@ -1024,9 +1019,11 @@ describe('MBox', function () {
               const [PositionLiquidated] = (await tx.wait()).events!.filter(({event}) => event === 'PositionLiquidated')
               const [, , , , depositSeized] = PositionLiquidated.args!
 
-              const expectedDepositToLiquidator = amountToRepayInUsd
+              const amountToRepayInMET = await oracle.convert(WETH, met.address, amountToRepay)
+
+              const expectedDepositToLiquidator = amountToRepayInMET
                 .mul(parseEther('1').add(liquidatorFee))
-                .div(newMetRate)
+                .div(parseEther('1'))
 
               // then
               const {
@@ -1038,26 +1035,21 @@ describe('MBox', function () {
                 _lockedDeposit: lockedCollateralAfter,
               } = await mBOX.debtPositionOf(user.address)
 
-              const expectedLocked = debtInUsdAfter
-                .mul(mEthCollateralizationRatio)
-                .div(parseEther('1'))
-                .mul(parseEther('1'))
-                .div(newMetRate)
+              const expectedLocked = debtInUsdAfter.mul(mEthCollateralizationRatio).div(newMetRate)
 
               const currentCollateralizationRatio = collateralInUsdAfter.mul(parseEther('1')).div(debtInUsdAfter)
 
               expect(currentCollateralizationRatio).to.gt(mEthCollateralizationRatio)
               expect(isHealthyAfter).to.true
               expect(collateralAfter).to.eq(collateralBefore.sub(depositSeized))
-              expect(lockedCollateralAfter).to.eq(expectedLocked)
+              expect(lockedCollateralAfter).to.closeTo(expectedLocked, 1)
               expect(unlockedCollateralAfter).to.eq(collateralAfter.sub(lockedCollateralAfter))
               expect(await depositToken.balanceOf(user.address)).to.eq(collateralBefore.sub(depositSeized))
               expect(await mEth.balanceOf(user.address)).to.eq(userMintAmount)
               expect(await mEthDebtToken.balanceOf(user.address)).to.eq(userMintAmount.sub(amountToRepay))
-              // FIXME: Related to https://github.com/bloqpriv/mbox/issues/20
               expect(await depositToken.balanceOf(liquidator.address)).to.closeTo(
                 liquidatorDepositAmount.add(expectedDepositToLiquidator),
-                2137
+                1
               )
               expect(await mEth.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount.sub(amountToRepay))
               expect(await mEthDebtToken.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount)
@@ -1123,9 +1115,11 @@ describe('MBox', function () {
                 _lockedDeposit: lockedCollateralAfter,
               } = await mBOX.debtPositionOf(user.address)
 
-              const expectedDepositToLiquidator = amountToRepayInUsd
-                .mul(parseEther('1').add(liquidatorFee))
-                .div(newMetRate)
+              const amountToRepayInMET = await oracle.convert(WETH, met.address, amountToRepay)
+
+              const expectedDepositToLiquidator = amountToRepayInMET.add(
+                amountToRepayInMET.mul(liquidatorFee).div(parseEther('1'))
+              )
 
               const currentCollateralizationRatio = collateralInUsdAfter.mul(parseEther('1')).div(debtInUsdAfter)
 
@@ -1137,10 +1131,8 @@ describe('MBox', function () {
               expect(await depositToken.balanceOf(user.address)).to.eq(collateralBefore.sub(depositSeized))
               expect(await mEth.balanceOf(user.address)).to.eq(userMintAmount)
               expect(await mEthDebtToken.balanceOf(user.address)).to.eq(userMintAmount.sub(amountToRepay))
-              // FIXME: Related to https://github.com/bloqpriv/mbox/issues/20
-              expect(await depositToken.balanceOf(liquidator.address)).to.closeTo(
-                liquidatorDepositAmount.add(expectedDepositToLiquidator),
-                3918
+              expect(await depositToken.balanceOf(liquidator.address)).to.eq(
+                liquidatorDepositAmount.add(expectedDepositToLiquidator)
               )
               expect(await mEth.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount.sub(amountToRepay))
               expect(await mEthDebtToken.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount)
@@ -1174,7 +1166,7 @@ describe('MBox', function () {
               expect(currentCollateralizationRatio).to.eq(mEthCollateralizationRatio)
               expect(isHealthyAfter).to.true
               expect(depositAfter).to.eq(depositBefore.sub(depositSeized))
-              expect(lockedDepositAfter).to.eq(expectedLocked)
+              expect(lockedDepositAfter).to.closeTo(expectedLocked, 1)
               expect(unlockedCollateralAfter).to.eq(depositAfter.sub(lockedDepositAfter))
               expect(await depositToken.balanceOf(user.address)).to.eq(depositBefore.sub(depositSeized))
               expect(await mEth.balanceOf(user.address)).to.eq(userMintAmount)
@@ -1192,7 +1184,8 @@ describe('MBox', function () {
 
               // when
               const amountToRepayInUsd = await getMinLiquidationAmountInUsd(mBOX, user.address, mEth)
-              const amountToRepay = amountToRepayInUsd.mul(parseEther('1')).div(ethRate)
+              const amountToRepay = await oracle.convertFromUSD(WETH, amountToRepayInUsd)
+
               const tx = await mBOX.connect(liquidator).liquidate(mEth.address, user.address, amountToRepay)
               const [PositionLiquidated] = (await tx.wait()).events!.filter(({event}) => event === 'PositionLiquidated')
               const [, , , , depositSeized] = PositionLiquidated.args!
@@ -1209,29 +1202,25 @@ describe('MBox', function () {
 
               const expectedLocked = debtInUsdAfter.mul(mEthCollateralizationRatio).div(newMetRate)
 
-              const expectedDepositToLiquidator = amountToRepayInUsd
-                .mul(parseEther('1').add(liquidatorFee))
-                .div(newMetRate)
+              const amountToRepayInMET = await oracle.convert(WETH, met.address, amountToRepay)
+
+              const expectedDepositToLiquidator = amountToRepayInMET.add(
+                amountToRepayInMET.mul(liquidatorFee).div(parseEther('1'))
+              )
 
               const currentCollateralizationRatio = depositInUsdAfter.mul(parseEther('1')).div(debtInUsdAfter)
 
-              // FIXME: Related to https://github.com/bloqpriv/mbox/issues/20
-              expect(currentCollateralizationRatio).to.closeTo(mEthCollateralizationRatio, 1)
-              // It's false but assuming that the test is passing because only 1 wei is missing to make position healty
-              // Related to https://github.com/bloqpriv/mbox/issues/20
-              // expect(isHealthyAfter).to.true
-              expect(isHealthyAfter).to.false
-              // FIXME: Related to https://github.com/bloqpriv/mbox/issues/20
-              expect(lockedDepositAfter).to.closeTo(expectedLocked, 1134)
+              expect(currentCollateralizationRatio).to.eq(mEthCollateralizationRatio)
+              expect(isHealthyAfter).to.true
+              expect(lockedDepositAfter).to.closeTo(expectedLocked, 1)
               expect(depositAfter).to.eq(depositBefore.sub(depositSeized))
               expect(unlockedDepositAfter).to.eq(depositAfter.sub(lockedDepositAfter))
               expect(await depositToken.balanceOf(user.address)).to.eq(depositBefore.sub(depositSeized))
               expect(await mEth.balanceOf(user.address)).to.eq(userMintAmount)
               expect(await mEthDebtToken.balanceOf(user.address)).to.eq(userMintAmount.sub(amountToRepay))
-              // FIXME: Related to https://github.com/bloqpriv/mbox/issues/20
               expect(await depositToken.balanceOf(liquidator.address)).to.closeTo(
                 liquidatorDepositAmount.add(expectedDepositToLiquidator),
-                3207
+                1
               )
               expect(await mEth.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount.sub(amountToRepay))
               expect(await mEthDebtToken.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount)
@@ -1269,10 +1258,11 @@ describe('MBox', function () {
 
               const {_isHealthy} = await mBOX.debtPositionOf(user.address)
 
+              const remainder = 1600 // left over amount on user's deposit balance
+
               expect(_isHealthy).to.false
-              // FIXME: Related to https://github.com/bloqpriv/mbox/issues/20
-              expect(depositSeized).to.closeTo(depositBefore, 1600)
-              expect(await depositToken.balanceOf(user.address)).to.closeTo(BigNumber.from('0'), 1600)
+              expect(depositSeized).to.closeTo(depositBefore, remainder)
+              expect(await depositToken.balanceOf(user.address)).to.closeTo(BigNumber.from('0'), remainder)
               expect(await mEth.balanceOf(user.address)).to.eq(userMintAmount)
               expect(await mEthDebtToken.balanceOf(user.address)).to.gt(0)
               expect(await depositToken.balanceOf(liquidator.address)).to.eq(liquidatorDepositAmount.add(depositSeized))
@@ -1295,22 +1285,23 @@ describe('MBox', function () {
               const [PositionLiquidated] = (await tx.wait()).events!.filter(({event}) => event === 'PositionLiquidated')
               const [, , , , depositSeized] = PositionLiquidated.args!
 
-              const expectedDepositToLiquidator = amountToRepayInUsd
-                .mul(parseEther('1').add(liquidatorFee))
-                .div(newMetRate)
+              const amountToRepayInMET = await oracle.convert(WETH, met.address, amountToRepay)
+
+              const expectedDepositToLiquidator = amountToRepayInMET.add(
+                amountToRepayInMET.mul(liquidatorFee).div(parseEther('1'))
+              )
 
               const {_isHealthy} = await mBOX.debtPositionOf(user.address)
 
+              const remainder = 6000 // left over amount on user's deposit balance
+
               expect(_isHealthy).to.false
-              // FIXME: Related to https://github.com/bloqpriv/mbox/issues/20
-              expect(depositSeized).to.closeTo(depositBefore, 6000)
-              expect(await depositToken.balanceOf(user.address)).to.closeTo(BigNumber.from('0'), 6000)
+              expect(depositSeized).to.closeTo(depositBefore, remainder)
+              expect(await depositToken.balanceOf(user.address)).to.closeTo(BigNumber.from('0'), remainder)
               expect(await mEth.balanceOf(user.address)).to.eq(userMintAmount)
               expect(await mEthDebtToken.balanceOf(user.address)).to.gt(0)
-              // FIXME: Related to https://github.com/bloqpriv/mbox/issues/20
-              expect(await depositToken.balanceOf(liquidator.address)).to.closeTo(
-                liquidatorDepositAmount.add(expectedDepositToLiquidator),
-                5944
+              expect(await depositToken.balanceOf(liquidator.address)).to.eq(
+                liquidatorDepositAmount.add(expectedDepositToLiquidator)
               )
               expect(await mEth.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount.sub(amountToRepay))
               expect(await mEthDebtToken.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount)
@@ -1376,9 +1367,11 @@ describe('MBox', function () {
                 _lockedDeposit: lockedCollateralAfter,
               } = await mBOX.debtPositionOf(user.address)
 
-              const expectedDepositToLiquidator = amountToRepayInUsd
-                .mul(parseEther('1').add(liquidatorFee))
-                .div(newMetRate)
+              const amountToRepayInMET = await oracle.convert(WETH, met.address, amountToRepay)
+
+              const expectedDepositToLiquidator = amountToRepayInMET.add(
+                amountToRepayInMET.mul(liquidatorFee).div(parseEther('1'))
+              )
 
               const currentCollateralizationRatio = collateralInUsdAfter.mul(parseEther('1')).div(debtInUsdAfter)
 
@@ -1390,10 +1383,8 @@ describe('MBox', function () {
               expect(await depositToken.balanceOf(user.address)).to.eq(collateralBefore.sub(depositSeized))
               expect(await mEth.balanceOf(user.address)).to.eq(userMintAmount)
               expect(await mEthDebtToken.balanceOf(user.address)).to.eq(userMintAmount.sub(amountToRepay))
-              // FIXME: Related to https://github.com/bloqpriv/mbox/issues/20
-              expect(await depositToken.balanceOf(liquidator.address)).to.closeTo(
-                liquidatorDepositAmount.add(expectedDepositToLiquidator),
-                7372
+              expect(await depositToken.balanceOf(liquidator.address)).to.eq(
+                liquidatorDepositAmount.add(expectedDepositToLiquidator)
               )
               expect(await mEth.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount.sub(amountToRepay))
               expect(await mEthDebtToken.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount)
