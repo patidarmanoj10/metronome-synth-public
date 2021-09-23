@@ -141,6 +141,17 @@ describe('MBox', function () {
         // then
         expect(await mBOX.syntheticAssetsByAddress(someToken.address)).to.eq(ethers.constants.AddressZero)
       })
+
+      it('should revert if removing mETH (i.e. syntheticAssets[0])', async function () {
+        // given
+        expect(await mBOX.syntheticAssets(0)).to.eq(mEth.address)
+
+        // when
+        const tx = mBOX.removeSyntheticAsset(mEth.address)
+
+        // then
+        await expect(tx).to.revertedWith('can-not-delete-meth')
+      })
     })
   })
 
@@ -377,7 +388,21 @@ describe('MBox', function () {
             await expect(tx).to.revertedWith('amount-in-gt-synthetic-balance')
           })
 
-          it('should revert if debt posistion becomes unhealty', async function () {
+          it('should revert if debt position is unhealty', async function () {
+            // given
+            await oracle.updateRate(met.address, parseEther('0.0001'))
+
+            const mAssetInBalance = await mEth.balanceOf(user.address)
+
+            // when
+            const amountIn = mAssetInBalance
+            const tx = mBOX.connect(user).swap(mEth.address, mDoge.address, amountIn)
+
+            // then
+            await expect(tx).to.revertedWith('debt-position-is-unhealthy')
+          })
+
+          it('should revert if debt position becomes unhealty', async function () {
             // Note: Using all MET collateral to mint max mETH possible (that has 150% CR)
             // and try to swap all balance for mDOGE that has 200% CR
 
@@ -391,7 +416,7 @@ describe('MBox', function () {
             const tx = mBOX.connect(user).swap(mEth.address, mDoge.address, amountIn)
 
             // then
-            await expect(tx).to.revertedWith('debt-position-becomes-unhealthy')
+            await expect(tx).to.revertedWith('debt-position-ended-up-unhealthy')
           })
 
           it('should swap synthetic assets', async function () {
@@ -429,6 +454,104 @@ describe('MBox', function () {
             expect(mAssetInDebtBalanceAfter).to.eq(mAssetInDebtBalanceBefore.sub(amountIn))
             expect(mAssetOutBalanceAfter).to.eq(mAssetOutBalanceBefore.add(expectedAmountOut))
             expect(mAssetOutDebtBalanceAfter).to.eq(mAssetOutDebtBalanceBefore.add(expectedAmountOut))
+          })
+        })
+
+        describe('refinance', function () {
+          describe('when the position is unhealty', function () {
+            const newMetRate = parseEther('0.03')
+
+            beforeEach(async function () {
+              const maxIssuable = await mBOX.maxIssuableFor(user.address, mDoge.address)
+              await mBOX.connect(user).mint(mDoge.address, maxIssuable)
+
+              await oracle.updateRate(met.address, newMetRate)
+              const {_isHealthy} = await mBOX.debtPositionOf(user.address)
+              expect(_isHealthy).to.be.false
+            })
+
+            it('should revert if amount == 0', async function () {
+              // when
+              const tx = mBOX.connect(user).refinance(mDoge.address, 0)
+
+              // then
+              await expect(tx).to.revertedWith('amount-in-is-zero')
+            })
+
+            it('should revert if user has not enough balance', async function () {
+              // given
+              const mAssetInBalance = await mDoge.balanceOf(user.address)
+
+              // when
+              const amountIn = mAssetInBalance.add('1')
+              const tx = mBOX.connect(user).refinance(mDoge.address, amountIn)
+
+              // then
+              await expect(tx).to.revertedWith('amount-in-gt-synthetic-balance')
+            })
+
+            it('should revert if debt position is healty', async function () {
+              // given
+              await oracle.updateRate(met.address, parseEther('10'))
+
+              const mAssetInBalance = await mEth.balanceOf(user.address)
+
+              // when
+              const amountIn = mAssetInBalance
+              const tx = mBOX.connect(user).refinance(mDoge.address, amountIn)
+
+              // then
+              await expect(tx).to.revertedWith('debt-position-is-healthy')
+            })
+
+            it('should revert if debt position stills unhealty', async function () {
+              // when
+              const amountIn = await mDoge.balanceOf(user.address)
+              const tx = mBOX.connect(user).refinance(mDoge.address, amountIn)
+
+              // then
+              await expect(tx).to.revertedWith('debt-position-ended-up-unhealthy')
+            })
+
+            it('should refinance debt', async function () {
+              // given
+              await oracle.updateRate(met.address, parseEther('3.5')) // putting debt in a position that is able to save
+              const mAssetInBalanceBefore = await mDoge.balanceOf(user.address)
+              const mAssetInDebtBalanceBefore = await mDogeDebtToken.balanceOf(user.address)
+              const mAssetOutBalanceBefore = await mEth.balanceOf(user.address)
+              const mAssetOutDebtBalanceBefore = await mEthDebtToken.balanceOf(user.address)
+
+              const {_debtInUsd: debtBefore, _unlockedDeposit: unlockedBefore} = await mBOX.debtPositionOf(user.address)
+
+              // when
+              const mAssetIn = mDoge.address
+              const mAssetOut = mEth.address
+              const amountToRefinance = mAssetInBalanceBefore
+              const amountInUsd = amountToRefinance.mul(dogeRate).div(parseEther('1'))
+              const tx = await mBOX.connect(user).refinance(mAssetIn, amountToRefinance)
+
+              // then
+              const expectedAmountOut = amountInUsd.mul(parseEther('1')).div(ethRate)
+
+              await expect(tx)
+                .to.emit(mBOX, 'DebtRefinancied')
+                .withArgs(user.address, mAssetIn, amountToRefinance)
+                .and.to.emit(mBOX, 'SyntheticAssetSwapped')
+                .withArgs(user.address, mAssetIn, mAssetOut, amountToRefinance, expectedAmountOut)
+
+              const mAssetInBalanceAfter = await mDoge.balanceOf(user.address)
+              const mAssetInDebtBalanceAfter = await mDogeDebtToken.balanceOf(user.address)
+              const mAssetOutBalanceAfter = await mEth.balanceOf(user.address)
+              const mAssetOutDebtBalanceAfter = await mEthDebtToken.balanceOf(user.address)
+              const {_debtInUsd: debtAfter, _unlockedDeposit: unlockedAfter} = await mBOX.debtPositionOf(user.address)
+
+              expect(debtAfter).to.eq(debtBefore)
+              expect(unlockedAfter).to.gt(unlockedBefore)
+              expect(mAssetInBalanceAfter).to.eq(mAssetInBalanceBefore.sub(amountToRefinance))
+              expect(mAssetInDebtBalanceAfter).to.eq(mAssetInDebtBalanceBefore.sub(amountToRefinance))
+              expect(mAssetOutBalanceAfter).to.eq(mAssetOutBalanceBefore.add(expectedAmountOut))
+              expect(mAssetOutDebtBalanceAfter).to.eq(mAssetOutDebtBalanceBefore.add(expectedAmountOut))
+            })
           })
         })
 
