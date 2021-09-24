@@ -18,9 +18,52 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
     using SafeERC20 for IERC20;
 
     /**
-     * @notice The fee that is used as liquidation incentive
+     * @notice The fee charged when depositing collateral
+     * @dev Use 18 decimals (e.g. 1e16 = 1%)
+     */
+    uint256 public depositFee;
+
+    /**
+     * @notice The fee charged when minting a synthetic asset
+     * @dev Use 18 decimals (e.g. 1e16 = 1%)
+     */
+    uint256 public mintFee;
+
+    /**
+     * @notice The fee charged when withdrawing collateral
+     * @dev Use 18 decimals (e.g. 1e16 = 1%)
+     */
+    uint256 public withdrawFee;
+
+    /**
+     * @notice The fee charged when repaying debt
+     * @dev Use 18 decimals (e.g. 1e16 = 1%)
+     */
+    uint256 public repayFee;
+
+    /**
+     * @notice The fee charged when swapping synthetic assets
+     * @dev Use 18 decimals (e.g. 1e16 = 1%)
+     */
+    uint256 public swapFee;
+
+    /**
+     * @notice The fee charged when refinancing a debt
+     * @dev Use 18 decimals (e.g. 1e16 = 1%)
+     */
+    uint256 public refinanceFee;
+
+    /**
+     * @notice The fee charged from liquidated deposit that goes to the liquidator
+     * @dev Use 18 decimals (e.g. 1e16 = 1%)
      */
     uint256 public liquidatorFee;
+
+    /**
+     * @notice The fee charged when liquidating a position
+     * @dev Use 18 decimals (e.g. 1e16 = 1%)
+     */
+    uint256 public liquidateFee;
 
     /**
      * @notice Represents MET collateral's deposits (mBOX-MET token)
@@ -39,29 +82,19 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
     ISyntheticAsset[] public syntheticAssets;
     mapping(address => ISyntheticAsset) public syntheticAssetsByAddress;
 
-    /**
-     * @notice Emitted when collateral is deposited
-     */
+    /// @notice Emitted when collateral is deposited
     event CollateralDeposited(address indexed account, uint256 amount);
 
-    /**
-     * @notice Emitted when collateral is withdrawn
-     */
+    /// @notice Emitted when collateral is withdrawn
     event CollateralWithdrawn(address indexed account, uint256 amount);
 
-    /**
-     * @notice Emitted when synthetic asset is minted
-     */
+    /// @notice Emitted when synthetic asset is minted
     event SyntheticAssetMinted(address indexed account, address syntheticAsseet, uint256 amount);
 
-    /**
-     * @notice Emitted when synthetic's debt is repayed
-     */
+    /// @notice Emitted when synthetic's debt is repayed
     event DebtRepayed(address indexed account, address syntheticAsseet, uint256 amount);
 
-    /**
-     * @notice Emitted when a position is liquidated
-     */
+    /// @notice Emitted when a position is liquidated
     event PositionLiquidated(
         address indexed liquidator,
         address indexed account,
@@ -70,9 +103,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
         uint256 depositSeized
     );
 
-    /**
-     * @notice Emitted when synthetic asset is swapped
-     */
+    /// @notice Emitted when synthetic asset is swapped
     event SyntheticAssetSwapped(
         address indexed account,
         address syntheticAssetIn,
@@ -81,20 +112,38 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
         uint256 amountOut
     );
 
-    /**
-     * @notice Emitted when debt is refinancied
-     */
+    /// @notice Emitted when debt is refinancied
     event DebtRefinancied(address indexed account, address syntheticAsset, uint256 amount);
 
-    /**
-     * @notice Emitted when synthetic asset is enabled
-     */
+    /// @notice Emitted when synthetic asset is enabled
     event SyntheticAssetAdded(address indexed syntheticAsset);
 
-    /**
-     * @notice Emitted when synthetic asset is disabled
-     */
+    /// @notice Emitted when synthetic asset is disabled
     event SyntheticAssetRemoved(address indexed syntheticAsset);
+
+    /// @notice Emitted when deposit fee is updated
+    event DepositFeeUpdated(uint256 newDepositFee);
+
+    /// @notice Emitted when mint fee is updated
+    event MintFeeUpdated(uint256 newMintFee);
+
+    /// @notice Emitted when withdraw fee is updated
+    event WithdrawFeeUpdated(uint256 newWithdrawFee);
+
+    /// @notice Emitted when repay fee is updated
+    event RepayFeeUpdated(uint256 newRepayFee);
+
+    /// @notice Emitted when swap fee is updated
+    event SwapFeeUpdated(uint256 newSwapFee);
+
+    /// @notice Emitted when refinance fee is updated
+    event RefinanceFeeUpdated(uint256 newRefinanceFee);
+
+    /// @notice Emitted when liquidator fee is updated
+    event LiquidatorFeeUpdated(uint256 newLiquidatorFee);
+
+    /// @notice Emitted when liquidate fee is updated
+    event LiquidateFeeUpdated(uint256 newLiquidateFee);
 
     /**
      * @dev Throws if synthetic asset isn't enabled
@@ -120,9 +169,11 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
 
         met.safeTransferFrom(_account, address(this), _amount);
 
-        depositToken.mint(_account, _amount);
+        uint256 _amountToMint = depositFee > 0 ? (_amount * (1e18 - depositFee)) / 1e18 : _amount;
 
-        emit CollateralDeposited(_account, _amount);
+        depositToken.mint(_account, _amountToMint);
+
+        emit CollateralDeposited(_account, _amountToMint);
     }
 
     /**
@@ -239,11 +290,27 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
 
         require(_amount <= _maxIssuable, "not-enough-collateral");
 
-        _syntheticAsset.debtToken().mint(_account, _amount);
+        uint256 _feeInSyntheticAsset;
 
-        _syntheticAsset.mint(_account, _amount);
+        if (mintFee > 0) {
+            _feeInSyntheticAsset = (_amount * mintFee) / 1e18;
 
-        emit SyntheticAssetMinted(_account, address(_syntheticAsset), _amount);
+            uint256 _feeInMet = oracle.convert(
+                _syntheticAsset.underlying(),
+                depositToken.underlying(),
+                _feeInSyntheticAsset
+            );
+
+            depositToken.burnUnlocked(_account, _feeInMet);
+        }
+
+        uint256 _amountToMint = _amount - _feeInSyntheticAsset;
+
+        _syntheticAsset.debtToken().mint(_account, _amountToMint);
+
+        _syntheticAsset.mint(_account, _amountToMint);
+
+        emit SyntheticAssetMinted(_account, address(_syntheticAsset), _amountToMint);
     }
 
     /**
@@ -259,13 +326,15 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
 
         require(_amount <= _unlockedDeposit, "amount-to-withdraw-gt-unlocked");
 
-        depositToken.burn(_account, _amount);
+        depositToken.burnUnlocked(_account, _amount);
 
         IERC20 met = IERC20(depositToken.underlying());
 
-        met.safeTransfer(_account, _amount);
+        uint256 _amountToWithdraw = withdrawFee > 0 ? _amount - ((_amount * withdrawFee) / 1e18) : _amount;
 
-        emit CollateralWithdrawn(_account, _amount);
+        met.safeTransfer(_account, _amountToWithdraw);
+
+        emit CollateralWithdrawn(_account, _amountToWithdraw);
     }
 
     /**
@@ -299,7 +368,19 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
      * @param _amount The amount of synthetic asset to burn
      */
     function repay(ISyntheticAsset _syntheticAsset, uint256 _amount) external nonReentrant {
-        _repay(_syntheticAsset, _msgSender(), _msgSender(), _amount);
+        address _account = _msgSender();
+        _repay(_syntheticAsset, _account, _account, _amount);
+
+        // Charging fee after repayment to reduce chances to have tx reverted due to low unlocked deposit
+        if (repayFee > 0) {
+            uint256 _feeInSyntheticAsset = (_amount * repayFee) / 1e18;
+            uint256 _feeInMet = oracle.convert(
+                _syntheticAsset.underlying(),
+                depositToken.underlying(),
+                _feeInSyntheticAsset
+            );
+            depositToken.burnUnlocked(_account, _feeInMet);
+        }
     }
 
     /**
@@ -320,15 +401,23 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
 
         _repay(_syntheticAsset, _account, _liquidator, _amountToRepay);
 
-        uint256 _amountToRepayInUsd = oracle.convertToUSD(_syntheticAsset.underlying(), _amountToRepay);
+        uint256 _amountToRepayInMET = oracle.convert(
+            _syntheticAsset.underlying(),
+            depositToken.underlying(),
+            _amountToRepay
+        );
 
-        uint256 _depositToSeizeInUsd = _amountToRepayInUsd + (_amountToRepayInUsd * liquidatorFee) / 1e18;
-
-        uint256 _depositToSeize = oracle.convertFromUSD(depositToken.underlying(), _depositToSeizeInUsd);
+        uint256 _toCollect = liquidateFee > 0 ? (_amountToRepayInMET * liquidateFee) / 1e18 : 0;
+        uint256 _toLiquidator = _amountToRepayInMET + (_amountToRepayInMET * liquidatorFee) / 1e18;
+        uint256 _depositToSeize = _toCollect + _toLiquidator;
 
         require(_depositToSeize <= _deposit, "amount-to-repay-is-too-high");
 
-        depositToken.seize(_account, _liquidator, _depositToSeize);
+        depositToken.seize(_account, _liquidator, _toLiquidator);
+
+        if (_toCollect > 0) {
+            depositToken.burn(_account, _toCollect);
+        }
 
         emit PositionLiquidated(_liquidator, _account, address(_syntheticAsset), _amountToRepay, _depositToSeize);
     }
@@ -339,12 +428,14 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
      * @param _syntheticAssetIn Synthetic asset to sell
      * @param _syntheticAssetOut Synthetic asset to buy
      * @param _amountIn Amount to swap
+     * @param _fee Fee to collect - Use 18 decimals (e.g. 1e16 = 1%)
      */
     function _swap(
         address _account,
         ISyntheticAsset _syntheticAssetIn,
         ISyntheticAsset _syntheticAssetOut,
-        uint256 _amountIn
+        uint256 _amountIn,
+        uint256 _fee
     )
         private
         onlyIfSyntheticAssetExists(_syntheticAssetIn)
@@ -354,8 +445,9 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
         require(_amountIn > 0, "amount-in-is-zero");
         require(_amountIn <= _syntheticAssetIn.balanceOf(_account), "amount-in-gt-synthetic-balance");
 
-        uint256 _amountInUsd = oracle.convertToUSD(_syntheticAssetIn.underlying(), _amountIn);
-        _amountOut = oracle.convertFromUSD(_syntheticAssetOut.underlying(), _amountInUsd);
+        uint256 _feeInSyntheticAssetIn = _fee > 0 ? (_amountIn * _fee) / 1e18 : 0;
+        uint256 _amountInAfterFee = _amountIn - _feeInSyntheticAssetIn;
+        _amountOut = oracle.convert(_syntheticAssetIn.underlying(), _syntheticAssetOut.underlying(), _amountInAfterFee);
 
         _syntheticAssetIn.burn(_account, _amountIn);
         _syntheticAssetIn.debtToken().burn(_account, _amountIn);
@@ -363,10 +455,17 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
         _syntheticAssetOut.mint(_account, _amountOut);
         _syntheticAssetOut.debtToken().mint(_account, _amountOut);
 
+        if (_feeInSyntheticAssetIn > 0) {
+            uint256 _feeInMet = oracle.convert(
+                _syntheticAssetIn.underlying(),
+                depositToken.underlying(),
+                _feeInSyntheticAssetIn
+            );
+            depositToken.burnUnlocked(_account, _feeInMet);
+        }
+
         (bool _isHealthy, , , , , , ) = debtPositionOf(_account);
 
-        // Note: Keeping this check here for the sake of the business logic quick implementation
-        // TODO: Try to move this check to the top of this block for security reasons
         require(_isHealthy, "debt-position-ended-up-unhealthy");
 
         emit SyntheticAssetSwapped(
@@ -393,7 +492,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
         (bool _isHealthy, , , , , , ) = debtPositionOf(_account);
         require(_isHealthy, "debt-position-is-unhealthy");
 
-        return _swap(_account, _syntheticAssetIn, _syntheticAssetOut, _amountIn);
+        return _swap(_account, _syntheticAssetIn, _syntheticAssetOut, _amountIn, swapFee);
     }
 
     /**
@@ -411,15 +510,10 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
         (bool _isHealthy, , , , , , ) = debtPositionOf(_account);
         require(!_isHealthy, "debt-position-is-healthy");
 
-        _swap(_account, _syntheticAssetIn, _syntheticAssetOut, _amountToRefinance);
+        _swap(_account, _syntheticAssetIn, _syntheticAssetOut, _amountToRefinance, refinanceFee);
 
         emit DebtRefinancied(_account, address(_syntheticAssetIn), _amountToRefinance);
     }
-
-    /**
-     * @notice Deploy MET to yield generation strategy
-     */
-    function rebalance() external onlyOwner {}
 
     /**
      * @notice Add synthetic token to mBOX offerings
@@ -479,9 +573,66 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
     }
 
     /**
+     * @notice Set deposit fee
+     */
+    function setDepositFee(uint256 _depositFee) public onlyOwner {
+        depositFee = _depositFee;
+        emit DepositFeeUpdated(_depositFee);
+    }
+
+    /**
+     * @notice Set mint fee
+     */
+    function setMintFee(uint256 _mintFee) public onlyOwner {
+        mintFee = _mintFee;
+        emit MintFeeUpdated(_mintFee);
+    }
+
+    /**
+     * @notice Set withdraw fee
+     */
+    function setWithdrawFee(uint256 _withdrawFee) public onlyOwner {
+        withdrawFee = _withdrawFee;
+        emit WithdrawFeeUpdated(_withdrawFee);
+    }
+
+    /**
+     * @notice Set repay fee
+     */
+    function setRepayFee(uint256 _repayFee) public onlyOwner {
+        repayFee = _repayFee;
+        emit RepayFeeUpdated(_repayFee);
+    }
+
+    /**
+     * @notice Set swap fee
+     */
+    function setSwapFee(uint256 _swapFee) public onlyOwner {
+        swapFee = _swapFee;
+        emit SwapFeeUpdated(_swapFee);
+    }
+
+    /**
+     * @notice Set refinance fee
+     */
+    function setRefinanceFee(uint256 _refinanceFee) public onlyOwner {
+        refinanceFee = _refinanceFee;
+        emit RefinanceFeeUpdated(_refinanceFee);
+    }
+
+    /**
      * @notice Set liquidator fee
      */
     function setLiquidatorFee(uint256 _liquidatorFee) public onlyOwner {
         liquidatorFee = _liquidatorFee;
+        emit LiquidatorFeeUpdated(_liquidatorFee);
+    }
+
+    /**
+     * @notice Set liquidate fee
+     */
+    function setLiquidateFee(uint256 _liquidateFee) public onlyOwner {
+        liquidateFee = _liquidateFee;
+        emit LiquidateFeeUpdated(_liquidateFee);
     }
 }

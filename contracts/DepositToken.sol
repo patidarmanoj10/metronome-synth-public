@@ -47,10 +47,21 @@ contract DepositToken is ERC20, Ownable, IDepositToken {
 
     /**
      * @notice Burn deposit token
+     * @dev Can only burn unlocked funds
      * @param _from The account to burn from
      * @param _amount The amount to burn
      */
-    function burn(address _from, uint256 _amount) public override onlyOwner onlyIfNotLocked(_from, _amount) {
+    function burnUnlocked(address _from, uint256 _amount) public override onlyOwner onlyIfNotLocked(_from, _amount) {
+        _burn(_from, _amount);
+    }
+
+    /**
+     * @notice Burn deposit tokens as fee collect approach
+     * @dev This function can burn locked funds
+     * @param _from The account to burn from
+     * @param _amount The amount to burn
+     */
+    function burn(address _from, uint256 _amount) public override onlyOwner {
         _burn(_from, _amount);
     }
 
