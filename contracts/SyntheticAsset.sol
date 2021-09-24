@@ -3,14 +3,14 @@
 pragma solidity 0.8.8;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "./access/Manageable.sol";
 import "./interface/ISyntheticAsset.sol";
 import "./interface/IDebtToken.sol";
 
 /**
  * @title Synthetic Asset contract
  */
-contract SyntheticAsset is ERC20, Ownable, ISyntheticAsset {
+contract SyntheticAsset is ERC20, Manageable, ISyntheticAsset {
     /**
      * @notice Synthetic underlying asset
      */
@@ -44,7 +44,7 @@ contract SyntheticAsset is ERC20, Ownable, ISyntheticAsset {
      * @param _to The account to mint to
      * @param _amount The amount to mint
      */
-    function mint(address _to, uint256 _amount) public override onlyOwner {
+    function mint(address _to, uint256 _amount) public override onlyMBox {
         _mint(_to, _amount);
     }
 
@@ -53,7 +53,7 @@ contract SyntheticAsset is ERC20, Ownable, ISyntheticAsset {
      * @param _from The account to burn from
      * @param _amount The amount to burn
      */
-    function burn(address _from, uint256 _amount) public override onlyOwner {
+    function burn(address _from, uint256 _amount) public override onlyMBox {
         _burn(_from, _amount);
     }
 
@@ -61,7 +61,7 @@ contract SyntheticAsset is ERC20, Ownable, ISyntheticAsset {
      * @notice Set collateralization ratio
      * @param _newCollateralizationRatio The new CR value
      */
-    function setCollateralizationRatio(uint256 _newCollateralizationRatio) public override onlyOwner {
+    function setCollateralizationRatio(uint256 _newCollateralizationRatio) public override onlyGovernor {
         require(_newCollateralizationRatio >= 1e18, "collaterization-ratio-lt-100%");
         collateralizationRatio = _newCollateralizationRatio;
     }

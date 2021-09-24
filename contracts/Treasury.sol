@@ -3,14 +3,14 @@
 pragma solidity 0.8.8;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "./access/Manageable.sol";
 import "./interface/ITreasury.sol";
 
 /**
  * @title Treasury contract
  */
-contract Treasury is Ownable, ReentrancyGuard, ITreasury {
+contract Treasury is Manageable, ReentrancyGuard, ITreasury {
     using SafeERC20 for IERC20;
 
     /**
@@ -26,7 +26,7 @@ contract Treasury is Ownable, ReentrancyGuard, ITreasury {
     /**
      * @notice Pull MET from the Treasury
      */
-    function pull(address _to, uint256 _amount) external override onlyOwner {
+    function pull(address _to, uint256 _amount) external override onlyMBox {
         require(_amount > 0, "amount-is-zero");
         met.safeTransfer(_to, _amount);
     }
@@ -34,7 +34,7 @@ contract Treasury is Ownable, ReentrancyGuard, ITreasury {
     /**
      * @notice Deploy MET to yield generation strategy
      */
-    function rebalance() external onlyOwner {
+    function rebalance() external onlyGovernor {
         // TODO
     }
 }

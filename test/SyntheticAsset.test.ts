@@ -8,7 +8,9 @@ import {WETH} from './helpers'
 
 describe('SyntheticAsset', function () {
   let deployer: SignerWithAddress
+  let governor: SignerWithAddress
   let user: SignerWithAddress
+  let mBoxMock: SignerWithAddress
   let mAsset: SyntheticAsset
   let debtToken: DebtToken
   const name = 'Metronome ETH'
@@ -18,7 +20,7 @@ describe('SyntheticAsset', function () {
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
-    ;[deployer, user] = await ethers.getSigners()
+    ;[deployer, governor, user, mBoxMock] = await ethers.getSigners()
 
     const debtTokenFactory = new DebtToken__factory(deployer)
     debtToken = await debtTokenFactory.deploy('mETH Debt', 'mEth-Debt')
@@ -27,6 +29,10 @@ describe('SyntheticAsset', function () {
     const mETHFactory = new SyntheticAsset__factory(deployer)
     mAsset = await mETHFactory.deploy(name, symbol, underlying, debtToken.address, collateralizationRatio)
     await mAsset.deployed()
+
+    await mAsset.setMBox(mBoxMock.address)
+    await mAsset.transferGovernorship(governor.address)
+    mAsset = mAsset.connect(governor)
   })
 
   it('default values', async function () {
@@ -41,13 +47,32 @@ describe('SyntheticAsset', function () {
     it('should mint', async function () {
       expect(await mAsset.balanceOf(user.address)).to.eq(0)
       const amount = parseEther('100')
-      await mAsset.mint(user.address, amount)
+      await mAsset.connect(mBoxMock).mint(user.address, amount)
       expect(await mAsset.balanceOf(user.address)).to.eq(amount)
     })
 
-    it('should revert if not owner', async function () {
+    it('should revert if not mbox', async function () {
       const tx = mAsset.connect(user).mint(user.address, parseEther('10'))
-      await expect(tx).to.revertedWith('Ownable: caller is not the owner')
+      await expect(tx).to.revertedWith('not-mbox')
+    })
+  })
+
+  describe('burn', function () {
+    const amount = parseEther('100')
+
+    beforeEach(async function () {
+      await mAsset.connect(mBoxMock).mint(user.address, amount)
+    })
+
+    it('should burn', async function () {
+      expect(await mAsset.balanceOf(user.address)).to.eq(amount)
+      await mAsset.connect(mBoxMock).burn(user.address, amount)
+      expect(await mAsset.balanceOf(user.address)).to.eq(0)
+    })
+
+    it('should revert if not mbox', async function () {
+      const tx = mAsset.connect(user).burn(user.address, parseEther('10'))
+      await expect(tx).to.revertedWith('not-mbox')
     })
   })
 
@@ -59,9 +84,9 @@ describe('SyntheticAsset', function () {
       expect(await mAsset.collateralizationRatio()).to.eq(after)
     })
 
-    it('should revert if not owner', async function () {
+    it('should revert if not governor', async function () {
       const tx = mAsset.connect(user).setCollateralizationRatio(parseEther('10'))
-      await expect(tx).to.revertedWith('Ownable: caller is not the owner')
+      await expect(tx).to.revertedWith('not-governor')
     })
 
     it('should revert if < 100%', async function () {
