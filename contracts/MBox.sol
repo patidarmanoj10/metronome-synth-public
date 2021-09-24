@@ -153,6 +153,9 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
     /// @notice Emitted when liquidate fee is updated
     event LiquidateFeeUpdated(uint256 newLiquidateFee);
 
+    /// @notice Emitted when treasury contract is updated
+    event TreasuryUpdated(address indexed newTreasury);
+
     /**
      * @dev Throws if synthetic asset isn't enabled
      */
@@ -566,10 +569,21 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
     }
 
     /**
-     * @notice Set treasury contract
+     * @notice Update treasury contract - will migrate funds to the new contract
      */
-    function setTreasury(ITreasury _treasury) public onlyOwner {
-        treasury = _treasury;
+    function updateTreasury(ITreasury _newTreasury) public onlyOwner {
+        require(address(_newTreasury) != address(0), "treasury-address-is-null");
+        require(address(_newTreasury) != address(treasury), "new-treasury-is-same-as-current");
+
+        // TODO: Remove this check when implementing MBox.init() function
+        // refs: https://github.com/bloqpriv/mbox/issues/10
+        if (address(treasury) != address(0)) {
+            IERC20 met = IERC20(depositToken.underlying());
+            treasury.pull(address(_newTreasury), met.balanceOf(address(treasury)));
+        }
+
+        treasury = _newTreasury;
+        emit TreasuryUpdated(address(_newTreasury));
     }
 
     /**

@@ -103,7 +103,7 @@ describe('MBox', function () {
     await mDoge.transferOwnership(mBOX.address)
     await mEthDebtToken.transferOwnership(mBOX.address)
     await mDogeDebtToken.transferOwnership(mBOX.address)
-    await mBOX.setTreasury(treasury.address)
+    await mBOX.updateTreasury(treasury.address)
     await mBOX.setDepositToken(depositToken.address)
     await mBOX.setOracle(oracle.address)
     await mBOX.setLiquidatorFee(liquidatorFee)
@@ -1434,6 +1434,51 @@ describe('MBox', function () {
           })
         })
       })
+    })
+  })
+
+  describe('updateTreasury', function () {
+    it('should revert if using the same address', async function () {
+      // given
+      expect(await mBOX.treasury()).to.eq(treasury.address)
+
+      // when
+      const tx = mBOX.updateTreasury(treasury.address)
+
+      // then
+      await expect(tx).to.revertedWith('new-treasury-is-same-as-current')
+    })
+
+    it('should revert if caller is not owner', async function () {
+      // when
+      const tx = mBOX.connect(user.address).updateTreasury(treasury.address)
+
+      // then
+      await expect(tx).to.revertedWith('Ownable: caller is not the owner')
+    })
+
+    it('should revert if address is zero', async function () {
+      // when
+      const tx = mBOX.updateTreasury(ethers.constants.AddressZero)
+
+      // then
+      await expect(tx).to.revertedWith('treasury-address-is-null')
+    })
+
+    it('should migrate funds to the new treasury', async function () {
+      // given
+      const balance = parseEther('100')
+      await met.mint(treasury.address, balance)
+
+      const treasuryFactory = new Treasury__factory(deployer)
+      const newTreasury = await treasuryFactory.deploy(met.address)
+      await newTreasury.deployed()
+
+      // when
+      const tx = () => mBOX.updateTreasury(newTreasury.address)
+
+      // then
+      await expect(tx).changeTokenBalances(met, [treasury, newTreasury], [balance.mul('-1'), balance])
     })
   })
 })
