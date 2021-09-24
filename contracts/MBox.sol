@@ -82,29 +82,19 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
     ISyntheticAsset[] public syntheticAssets;
     mapping(address => ISyntheticAsset) public syntheticAssetsByAddress;
 
-    /**
-     * @notice Emitted when collateral is deposited
-     */
+    /// @notice Emitted when collateral is deposited
     event CollateralDeposited(address indexed account, uint256 amount);
 
-    /**
-     * @notice Emitted when collateral is withdrawn
-     */
+    /// @notice Emitted when collateral is withdrawn
     event CollateralWithdrawn(address indexed account, uint256 amount);
 
-    /**
-     * @notice Emitted when synthetic asset is minted
-     */
+    /// @notice Emitted when synthetic asset is minted
     event SyntheticAssetMinted(address indexed account, address syntheticAsseet, uint256 amount);
 
-    /**
-     * @notice Emitted when synthetic's debt is repayed
-     */
+    /// @notice Emitted when synthetic's debt is repayed
     event DebtRepayed(address indexed account, address syntheticAsseet, uint256 amount);
 
-    /**
-     * @notice Emitted when a position is liquidated
-     */
+    /// @notice Emitted when a position is liquidated
     event PositionLiquidated(
         address indexed liquidator,
         address indexed account,
@@ -113,9 +103,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
         uint256 depositSeized
     );
 
-    /**
-     * @notice Emitted when synthetic asset is swapped
-     */
+    /// @notice Emitted when synthetic asset is swapped
     event SyntheticAssetSwapped(
         address indexed account,
         address syntheticAssetIn,
@@ -124,20 +112,38 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
         uint256 amountOut
     );
 
-    /**
-     * @notice Emitted when debt is refinancied
-     */
+    /// @notice Emitted when debt is refinancied
     event DebtRefinancied(address indexed account, address syntheticAsset, uint256 amount);
 
-    /**
-     * @notice Emitted when synthetic asset is enabled
-     */
+    /// @notice Emitted when synthetic asset is enabled
     event SyntheticAssetAdded(address indexed syntheticAsset);
 
-    /**
-     * @notice Emitted when synthetic asset is disabled
-     */
+    /// @notice Emitted when synthetic asset is disabled
     event SyntheticAssetRemoved(address indexed syntheticAsset);
+
+    /// @notice Emitted when deposit fee is updated
+    event DepositFeeUpdated(uint256 newDepositFee);
+
+    /// @notice Emitted when mint fee is updated
+    event MintFeeUpdated(uint256 newMintFee);
+
+    /// @notice Emitted when withdraw fee is updated
+    event WithdrawFeeUpdated(uint256 newWithdrawFee);
+
+    /// @notice Emitted when repay fee is updated
+    event RepayFeeUpdated(uint256 newRepayFee);
+
+    /// @notice Emitted when swap fee is updated
+    event SwapFeeUpdated(uint256 newSwapFee);
+
+    /// @notice Emitted when refinance fee is updated
+    event RefinanceFeeUpdated(uint256 newRefinanceFee);
+
+    /// @notice Emitted when liquidator fee is updated
+    event LiquidatorFeeUpdated(uint256 newLiquidatorFee);
+
+    /// @notice Emitted when liquidate fee is updated
+    event LiquidateFeeUpdated(uint256 newLiquidateFee);
 
     /**
      * @dev Throws if synthetic asset isn't enabled
@@ -571,6 +577,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
      */
     function setDepositFee(uint256 _depositFee) public onlyOwner {
         depositFee = _depositFee;
+        emit DepositFeeUpdated(_depositFee);
     }
 
     /**
@@ -578,6 +585,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
      */
     function setMintFee(uint256 _mintFee) public onlyOwner {
         mintFee = _mintFee;
+        emit MintFeeUpdated(_mintFee);
     }
 
     /**
@@ -585,6 +593,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
      */
     function setWithdrawFee(uint256 _withdrawFee) public onlyOwner {
         withdrawFee = _withdrawFee;
+        emit WithdrawFeeUpdated(_withdrawFee);
     }
 
     /**
@@ -592,6 +601,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
      */
     function setRepayFee(uint256 _repayFee) public onlyOwner {
         repayFee = _repayFee;
+        emit RepayFeeUpdated(_repayFee);
     }
 
     /**
@@ -599,6 +609,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
      */
     function setSwapFee(uint256 _swapFee) public onlyOwner {
         swapFee = _swapFee;
+        emit SwapFeeUpdated(_swapFee);
     }
 
     /**
@@ -606,6 +617,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
      */
     function setRefinanceFee(uint256 _refinanceFee) public onlyOwner {
         refinanceFee = _refinanceFee;
+        emit RefinanceFeeUpdated(_refinanceFee);
     }
 
     /**
@@ -613,6 +625,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
      */
     function setLiquidatorFee(uint256 _liquidatorFee) public onlyOwner {
         liquidatorFee = _liquidatorFee;
+        emit LiquidatorFeeUpdated(_liquidatorFee);
     }
 
     /**
@@ -620,5 +633,6 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
      */
     function setLiquidateFee(uint256 _liquidateFee) public onlyOwner {
         liquidateFee = _liquidateFee;
+        emit LiquidateFeeUpdated(_liquidateFee);
     }
 }
