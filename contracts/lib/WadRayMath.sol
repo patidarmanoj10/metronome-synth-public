@@ -69,10 +69,7 @@ library WadRayMath {
      * @return a casted to wad, rounded half up to the nearest wad
      */
     function rayToWad(uint256 a) internal pure returns (uint256) {
-        uint256 halfRatio = WAD_RAY_RATIO / 2;
-        uint256 result = halfRatio + a;
-
-        return result / WAD_RAY_RATIO;
+        return ((WAD_RAY_RATIO / 2) + a) / WAD_RAY_RATIO;
     }
 
     /**
@@ -81,7 +78,6 @@ library WadRayMath {
      * @return a converted in ray
      */
     function wadToRay(uint256 a) internal pure returns (uint256) {
-        uint256 result = a * WAD_RAY_RATIO;
-        return result;
+        return a * WAD_RAY_RATIO;
     }
 }
