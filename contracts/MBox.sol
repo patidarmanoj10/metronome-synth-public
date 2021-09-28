@@ -10,12 +10,14 @@ import "./interface/ISyntheticAsset.sol";
 import "./interface/IOracle.sol";
 import "./interface/IDepositToken.sol";
 import "./interface/IMBox.sol";
+import "./lib/WadRayMath.sol";
 
 /**
  * @title mBOX main contract
  */
 contract MBox is Ownable, ReentrancyGuard, IMBox {
     using SafeERC20 for IERC20;
+    using WadRayMath for uint256;
 
     /**
      * @notice The fee charged when depositing collateral
@@ -169,7 +171,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
 
         met.safeTransferFrom(_account, address(this), _amount);
 
-        uint256 _amountToMint = depositFee > 0 ? (_amount * (1e18 - depositFee)) / 1e18 : _amount;
+        uint256 _amountToMint = depositFee > 0 ? _amount.wadMul(1e18 - depositFee) : _amount;
 
         depositToken.mint(_account, _amountToMint);
 
@@ -190,7 +192,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
                 uint256 _amountInUsd = oracle.convertToUSD(syntheticAssets[i].underlying(), _amount);
 
                 _debtInUsd += _amountInUsd;
-                _lockedDepositInUsd += (_amountInUsd * syntheticAssets[i].collateralizationRatio()) / 1e18;
+                _lockedDepositInUsd += _amountInUsd.wadMul(syntheticAssets[i].collateralizationRatio());
             }
         }
     }
@@ -267,7 +269,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
 
         uint256 _unlockedDepositInUsd = oracle.convertToUSD(depositToken.underlying(), _unlockedDeposit);
 
-        uint256 _maxIssuableInUsd = (_unlockedDepositInUsd * 1e18) / _syntheticAsset.collateralizationRatio();
+        uint256 _maxIssuableInUsd = _unlockedDepositInUsd.wadDiv(_syntheticAsset.collateralizationRatio());
 
         _maxIssuable = oracle.convertFromUSD(_syntheticAsset.underlying(), _maxIssuableInUsd);
     }
@@ -293,7 +295,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
         uint256 _feeInSyntheticAsset;
 
         if (mintFee > 0) {
-            _feeInSyntheticAsset = (_amount * mintFee) / 1e18;
+            _feeInSyntheticAsset = _amount.wadMul(mintFee);
 
             uint256 _feeInMet = oracle.convert(
                 _syntheticAsset.underlying(),
@@ -330,7 +332,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
 
         IERC20 met = IERC20(depositToken.underlying());
 
-        uint256 _amountToWithdraw = withdrawFee > 0 ? _amount - ((_amount * withdrawFee) / 1e18) : _amount;
+        uint256 _amountToWithdraw = withdrawFee > 0 ? _amount - _amount.wadMul(withdrawFee) : _amount;
 
         met.safeTransfer(_account, _amountToWithdraw);
 
@@ -373,7 +375,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
 
         // Charging fee after repayment to reduce chances to have tx reverted due to low unlocked deposit
         if (repayFee > 0) {
-            uint256 _feeInSyntheticAsset = (_amount * repayFee) / 1e18;
+            uint256 _feeInSyntheticAsset = _amount.wadMul(repayFee);
             uint256 _feeInMet = oracle.convert(
                 _syntheticAsset.underlying(),
                 depositToken.underlying(),
@@ -407,10 +409,9 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
             _amountToRepay
         );
 
-        uint256 _toCollect = liquidateFee > 0 ? (_amountToRepayInMET * liquidateFee) / 1e18 : 0;
-        uint256 _toLiquidator = _amountToRepayInMET + (_amountToRepayInMET * liquidatorFee) / 1e18;
+        uint256 _toCollect = liquidateFee > 0 ? _amountToRepayInMET.wadMul(liquidateFee) : 0;
+        uint256 _toLiquidator = _amountToRepayInMET + _amountToRepayInMET.wadMul(liquidatorFee);
         uint256 _depositToSeize = _toCollect + _toLiquidator;
-
         require(_depositToSeize <= _deposit, "amount-to-repay-is-too-high");
 
         depositToken.seize(_account, _liquidator, _toLiquidator);
@@ -445,7 +446,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
         require(_amountIn > 0, "amount-in-is-zero");
         require(_amountIn <= _syntheticAssetIn.balanceOf(_account), "amount-in-gt-synthetic-balance");
 
-        uint256 _feeInSyntheticAssetIn = _fee > 0 ? (_amountIn * _fee) / 1e18 : 0;
+        uint256 _feeInSyntheticAssetIn = _fee > 0 ? _amountIn.wadMul(_fee) : 0;
         uint256 _amountInAfterFee = _amountIn - _feeInSyntheticAssetIn;
         _amountOut = oracle.convert(_syntheticAssetIn.underlying(), _syntheticAssetOut.underlying(), _amountInAfterFee);
 

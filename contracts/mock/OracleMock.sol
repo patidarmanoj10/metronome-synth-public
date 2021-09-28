@@ -3,8 +3,11 @@
 pragma solidity 0.8.6;
 
 import "../interface/IOracle.sol";
+import "../lib/WadRayMath.sol";
 
 contract OracleMock is IOracle {
+    using WadRayMath for uint256;
+
     mapping(address => uint256) public rates;
 
     function rateOf(address _asset) public view override returns (uint256) {
@@ -16,11 +19,11 @@ contract OracleMock is IOracle {
     }
 
     function convertToUSD(address _asset, uint256 _amount) public view override returns (uint256 _amountInUsd) {
-        _amountInUsd = (_amount * rateOf(_asset)) / 1e18;
+        _amountInUsd = _amount.wadMul(rateOf(_asset));
     }
 
     function convertFromUSD(address _asset, uint256 _amountInUsd) public view override returns (uint256 _amount) {
-        _amount = (_amountInUsd * 1e18) / rateOf(_asset);
+        _amount = _amountInUsd.wadDiv(rateOf(_asset));
     }
 
     function convert(
