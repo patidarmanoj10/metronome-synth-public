@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.6;
+pragma solidity 0.8.8;
 
 import "../interface/IMBox.sol";
 import "../interface/IDepositToken.sol";

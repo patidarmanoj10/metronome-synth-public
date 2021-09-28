@@ -16,6 +16,7 @@ build
 artifacts
 cache
 typechain
+gas-report.txt
 
 # Solidity coverage
 coverage
