@@ -32,6 +32,7 @@ describe('SyntheticAsset', function () {
 
     await mAsset.setMBox(mBoxMock.address)
     await mAsset.transferGovernorship(governor.address)
+    await mAsset.connect(governor).acceptGovernorship()
     mAsset = mAsset.connect(governor)
   })
 
@@ -86,7 +87,7 @@ describe('SyntheticAsset', function () {
 
     it('should revert if not governor', async function () {
       const tx = mAsset.connect(user).setCollateralizationRatio(parseEther('10'))
-      await expect(tx).to.revertedWith('not-governor')
+      await expect(tx).to.revertedWith('not-the-governor')
     })
 
     it('should revert if < 100%', async function () {

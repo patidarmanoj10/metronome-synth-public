@@ -37,6 +37,7 @@ describe('DepositToken', function () {
     await mBox.deployed()
 
     await depositToken.transferGovernorship(governor.address)
+    await depositToken.connect(governor).acceptGovernorship()
     depositToken = depositToken.connect(governor)
     await depositToken.setMBox(governor.address)
   })

@@ -99,21 +99,27 @@ describe('MBox', function () {
     // Deployment tasks
     await depositToken.setMBox(mBOX.address)
     await depositToken.transferGovernorship(governor.address)
+    await depositToken.connect(governor).acceptGovernorship()
 
     await treasury.setMBox(mBOX.address)
     await treasury.transferGovernorship(governor.address)
+    await treasury.connect(governor).acceptGovernorship()
 
     await mEth.setMBox(mBOX.address)
     await mEth.transferGovernorship(governor.address)
+    await mEth.connect(governor).acceptGovernorship()
 
     await mDoge.setMBox(mBOX.address)
     await mDoge.transferGovernorship(governor.address)
+    await mDoge.connect(governor).acceptGovernorship()
 
     await mEthDebtToken.setMBox(mBOX.address)
     await mEthDebtToken.transferGovernorship(governor.address)
+    await mEthDebtToken.connect(governor).acceptGovernorship()
 
     await mDogeDebtToken.setMBox(mBOX.address)
     await mDogeDebtToken.transferGovernorship(governor.address)
+    await mDogeDebtToken.connect(governor).acceptGovernorship()
 
     await mBOX.updateTreasury(treasury.address)
     await mBOX.setDepositToken(depositToken.address)
@@ -136,7 +142,7 @@ describe('MBox', function () {
     describe('addSyntheticAsset', function () {
       it('should revert if not governor', async function () {
         const tx = mBOX.connect(user).addSyntheticAsset(mEth.address)
-        await expect(tx).to.revertedWith('not-governor')
+        await expect(tx).to.revertedWith('not-the-governor')
       })
 
       it('should add synthetic asset', async function () {
@@ -1466,7 +1472,7 @@ describe('MBox', function () {
       const tx = mBOX.connect(user.address).updateTreasury(treasury.address)
 
       // then
-      await expect(tx).to.revertedWith('not-governor')
+      await expect(tx).to.revertedWith('not-the-governor')
     })
 
     it('should revert if address is zero', async function () {
