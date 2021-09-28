@@ -154,7 +154,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
     event LiquidateFeeUpdated(uint256 newLiquidateFee);
 
     /// @notice Emitted when treasury contract is updated
-    event TreasuryUpdated(address indexed newTreasury);
+    event TreasuryUpdated(address indexed oldTreasury, address indexed newTreasury);
 
     /**
      * @dev Throws if synthetic asset isn't enabled
@@ -338,8 +338,6 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
         require(_amount <= _unlockedDeposit, "amount-to-withdraw-gt-unlocked");
 
         depositToken.burnUnlocked(_account, _amount);
-
-        IERC20 met = IERC20(depositToken.underlying());
 
         uint256 _amountToWithdraw = withdrawFee > 0 ? _amount - _amount.wadMul(withdrawFee) : _amount;
 
@@ -571,19 +569,20 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
     /**
      * @notice Update treasury contract - will migrate funds to the new contract
      */
-    function updateTreasury(ITreasury _newTreasury) public onlyOwner {
-        require(address(_newTreasury) != address(0), "treasury-address-is-null");
-        require(address(_newTreasury) != address(treasury), "new-treasury-is-same-as-current");
+    function updateTreasury(address _newTreasury) public onlyOwner {
+        require(_newTreasury != address(0), "treasury-address-is-null");
+        require(_newTreasury != address(treasury), "new-treasury-is-same-as-current");
 
         // TODO: Remove this check when implementing MBox.init() function
         // refs: https://github.com/bloqpriv/mbox/issues/10
         if (address(treasury) != address(0)) {
             IERC20 met = IERC20(depositToken.underlying());
-            treasury.pull(address(_newTreasury), met.balanceOf(address(treasury)));
+            treasury.pull(_newTreasury, met.balanceOf(address(treasury)));
         }
 
-        treasury = _newTreasury;
-        emit TreasuryUpdated(address(_newTreasury));
+        emit TreasuryUpdated(address(treasury), _newTreasury);
+
+        treasury = ITreasury(_newTreasury);
     }
 
     /**
