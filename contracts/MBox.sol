@@ -11,6 +11,7 @@ import "./interface/IOracle.sol";
 import "./interface/IDepositToken.sol";
 import "./interface/IMBox.sol";
 import "./lib/WadRayMath.sol";
+import "./interface/ITreasury.sol";
 
 /**
  * @title mBOX main contract
@@ -66,6 +67,11 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
      * @dev Use 18 decimals (e.g. 1e16 = 1%)
      */
     uint256 public liquidateFee;
+
+    /**
+     * @notice Treasury contract
+     */
+    ITreasury public treasury;
 
     /**
      * @notice Represents MET collateral's deposits (mBOX-MET token)
@@ -147,6 +153,9 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
     /// @notice Emitted when liquidate fee is updated
     event LiquidateFeeUpdated(uint256 newLiquidateFee);
 
+    /// @notice Emitted when treasury contract is updated
+    event TreasuryUpdated(address indexed oldTreasury, address indexed newTreasury);
+
     /**
      * @dev Throws if synthetic asset isn't enabled
      */
@@ -169,7 +178,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
 
         IERC20 met = IERC20(depositToken.underlying());
 
-        met.safeTransferFrom(_account, address(this), _amount);
+        met.safeTransferFrom(_account, address(treasury), _amount);
 
         uint256 _amountToMint = depositFee > 0 ? _amount.wadMul(1e18 - depositFee) : _amount;
 
@@ -330,11 +339,9 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
 
         depositToken.burnUnlocked(_account, _amount);
 
-        IERC20 met = IERC20(depositToken.underlying());
-
         uint256 _amountToWithdraw = withdrawFee > 0 ? _amount - _amount.wadMul(withdrawFee) : _amount;
 
-        met.safeTransfer(_account, _amountToWithdraw);
+        treasury.pull(_account, _amountToWithdraw);
 
         emit CollateralWithdrawn(_account, _amountToWithdraw);
     }
@@ -557,6 +564,25 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
         delete syntheticAssetsByAddress[_syntheticAddress];
 
         emit SyntheticAssetRemoved(_syntheticAddress);
+    }
+
+    /**
+     * @notice Update treasury contract - will migrate funds to the new contract
+     */
+    function updateTreasury(address _newTreasury) public onlyOwner {
+        require(_newTreasury != address(0), "treasury-address-is-null");
+        require(_newTreasury != address(treasury), "new-treasury-is-same-as-current");
+
+        // TODO: Remove this check when implementing MBox.init() function
+        // refs: https://github.com/bloqpriv/mbox/issues/10
+        if (address(treasury) != address(0)) {
+            IERC20 met = IERC20(depositToken.underlying());
+            treasury.pull(_newTreasury, met.balanceOf(address(treasury)));
+        }
+
+        emit TreasuryUpdated(address(treasury), _newTreasury);
+
+        treasury = ITreasury(_newTreasury);
     }
 
     /**
