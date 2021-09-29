@@ -25,6 +25,7 @@ import {getMaxLiquidationAmountInUsd, getMinLiquidationAmountInUsd, WETH} from '
 
 describe('MBox', function () {
   let deployer: SignerWithAddress
+  let governor: SignerWithAddress
   let user: SignerWithAddress
   let liquidator: SignerWithAddress
   let met: ERC20Mock
@@ -47,7 +48,7 @@ describe('MBox', function () {
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
-    ;[deployer, user, liquidator] = await ethers.getSigners()
+    ;[deployer, governor, user, liquidator] = await ethers.getSigners()
 
     const oracleMock = new OracleMock__factory(deployer)
     oracle = <OracleMock>await oracleMock.deploy()
@@ -97,12 +98,29 @@ describe('MBox', function () {
 
     // Deployment tasks
     await depositToken.setMBox(mBOX.address)
-    await depositToken.transferOwnership(mBOX.address)
-    await treasury.transferOwnership(mBOX.address)
-    await mEth.transferOwnership(mBOX.address)
-    await mDoge.transferOwnership(mBOX.address)
-    await mEthDebtToken.transferOwnership(mBOX.address)
-    await mDogeDebtToken.transferOwnership(mBOX.address)
+    await depositToken.transferGovernorship(governor.address)
+    await depositToken.connect(governor).acceptGovernorship()
+
+    await treasury.setMBox(mBOX.address)
+    await treasury.transferGovernorship(governor.address)
+    await treasury.connect(governor).acceptGovernorship()
+
+    await mEth.setMBox(mBOX.address)
+    await mEth.transferGovernorship(governor.address)
+    await mEth.connect(governor).acceptGovernorship()
+
+    await mDoge.setMBox(mBOX.address)
+    await mDoge.transferGovernorship(governor.address)
+    await mDoge.connect(governor).acceptGovernorship()
+
+    await mEthDebtToken.setMBox(mBOX.address)
+    await mEthDebtToken.transferGovernorship(governor.address)
+    await mEthDebtToken.connect(governor).acceptGovernorship()
+
+    await mDogeDebtToken.setMBox(mBOX.address)
+    await mDogeDebtToken.transferGovernorship(governor.address)
+    await mDogeDebtToken.connect(governor).acceptGovernorship()
+
     await mBOX.updateTreasury(treasury.address)
     await mBOX.setDepositToken(depositToken.address)
     await mBOX.setOracle(oracle.address)
@@ -122,9 +140,9 @@ describe('MBox', function () {
 
   describe('whitelisting', function () {
     describe('addSyntheticAsset', function () {
-      it('should revert if not owner', async function () {
+      it('should revert if not governor', async function () {
         const tx = mBOX.connect(user).addSyntheticAsset(mEth.address)
-        await expect(tx).to.revertedWith('Ownable: caller is not the owner')
+        await expect(tx).to.revertedWith('not-the-governor')
       })
 
       it('should add synthetic asset', async function () {
@@ -1449,12 +1467,12 @@ describe('MBox', function () {
       await expect(tx).to.revertedWith('new-treasury-is-same-as-current')
     })
 
-    it('should revert if caller is not owner', async function () {
+    it('should revert if caller is not governor', async function () {
       // when
       const tx = mBOX.connect(user.address).updateTreasury(treasury.address)
 
       // then
-      await expect(tx).to.revertedWith('Ownable: caller is not the owner')
+      await expect(tx).to.revertedWith('not-the-governor')
     })
 
     it('should revert if address is zero', async function () {

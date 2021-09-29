@@ -6,7 +6,7 @@ import {ethers} from 'hardhat'
 import {DebtToken, DebtToken__factory} from '../typechain'
 
 describe('DebtToken', function () {
-  let deployer: SignerWithAddress
+  let mBoxMock: SignerWithAddress
   let user: SignerWithAddress
   let debtToken: DebtToken
   const name = 'mETH Debt'
@@ -14,11 +14,13 @@ describe('DebtToken', function () {
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
-    ;[deployer, user] = await ethers.getSigners()
+    ;[mBoxMock, user] = await ethers.getSigners()
 
-    const debtTokenFactory = new DebtToken__factory(deployer)
+    const debtTokenFactory = new DebtToken__factory(mBoxMock)
     debtToken = await debtTokenFactory.deploy(name, symbol)
     await debtToken.deployed()
+
+    await debtToken.setMBox(mBoxMock.address)
   })
 
   it('default values', async function () {
@@ -36,9 +38,9 @@ describe('DebtToken', function () {
       expect(await debtToken.balanceOf(user.address)).to.eq(amount)
     })
 
-    it('should revert if not owner', async function () {
+    it('should revert if not mbox', async function () {
       const tx = debtToken.connect(user).mint(user.address, parseEther('10'))
-      await expect(tx).to.revertedWith('Ownable: caller is not the owner')
+      await expect(tx).to.revertedWith('not-mbox')
     })
   })
 
@@ -56,15 +58,15 @@ describe('DebtToken', function () {
         expect(await debtToken.balanceOf(user.address)).to.eq(0)
       })
 
-      it('should revert if not owner', async function () {
+      it('should revert if not mbox', async function () {
         const tx = debtToken.connect(user).mint(user.address, parseEther('10'))
-        await expect(tx).to.revertedWith('Ownable: caller is not the owner')
+        await expect(tx).to.revertedWith('not-mbox')
       })
     })
 
     describe('transfer', function () {
       it('should revert when transfering', async function () {
-        const tx = debtToken.transfer(deployer.address, parseEther('1'))
+        const tx = debtToken.transfer(mBoxMock.address, parseEther('1'))
         await expect(tx).to.revertedWith('non-transferable-token')
       })
 

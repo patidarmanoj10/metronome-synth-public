@@ -4,8 +4,8 @@ pragma solidity 0.8.8;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "./access/Governable.sol";
 import "./interface/ISyntheticAsset.sol";
 import "./interface/IOracle.sol";
 import "./interface/IDepositToken.sol";
@@ -16,7 +16,7 @@ import "./interface/ITreasury.sol";
 /**
  * @title mBOX main contract
  */
-contract MBox is Ownable, ReentrancyGuard, IMBox {
+contract MBox is Governable, ReentrancyGuard, IMBox {
     using SafeERC20 for IERC20;
     using WadRayMath for uint256;
 
@@ -526,7 +526,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
     /**
      * @notice Add synthetic token to mBOX offerings
      */
-    function addSyntheticAsset(ISyntheticAsset _synthetic) public onlyOwner {
+    function addSyntheticAsset(ISyntheticAsset _synthetic) public onlyGovernor {
         address _syntheticAddress = address(_synthetic);
         require(_syntheticAddress != address(0), "address-is-null");
         require(address(syntheticAssetsByAddress[_syntheticAddress]) == address(0), "synthetic-asset-exists");
@@ -540,7 +540,11 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
     /**
      * @notice Remove synthetic token from mBOX offerings
      */
-    function removeSyntheticAsset(ISyntheticAsset _synthetic) public onlyOwner onlyIfSyntheticAssetExists(_synthetic) {
+    function removeSyntheticAsset(ISyntheticAsset _synthetic)
+        public
+        onlyGovernor
+        onlyIfSyntheticAssetExists(_synthetic)
+    {
         require(_synthetic.totalSupply() == 0, "synthetic-asset-with-supply");
 
         address _syntheticAddress = address(_synthetic);
@@ -569,7 +573,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
     /**
      * @notice Update treasury contract - will migrate funds to the new contract
      */
-    function updateTreasury(address _newTreasury) public onlyOwner {
+    function updateTreasury(address _newTreasury) public onlyGovernor {
         require(_newTreasury != address(0), "treasury-address-is-null");
         require(_newTreasury != address(treasury), "new-treasury-is-same-as-current");
 
@@ -588,21 +592,21 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
     /**
      * @notice Set deposit (mBOX-MET) contract
      */
-    function setDepositToken(IDepositToken _depositToken) public onlyOwner {
+    function setDepositToken(IDepositToken _depositToken) public onlyGovernor {
         depositToken = _depositToken;
     }
 
     /**
      * @notice Set price oracle contract
      */
-    function setOracle(IOracle _oracle) public onlyOwner {
+    function setOracle(IOracle _oracle) public onlyGovernor {
         oracle = _oracle;
     }
 
     /**
      * @notice Set deposit fee
      */
-    function setDepositFee(uint256 _depositFee) public onlyOwner {
+    function setDepositFee(uint256 _depositFee) public onlyGovernor {
         depositFee = _depositFee;
         emit DepositFeeUpdated(_depositFee);
     }
@@ -610,7 +614,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
     /**
      * @notice Set mint fee
      */
-    function setMintFee(uint256 _mintFee) public onlyOwner {
+    function setMintFee(uint256 _mintFee) public onlyGovernor {
         mintFee = _mintFee;
         emit MintFeeUpdated(_mintFee);
     }
@@ -618,7 +622,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
     /**
      * @notice Set withdraw fee
      */
-    function setWithdrawFee(uint256 _withdrawFee) public onlyOwner {
+    function setWithdrawFee(uint256 _withdrawFee) public onlyGovernor {
         withdrawFee = _withdrawFee;
         emit WithdrawFeeUpdated(_withdrawFee);
     }
@@ -626,7 +630,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
     /**
      * @notice Set repay fee
      */
-    function setRepayFee(uint256 _repayFee) public onlyOwner {
+    function setRepayFee(uint256 _repayFee) public onlyGovernor {
         repayFee = _repayFee;
         emit RepayFeeUpdated(_repayFee);
     }
@@ -634,7 +638,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
     /**
      * @notice Set swap fee
      */
-    function setSwapFee(uint256 _swapFee) public onlyOwner {
+    function setSwapFee(uint256 _swapFee) public onlyGovernor {
         swapFee = _swapFee;
         emit SwapFeeUpdated(_swapFee);
     }
@@ -642,7 +646,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
     /**
      * @notice Set refinance fee
      */
-    function setRefinanceFee(uint256 _refinanceFee) public onlyOwner {
+    function setRefinanceFee(uint256 _refinanceFee) public onlyGovernor {
         refinanceFee = _refinanceFee;
         emit RefinanceFeeUpdated(_refinanceFee);
     }
@@ -650,7 +654,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
     /**
      * @notice Set liquidator fee
      */
-    function setLiquidatorFee(uint256 _liquidatorFee) public onlyOwner {
+    function setLiquidatorFee(uint256 _liquidatorFee) public onlyGovernor {
         liquidatorFee = _liquidatorFee;
         emit LiquidatorFeeUpdated(_liquidatorFee);
     }
@@ -658,7 +662,7 @@ contract MBox is Ownable, ReentrancyGuard, IMBox {
     /**
      * @notice Set liquidate fee
      */
-    function setLiquidateFee(uint256 _liquidateFee) public onlyOwner {
+    function setLiquidateFee(uint256 _liquidateFee) public onlyGovernor {
         liquidateFee = _liquidateFee;
         emit LiquidateFeeUpdated(_liquidateFee);
     }

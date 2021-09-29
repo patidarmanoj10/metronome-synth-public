@@ -3,7 +3,7 @@
 pragma solidity 0.8.8;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "./access/Manageable.sol";
 import "./interface/IDepositToken.sol";
 import "./interface/IMBox.sol";
 
@@ -11,17 +11,11 @@ import "./interface/IMBox.sol";
  * @title Represents the users' deposits
  * @dev For now, we only support MET as collateral
  */
-contract DepositToken is ERC20, Ownable, IDepositToken {
+contract DepositToken is ERC20, Manageable, IDepositToken {
     /**
      * @notice Deposit underlying asset (i.e. MET)
      */
     address public override underlying;
-
-    /**
-     * @notice mBox contract
-     * @dev Used to check the amount of collateral locked
-     */
-    IMBox public mBox;
 
     constructor(address _underlying) ERC20("Tokenized deposit position", "mBOX-MET") {
         underlying = _underlying;
@@ -41,7 +35,7 @@ contract DepositToken is ERC20, Ownable, IDepositToken {
      * @param _to The account to mint to
      * @param _amount The amount to mint
      */
-    function mint(address _to, uint256 _amount) public override onlyOwner {
+    function mint(address _to, uint256 _amount) public override onlyMBox {
         _mint(_to, _amount);
     }
 
@@ -51,7 +45,7 @@ contract DepositToken is ERC20, Ownable, IDepositToken {
      * @param _from The account to burn from
      * @param _amount The amount to burn
      */
-    function burnUnlocked(address _from, uint256 _amount) public override onlyOwner onlyIfNotLocked(_from, _amount) {
+    function burnUnlocked(address _from, uint256 _amount) public override onlyMBox onlyIfNotLocked(_from, _amount) {
         _burn(_from, _amount);
     }
 
@@ -61,7 +55,7 @@ contract DepositToken is ERC20, Ownable, IDepositToken {
      * @param _from The account to burn from
      * @param _amount The amount to burn
      */
-    function burn(address _from, uint256 _amount) public override onlyOwner {
+    function burn(address _from, uint256 _amount) public override onlyMBox {
         _burn(_from, _amount);
     }
 
@@ -93,15 +87,7 @@ contract DepositToken is ERC20, Ownable, IDepositToken {
         address _from,
         address _to,
         uint256 _amount
-    ) public override onlyOwner {
+    ) public override onlyMBox {
         _transfer(_from, _to, _amount);
-    }
-
-    /**
-     * @notice Set mBox contract
-     * @param _mBox The new mBox contract
-     */
-    function setMBox(IMBox _mBox) public onlyOwner {
-        mBox = _mBox;
     }
 }
