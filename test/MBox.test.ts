@@ -125,6 +125,7 @@ describe('MBox', function () {
     await mBOX.setDepositToken(depositToken.address)
     await mBOX.setOracle(oracle.address)
     await mBOX.setLiquidatorFee(liquidatorFee)
+    await mBOX.setMaxLiquidable(parseEther('1')) // 100%
     await mBOX.addSyntheticAsset(mEth.address)
     await mBOX.addSyntheticAsset(mDoge.address)
 
@@ -913,7 +914,21 @@ describe('MBox', function () {
               const tx = mBOX.connect(liquidator).liquidate(mEth.address, user.address, amountToRepay)
 
               // then
-              await expect(tx).to.revertedWith('amount-gt-burnable-debt')
+              await expect(tx).to.revertedWith('amount-gt-max-liquidable')
+            })
+
+            it('should revert if repaying more than max allowed to liquidate', async function () {
+              // given
+              const maxLiquidable = parseEther('0.5') // 50%
+              await mBOX.setMaxLiquidable(maxLiquidable)
+              const mEthDebt = await mEthDebtToken.balanceOf(user.address)
+
+              // when
+              const amountToRepay = mEthDebt.div('2').add('1')
+              const tx = mBOX.connect(liquidator).liquidate(mEth.address, user.address, amountToRepay)
+
+              // then
+              await expect(tx).to.revertedWith('amount-gt-max-liquidable')
             })
 
             it('should liquidate by repaying all debt (liquidateFee == 0)', async function () {

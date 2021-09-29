@@ -69,6 +69,13 @@ contract MBox is Governable, ReentrancyGuard, IMBox {
     uint256 public liquidateFee;
 
     /**
+     * @notice The max percent of the debt allowed to liquidate
+     * @dev Use 18 decimals (e.g. 1e16 = 1%)
+     */
+    // TODO: Set default value from `initialize` function
+    uint256 public maxLiquidable;
+
+    /**
      * @notice Treasury contract
      */
     ITreasury public treasury;
@@ -149,6 +156,9 @@ contract MBox is Governable, ReentrancyGuard, IMBox {
 
     /// @notice Emitted when liquidator fee is updated
     event LiquidatorFeeUpdated(uint256 newLiquidatorFee);
+
+    /// @notice Emitted when maxLiquidable (liquidation cap) is updated
+    event MaxLiquidableUpdated(uint256 newMaxLiquidable);
 
     /// @notice Emitted when liquidate fee is updated
     event LiquidateFeeUpdated(uint256 newLiquidateFee);
@@ -403,6 +413,10 @@ contract MBox is Governable, ReentrancyGuard, IMBox {
         require(_amountToRepay > 0, "amount-to-repay-is-zero");
         address _liquidator = _msgSender();
         require(_liquidator != _account, "can-not-liquidate-own-position");
+
+        uint256 _percentOfDebtToLiquidate = _amountToRepay.wadDiv(_syntheticAsset.debtToken().balanceOf(_account));
+
+        require(_percentOfDebtToLiquidate <= maxLiquidable, "amount-gt-max-liquidable");
 
         (bool _isHealthy, , , , uint256 _deposit, , ) = debtPositionOf(_account);
 
@@ -665,5 +679,13 @@ contract MBox is Governable, ReentrancyGuard, IMBox {
     function setLiquidateFee(uint256 _liquidateFee) public onlyGovernor {
         liquidateFee = _liquidateFee;
         emit LiquidateFeeUpdated(_liquidateFee);
+    }
+
+    /**
+     * @notice Set liquidate fee
+     */
+    function setMaxLiquidable(uint256 _maxLiquidable) public onlyGovernor {
+        maxLiquidable = _maxLiquidable;
+        emit MaxLiquidableUpdated(_maxLiquidable);
     }
 }
