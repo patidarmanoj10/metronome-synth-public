@@ -95,36 +95,39 @@ contract DepositToken is ERC20, Manageable, IDepositToken {
         _burn(_from, _amount);
     }
 
-    function transfer(address _to, uint256 _amount)
-        public
-        override(ERC20, IERC20)
-        onlyIfNotLocked(_msgSender(), _amount)
-        onlyIfMinDepositTimePassed(_msgSender(), _amount)
-        returns (bool)
-    {
-        return ERC20.transfer(_to, _amount);
+    /**
+     * @notice Transfer tokens if checks pass
+     * @param _sender The account to transfer from
+     * @param _recipient The account to transfer to
+     * @param _amount The amount to transfer
+     */
+    function _transferWithChecks(
+        address _sender,
+        address _recipient,
+        uint256 _amount
+    ) private onlyIfNotLocked(_sender, _amount) onlyIfMinDepositTimePassed(_sender, _amount) returns (bool) {
+        _transfer(_sender, _recipient, _amount);
+        return true;
+    }
+
+    function transfer(address _to, uint256 _amount) public override(ERC20, IERC20) returns (bool) {
+        return _transferWithChecks(_msgSender(), _to, _amount);
     }
 
     function transferFrom(
         address _sender,
         address _recipient,
         uint256 _amount
-    )
-        public
-        override(ERC20, IERC20)
-        onlyIfNotLocked(_sender, _amount)
-        onlyIfMinDepositTimePassed(_sender, _amount)
-        returns (bool)
-    {
-        return ERC20.transferFrom(_sender, _recipient, _amount);
+    ) public override(ERC20, IERC20) returns (bool) {
+        return _transferWithChecks(_sender, _recipient, _amount);
     }
 
     /**
-     * @notice Seize deposit token
+     * @notice Seize tokens
      * @dev Same as _transfer
-     * @param _from The account to burn from
-     * @param _to The acount to receive token
-     * @param _amount The amount to burn
+     * @param _from The account to seize from
+     * @param _to The beneficiary account
+     * @param _amount The amount to seize
      */
     function seize(
         address _from,
