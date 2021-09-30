@@ -158,7 +158,7 @@ contract MBox is Governable, ReentrancyGuard, IMBox {
     event LiquidatorFeeUpdated(uint256 newLiquidatorFee);
 
     /// @notice Emitted when maxLiquidable (liquidation cap) is updated
-    event MaxLiquidableUpdated(uint256 newMaxLiquidable);
+    event MaxLiquidableUpdated(uint256 oldMaxLiquidable, uint256 newMaxLiquidable);
 
     /// @notice Emitted when liquidate fee is updated
     event LiquidateFeeUpdated(uint256 newLiquidateFee);
@@ -682,10 +682,12 @@ contract MBox is Governable, ReentrancyGuard, IMBox {
     }
 
     /**
-     * @notice Set liquidate fee
+     * @notice Set maxLiquidable (liquidation cap)
      */
-    function setMaxLiquidable(uint256 _maxLiquidable) public onlyGovernor {
-        maxLiquidable = _maxLiquidable;
-        emit MaxLiquidableUpdated(_maxLiquidable);
+    function setMaxLiquidable(uint256 _newMaxLiquidable) public onlyGovernor {
+        require(_newMaxLiquidable != maxLiquidable, "new-value-is-same-as-current");
+        require(_newMaxLiquidable <= 1e18, "max-liquidable-gt-1");
+        emit MaxLiquidableUpdated(maxLiquidable, _newMaxLiquidable);
+        maxLiquidable = _newMaxLiquidable;
     }
 }
