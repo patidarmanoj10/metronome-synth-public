@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.9;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "./dependencies/openzeppelin/token/ERC20/ERC20.sol";
 import "./access/Manageable.sol";
 import "./interface/ISyntheticAsset.sol";
 import "./interface/IDebtToken.sol";

@@ -2,8 +2,8 @@
 
 pragma solidity 0.8.9;
 
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
+import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./access/Manageable.sol";
 import "./interface/ITreasury.sol";
 
