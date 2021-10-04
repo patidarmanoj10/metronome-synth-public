@@ -31,4 +31,6 @@ abstract contract Manageable is Governable {
         require(address(_mBox) != address(0), "new-mbox-address-is-zero");
         mBox = _mBox;
     }
+
+    uint256[49] private __gap;
 }
