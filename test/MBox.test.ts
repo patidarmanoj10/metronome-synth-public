@@ -21,7 +21,7 @@ import {
   Treasury,
   Treasury__factory,
 } from '../typechain'
-import {getMaxLiquidationAmountInUsd, getMinLiquidationAmountInUsd, WETH} from './helpers'
+import {getMaxLiquidationAmountInUsd, getMinLiquidationAmountInUsd, HOUR, increaseTime, WETH} from './helpers'
 
 describe('MBox', function () {
   let deployer: SignerWithAddress
@@ -378,60 +378,90 @@ describe('MBox', function () {
         })
 
         describe('withdraw', function () {
-          it('should revert if amount is 0', async function () {
-            // when
-            const tx = mBOX.connect(user).withdraw(0)
+          describe('when minimum deposit time is > 0', function () {
+            beforeEach(async function () {
+              await depositToken.connect(governor).setMinDepositTime(HOUR)
+            })
 
-            // then
-            await expect(tx).to.revertedWith('amount-to-withdraw-is-zero')
+            it('should revert if minimum deposit time have not passed', async function () {
+              // when
+              const tx = mBOX.connect(user).withdraw('1')
+
+              // then
+              await expect(tx).to.revertedWith('min-deposit-time-have-not-passed')
+            })
+
+            it('should withdraw after the minimum deposit period', async function () {
+              // given
+              await increaseTime(HOUR)
+
+              // when
+              const amount = '1'
+              const tx = () => mBOX.connect(user).withdraw(amount)
+
+              // then
+              await expect(tx).to.changeTokenBalances(met, [user], [amount])
+            })
           })
 
-          it('should revert if amount > unlocked collateral amount', async function () {
-            // given
-            const {_unlockedDeposit} = await mBOX.debtPositionOf(user.address)
+          describe('when minimum deposit time == 0', function () {
+            it('should revert if amount is 0', async function () {
+              // when
+              const tx = mBOX.connect(user).withdraw(0)
 
-            // when
-            const tx = mBOX.connect(user).withdraw(_unlockedDeposit.add('1'))
+              // then
+              await expect(tx).to.revertedWith('amount-to-withdraw-is-zero')
+            })
 
-            // then
-            await expect(tx).to.revertedWith('amount-to-withdraw-gt-unlocked')
-          })
+            it('should revert if amount > unlocked collateral amount', async function () {
+              // given
+              const {_unlockedDeposit} = await mBOX.debtPositionOf(user.address)
 
-          it('should withdraw if amount <= unlocked collateral amount (withdrawFee == 0)', async function () {
-            // given
-            const {_unlockedDeposit: amountToWithdraw} = await mBOX.debtPositionOf(user.address)
-            const metBalanceBefore = await met.balanceOf(user.address)
-            const depositBefore = await depositToken.balanceOf(user.address)
+              // when
+              const tx = mBOX.connect(user).withdraw(_unlockedDeposit.add('1'))
 
-            // when
-            const tx = mBOX.connect(user).withdraw(amountToWithdraw)
-            await expect(tx).to.emit(mBOX, 'CollateralWithdrawn').withArgs(user.address, amountToWithdraw)
+              // then
+              await expect(tx).to.revertedWith('amount-to-withdraw-gt-unlocked')
+            })
 
-            // then
-            expect(await met.balanceOf(user.address)).to.eq(metBalanceBefore.add(amountToWithdraw))
-            expect(await depositToken.balanceOf(user.address)).to.eq(depositBefore.sub(amountToWithdraw))
-            const {_unlockedDeposit: unlockedCollateralAfter} = await mBOX.debtPositionOf(user.address)
-            expect(unlockedCollateralAfter).to.eq(0)
-          })
+            it('should withdraw if amount <= unlocked collateral amount (withdrawFee == 0)', async function () {
+              // given
+              const {_unlockedDeposit: amountToWithdraw} = await mBOX.debtPositionOf(user.address)
+              const metBalanceBefore = await met.balanceOf(user.address)
+              const depositBefore = await depositToken.balanceOf(user.address)
 
-          it('should withdraw if amount <= unlocked collateral amount (withdrawFee > 0)', async function () {
-            // given
-            const withdrawFee = parseEther('0.1') // 10%
-            await mBOX.setWithdrawFee(withdrawFee)
-            const metBalanceBefore = await met.balanceOf(user.address)
-            const depositBefore = await depositToken.balanceOf(user.address)
-            const {_unlockedDeposit: amountToWithdraw} = await mBOX.debtPositionOf(user.address)
-            const expectedWithdrawnAmount = amountToWithdraw.mul(parseEther('1').sub(withdrawFee)).div(parseEther('1'))
+              // when
+              const tx = mBOX.connect(user).withdraw(amountToWithdraw)
+              await expect(tx).to.emit(mBOX, 'CollateralWithdrawn').withArgs(user.address, amountToWithdraw)
 
-            // when
-            const tx = mBOX.connect(user).withdraw(amountToWithdraw)
-            await expect(tx).to.emit(mBOX, 'CollateralWithdrawn').withArgs(user.address, expectedWithdrawnAmount)
+              // then
+              expect(await met.balanceOf(user.address)).to.eq(metBalanceBefore.add(amountToWithdraw))
+              expect(await depositToken.balanceOf(user.address)).to.eq(depositBefore.sub(amountToWithdraw))
+              const {_unlockedDeposit: unlockedCollateralAfter} = await mBOX.debtPositionOf(user.address)
+              expect(unlockedCollateralAfter).to.eq(0)
+            })
 
-            // then
-            expect(await met.balanceOf(user.address)).to.eq(metBalanceBefore.add(expectedWithdrawnAmount))
-            expect(await depositToken.balanceOf(user.address)).to.eq(depositBefore.sub(amountToWithdraw))
-            const {_unlockedDeposit: unlockedCollateralAfter} = await mBOX.debtPositionOf(user.address)
-            expect(unlockedCollateralAfter).to.eq(0)
+            it('should withdraw if amount <= unlocked collateral amount (withdrawFee > 0)', async function () {
+              // given
+              const withdrawFee = parseEther('0.1') // 10%
+              await mBOX.setWithdrawFee(withdrawFee)
+              const metBalanceBefore = await met.balanceOf(user.address)
+              const depositBefore = await depositToken.balanceOf(user.address)
+              const {_unlockedDeposit: amountToWithdraw} = await mBOX.debtPositionOf(user.address)
+              const expectedWithdrawnAmount = amountToWithdraw
+                .mul(parseEther('1').sub(withdrawFee))
+                .div(parseEther('1'))
+
+              // when
+              const tx = mBOX.connect(user).withdraw(amountToWithdraw)
+              await expect(tx).to.emit(mBOX, 'CollateralWithdrawn').withArgs(user.address, expectedWithdrawnAmount)
+
+              // then
+              expect(await met.balanceOf(user.address)).to.eq(metBalanceBefore.add(expectedWithdrawnAmount))
+              expect(await depositToken.balanceOf(user.address)).to.eq(depositBefore.sub(amountToWithdraw))
+              const {_unlockedDeposit: unlockedCollateralAfter} = await mBOX.debtPositionOf(user.address)
+              expect(unlockedCollateralAfter).to.eq(0)
+            })
           })
         })
 

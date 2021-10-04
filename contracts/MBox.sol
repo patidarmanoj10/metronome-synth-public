@@ -182,6 +182,7 @@ contract MBox is Governable, ReentrancyGuard, IMBox {
 
         uint256 _amountToMint = depositFee > 0 ? _amount.wadMul(1e18 - depositFee) : _amount;
 
+        // We are collecting fee here by minting less deposit tokens than the METs deposited
         depositToken.mint(_account, _amountToMint);
 
         emit CollateralDeposited(_account, _amountToMint);
@@ -312,7 +313,7 @@ contract MBox is Governable, ReentrancyGuard, IMBox {
                 _feeInSyntheticAsset
             );
 
-            depositToken.burnUnlocked(_account, _feeInMet);
+            depositToken.burnAsFee(_account, _feeInMet);
         }
 
         uint256 _amountToMint = _amount - _feeInSyntheticAsset;
@@ -337,7 +338,7 @@ contract MBox is Governable, ReentrancyGuard, IMBox {
 
         require(_amount <= _unlockedDeposit, "amount-to-withdraw-gt-unlocked");
 
-        depositToken.burnUnlocked(_account, _amount);
+        depositToken.burnForWithdraw(_account, _amount);
 
         uint256 _amountToWithdraw = withdrawFee > 0 ? _amount - _amount.wadMul(withdrawFee) : _amount;
 
@@ -388,7 +389,7 @@ contract MBox is Governable, ReentrancyGuard, IMBox {
                 depositToken.underlying(),
                 _feeInSyntheticAsset
             );
-            depositToken.burnUnlocked(_account, _feeInMet);
+            depositToken.burnAsFee(_account, _feeInMet);
         }
     }
 
@@ -424,6 +425,7 @@ contract MBox is Governable, ReentrancyGuard, IMBox {
         depositToken.seize(_account, _liquidator, _toLiquidator);
 
         if (_toCollect > 0) {
+            // Not using `burnAsFee` because we want to collect even from the locked amount
             depositToken.burn(_account, _toCollect);
         }
 
@@ -469,7 +471,7 @@ contract MBox is Governable, ReentrancyGuard, IMBox {
                 depositToken.underlying(),
                 _feeInSyntheticAssetIn
             );
-            depositToken.burnUnlocked(_account, _feeInMet);
+            depositToken.burnAsFee(_account, _feeInMet);
         }
 
         (bool _isHealthy, , , , , , ) = debtPositionOf(_account);

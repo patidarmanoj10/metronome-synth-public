@@ -1,8 +1,10 @@
 import {BigNumber} from '@ethersproject/bignumber'
 import {parseEther} from '@ethersproject/units'
+import {ethers} from 'hardhat'
 import {MBox, SyntheticAsset} from '../../typechain'
 
 export const WETH = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
+export const HOUR = BigNumber.from(60 * 60)
 
 /**
  * sCR = synthetic's collateralization ratio
@@ -40,4 +42,9 @@ export const getMaxLiquidationAmountInUsd = async function (mBOX: MBox, accountA
   const denominator = parseEther('1').add(fee)
 
   return numerator.mul(parseEther('1')).div(denominator)
+}
+
+export const increaseTime = async (timeToIncrease: BigNumber) => {
+  await ethers.provider.send('evm_increaseTime', [timeToIncrease.toNumber()])
+  await ethers.provider.send('evm_mine', [])
 }
