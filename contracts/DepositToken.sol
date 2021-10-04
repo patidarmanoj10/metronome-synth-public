@@ -56,8 +56,10 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
         _;
     }
 
-    function initialize(address underlying_) public initializer {
-        __Manageable_init();
+    function initialize(address underlying_, IMBox _mBox) public initializer {
+        require(underlying_ != address(0), "underlying-is-null");
+
+        __Manageable_init(_mBox);
 
         _name = "Tokenized deposit position";
         _symbol = "mBOX-MET";

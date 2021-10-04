@@ -20,11 +20,12 @@ contract TreasuryStorageV1 {
 contract Treasury is ITreasury, ReentrancyGuard, Manageable, TreasuryStorageV1 {
     using SafeERC20 for IERC20;
 
-    function initialize(IERC20 _met) public initializer {
-        __ReentrancyGuard_init();
-        __Manageable_init();
-
+    function initialize(IERC20 _met, IMBox _mBox) public initializer {
         require(address(_met) != address(0), "met-address-is-null");
+
+        __ReentrancyGuard_init();
+        __Manageable_init(_mBox);
+
         met = _met;
     }
 

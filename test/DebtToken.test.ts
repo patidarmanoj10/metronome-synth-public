@@ -21,9 +21,8 @@ describe('DebtToken', function () {
     const debtTokenFactory = new DebtToken__factory(deployer)
     debtToken = await debtTokenFactory.deploy()
     await debtToken.deployed()
-    await debtToken.initialize(name, symbol)
+    await debtToken.initialize(name, symbol, mBoxMock.address)
 
-    await debtToken.setMBox(mBoxMock.address)
     debtToken = debtToken.connect(mBoxMock)
   })
 

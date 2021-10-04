@@ -40,11 +40,15 @@ contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 
     function initialize(
         string memory name_,
         string memory symbol_,
+        IMBox _mBox,
         address underlying_,
         IDebtToken debtToken_,
         uint256 collateralizationRatio_
     ) public initializer {
-        __Manageable_init();
+        require(underlying_ != address(0), "underlying-is-null");
+        require(address(debtToken_) != address(0), "debt-token-is-null");
+
+        __Manageable_init(_mBox);
 
         _name = name_;
         _symbol = symbol_;

@@ -179,9 +179,30 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
         _;
     }
 
-    function initialize() public initializer {
+    function initialize(
+        ITreasury _treasury,
+        IDepositToken _depositToken,
+        IOracle _oracle
+    ) public initializer {
+        require(address(_treasury) != address(0), "treasury-address-is-null");
+        require(address(_depositToken) != address(0), "deposit-token-is-null");
+        require(address(_oracle) != address(0), "oracle-is-null");
+
         __ReentrancyGuard_init();
         __Governable_init();
+
+        treasury = _treasury;
+        depositToken = _depositToken;
+        oracle = _oracle;
+
+        depositFee = 0;
+        mintFee = 0;
+        withdrawFee = 0;
+        repayFee = 3e15; // 0.3%
+        swapFee = 6e15; // 0.6%
+        refinanceFee = 15e15; // 1.5%
+        liquidatorFee = 1e17; // 10%
+        liquidateFee = 8e16; // 8%
     }
 
     /**
@@ -600,12 +621,8 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
         require(_newTreasury != address(0), "treasury-address-is-null");
         require(_newTreasury != address(treasury), "new-treasury-is-same-as-current");
 
-        // TODO: Remove this check when implementing MBox.init() function
-        // refs: https://github.com/bloqpriv/mbox/issues/10
-        if (address(treasury) != address(0)) {
-            IERC20 met = IERC20(depositToken.underlying());
-            treasury.pull(_newTreasury, met.balanceOf(address(treasury)));
-        }
+        IERC20 met = IERC20(depositToken.underlying());
+        treasury.pull(_newTreasury, met.balanceOf(address(treasury)));
 
         emit TreasuryUpdated(address(treasury), _newTreasury);
 
