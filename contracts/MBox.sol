@@ -13,13 +13,7 @@ import "./interface/IMBox.sol";
 import "./lib/WadRayMath.sol";
 import "./interface/ITreasury.sol";
 
-/**
- * @title mBOX main contract
- */
-contract MBox is Governable, ReentrancyGuard, IMBox {
-    using SafeERC20 for IERC20;
-    using WadRayMath for uint256;
-
+contract MBoxStorageV1 {
     /**
      * @notice The fee charged when depositing collateral
      * @dev Use 18 decimals (e.g. 1e16 = 1%)
@@ -96,6 +90,14 @@ contract MBox is Governable, ReentrancyGuard, IMBox {
      */
     ISyntheticAsset[] public syntheticAssets;
     mapping(address => ISyntheticAsset) public syntheticAssetsByAddress;
+}
+
+/**
+ * @title mBOX main contract
+ */
+contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
+    using SafeERC20 for IERC20;
+    using WadRayMath for uint256;
 
     /// @notice Emitted when collateral is deposited
     event CollateralDeposited(address indexed account, uint256 amount);
