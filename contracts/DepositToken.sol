@@ -2,7 +2,6 @@
 
 pragma solidity 0.8.9;
 
-import "./dependencies/openzeppelin/token/ERC20/ERC20.sol";
 import "./access/Manageable.sol";
 import "./interface/IDepositToken.sol";
 import "./interface/IMBox.sol";

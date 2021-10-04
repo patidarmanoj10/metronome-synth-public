@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.9;
 
-import "./dependencies/openzeppelin/token/ERC20/ERC20.sol";
+import "./dependencies/openzeppelin/token/ERC20/IERC20.sol";
 import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./access/Governable.sol";

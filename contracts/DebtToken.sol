@@ -2,7 +2,6 @@
 
 pragma solidity 0.8.9;
 
-import "./dependencies/openzeppelin/token/ERC20/IERC20.sol";
 import "./access/Manageable.sol";
 import "./interface/IDebtToken.sol";
 
@@ -17,7 +16,7 @@ contract DebtTokenStorageV1 {
 /**
  * @title Non-transferable token that represents users' debts
  */
-contract DebtToken is Context, Manageable, IDebtToken, DebtTokenStorageV1 {
+contract DebtToken is Manageable, IDebtToken, DebtTokenStorageV1 {
     constructor(string memory name_, string memory symbol_) {
         _name = name_;
         _symbol = symbol_;
