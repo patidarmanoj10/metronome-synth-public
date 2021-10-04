@@ -34,7 +34,8 @@ contract DepositTokenStorageV1 {
  * @title Represents the users' deposits
  * @dev For now, we only support MET as collateral
  */
-contract DepositToken is Manageable, IDepositToken, DepositTokenStorageV1 {
+
+contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
     /// @notice Emitted when minimum deposit time is updated
     event MinDepositTimeUpdated(uint256 oldMinDepositTime, uint256 newMinDepositTime);
 

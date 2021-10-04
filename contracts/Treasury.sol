@@ -10,7 +10,7 @@ import "./interface/ITreasury.sol";
 /**
  * @title Treasury contract
  */
-contract Treasury is Manageable, ReentrancyGuard, ITreasury {
+contract Treasury is ITreasury, ReentrancyGuard, Manageable {
     using SafeERC20 for IERC20;
 
     /**

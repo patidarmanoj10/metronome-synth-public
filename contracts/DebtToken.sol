@@ -16,7 +16,7 @@ contract DebtTokenStorageV1 {
 /**
  * @title Non-transferable token that represents users' debts
  */
-contract DebtToken is Manageable, IDebtToken, DebtTokenStorageV1 {
+contract DebtToken is IDebtToken, Manageable, DebtTokenStorageV1 {
     constructor(string memory name_, string memory symbol_) {
         _name = name_;
         _symbol = symbol_;

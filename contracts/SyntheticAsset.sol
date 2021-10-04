@@ -36,7 +36,7 @@ contract SyntheticAssetStorageV1 {
 /**
  * @title Synthetic Asset contract
  */
-contract SyntheticAsset is Manageable, ISyntheticAsset, SyntheticAssetStorageV1 {
+contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 {
     constructor(
         string memory name_,
         string memory symbol_,
