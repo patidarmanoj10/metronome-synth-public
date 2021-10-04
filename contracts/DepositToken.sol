@@ -36,6 +36,8 @@ contract DepositTokenStorageV1 {
  */
 
 contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
+    string public constant VERSION = "1.0.0";
+
     /// @notice Emitted when minimum deposit time is updated
     event MinDepositTimeUpdated(uint256 oldMinDepositTime, uint256 newMinDepositTime);
 

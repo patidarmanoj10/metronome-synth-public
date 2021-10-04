@@ -17,6 +17,8 @@ contract DebtTokenStorageV1 {
  * @title Non-transferable token that represents users' debts
  */
 contract DebtToken is IDebtToken, Manageable, DebtTokenStorageV1 {
+    string public constant VERSION = "1.0.0";
+
     function initialize(
         string memory name_,
         string memory symbol_,

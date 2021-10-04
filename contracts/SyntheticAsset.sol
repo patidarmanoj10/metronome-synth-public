@@ -37,6 +37,8 @@ contract SyntheticAssetStorageV1 {
  * @title Synthetic Asset contract
  */
 contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 {
+    string public constant VERSION = "1.0.0";
+
     function initialize(
         string memory name_,
         string memory symbol_,

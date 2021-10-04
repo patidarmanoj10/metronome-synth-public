@@ -99,6 +99,8 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     using SafeERC20 for IERC20;
     using WadRayMath for uint256;
 
+    string public constant VERSION = "1.0.0";
+
     /// @notice Emitted when collateral is deposited
     event CollateralDeposited(address indexed account, uint256 amount);
 
