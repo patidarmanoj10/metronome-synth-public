@@ -37,13 +37,15 @@ contract SyntheticAssetStorageV1 {
  * @title Synthetic Asset contract
  */
 contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 {
-    constructor(
+    function initialize(
         string memory name_,
         string memory symbol_,
         address underlying_,
         IDebtToken debtToken_,
         uint256 collateralizationRatio_
-    ) {
+    ) public initializer {
+        __Manageable_init();
+
         _name = name_;
         _symbol = symbol_;
         _underlying = underlying_;

@@ -30,8 +30,9 @@ describe('DepositToken', function () {
     await met.deployed()
 
     const depositTokenFactory = new DepositToken__factory(deployer)
-    depositToken = await depositTokenFactory.deploy(met.address)
+    depositToken = await depositTokenFactory.deploy()
     await depositToken.deployed()
+    await depositToken.initialize(met.address)
 
     const mBoxMockFactory = new MBoxMock__factory(deployer)
     mBox = await mBoxMockFactory.deploy(depositToken.address)

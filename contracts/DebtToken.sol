@@ -17,7 +17,9 @@ contract DebtTokenStorageV1 {
  * @title Non-transferable token that represents users' debts
  */
 contract DebtToken is IDebtToken, Manageable, DebtTokenStorageV1 {
-    constructor(string memory name_, string memory symbol_) {
+    function initialize(string memory name_, string memory symbol_) public initializer {
+        __Manageable_init();
+
         _name = name_;
         _symbol = symbol_;
     }

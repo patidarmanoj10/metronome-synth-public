@@ -179,6 +179,11 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
         _;
     }
 
+    function initialize() public initializer {
+        __ReentrancyGuard_init();
+        __Governable_init();
+    }
+
     /**
      * @notice Deposit MET as colleteral and mint mBOX-MET (tokenized deposit position)
      * @param _amount The amount of MET tokens to deposit

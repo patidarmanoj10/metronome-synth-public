@@ -63,34 +63,34 @@ describe('MBox', function () {
     await doge.deployed()
 
     const treasuryFactory = new Treasury__factory(deployer)
-    treasury = await treasuryFactory.deploy(met.address)
+    treasury = await treasuryFactory.deploy()
     await treasury.deployed()
+    await treasury.initialize(met.address)
 
     const depositTokenFactory = new DepositToken__factory(deployer)
-    depositToken = await depositTokenFactory.deploy(met.address)
+    depositToken = await depositTokenFactory.deploy()
     await depositToken.deployed()
+    await depositToken.initialize(met.address)
 
     const mEthDebtTokenFactory = new DebtToken__factory(deployer)
-    mEthDebtToken = await mEthDebtTokenFactory.deploy('mETH Debt', 'mETH-Debt')
+    mEthDebtToken = await mEthDebtTokenFactory.deploy()
     await mEthDebtToken.deployed()
+    await mEthDebtToken.initialize('mETH Debt', 'mETH-Debt')
 
     const mDogeDebtTokenFactory = new DebtToken__factory(deployer)
-    mDogeDebtToken = await mDogeDebtTokenFactory.deploy('mDOGE Debt', 'mDOGE-Debt')
+    mDogeDebtToken = await mDogeDebtTokenFactory.deploy()
     await mDogeDebtToken.deployed()
+    await mDogeDebtToken.initialize('mDOGE Debt', 'mDOGE-Debt')
 
     const mEthFactory = new SyntheticAsset__factory(deployer)
-    mEth = await mEthFactory.deploy('Metronome ETH', 'mETH', WETH, mEthDebtToken.address, mEthCollateralizationRatio)
+    mEth = await mEthFactory.deploy()
     await mEth.deployed()
+    await mEth.initialize('Metronome ETH', 'mETH', WETH, mEthDebtToken.address, mEthCollateralizationRatio)
 
     const mDogeFactory = new SyntheticAsset__factory(deployer)
-    mDoge = await mDogeFactory.deploy(
-      'Metronome DOGE',
-      'mDOGE',
-      doge.address,
-      mDogeDebtToken.address,
-      mDogeCollateralizationRatio
-    )
+    mDoge = await mDogeFactory.deploy()
     await mDoge.deployed()
+    await mDoge.initialize('Metronome DOGE', 'mDOGE', doge.address, mDogeDebtToken.address, mDogeCollateralizationRatio)
 
     const mBoxFactory = new MBox__factory(deployer)
     mBOX = await mBoxFactory.deploy()
@@ -1534,8 +1534,9 @@ describe('MBox', function () {
       await met.mint(treasury.address, balance)
 
       const treasuryFactory = new Treasury__factory(deployer)
-      const newTreasury = await treasuryFactory.deploy(met.address)
+      const newTreasury = await treasuryFactory.deploy()
       await newTreasury.deployed()
+      await newTreasury.initialize(met.address)
 
       // when
       const tx = () => mBOX.updateTreasury(newTreasury.address)

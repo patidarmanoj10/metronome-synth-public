@@ -19,8 +19,9 @@ describe('DebtToken', function () {
     ;[deployer, mBoxMock, user1, user2] = await ethers.getSigners()
 
     const debtTokenFactory = new DebtToken__factory(deployer)
-    debtToken = await debtTokenFactory.deploy(name, symbol)
+    debtToken = await debtTokenFactory.deploy()
     await debtToken.deployed()
+    await debtToken.initialize(name, symbol)
 
     await debtToken.setMBox(mBoxMock.address)
     debtToken = debtToken.connect(mBoxMock)

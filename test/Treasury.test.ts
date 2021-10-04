@@ -21,8 +21,9 @@ describe('Treasury', function () {
     await met.deployed()
 
     const treasuryFactory = new Treasury__factory(deployer)
-    treasury = await treasuryFactory.deploy(met.address)
+    treasury = await treasuryFactory.deploy()
     await treasury.deployed()
+    await treasury.initialize(met.address)
 
     await treasury.setMBox(mBoxMock.address)
 

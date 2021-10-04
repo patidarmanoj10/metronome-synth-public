@@ -15,6 +15,10 @@ abstract contract Manageable is Governable {
      */
     IMBox public mBox;
 
+    function __Manageable_init() internal initializer {
+        __Governable_init();
+    }
+
     /**
      * @notice Requires that the caller is the mBox contract
      */

@@ -18,7 +18,9 @@ contract Treasury is ITreasury, ReentrancyGuard, Manageable {
      */
     IERC20 public met;
 
-    constructor(IERC20 _met) {
+    function initialize(IERC20 _met) public initializer {
+        __Manageable_init();
+
         require(address(_met) != address(0), "met-address-is-null");
         met = _met;
     }
