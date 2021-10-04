@@ -125,6 +125,7 @@ describe('MBox', function () {
     await mBOX.setDepositToken(depositToken.address)
     await mBOX.setOracle(oracle.address)
     await mBOX.setLiquidatorFee(liquidatorFee)
+    await mBOX.setMaxLiquidable(parseEther('1')) // 100%
     await mBOX.addSyntheticAsset(mEth.address)
     await mBOX.addSyntheticAsset(mDoge.address)
 
@@ -943,7 +944,21 @@ describe('MBox', function () {
               const tx = mBOX.connect(liquidator).liquidate(mEth.address, user.address, amountToRepay)
 
               // then
-              await expect(tx).to.revertedWith('amount-gt-burnable-debt')
+              await expect(tx).to.revertedWith('amount-gt-max-liquidable')
+            })
+
+            it('should revert if repaying more than max allowed to liquidate', async function () {
+              // given
+              const maxLiquidable = parseEther('0.5') // 50%
+              await mBOX.setMaxLiquidable(maxLiquidable)
+              const mEthDebt = await mEthDebtToken.balanceOf(user.address)
+
+              // when
+              const amountToRepay = mEthDebt.div('2').add('1')
+              const tx = mBOX.connect(liquidator).liquidate(mEth.address, user.address, amountToRepay)
+
+              // then
+              await expect(tx).to.revertedWith('amount-gt-max-liquidable')
             })
 
             it('should liquidate by repaying all debt (liquidateFee == 0)', async function () {
@@ -1527,6 +1542,46 @@ describe('MBox', function () {
 
       // then
       await expect(tx).changeTokenBalances(met, [treasury, newTreasury], [balance.mul('-1'), balance])
+    })
+  })
+
+  describe('setMaxLiquidable', function () {
+    it('should revert if caller is not governor', async function () {
+      // when
+      const tx = mBOX.connect(user.address).setMaxLiquidable(treasury.address)
+
+      // then
+      await expect(tx).to.revertedWith('not-the-governor')
+    })
+
+    it('should revert if using the current value', async function () {
+      // when
+      const maxLiquidable = await mBOX.maxLiquidable()
+      const tx = mBOX.setMaxLiquidable(maxLiquidable)
+
+      // then
+      await expect(tx).to.revertedWith('new-value-is-same-as-current')
+    })
+
+    it('should revert if max liquidable > 100%', async function () {
+      // when
+      const maxLiquidable = parseEther('1').add('1')
+      const tx = mBOX.setMaxLiquidable(maxLiquidable)
+
+      // then
+      await expect(tx).to.revertedWith('max-liquidable-gt-1')
+    })
+
+    it('should update max liquidable param', async function () {
+      // given
+      const currentMaxLiquidable = await mBOX.maxLiquidable()
+      const newMaxLiquidable = currentMaxLiquidable.div('2')
+
+      // when
+      const tx = mBOX.setMaxLiquidable(newMaxLiquidable)
+
+      // then
+      await expect(tx).to.emit(mBOX, 'MaxLiquidableUpdated').withArgs(currentMaxLiquidable, newMaxLiquidable)
     })
   })
 })
