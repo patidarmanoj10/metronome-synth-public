@@ -7,18 +7,21 @@ import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./access/Manageable.sol";
 import "./interface/ITreasury.sol";
 
-/**
- * @title Treasury contract
- */
-contract Treasury is ITreasury, ReentrancyGuard, Manageable {
-    using SafeERC20 for IERC20;
-
+contract TreasuryStorageV1 {
     /**
      * @notice The MET contract
      */
     IERC20 public met;
+}
+
+/**
+ * @title Treasury contract
+ */
+contract Treasury is ITreasury, ReentrancyGuard, Manageable, TreasuryStorageV1 {
+    using SafeERC20 for IERC20;
 
     function initialize(IERC20 _met) public initializer {
+        __ReentrancyGuard_init();
         __Manageable_init();
 
         require(address(_met) != address(0), "met-address-is-null");
@@ -31,12 +34,5 @@ contract Treasury is ITreasury, ReentrancyGuard, Manageable {
     function pull(address _to, uint256 _amount) external override onlyMBox {
         require(_amount > 0, "amount-is-zero");
         met.safeTransfer(_to, _amount);
-    }
-
-    /**
-     * @notice Deploy MET to yield generation strategy
-     */
-    function rebalance() external onlyGovernor {
-        // TODO
     }
 }
