@@ -42,7 +42,7 @@ contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 
     function initialize(
         string memory name_,
         string memory symbol_,
-        IMBox _mBox,
+        IMBox mBox_,
         address underlying_,
         IDebtToken debtToken_,
         uint256 collateralizationRatio_
@@ -50,7 +50,7 @@ contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 
         require(underlying_ != address(0), "underlying-is-null");
         require(address(debtToken_) != address(0), "debt-token-is-null");
 
-        __Manageable_init(_mBox);
+        __Manageable_init(mBox_);
 
         _name = name_;
         _symbol = symbol_;

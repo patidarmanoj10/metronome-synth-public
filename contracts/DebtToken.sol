@@ -22,9 +22,9 @@ contract DebtToken is IDebtToken, Manageable, DebtTokenStorageV1 {
     function initialize(
         string memory name_,
         string memory symbol_,
-        IMBox _mBox
+        IMBox mBox_
     ) public initializer {
-        __Manageable_init(_mBox);
+        __Manageable_init(mBox_);
 
         _name = name_;
         _symbol = symbol_;
