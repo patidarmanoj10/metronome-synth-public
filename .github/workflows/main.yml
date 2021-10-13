@@ -7,7 +7,7 @@ on:
       - package*.json
 
 jobs:
-  vesper-pool-test:
+  mbox-test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
