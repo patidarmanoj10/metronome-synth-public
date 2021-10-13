@@ -1,6 +1,8 @@
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
-import {deterministic} from '../helpers'
+import {Contracts, deterministic} from '../helpers'
+
+const {alias: MBox} = Contracts.MBox
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {getNamedAccounts, deployments} = hre
@@ -15,17 +17,17 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     log: true,
   })
 
-  const {address: treasuryAddress} = await deterministic(hre, 'Treasury')
-  const {address: depositTokenAddress} = await deterministic(hre, 'DepositToken')
-  const {address: mEthAddress} = await deterministic(hre, 'mETH_SyntheticAsset', 'SyntheticAsset')
+  const {address: treasuryAddress} = await deterministic(hre, Contracts.Treasury)
+  const {address: depositTokenAddress} = await deterministic(hre, Contracts.DepositToken)
+  const {address: mEthAddress} = await deterministic(hre, Contracts.MEth)
 
-  const {deploy: deployMBox} = await deterministic(hre, 'MBox')
+  const {deploy: deployMBox} = await deterministic(hre, Contracts.MBox)
   await deployMBox()
 
-  await execute('MBox', {from: deployer, log: true}, 'initialize', treasuryAddress, depositTokenAddress, oracleAddress)
-  await execute('MBox', {from: deployer, log: true}, 'addSyntheticAsset', mEthAddress)
-  await execute('MBox', {from: deployer, log: true}, 'transferGovernorship', governor)
+  await execute(MBox, {from: deployer, log: true}, 'initialize', treasuryAddress, depositTokenAddress, oracleAddress)
+  await execute(MBox, {from: deployer, log: true}, 'addSyntheticAsset', mEthAddress)
+  await execute(MBox, {from: deployer, log: true}, 'transferGovernorship', governor)
 }
 
 export default func
-func.tags = ['MBox']
+func.tags = [MBox]

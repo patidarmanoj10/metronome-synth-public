@@ -1,8 +1,10 @@
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
-import {deterministic} from '../helpers'
+import {Contracts, deterministic} from '../helpers'
 
 const {MET_ADDRESS} = process.env
+
+const {alias: DepositToken} = Contracts.DepositToken
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   if (!MET_ADDRESS) {
@@ -13,15 +15,14 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {execute} = deployments
   const {deployer, governor} = await getNamedAccounts()
 
-  const {address: mBoxAddress} = await deterministic(hre, 'MBox')
+  const {address: mBoxAddress} = await deterministic(hre, Contracts.MBox)
+  const {deploy} = await deterministic(hre, Contracts.DepositToken)
 
-  const {deploy: deployDepositToken} = await deterministic(hre, 'DepositToken')
+  await deploy()
 
-  await deployDepositToken()
-
-  await execute('DepositToken', {from: deployer, log: true}, 'initialize', MET_ADDRESS, mBoxAddress)
-  await execute('DepositToken', {from: deployer, log: true}, 'transferGovernorship', governor)
+  await execute(DepositToken, {from: deployer, log: true}, 'initialize', MET_ADDRESS, mBoxAddress)
+  await execute(DepositToken, {from: deployer, log: true}, 'transferGovernorship', governor)
 }
 
 export default func
-func.tags = ['DepositToken']
+func.tags = [DepositToken]

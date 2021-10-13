@@ -1,21 +1,23 @@
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
-import {deterministic} from '../helpers'
+import {deterministic, Contracts} from '../helpers'
+
+const {alias: MEthDebtToken} = Contracts.MEthDebtToken
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {getNamedAccounts, deployments} = hre
   const {execute} = deployments
   const {deployer, governor} = await getNamedAccounts()
 
-  const {address: mBoxAddress} = await deterministic(hre, 'MBox')
+  const {address: mBoxAddress} = await deterministic(hre, Contracts.MBox)
 
-  const {deploy: deployMEthDebtToken} = await deterministic(hre, 'mETH_DebtToken', 'DebtToken')
+  const {deploy: deployMEthDebtToken} = await deterministic(hre, Contracts.MEthDebtToken)
 
   await deployMEthDebtToken()
 
-  await execute('mETH_DebtToken', {from: deployer, log: true}, 'initialize', 'mETH Debt', 'mETH-Debt', mBoxAddress)
-  await execute('mETH_DebtToken', {from: deployer, log: true}, 'transferGovernorship', governor)
+  await execute(MEthDebtToken, {from: deployer, log: true}, 'initialize', 'mETH Debt', 'mETH-Debt', mBoxAddress)
+  await execute(MEthDebtToken, {from: deployer, log: true}, 'transferGovernorship', governor)
 }
 
 export default func
-func.tags = ['mEth_DebtToken']
+func.tags = [MEthDebtToken]

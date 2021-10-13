@@ -1,8 +1,9 @@
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
-import {deterministic} from '../helpers'
+import {deterministic, Contracts} from '../helpers'
 
 const {MET_ADDRESS} = process.env
+const {alias: Treasury} = Contracts.Treasury
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   if (!MET_ADDRESS) {
@@ -13,15 +14,14 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {execute} = deployments
   const {deployer, governor} = await getNamedAccounts()
 
-  const {address: mBoxAddress} = await deterministic(hre, 'MBox')
+  const {address: mBoxAddress} = await deterministic(hre, Contracts.MBox)
+  const {deploy} = await deterministic(hre, Contracts.Treasury)
 
-  const {deploy: deployTreasury} = await deterministic(hre, 'Treasury')
+  await deploy()
 
-  await deployTreasury()
-
-  await execute('Treasury', {from: deployer, log: true}, 'initialize', MET_ADDRESS, mBoxAddress)
-  await execute('Treasury', {from: deployer, log: true}, 'transferGovernorship', governor)
+  await execute(Treasury, {from: deployer, log: true}, 'initialize', MET_ADDRESS, mBoxAddress)
+  await execute(Treasury, {from: deployer, log: true}, 'transferGovernorship', governor)
 }
 
 export default func
-func.tags = ['Treasury']
+func.tags = [Treasury]

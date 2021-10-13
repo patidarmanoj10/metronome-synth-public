@@ -38,9 +38,9 @@ describe('Deployments', function () {
       MBox: {address: mboxAddress},
       Treasury: {address: treasuryAddress},
       DepositToken: {address: depositTokenAddress},
-      mETH_SyntheticAsset: {address: mEthAddress},
-      mETH_DebtToken: {address: mETHDebtTokenAddress},
-    } = await deployments.fixture(['MBox', 'Treasury', 'DepositToken', 'mETH_SyntheticAsset', 'mEth_DebtToken'])
+      MEth: {address: mEthAddress},
+      MEthDebtToken: {address: mETHDebtTokenAddress},
+    } = await deployments.fixture()
 
     mBox = MBox__factory.connect(mboxAddress, deployer)
     treasury = Treasury__factory.connect(treasuryAddress, deployer)
