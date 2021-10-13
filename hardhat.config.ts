@@ -38,10 +38,12 @@ const config: HardhatUserConfig = {
     },
   },
   paths: {
+    deploy: 'deploy/scripts',
     deployments: 'deployments',
   },
   namedAccounts: {
     deployer: process.env.DEPLOYER || 0,
+    governor: process.env.GOVERNOR || 1,
   },
   contractSizer: {
     alphaSort: true,
