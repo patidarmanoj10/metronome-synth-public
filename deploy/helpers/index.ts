@@ -8,11 +8,11 @@ export interface ContractConfig {
 }
 
 export const Contracts: {[key: string]: ContractConfig} = {
-  MBox: {alias: 'MBox', contract: 'MBox', adminContract: 'DefaultProxyAdmin'},
-  Treasury: {alias: 'Treasury', contract: 'Treasury', adminContract: 'DefaultProxyAdmin'},
-  DepositToken: {alias: 'DepositToken', contract: 'DepositToken', adminContract: 'DefaultProxyAdmin'},
-  MEth: {alias: 'MEth', contract: 'SyntheticAsset', adminContract: 'DefaultProxyAdmin'},
-  MEthDebtToken: {alias: 'MEthDebtToken', contract: 'DebtToken', adminContract: 'DefaultProxyAdmin'},
+  MBox: {alias: 'MBox', contract: 'MBox', adminContract: 'MBoxUpgrader'},
+  Treasury: {alias: 'Treasury', contract: 'Treasury', adminContract: 'TreasuryUpgrader'},
+  DepositToken: {alias: 'DepositToken', contract: 'DepositToken', adminContract: 'DepositTokenUpgrader'},
+  MEth: {alias: 'MEth', contract: 'SyntheticAsset', adminContract: 'SyntheticAssetUpgrader'},
+  MEthDebtToken: {alias: 'MEthDebtToken', contract: 'DebtToken', adminContract: 'DebtTokenUpgrader'},
 }
 
 export const deterministic = async (
@@ -29,6 +29,9 @@ export const deterministic = async (
     contract: contract || alias,
     from: deployer,
     log: true,
-    proxy: {proxyContract: 'OpenZeppelinTransparentProxy', viaAdminContract: adminContract},
+    proxy: {
+      proxyContract: 'OpenZeppelinTransparentProxy',
+      viaAdminContract: adminContract,
+    },
   })
 }
