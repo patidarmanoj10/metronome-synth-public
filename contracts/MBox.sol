@@ -2,9 +2,9 @@
 
 pragma solidity 0.8.9;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "./dependencies/openzeppelin/token/ERC20/IERC20.sol";
+import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
+import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./access/Governable.sol";
 import "./interface/ISyntheticAsset.sol";
 import "./interface/IOracle.sol";
@@ -13,13 +13,7 @@ import "./interface/IMBox.sol";
 import "./lib/WadRayMath.sol";
 import "./interface/ITreasury.sol";
 
-/**
- * @title mBOX main contract
- */
-contract MBox is Governable, ReentrancyGuard, IMBox {
-    using SafeERC20 for IERC20;
-    using WadRayMath for uint256;
-
+contract MBoxStorageV1 {
     /**
      * @notice The fee charged when depositing collateral
      * @dev Use 18 decimals (e.g. 1e16 = 1%)
@@ -96,6 +90,16 @@ contract MBox is Governable, ReentrancyGuard, IMBox {
      */
     ISyntheticAsset[] public syntheticAssets;
     mapping(address => ISyntheticAsset) public syntheticAssetsByAddress;
+}
+
+/**
+ * @title mBOX main contract
+ */
+contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
+    using SafeERC20 for IERC20;
+    using WadRayMath for uint256;
+
+    string public constant VERSION = "1.0.0";
 
     /// @notice Emitted when collateral is deposited
     event CollateralDeposited(address indexed account, uint256 amount);
@@ -175,6 +179,32 @@ contract MBox is Governable, ReentrancyGuard, IMBox {
             "synthetic-asset-does-not-exists"
         );
         _;
+    }
+
+    function initialize(
+        ITreasury _treasury,
+        IDepositToken _depositToken,
+        IOracle _oracle
+    ) public initializer {
+        require(address(_treasury) != address(0), "treasury-address-is-null");
+        require(address(_depositToken) != address(0), "deposit-token-is-null");
+        require(address(_oracle) != address(0), "oracle-is-null");
+
+        __ReentrancyGuard_init();
+        __Governable_init();
+
+        treasury = _treasury;
+        depositToken = _depositToken;
+        oracle = _oracle;
+
+        depositFee = 0;
+        mintFee = 0;
+        withdrawFee = 0;
+        repayFee = 3e15; // 0.3%
+        swapFee = 6e15; // 0.6%
+        refinanceFee = 15e15; // 1.5%
+        liquidatorFee = 1e17; // 10%
+        liquidateFee = 8e16; // 8%
     }
 
     /**
@@ -593,12 +623,8 @@ contract MBox is Governable, ReentrancyGuard, IMBox {
         require(_newTreasury != address(0), "treasury-address-is-null");
         require(_newTreasury != address(treasury), "new-treasury-is-same-as-current");
 
-        // TODO: Remove this check when implementing MBox.init() function
-        // refs: https://github.com/bloqpriv/mbox/issues/10
-        if (address(treasury) != address(0)) {
-            IERC20 met = IERC20(depositToken.underlying());
-            treasury.pull(_newTreasury, met.balanceOf(address(treasury)));
-        }
+        IERC20 met = IERC20(depositToken.underlying());
+        treasury.pull(_newTreasury, met.balanceOf(address(treasury)));
 
         emit TreasuryUpdated(address(treasury), _newTreasury);
 

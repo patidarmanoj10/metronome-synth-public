@@ -21,10 +21,9 @@ describe('Treasury', function () {
     await met.deployed()
 
     const treasuryFactory = new Treasury__factory(deployer)
-    treasury = await treasuryFactory.deploy(met.address)
+    treasury = await treasuryFactory.deploy()
     await treasury.deployed()
-
-    await treasury.setMBox(mBoxMock.address)
+    await treasury.initialize(met.address, mBoxMock.address)
 
     await met.mint(deployer.address, parseEther('1000'))
   })

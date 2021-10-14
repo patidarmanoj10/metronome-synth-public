@@ -2,24 +2,32 @@
 
 pragma solidity 0.8.9;
 
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
+import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./access/Manageable.sol";
 import "./interface/ITreasury.sol";
 
-/**
- * @title Treasury contract
- */
-contract Treasury is Manageable, ReentrancyGuard, ITreasury {
-    using SafeERC20 for IERC20;
-
+contract TreasuryStorageV1 {
     /**
      * @notice The MET contract
      */
     IERC20 public met;
+}
 
-    constructor(IERC20 _met) {
+/**
+ * @title Treasury contract
+ */
+contract Treasury is ITreasury, ReentrancyGuard, Manageable, TreasuryStorageV1 {
+    using SafeERC20 for IERC20;
+
+    string public constant VERSION = "1.0.0";
+
+    function initialize(IERC20 _met, IMBox _mBox) public initializer {
         require(address(_met) != address(0), "met-address-is-null");
+
+        __ReentrancyGuard_init();
+        __Manageable_init(_mBox);
+
         met = _met;
     }
 
@@ -29,12 +37,5 @@ contract Treasury is Manageable, ReentrancyGuard, ITreasury {
     function pull(address _to, uint256 _amount) external override onlyMBox {
         require(_amount > 0, "amount-is-zero");
         met.safeTransfer(_to, _amount);
-    }
-
-    /**
-     * @notice Deploy MET to yield generation strategy
-     */
-    function rebalance() external onlyGovernor {
-        // TODO
     }
 }

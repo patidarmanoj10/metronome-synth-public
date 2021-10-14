@@ -30,17 +30,17 @@ describe('DepositToken', function () {
     await met.deployed()
 
     const depositTokenFactory = new DepositToken__factory(deployer)
-    depositToken = await depositTokenFactory.deploy(met.address)
+    depositToken = await depositTokenFactory.deploy()
     await depositToken.deployed()
 
     const mBoxMockFactory = new MBoxMock__factory(deployer)
     mBox = await mBoxMockFactory.deploy(depositToken.address)
     await mBox.deployed()
 
+    await depositToken.initialize(met.address, mBox.address)
     await depositToken.transferGovernorship(governor.address)
     await depositToken.connect(governor).acceptGovernorship()
     depositToken = depositToken.connect(governor)
-    await depositToken.setMBox(mBox.address)
   })
 
   describe('mint', function () {

@@ -23,14 +23,15 @@ describe('SyntheticAsset', function () {
     ;[deployer, governor, user, mBoxMock] = await ethers.getSigners()
 
     const debtTokenFactory = new DebtToken__factory(deployer)
-    debtToken = await debtTokenFactory.deploy('mETH Debt', 'mEth-Debt')
+    debtToken = await debtTokenFactory.deploy()
     await debtToken.deployed()
+    await debtToken.initialize('mETH Debt', 'mEth-Debt', mBoxMock.address)
 
     const mETHFactory = new SyntheticAsset__factory(deployer)
-    mAsset = await mETHFactory.deploy(name, symbol, underlying, debtToken.address, collateralizationRatio)
+    mAsset = await mETHFactory.deploy()
     await mAsset.deployed()
+    await mAsset.initialize(name, symbol, mBoxMock.address, underlying, debtToken.address, collateralizationRatio)
 
-    await mAsset.setMBox(mBoxMock.address)
     await mAsset.transferGovernorship(governor.address)
     await mAsset.connect(governor).acceptGovernorship()
     mAsset = mAsset.connect(governor)

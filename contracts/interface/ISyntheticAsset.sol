@@ -2,10 +2,11 @@
 
 pragma solidity 0.8.9;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "../dependencies/openzeppelin/token/ERC20/IERC20.sol";
+import "../dependencies/openzeppelin/token/ERC20/extensions/IERC20Metadata.sol";
 import "./IDebtToken.sol";
 
-interface ISyntheticAsset is IERC20 {
+interface ISyntheticAsset is IERC20, IERC20Metadata {
     function underlying() external view returns (address);
 
     function debtToken() external view returns (IDebtToken);

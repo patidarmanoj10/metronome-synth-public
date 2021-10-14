@@ -40,8 +40,8 @@ describe('MBox', function () {
   let mBOX: MBox
 
   const liquidatorFee = parseEther('0.1') // 10%
-  const mEthCollateralizationRatio = parseEther('1.5') // 150%
-  const mDogeCollateralizationRatio = parseEther('2') // 200%
+  const mEthCR = parseEther('1.5') // 150%
+  const mDogeCR = parseEther('2') // 200%
   const ethRate = parseEther('4000') // 1 ETH = $4000
   const metRate = parseEther('4') // 1 MET = $4
   const dogeRate = parseEther('0.4') // 1 DOGE = $0.4
@@ -63,33 +63,27 @@ describe('MBox', function () {
     await doge.deployed()
 
     const treasuryFactory = new Treasury__factory(deployer)
-    treasury = await treasuryFactory.deploy(met.address)
+    treasury = await treasuryFactory.deploy()
     await treasury.deployed()
 
     const depositTokenFactory = new DepositToken__factory(deployer)
-    depositToken = await depositTokenFactory.deploy(met.address)
+    depositToken = await depositTokenFactory.deploy()
     await depositToken.deployed()
 
     const mEthDebtTokenFactory = new DebtToken__factory(deployer)
-    mEthDebtToken = await mEthDebtTokenFactory.deploy('mETH Debt', 'mETH-Debt')
+    mEthDebtToken = await mEthDebtTokenFactory.deploy()
     await mEthDebtToken.deployed()
 
     const mDogeDebtTokenFactory = new DebtToken__factory(deployer)
-    mDogeDebtToken = await mDogeDebtTokenFactory.deploy('mDOGE Debt', 'mDOGE-Debt')
+    mDogeDebtToken = await mDogeDebtTokenFactory.deploy()
     await mDogeDebtToken.deployed()
 
     const mEthFactory = new SyntheticAsset__factory(deployer)
-    mEth = await mEthFactory.deploy('Metronome ETH', 'mETH', WETH, mEthDebtToken.address, mEthCollateralizationRatio)
+    mEth = await mEthFactory.deploy()
     await mEth.deployed()
 
     const mDogeFactory = new SyntheticAsset__factory(deployer)
-    mDoge = await mDogeFactory.deploy(
-      'Metronome DOGE',
-      'mDOGE',
-      doge.address,
-      mDogeDebtToken.address,
-      mDogeCollateralizationRatio
-    )
+    mDoge = await mDogeFactory.deploy()
     await mDoge.deployed()
 
     const mBoxFactory = new MBox__factory(deployer)
@@ -97,33 +91,31 @@ describe('MBox', function () {
     await mBOX.deployed()
 
     // Deployment tasks
-    await depositToken.setMBox(mBOX.address)
+    await depositToken.initialize(met.address, mBOX.address)
     await depositToken.transferGovernorship(governor.address)
     await depositToken.connect(governor).acceptGovernorship()
 
-    await treasury.setMBox(mBOX.address)
+    await treasury.initialize(met.address, mBOX.address)
     await treasury.transferGovernorship(governor.address)
     await treasury.connect(governor).acceptGovernorship()
 
-    await mEth.setMBox(mBOX.address)
+    await mEth.initialize('Metronome ETH', 'mETH', mBOX.address, WETH, mEthDebtToken.address, mEthCR)
     await mEth.transferGovernorship(governor.address)
     await mEth.connect(governor).acceptGovernorship()
 
-    await mDoge.setMBox(mBOX.address)
+    await mDoge.initialize('Metronome DOGE', 'mDOGE', mBOX.address, doge.address, mDogeDebtToken.address, mDogeCR)
     await mDoge.transferGovernorship(governor.address)
     await mDoge.connect(governor).acceptGovernorship()
 
-    await mEthDebtToken.setMBox(mBOX.address)
+    await mEthDebtToken.initialize('mETH Debt', 'mETH-Debt', mBOX.address)
     await mEthDebtToken.transferGovernorship(governor.address)
     await mEthDebtToken.connect(governor).acceptGovernorship()
 
-    await mDogeDebtToken.setMBox(mBOX.address)
+    await mDogeDebtToken.initialize('mDOGE Debt', 'mDOGE-Debt', mBOX.address)
     await mDogeDebtToken.transferGovernorship(governor.address)
     await mDogeDebtToken.connect(governor).acceptGovernorship()
 
-    await mBOX.updateTreasury(treasury.address)
-    await mBOX.setDepositToken(depositToken.address)
-    await mBOX.setOracle(oracle.address)
+    await mBOX.initialize(treasury.address, depositToken.address, oracle.address)
     await mBOX.setLiquidatorFee(liquidatorFee)
     await mBOX.setMaxLiquidable(parseEther('1')) // 100%
     await mBOX.addSyntheticAsset(mEth.address)
@@ -243,7 +235,7 @@ describe('MBox', function () {
 
         beforeEach(async function () {
           collateralInUsd = await oracle.convertToUSD(met.address, userDepositAmount)
-          maxIssuableInUsd = collateralInUsd.mul(parseEther('1')).div(mEthCollateralizationRatio)
+          maxIssuableInUsd = collateralInUsd.mul(parseEther('1')).div(mEthCR)
           maxIssuableInEth = maxIssuableInUsd.mul(parseEther('1')).div(ethRate)
         })
 
@@ -278,9 +270,10 @@ describe('MBox', function () {
         it('should mint mEth (mintFee == 0)', async function () {
           // given
           const maxIssuableBefore = await mBOX.maxIssuableFor(user.address, mEth.address)
+
           expect(maxIssuableBefore).to.eq(
-            userDepositAmount.mul(metRate).div(mEthCollateralizationRatio).mul(parseEther('1')).div(ethRate)
-          ) // 4 ETH
+            userDepositAmount.mul(metRate).div(mEthCR).mul(parseEther('1')).div(ethRate) // 4 ETH
+          )
 
           expect(await mBOX.debtPositionOf(user.address)).to.deep.eq([
             true, // _isHealthy
@@ -300,16 +293,12 @@ describe('MBox', function () {
           await expect(tx).changeTokenBalances(mEth, [user], [amountToMint])
           const maxIssuableAfter = await mBOX.maxIssuableFor(user.address, mEth.address)
           expect(maxIssuableAfter).to.eq(maxIssuableBefore.sub(amountToMint)).and.to.eq(parseEther('3')) // 3 ETH = $12K
-          const expectedLocked = amountToMint
-            .mul(ethRate)
-            .mul(mEthCollateralizationRatio)
-            .div(metRate)
-            .div(parseEther('1'))
+          const expectedLocked = amountToMint.mul(ethRate).mul(mEthCR).div(metRate).div(parseEther('1'))
           expect(await mBOX.debtPositionOf(user.address)).to.deep.eq([
             true, // _isHealthy
             amountToMint.mul(ethRate).div(parseEther('1')), // _debtInUsd
             // _lockedDepositInUsd
-            amountToMint.mul(ethRate).div(parseEther('1')).mul(mEthCollateralizationRatio).div(parseEther('1')),
+            amountToMint.mul(ethRate).div(parseEther('1')).mul(mEthCR).div(parseEther('1')),
             userDepositAmount.mul(metRate).div(parseEther('1')), // _depositInUsd
             userDepositAmount, // _deposit
             userDepositAmount.sub(expectedLocked), // _unlockedDeposit
@@ -621,11 +610,12 @@ describe('MBox', function () {
             await expect(tx).to.revertedWith('debt-position-is-unhealthy')
           })
 
-          it('should revert if debt position becomes unhealty', async function () {
+          it('should revert if debt position becomes unhealty (swapFee == 0)', async function () {
             // Note: Using all MET collateral to mint max mETH possible (that has 150% CR)
             // and try to swap all balance for mDOGE that has 200% CR
 
             // given
+            await mBOX.setSwapFee(0)
             const maxIssuable = await mBOX.maxIssuableFor(user.address, mEth.address)
             await mBOX.connect(user).mint(mEth.address, maxIssuable)
             const mAssetInBalance = await mEth.balanceOf(user.address)
@@ -640,6 +630,7 @@ describe('MBox', function () {
 
           it('should swap synthetic assets (swapFee == 0)', async function () {
             // given
+            await mBOX.setSwapFee(0)
             const mAssetInBalanceBefore = await mEth.balanceOf(user.address)
             const mAssetInDebtBalanceBefore = await mEthDebtToken.balanceOf(user.address)
             const mAssetOutBalanceBefore = await mDoge.balanceOf(user.address)
@@ -763,7 +754,10 @@ describe('MBox', function () {
               await expect(tx).to.revertedWith('debt-position-is-healthy')
             })
 
-            it('should revert if debt position stills unhealty', async function () {
+            it('should revert if debt position stills unhealty (refinanceFee == 0)', async function () {
+              // given
+              await mBOX.setRefinanceFee(0)
+
               // when
               const amountIn = await mDoge.balanceOf(user.address)
               const tx = mBOX.connect(user).refinance(mDoge.address, amountIn)
@@ -774,6 +768,7 @@ describe('MBox', function () {
 
             it('should refinance debt (refinanceFee == 0)', async function () {
               // given
+              await mBOX.setRefinanceFee(0)
               await oracle.updateRate(met.address, parseEther('3.5')) // putting debt in a position that is able to save
               const mAssetInBalanceBefore = await mDoge.balanceOf(user.address)
               const mAssetInDebtBalanceBefore = await mDogeDebtToken.balanceOf(user.address)
@@ -886,7 +881,7 @@ describe('MBox', function () {
           it('should revert if position is healty', async function () {
             // given
             const {_debtInUsd, _depositInUsd} = await mBOX.debtPositionOf(user.address)
-            const isHealthy = _depositInUsd.mul(parseEther('1')).div(_debtInUsd).gte(mEthCollateralizationRatio)
+            const isHealthy = _depositInUsd.mul(parseEther('1')).div(_debtInUsd).gte(mEthCR)
             expect(isHealthy).to.true
 
             // when
@@ -906,7 +901,7 @@ describe('MBox', function () {
                 false, // _isHealthy
                 userMintAmount.mul(ethRate).div(parseEther('1')), // _debtInUsd
                 // _lockedDepositInUsd
-                userMintAmount.mul(ethRate).div(parseEther('1')).mul(mEthCollateralizationRatio).div(parseEther('1')),
+                userMintAmount.mul(ethRate).div(parseEther('1')).mul(mEthCR).div(parseEther('1')),
                 userDepositAmount.mul(newMetRate).div(parseEther('1')), // _depositInUsd
                 userDepositAmount, // _deposit
                 BigNumber.from(0), // _unlockedDeposit
@@ -963,6 +958,7 @@ describe('MBox', function () {
 
             it('should liquidate by repaying all debt (liquidateFee == 0)', async function () {
               // given
+              await mBOX.setLiquidateFee(0)
               const {_debtInUsd: debtInUsdBefore, _depositInUsd: collateralInUsdBefore} = await mBOX.debtPositionOf(
                 user.address
               )
@@ -1034,6 +1030,7 @@ describe('MBox', function () {
 
             it('should liquidate by repaying > needed to make position healthy (liquidateFee == 0)', async function () {
               // given
+              await mBOX.setLiquidateFee(0)
               const {_debtInUsd: debtInUsdBefore, _deposit: collateralBefore} = await mBOX.debtPositionOf(user.address)
               const minAmountToRepayInUsd = await getMinLiquidationAmountInUsd(mBOX, user.address, mEth)
 
@@ -1056,14 +1053,14 @@ describe('MBox', function () {
               } = await mBOX.debtPositionOf(user.address)
 
               const expectedLocked = debtInUsdAfter
-                .mul(mEthCollateralizationRatio)
+                .mul(mEthCR)
                 .div(parseEther('1'))
                 .mul(parseEther('1'))
                 .div(newMetRate)
 
               const currentCollateralizationRatio = collateralInUsdAfter.mul(parseEther('1')).div(debtInUsdAfter)
 
-              expect(currentCollateralizationRatio).to.gt(mEthCollateralizationRatio)
+              expect(currentCollateralizationRatio).to.gt(mEthCR)
               expect(isHealthyAfter).to.true
               expect(collateralAfter).to.eq(collateralBefore.sub(depositSeized))
               expect(lockedCollateralAfter).to.eq(expectedLocked)
@@ -1107,11 +1104,11 @@ describe('MBox', function () {
                 _lockedDeposit: lockedCollateralAfter,
               } = await mBOX.debtPositionOf(user.address)
 
-              const expectedLocked = debtInUsdAfter.mul(mEthCollateralizationRatio).div(newMetRate)
+              const expectedLocked = debtInUsdAfter.mul(mEthCR).div(newMetRate)
 
               const currentCollateralizationRatio = collateralInUsdAfter.mul(parseEther('1')).div(debtInUsdAfter)
 
-              expect(currentCollateralizationRatio).to.gt(mEthCollateralizationRatio)
+              expect(currentCollateralizationRatio).to.gt(mEthCR)
               expect(isHealthyAfter).to.true
               expect(collateralAfter).to.eq(collateralBefore.sub(depositSeized))
               expect(lockedCollateralAfter).to.closeTo(expectedLocked, 1)
@@ -1129,6 +1126,7 @@ describe('MBox', function () {
 
             it('should liquidate by repaying < needed to make position healthy (liquidateFee == 0)', async function () {
               // given
+              await mBOX.setLiquidateFee(0)
               const {_deposit: collateralBefore} = await mBOX.debtPositionOf(user.address)
 
               // when
@@ -1151,7 +1149,7 @@ describe('MBox', function () {
 
               const currentCollateralizationRatio = collateralInUsdAfter.mul(parseEther('1')).div(debtInUsdAfter)
 
-              expect(currentCollateralizationRatio).to.lt(mEthCollateralizationRatio)
+              expect(currentCollateralizationRatio).to.lt(mEthCR)
               expect(isHealthyAfter).to.false
               expect(collateralAfter).to.eq(collateralBefore.sub(depositSeized))
               expect(lockedCollateralAfter).to.eq(collateralAfter)
@@ -1195,7 +1193,7 @@ describe('MBox', function () {
 
               const currentCollateralizationRatio = collateralInUsdAfter.mul(parseEther('1')).div(debtInUsdAfter)
 
-              expect(currentCollateralizationRatio).to.lt(mEthCollateralizationRatio)
+              expect(currentCollateralizationRatio).to.lt(mEthCR)
               expect(isHealthyAfter).to.false
               expect(collateralAfter).to.eq(collateralBefore.sub(depositSeized))
               expect(lockedCollateralAfter).to.eq(collateralAfter)
@@ -1212,6 +1210,7 @@ describe('MBox', function () {
 
             it('should liquidate by repaying the exact amount to make healthy (liquidateFee == 0)', async function () {
               // given
+              await mBOX.setLiquidateFee(0)
               const {_deposit: depositBefore} = await mBOX.debtPositionOf(user.address)
 
               // when
@@ -1231,11 +1230,11 @@ describe('MBox', function () {
                 _lockedDeposit: lockedDepositAfter,
               } = await mBOX.debtPositionOf(user.address)
 
-              const expectedLocked = debtInUsdAfter.mul(mEthCollateralizationRatio).div(newMetRate)
+              const expectedLocked = debtInUsdAfter.mul(mEthCR).div(newMetRate)
 
               const currentCollateralizationRatio = collateralInUsdAfter.mul(parseEther('1')).div(debtInUsdAfter)
 
-              expect(currentCollateralizationRatio).to.eq(mEthCollateralizationRatio)
+              expect(currentCollateralizationRatio).to.eq(mEthCR)
               expect(isHealthyAfter).to.true
               expect(depositAfter).to.eq(depositBefore.sub(depositSeized))
               expect(lockedDepositAfter).to.closeTo(expectedLocked, 1)
@@ -1272,7 +1271,7 @@ describe('MBox', function () {
                 _lockedDeposit: lockedDepositAfter,
               } = await mBOX.debtPositionOf(user.address)
 
-              const expectedLocked = debtInUsdAfter.mul(mEthCollateralizationRatio).div(newMetRate)
+              const expectedLocked = debtInUsdAfter.mul(mEthCR).div(newMetRate)
 
               const amountToRepayInMET = await oracle.convert(WETH, met.address, amountToRepay)
 
@@ -1282,7 +1281,7 @@ describe('MBox', function () {
 
               const currentCollateralizationRatio = depositInUsdAfter.mul(parseEther('1')).div(debtInUsdAfter)
 
-              expect(currentCollateralizationRatio).to.eq(mEthCollateralizationRatio)
+              expect(currentCollateralizationRatio).to.eq(mEthCR)
               expect(isHealthyAfter).to.true
               expect(lockedDepositAfter).to.closeTo(expectedLocked, 1)
               expect(depositAfter).to.eq(depositBefore.sub(depositSeized))
@@ -1317,6 +1316,8 @@ describe('MBox', function () {
             })
 
             it('should liquidate by repaying max possible amount (liquidafeFee == 0)', async function () {
+              // given
+              await mBOX.setLiquidateFee(0)
               const depositBefore = await depositToken.balanceOf(user.address)
 
               // when
@@ -1381,6 +1382,7 @@ describe('MBox', function () {
 
             it('should liquidate by not repaying all debt (liquidaFee == 0)', async function () {
               // given
+              await mBOX.setLiquidateFee(0)
               const {_deposit: collateralBefore} = await mBOX.debtPositionOf(user.address)
 
               // when
@@ -1403,7 +1405,7 @@ describe('MBox', function () {
 
               const currentCollateralizationRatio = collateralInUsdAfter.mul(parseEther('1')).div(debtInUsdAfter)
 
-              expect(currentCollateralizationRatio).to.lt(mEthCollateralizationRatio)
+              expect(currentCollateralizationRatio).to.lt(mEthCR)
               expect(isHealthyAfter).to.false
               expect(collateralAfter).to.eq(collateralBefore.sub(depositSeized))
               expect(lockedCollateralAfter).to.eq(collateralAfter)
@@ -1447,7 +1449,7 @@ describe('MBox', function () {
 
               const currentCollateralizationRatio = collateralInUsdAfter.mul(parseEther('1')).div(debtInUsdAfter)
 
-              expect(currentCollateralizationRatio).to.lt(mEthCollateralizationRatio)
+              expect(currentCollateralizationRatio).to.lt(mEthCR)
               expect(isHealthyAfter).to.false
               expect(collateralAfter).to.eq(collateralBefore.sub(depositSeized))
               expect(lockedCollateralAfter).to.eq(collateralAfter)
@@ -1465,6 +1467,7 @@ describe('MBox', function () {
 
           describe('when user minted both mETH and mDOGE using all collateral', function () {
             beforeEach(async function () {
+              await mBOX.setLiquidateFee(0)
               const maxIssuableDoge = await mBOX.maxIssuableFor(user.address, mDoge.address)
               await mBOX.connect(user).mint(mDoge.address, maxIssuableDoge)
               const {_isHealthy, _unlockedDeposit} = await mBOX.debtPositionOf(user.address)
@@ -1534,8 +1537,9 @@ describe('MBox', function () {
       await met.mint(treasury.address, balance)
 
       const treasuryFactory = new Treasury__factory(deployer)
-      const newTreasury = await treasuryFactory.deploy(met.address)
+      const newTreasury = await treasuryFactory.deploy()
       await newTreasury.deployed()
+      await newTreasury.initialize(met.address, mBOX.address)
 
       // when
       const tx = () => mBOX.updateTreasury(newTreasury.address)

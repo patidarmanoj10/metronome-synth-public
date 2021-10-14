@@ -2,7 +2,8 @@
 
 pragma solidity 0.8.9;
 
-import "@openzeppelin/contracts/utils/Context.sol";
+import "../dependencies/openzeppelin/utils/Context.sol";
+import "../dependencies/openzeppelin/proxy/utils/Initializable.sol";
 
 /**
  * @dev Contract module which provides a basic access control mechanism, where
@@ -13,7 +14,7 @@ import "@openzeppelin/contracts/utils/Context.sol";
  * can later be changed with {transferGovernorship}.
  *
  */
-abstract contract Governable is Context {
+abstract contract Governable is Context, Initializable {
     address public governor;
     address private proposedGovernor;
 
@@ -23,6 +24,16 @@ abstract contract Governable is Context {
      * @dev Initializes the contract setting the deployer as the initial governor.
      */
     constructor() {
+        address msgSender = _msgSender();
+        governor = msgSender;
+        emit UpdatedGovernor(address(0), msgSender);
+    }
+
+    /**
+     * @dev If inheriting child is using proxy then child contract can use
+     * __Governable_init() function to initialization this contract
+     */
+    function __Governable_init() internal initializer {
         address msgSender = _msgSender();
         governor = msgSender;
         emit UpdatedGovernor(address(0), msgSender);

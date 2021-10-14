@@ -15,6 +15,14 @@ abstract contract Manageable is Governable {
      */
     IMBox public mBox;
 
+    function __Manageable_init(IMBox _mBox) internal initializer {
+        require(address(_mBox) != address(0), "mbox-is-null");
+
+        __Governable_init();
+
+        mBox = IMBox(_mBox);
+    }
+
     /**
      * @notice Requires that the caller is the mBox contract
      */
@@ -31,4 +39,6 @@ abstract contract Manageable is Governable {
         require(address(_mBox) != address(0), "new-mbox-address-is-zero");
         mBox = _mBox;
     }
+
+    uint256[49] private __gap;
 }
