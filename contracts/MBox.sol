@@ -248,31 +248,6 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     }
 
     /**
-     * @notice Get total amount of deposit that's covering the account's debt
-     * @param _account The account to check
-     * @return _deposit The total amount of account's deposits
-     * @return _unlockedDeposit The amount of deposit that isn't covering the account's debt
-     * @return _lockedDeposit The amount of deposit that's covering the account's debt
-     */
-    function _depositOf(address _account)
-        private
-        view
-        returns (
-            uint256 _deposit,
-            uint256 _unlockedDeposit,
-            uint256 _lockedDeposit
-        )
-    {
-        (, uint256 _lockedDepositInUsd) = _debtOf(_account);
-        _lockedDeposit = oracle.convertFromUSD(depositToken.underlying(), _lockedDepositInUsd);
-        _deposit = depositToken.balanceOf(_account);
-        if (_lockedDeposit > _deposit) {
-            _lockedDeposit = _deposit;
-        }
-        _unlockedDeposit = _deposit - _lockedDeposit;
-    }
-
-    /**
      * @notice Get debt position from an account
      * @param _account The account to check
      * @return _isHealthy Whether the account's position is healthy
@@ -297,9 +272,17 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
             uint256 _lockedDeposit
         )
     {
-        (_deposit, _unlockedDeposit, _lockedDeposit) = _depositOf(_account);
-        _depositInUsd = oracle.convertToUSD(depositToken.underlying(), _deposit);
         (_debtInUsd, _lockedDepositInUsd) = _debtOf(_account);
+
+        _lockedDeposit = oracle.convertFromUSD(depositToken.underlying(), _lockedDepositInUsd);
+
+        _deposit = depositToken.balanceOf(_account);
+        _depositInUsd = oracle.convertToUSD(depositToken.underlying(), _deposit);
+
+        if (_lockedDeposit > _deposit) {
+            _lockedDeposit = _deposit;
+        }
+        _unlockedDeposit = _deposit - _lockedDeposit;
         _isHealthy = _depositInUsd >= _lockedDepositInUsd;
     }
 
@@ -315,7 +298,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
         onlyIfSyntheticAssetExists(_syntheticAsset)
         returns (uint256 _maxIssuable)
     {
-        (, uint256 _unlockedDeposit, ) = _depositOf(_account);
+        (, , , , , uint256 _unlockedDeposit, ) = debtPositionOf(_account);
 
         uint256 _unlockedDepositInUsd = oracle.convertToUSD(depositToken.underlying(), _unlockedDeposit);
 
@@ -374,7 +357,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
 
         address _account = _msgSender();
 
-        (, uint256 _unlockedDeposit, ) = _depositOf(_account);
+        (, , , , , uint256 _unlockedDeposit, ) = debtPositionOf(_account);
 
         require(_amount <= _unlockedDeposit, "amount-to-withdraw-gt-unlocked");
 
