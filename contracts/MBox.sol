@@ -7,7 +7,7 @@ import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./access/Governable.sol";
 import "./interface/ISyntheticAsset.sol";
-import "./interface/IOracle.sol";
+import "./interface/oracle/IOracle.sol";
 import "./interface/IDepositToken.sol";
 import "./interface/IMBox.sol";
 import "./lib/WadRayMath.sol";
