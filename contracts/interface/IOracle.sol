@@ -2,16 +2,16 @@
 
 pragma solidity 0.8.9;
 
+import "../dependencies/openzeppelin/token/ERC20/IERC20.sol";
+
 interface IOracle {
-    function rateOf(address _asset) external returns (uint256);
+    function convertToUsd(IERC20 _asset, uint256 _amount) external view returns (uint256 _amountInUsd);
 
-    function convertToUSD(address _asset, uint256 _amount) external view returns (uint256 _amountInUsd);
-
-    function convertFromUSD(address _asset, uint256 _amountInUsd) external view returns (uint256 _amount);
+    function convertFromUsd(IERC20 _asset, uint256 _amountInUsd) external view returns (uint256 _amount);
 
     function convert(
-        address _assetIn,
-        address _assetOut,
+        IERC20 _assetIn,
+        IERC20 _assetOut,
         uint256 _amountIn
     ) external view returns (uint256 _amountOut);
 }

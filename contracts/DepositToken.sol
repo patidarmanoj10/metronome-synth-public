@@ -16,7 +16,7 @@ contract DepositTokenStorageV1 {
     string internal _name;
     string internal _symbol;
 
-    address internal _underlying; // Deposit underlying asset (i.e. MET)
+    IERC20 internal _underlying; // Deposit underlying asset (i.e. MET)
 
     /**
      * @notice The min amount of time that an account should wait after depoist MET before be able to withdraw
@@ -58,8 +58,8 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
         _;
     }
 
-    function initialize(address underlying_, IMBox mBox_) public initializer {
-        require(underlying_ != address(0), "underlying-is-null");
+    function initialize(IERC20 underlying_, IMBox mBox_) public initializer {
+        require(address(underlying_) != address(0), "underlying-is-null");
 
         __Manageable_init(mBox_);
 
@@ -88,7 +88,7 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
         return _balances[account];
     }
 
-    function underlying() public view virtual override returns (address) {
+    function underlying() public view virtual override returns (IERC20) {
         return _underlying;
     }
 
