@@ -26,7 +26,7 @@ describe('DepositToken', function () {
     ;[deployer, governor, user] = await ethers.getSigners()
 
     const metMockFactory = new ERC20Mock__factory(deployer)
-    met = await metMockFactory.deploy('Metronome', 'MET')
+    met = await metMockFactory.deploy('Metronome', 'MET', 18)
     await met.deployed()
 
     const depositTokenFactory = new DepositToken__factory(deployer)

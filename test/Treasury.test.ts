@@ -17,7 +17,7 @@ describe('Treasury', function () {
     ;[deployer, user, mBoxMock] = await ethers.getSigners()
 
     const metFactory = new ERC20Mock__factory(deployer)
-    met = await metFactory.deploy('Metronome', 'MET')
+    met = await metFactory.deploy('Metronome', 'MET', 18)
     await met.deployed()
 
     const treasuryFactory = new Treasury__factory(deployer)

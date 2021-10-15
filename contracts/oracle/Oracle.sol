@@ -290,6 +290,31 @@ contract Oracle is Governable {
     /**
      * @notice Convert assets' amounts
      * @dev Revert if price is invalid
+     * @param _priceProvider The price provider
+     * @param _assetIn The asset to convert from
+     * @param _assetOut The asset to convert to
+     * @param _amountIn The amount to convert from
+     * @return _amountOut The converted amount
+     */
+    function _convertUsingTheSamePriceProvider(
+        IPriceProvider _priceProvider,
+        IERC20 _assetIn,
+        IERC20 _assetOut,
+        uint256 _amountIn
+    )
+        private
+        onlyIfAssetHasPriceProvider(_assetIn)
+        updatePriceProviderIfNeeded(_assetIn)
+        onlyIfAssetHasPriceProvider(_assetOut)
+        updatePriceProviderIfNeeded(_assetOut)
+        returns (uint256 _amountOut)
+    {
+        (_amountOut, ) = _priceProvider.convert(_dataOfAsset(_assetIn), _dataOfAsset(_assetOut), _amountIn);
+    }
+
+    /**
+     * @notice Convert assets' amounts
+     * @dev Revert if price is invalid
      * @param _assetIn The asset to convert from
      * @param _assetOut The asset to convert to
      * @param _amountIn The amount to convert from
@@ -300,7 +325,12 @@ contract Oracle is Governable {
         IERC20 _assetOut,
         uint256 _amountIn
     ) external returns (uint256 _amountOut) {
-        uint256 _amountInUsd = convertToUsd(_assetIn, _amountIn);
-        _amountOut = convertFromUsd(_assetOut, _amountInUsd);
+        IPriceProvider _inPriceProvider = _priceProviderOfAsset(_assetIn);
+        if (_inPriceProvider == _priceProviderOfAsset(_assetOut)) {
+            _amountOut = _convertUsingTheSamePriceProvider(_inPriceProvider, _assetIn, _assetOut, _amountIn);
+        } else {
+            uint256 _amountInUsd = convertToUsd(_assetIn, _amountIn);
+            _amountOut = convertFromUsd(_assetOut, _amountInUsd);
+        }
     }
 }

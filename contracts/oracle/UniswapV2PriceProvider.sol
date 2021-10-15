@@ -252,7 +252,7 @@ contract UniswapV2PriceProvider is IPriceProvider, Governable {
      * @return _amountOut The amout out
      * @return _lastUpdatedAt The timestamp of the price used to convert
      */
-    function consult(
+    function convert(
         bytes memory _encodedTokenInAddress,
         bytes memory _encodedTokenOutAddress,
         uint256 _amountIn

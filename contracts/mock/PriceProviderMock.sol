@@ -45,4 +45,10 @@ contract PriceProviderMock is IPriceProvider {
     }
 
     function update(bytes memory) external {}
+
+    function convert(
+        bytes memory _assetInData,
+        bytes memory _assetOutData,
+        uint256 _amountIn
+    ) external view returns (uint256 _amountOut, uint256 _lastUpdatedAt) {}
 }

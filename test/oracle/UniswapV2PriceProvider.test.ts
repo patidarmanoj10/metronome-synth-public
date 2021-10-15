@@ -229,12 +229,12 @@ describe('UniswapV2PriceProvider', function () {
     })
   })
 
-  describe('consult', function () {
+  describe('convert', function () {
     it('should get ETH->Token price', async function () {
       const tokenIn = encodedWethAddress
       const tokenOut = encodedMetAddress
       const amountIn = parseEther('1') // 1 ETH
-      const {_amountOut} = await priceProvider.consult(tokenIn, tokenOut, amountIn)
+      const {_amountOut} = await priceProvider.convert(tokenIn, tokenOut, amountIn)
 
       // @ts-ignore
       expect(_amountOut).to.closeTo(parseEther('718'), parseEther('0.1'))
@@ -244,7 +244,7 @@ describe('UniswapV2PriceProvider', function () {
       const tokenIn = encodedWbtcAddress
       const tokenOut = encodedWethAddress
       const amountIn = parseUnits('1', 8) // 1 BTC
-      const {_amountOut} = await priceProvider.consult(tokenIn, tokenOut, amountIn)
+      const {_amountOut} = await priceProvider.convert(tokenIn, tokenOut, amountIn)
       // @ts-ignore
       expect(_amountOut).to.closeTo(parseEther('14.5'), parseEther('0.05'))
     })
@@ -253,7 +253,7 @@ describe('UniswapV2PriceProvider', function () {
       const tokenIn = encodedWbtcAddress
       const tokenOut = encodedMetAddress
       const amountIn = parseUnits('1', 8) // 1 BTC
-      const {_amountOut} = await priceProvider.consult(tokenIn, tokenOut, amountIn)
+      const {_amountOut} = await priceProvider.convert(tokenIn, tokenOut, amountIn)
       // @ts-ignore
       expect(_amountOut).to.closeTo(parseEther('10444'), parseEther('0.3'))
     })

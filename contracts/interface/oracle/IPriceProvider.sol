@@ -14,4 +14,10 @@ interface IPriceProvider {
         returns (uint256 _amount, uint256 _lastUpdatedAt);
 
     function update(bytes memory _assetData) external;
+
+    function convert(
+        bytes memory _assetInData,
+        bytes memory _assetOutData,
+        uint256 _amountIn
+    ) external view returns (uint256 _amountOut, uint256 _lastUpdatedAt);
 }

@@ -1,5 +1,6 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 /* eslint-disable camelcase */
-import {parseEther} from '@ethersproject/units'
+import {parseEther, parseUnits} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
@@ -25,6 +26,9 @@ import {
   WETH_ADDRESS,
   UNISWAP_V2_ROUTER02_ADDRESS,
   increaseTime,
+  WBTC_ADDRESS,
+  CHAINLINK_BTC_AGGREGATOR_ADDRESS,
+  CHAINLINK_ETH_AGGREGATOR_ADDRESS,
 } from './../helpers'
 
 const STALE_PERIOD = ethers.constants.MaxUint256
@@ -47,6 +51,7 @@ describe('Oracle', function () {
   let depositToken: ERC20
   let mDOGE: ERC20
   let mETH: ERC20
+  let mBTC: ERC20
   let priceProviderMock: PriceProviderMock
 
   before(enableForking)
@@ -60,20 +65,24 @@ describe('Oracle', function () {
     const erc20MockFactory = new ERC20Mock__factory(deployer)
 
     // mUSD
-    mUSD = await erc20MockFactory.deploy('mUSD', 'mUSD')
+    mUSD = await erc20MockFactory.deploy('mUSD', 'mUSD', 18)
     await mUSD.deployed()
 
     // depositToken
-    depositToken = await erc20MockFactory.deploy('Tokenized deposit position', 'mBOX-MET')
+    depositToken = await erc20MockFactory.deploy('Tokenized deposit position', 'mBOX-MET', 18)
     await depositToken.deployed()
 
     // mDOGE
-    mDOGE = await erc20MockFactory.deploy('mDOGE', 'mDOGE')
+    mDOGE = await erc20MockFactory.deploy('mDOGE', 'mDOGE', 18)
     await mDOGE.deployed()
 
     // mETH
-    mETH = await erc20MockFactory.deploy('mETH', 'mETH')
+    mETH = await erc20MockFactory.deploy('mETH', 'mETH', 18)
     await mETH.deployed()
+
+    // mETH
+    mBTC = await erc20MockFactory.deploy('mBTC', 'mBTC', 8)
+    await mBTC.deployed()
 
     // UniswapV3
     const uniswapV3PriceProviderFactory = new UniswapV3PriceProvider__factory(deployer)
@@ -113,6 +122,7 @@ describe('Oracle', function () {
     await oracle.setPriceProvider(Protocol.CHAINLINK, chainlinkPriceProvider.address)
 
     await oracle.setUsdAsset(mUSD.address)
+    await oracle.setAssetThatUsesUniswapV3(mETH.address, WETH_ADDRESS)
     await oracle.setAssetThatUsesUniswapV3(mETH.address, WETH_ADDRESS)
     await oracle.setAssetThatUsesUniswapV2(depositToken.address, MET_ADDRESS)
     await oracle.setAssetThatUsesChainlink(mDOGE.address, CHAINLINK_DOGE_AGGREGATOR_ADDRESS)
@@ -334,6 +344,49 @@ describe('Oracle', function () {
         const amountInEther = await oracle.callStatic.convertFromUsd(mETH.address, amountInUsd)
         const amountInDoge = await oracle.callStatic.convert(mETH.address, mDOGE.address, amountInEther)
         expect(await oracle.callStatic.convertToUsd(mDOGE.address, amountInDoge)).to.closeTo(amountInUsd, 2)
+      })
+
+      it('should convert assets using the same price provider (UniswapV2)', async function () {
+        // given
+        await oracle.setAssetThatUsesUniswapV2(mBTC.address, WBTC_ADDRESS)
+        await oracle.setAssetThatUsesUniswapV2(mETH.address, WETH_ADDRESS)
+        await increaseTime(DEFAULT_TWAP_PERIOD)
+
+        // when
+        const amountIn = parseUnits('1', 8) // 1 BTC
+        const amountOut = await oracle.callStatic.convert(mBTC.address, mETH.address, amountIn)
+
+        // then
+        // @ts-ignore
+        expect(amountOut).to.closeTo(parseEther('14.5'), parseEther('0.05'))
+      })
+
+      it('should convert assets using the same price provider (UniswapV3)', async function () {
+        // given
+        await oracle.setAssetThatUsesUniswapV3(mBTC.address, WBTC_ADDRESS)
+        await oracle.setAssetThatUsesUniswapV3(mETH.address, WETH_ADDRESS)
+
+        // when
+        const amountIn = parseUnits('1', 8) // 1 BTC
+        const amountOut = await oracle.callStatic.convert(mBTC.address, mETH.address, amountIn)
+
+        // then
+        // @ts-ignore
+        expect(amountOut).to.closeTo(parseEther('14.5'), parseEther('0.05'))
+      })
+
+      it('should convert assets using the same price provider (Chainlink)', async function () {
+        // given
+        await oracle.setAssetThatUsesChainlink(mBTC.address, CHAINLINK_BTC_AGGREGATOR_ADDRESS)
+        await oracle.setAssetThatUsesChainlink(mETH.address, CHAINLINK_ETH_AGGREGATOR_ADDRESS)
+
+        // when
+        const amountIn = parseUnits('1', 8) // 1 BTC
+        const amountOut = await oracle.callStatic.convert(mBTC.address, mETH.address, amountIn)
+
+        // then
+        // @ts-ignore
+        expect(amountOut).to.closeTo(parseEther('14.5'), parseEther('0.05'))
       })
     })
   })
