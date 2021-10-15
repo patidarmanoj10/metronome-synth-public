@@ -11,7 +11,6 @@ pragma solidity 0.8.9;
 interface IMBox {
     function debtPositionOf(address _account)
         external
-        view
         returns (
             bool _isHealthy,
             uint256 _lockedDepositInUsd,

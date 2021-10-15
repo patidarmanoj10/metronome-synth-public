@@ -181,6 +181,31 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
         _;
     }
 
+    /**
+     * @dev Update prices of assets that are used by the account (checks synthetic assets and MET)
+     */
+    modifier updatePricesOfAssetsUsedBy(address _account) {
+        for (uint256 i = 0; i < syntheticAssets.length; ++i) {
+            if (syntheticAssets[i].debtToken().balanceOf(_account) > 0) {
+                oracle.update(syntheticAssets[i]);
+            }
+        }
+
+        if (depositToken.balanceOf(_account) > 0) {
+            oracle.update(depositToken.underlying());
+        }
+        _;
+    }
+
+    /**
+     * @dev Update a specific asset's price (also updates the MET price)
+     */
+    modifier updatePriceOfAsset(ISyntheticAsset _syntheticAsset) {
+        oracle.update(_syntheticAsset);
+        oracle.update(depositToken.underlying());
+        _;
+    }
+
     function initialize(
         ITreasury _treasury,
         IDepositToken _depositToken,
@@ -229,17 +254,31 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     }
 
     /**
-     * @notice Get account's debt
+     * @notice Get account's debt by querying latest prices from oracles
      * @dev We can optimize this function by storing an array of which synthetics the account minted avoiding looping all
      * @param _account The account to check
      * @return _debtInUsd The debt value in USD
      * @return _lockedDepositInUsd The USD amount that's covering the debt (considering collateralization ratios)
+     * @return _anyPriceInvalid Returns true if any price is invalid
      */
-    function debtOf(address _account) public view returns (uint256 _debtInUsd, uint256 _lockedDepositInUsd) {
+    function debtOfUsingLatestPrices(address _account)
+        public
+        view
+        returns (
+            uint256 _debtInUsd,
+            uint256 _lockedDepositInUsd,
+            bool _anyPriceInvalid
+        )
+    {
         for (uint256 i = 0; i < syntheticAssets.length; ++i) {
             uint256 _amount = syntheticAssets[i].debtToken().balanceOf(_account);
             if (_amount > 0) {
-                uint256 _amountInUsd = oracle.convertToUsd(syntheticAssets[i], _amount);
+                (uint256 _amountInUsd, bool _priceInvalid) = oracle.convertToUsdUsingLatestPrice(
+                    syntheticAssets[i],
+                    _amount
+                );
+
+                if (_priceInvalid) _anyPriceInvalid = true;
 
                 _debtInUsd += _amountInUsd;
                 _lockedDepositInUsd += _amountInUsd.wadMul(syntheticAssets[i].collateralizationRatio());
@@ -256,11 +295,54 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
      * @return _deposit The total amount of account's deposits
      * @return _unlockedDeposit The amount of deposit that isn't covering the account's debt
      * @return _lockedDeposit The amount of deposit that's covering the account's debt
+     * @return _anyPriceInvalid Returns true if any price is invalid
+     */
+    function debtPositionOfUsingLatestPrices(address _account)
+        public
+        view
+        returns (
+            bool _isHealthy,
+            uint256 _lockedDepositInUsd,
+            uint256 _depositInUsd,
+            uint256 _deposit,
+            uint256 _unlockedDeposit,
+            uint256 _lockedDeposit,
+            bool _anyPriceInvalid
+        )
+    {
+        (, _lockedDepositInUsd, _anyPriceInvalid) = debtOfUsingLatestPrices(_account);
+
+        bool _depositPriceInvalid;
+        (_lockedDeposit, _depositPriceInvalid) = oracle.convertFromUsdUsingLatestPrice(
+            depositToken.underlying(),
+            _lockedDepositInUsd
+        );
+
+        _deposit = depositToken.balanceOf(_account);
+        (_depositInUsd, ) = oracle.convertToUsdUsingLatestPrice(depositToken.underlying(), _deposit);
+
+        if (_lockedDeposit > _deposit) {
+            _lockedDeposit = _deposit;
+        }
+        _unlockedDeposit = _deposit - _lockedDeposit;
+        _isHealthy = _depositInUsd >= _lockedDepositInUsd;
+        _anyPriceInvalid = _anyPriceInvalid || _depositPriceInvalid;
+    }
+
+    /**
+     * @notice Get debt position from an account
+     * @param _account The account to check
+     * @return _isHealthy Whether the account's position is healthy
+     * @return _lockedDepositInUsd The amount of deposit (is USD) that's covering all debt (considering collateralization ratios)
+     * @return _depositInUsd The total collateral deposited in USD
+     * @return _deposit The total amount of account's deposits
+     * @return _unlockedDeposit The amount of deposit that isn't covering the account's debt
+     * @return _lockedDeposit The amount of deposit that's covering the account's debt
      */
     function debtPositionOf(address _account)
         public
-        view
         override
+        updatePricesOfAssetsUsedBy(_account)
         returns (
             bool _isHealthy,
             uint256 _lockedDepositInUsd,
@@ -270,18 +352,17 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
             uint256 _lockedDeposit
         )
     {
-        (, _lockedDepositInUsd) = debtOf(_account);
-
-        _lockedDeposit = oracle.convertFromUsd(depositToken.underlying(), _lockedDepositInUsd);
-
-        _deposit = depositToken.balanceOf(_account);
-        _depositInUsd = oracle.convertToUsd(depositToken.underlying(), _deposit);
-
-        if (_lockedDeposit > _deposit) {
-            _lockedDeposit = _deposit;
-        }
-        _unlockedDeposit = _deposit - _lockedDeposit;
-        _isHealthy = _depositInUsd >= _lockedDepositInUsd;
+        bool _anyPriceInvalid;
+        (
+            _isHealthy,
+            _lockedDepositInUsd,
+            _depositInUsd,
+            _deposit,
+            _unlockedDeposit,
+            _lockedDeposit,
+            _anyPriceInvalid
+        ) = debtPositionOfUsingLatestPrices(_account);
+        require(!_anyPriceInvalid, "invalid-price");
     }
 
     /**
@@ -289,20 +370,39 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
      * @param _account The account to check
      * @param _syntheticAsset The synthetic asset to check issuance
      * @return _maxIssuable The max issuable amount
+     * @return _anyPriceInvalid Returns true if any price is invalid
      */
-    function maxIssuableFor(address _account, ISyntheticAsset _syntheticAsset)
+    function maxIssuableForUsingLatestPrices(address _account, ISyntheticAsset _syntheticAsset)
         public
         view
         onlyIfSyntheticAssetExists(_syntheticAsset)
+        returns (uint256 _maxIssuable, bool _anyPriceInvalid)
+    {
+        (, , , , uint256 _unlockedDeposit, , ) = debtPositionOfUsingLatestPrices(_account);
+
+        (_maxIssuable, _anyPriceInvalid) = oracle.convertUsingLatestPrice(
+            depositToken.underlying(),
+            _syntheticAsset,
+            _unlockedDeposit.wadDiv(_syntheticAsset.collateralizationRatio())
+        );
+    }
+
+    /**
+     * @notice Get max issuable synthetic asset amount for a given account
+     * @dev This function will revert if any price from oracle is invalid
+     * @param _account The account to check
+     * @param _syntheticAsset The synthetic asset to check issuance
+     * @return _maxIssuable The max issuable amount
+     */
+    function maxIssuableFor(address _account, ISyntheticAsset _syntheticAsset)
+        public
+        onlyIfSyntheticAssetExists(_syntheticAsset)
+        updatePriceOfAsset(_syntheticAsset)
         returns (uint256 _maxIssuable)
     {
-        (, , , , uint256 _unlockedDeposit, ) = debtPositionOf(_account);
-
-        uint256 _unlockedDepositInUsd = oracle.convertToUsd(depositToken.underlying(), _unlockedDeposit);
-
-        uint256 _maxIssuableInUsd = _unlockedDepositInUsd.wadDiv(_syntheticAsset.collateralizationRatio());
-
-        _maxIssuable = oracle.convertFromUsd(_syntheticAsset, _maxIssuableInUsd);
+        bool _anyPriceInvalid;
+        (_maxIssuable, _anyPriceInvalid) = maxIssuableForUsingLatestPrices(_account, _syntheticAsset);
+        require(!_anyPriceInvalid, "invalid-price");
     }
 
     /**
