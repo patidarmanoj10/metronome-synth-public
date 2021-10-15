@@ -4,7 +4,6 @@ import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
 import {SyntheticAsset, SyntheticAsset__factory, DebtToken, DebtToken__factory} from '../typechain'
-import {WETH} from './helpers'
 
 describe('SyntheticAsset', function () {
   let deployer: SignerWithAddress
@@ -16,7 +15,6 @@ describe('SyntheticAsset', function () {
   const name = 'Metronome ETH'
   const symbol = 'mEth'
   const collateralizationRatio = parseEther('1.5')
-  const underlying = WETH
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
@@ -30,7 +28,7 @@ describe('SyntheticAsset', function () {
     const mETHFactory = new SyntheticAsset__factory(deployer)
     mAsset = await mETHFactory.deploy()
     await mAsset.deployed()
-    await mAsset.initialize(name, symbol, mBoxMock.address, underlying, debtToken.address, collateralizationRatio)
+    await mAsset.initialize(name, symbol, mBoxMock.address, debtToken.address, collateralizationRatio)
 
     await mAsset.transferGovernorship(governor.address)
     await mAsset.connect(governor).acceptGovernorship()

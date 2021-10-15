@@ -239,7 +239,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
         for (uint256 i = 0; i < syntheticAssets.length; ++i) {
             uint256 _amount = syntheticAssets[i].debtToken().balanceOf(_account);
             if (_amount > 0) {
-                uint256 _amountInUsd = oracle.convertToUSD(syntheticAssets[i].underlying(), _amount);
+                uint256 _amountInUsd = oracle.convertToUSD(address(syntheticAssets[i]), _amount);
 
                 _debtInUsd += _amountInUsd;
                 _lockedDepositInUsd += _amountInUsd.wadMul(syntheticAssets[i].collateralizationRatio());
@@ -321,7 +321,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
 
         uint256 _maxIssuableInUsd = _unlockedDepositInUsd.wadDiv(_syntheticAsset.collateralizationRatio());
 
-        _maxIssuable = oracle.convertFromUSD(_syntheticAsset.underlying(), _maxIssuableInUsd);
+        _maxIssuable = oracle.convertFromUSD(address(_syntheticAsset), _maxIssuableInUsd);
     }
 
     /**
@@ -348,7 +348,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
             _feeInSyntheticAsset = _amount.wadMul(mintFee);
 
             uint256 _feeInMet = oracle.convert(
-                _syntheticAsset.underlying(),
+                address(_syntheticAsset),
                 depositToken.underlying(),
                 _feeInSyntheticAsset
             );
@@ -425,7 +425,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
         if (repayFee > 0) {
             uint256 _feeInSyntheticAsset = _amount.wadMul(repayFee);
             uint256 _feeInMet = oracle.convert(
-                _syntheticAsset.underlying(),
+                address(_syntheticAsset),
                 depositToken.underlying(),
                 _feeInSyntheticAsset
             );
@@ -456,7 +456,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
         _repay(_syntheticAsset, _account, _liquidator, _amountToRepay);
 
         uint256 _amountToRepayInMET = oracle.convert(
-            _syntheticAsset.underlying(),
+            address(_syntheticAsset),
             depositToken.underlying(),
             _amountToRepay
         );
@@ -501,7 +501,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
 
         uint256 _feeInSyntheticAssetIn = _fee > 0 ? _amountIn.wadMul(_fee) : 0;
         uint256 _amountInAfterFee = _amountIn - _feeInSyntheticAssetIn;
-        _amountOut = oracle.convert(_syntheticAssetIn.underlying(), _syntheticAssetOut.underlying(), _amountInAfterFee);
+        _amountOut = oracle.convert(address(_syntheticAssetIn), address(_syntheticAssetOut), _amountInAfterFee);
 
         _syntheticAssetIn.burn(_account, _amountIn);
         _syntheticAssetIn.debtToken().burn(_account, _amountIn);
@@ -511,7 +511,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
 
         if (_feeInSyntheticAssetIn > 0) {
             uint256 _feeInMet = oracle.convert(
-                _syntheticAssetIn.underlying(),
+                address(_syntheticAssetIn),
                 depositToken.underlying(),
                 _feeInSyntheticAssetIn
             );
