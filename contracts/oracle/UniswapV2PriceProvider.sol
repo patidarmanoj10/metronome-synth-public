@@ -2,6 +2,7 @@
 
 pragma solidity 0.8.9;
 
+import "../dependencies/openzeppelin/utils/math/Math.sol";
 import "../dependencies/uniswap/v2-core/interfaces/IUniswapV2Pair.sol";
 import "../dependencies/uniswap/lib/libraries/FixedPoint.sol";
 import "../dependencies/uniswap/v2-periphery/libraries/UniswapV2OracleLibrary.sol";
@@ -241,5 +242,40 @@ contract UniswapV2PriceProvider is IPriceProvider, Governable {
         uint256 _ethAmount = _getAmountOut(usdToken, usdToken, OracleHelpers.normalizeUsdInput(usdToken, _amountInUsd));
         _amount = _token == WETH ? _ethAmount : _getAmountOut(_token, WETH, _ethAmount);
         _lastUpdatedAt = oracleDataOf[usdToken].blockTimestampLast;
+    }
+
+    /**
+     * @notice Convert two assets' amounts
+     * @param _encodedTokenInAddress The input asset's encoded address
+     * @param _encodedTokenOutAddress  The output asset's encoded address
+     * @param _amountIn The amount in
+     * @return _amountOut The amout out
+     * @return _lastUpdatedAt The timestamp of the price used to convert
+     */
+    function consult(
+        bytes memory _encodedTokenInAddress,
+        bytes memory _encodedTokenOutAddress,
+        uint256 _amountIn
+    ) public view returns (uint256 _amountOut, uint256 _lastUpdatedAt) {
+        address _tokenIn = _decode(_encodedTokenInAddress);
+        address _tokenOut = _decode(_encodedTokenOutAddress);
+
+        if (_tokenIn == WETH) {
+            // eth -> tokenOut
+            _amountOut = _getAmountOut(_tokenOut, WETH, _amountIn);
+            _lastUpdatedAt = oracleDataOf[_tokenOut].blockTimestampLast;
+        } else if (_tokenOut == WETH) {
+            // tokenIn -> eth
+            _amountOut = _getAmountOut(_tokenIn, _tokenIn, _amountIn);
+            _lastUpdatedAt = oracleDataOf[_tokenIn].blockTimestampLast;
+        } else {
+            // tokenIn -> eth -> tokenOut
+            uint256 _ethAmount = _getAmountOut(_tokenIn, _tokenIn, _amountIn);
+            _amountOut = _getAmountOut(_tokenOut, WETH, _ethAmount);
+            _lastUpdatedAt = Math.min(
+                oracleDataOf[_tokenIn].blockTimestampLast,
+                oracleDataOf[_tokenOut].blockTimestampLast
+            );
+        }
     }
 }

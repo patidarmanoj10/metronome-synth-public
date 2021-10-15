@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 /* eslint-disable camelcase */
 import {parseEther, parseUnits} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
@@ -225,6 +226,36 @@ describe('UniswapV2PriceProvider', function () {
         const {_amount} = await priceProvider.convertFromUsd(encodedWethAddress, '346257629300')
         expect(_amount).to.closeTo(parseEther('1'), parseEther('0.00000000001').toNumber())
       })
+    })
+  })
+
+  describe('consult', function () {
+    it('should get ETH->Token price', async function () {
+      const tokenIn = encodedWethAddress
+      const tokenOut = encodedMetAddress
+      const amountIn = parseEther('1') // 1 ETH
+      const {_amountOut} = await priceProvider.consult(tokenIn, tokenOut, amountIn)
+
+      // @ts-ignore
+      expect(_amountOut).to.closeTo(parseEther('718'), parseEther('0.1'))
+    })
+
+    it('should get Token->ETH price', async function () {
+      const tokenIn = encodedWbtcAddress
+      const tokenOut = encodedWethAddress
+      const amountIn = parseUnits('1', 8) // 1 BTC
+      const {_amountOut} = await priceProvider.consult(tokenIn, tokenOut, amountIn)
+      // @ts-ignore
+      expect(_amountOut).to.closeTo(parseEther('14.5'), parseEther('0.05'))
+    })
+
+    it('should get Token->Token price', async function () {
+      const tokenIn = encodedWbtcAddress
+      const tokenOut = encodedMetAddress
+      const amountIn = parseUnits('1', 8) // 1 BTC
+      const {_amountOut} = await priceProvider.consult(tokenIn, tokenOut, amountIn)
+      // @ts-ignore
+      expect(_amountOut).to.closeTo(parseEther('10444'), parseEther('0.3'))
     })
   })
 })
