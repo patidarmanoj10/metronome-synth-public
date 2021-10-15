@@ -2,6 +2,7 @@
 
 pragma solidity 0.8.9;
 
+import "../dependencies/openzeppelin/utils/math/Math.sol";
 import "../dependencies/openzeppelin/utils/math/SafeCast.sol";
 import "../dependencies/chainlink/interfaces/AggregatorV3Interface.sol";
 import "../interface/oracle/IPriceProvider.sol";
@@ -39,7 +40,7 @@ contract ChainlinkPriceProvider is IPriceProvider {
      * @return _lastUpdatedAt The timestamp of the price used to convert
      */
     function convertToUsd(bytes memory _assetData, uint256 _amount)
-        external
+        public
         view
         override
         returns (uint256 _amountInUsd, uint256 _lastUpdatedAt)
@@ -58,7 +59,7 @@ contract ChainlinkPriceProvider is IPriceProvider {
      * @return _lastUpdatedAt The timestamp of the price used to convert
      */
     function convertFromUsd(bytes memory _assetData, uint256 _amountInUsd)
-        external
+        public
         view
         override
         returns (uint256 _amount, uint256 _lastUpdatedAt)
@@ -74,4 +75,22 @@ contract ChainlinkPriceProvider is IPriceProvider {
      */
     // solhint-disable-next-line no-empty-blocks
     function update(bytes memory) external {}
+
+    /**
+     * @notice Convert two assets' amounts
+     * @param _assetInData The input  asset's query encoded data
+     * @param _assetOutData The output asset's query encoded data
+     * @param _amountIn The amount in
+     * @return _amountOut The amout out
+     * @return _lastUpdatedAt The timestamp of the price used to convert
+     */
+    function convert(
+        bytes memory _assetInData,
+        bytes memory _assetOutData,
+        uint256 _amountIn
+    ) public view returns (uint256 _amountOut, uint256 _lastUpdatedAt) {
+        (uint256 _amountInUsd, uint256 _lastUpdatedAt0) = convertToUsd(_assetInData, _amountIn);
+        (_amountOut, _lastUpdatedAt) = convertFromUsd(_assetOutData, _amountInUsd);
+        _lastUpdatedAt = Math.min(_lastUpdatedAt0, _lastUpdatedAt);
+    }
 }
