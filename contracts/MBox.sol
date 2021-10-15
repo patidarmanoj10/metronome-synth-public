@@ -235,7 +235,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
      * @return _debtInUsd The debt value in USD
      * @return _lockedDepositInUsd The USD amount that's covering the debt (considering collateralization ratios)
      */
-    function _debtOf(address _account) private view returns (uint256 _debtInUsd, uint256 _lockedDepositInUsd) {
+    function debtOf(address _account) public view returns (uint256 _debtInUsd, uint256 _lockedDepositInUsd) {
         for (uint256 i = 0; i < syntheticAssets.length; ++i) {
             uint256 _amount = syntheticAssets[i].debtToken().balanceOf(_account);
             if (_amount > 0) {
@@ -251,7 +251,6 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
      * @notice Get debt position from an account
      * @param _account The account to check
      * @return _isHealthy Whether the account's position is healthy
-     * @return _debtInUsd The total debt in USD
      * @return _lockedDepositInUsd The amount of deposit (is USD) that's covering all debt (considering collateralization ratios)
      * @return _depositInUsd The total collateral deposited in USD
      * @return _deposit The total amount of account's deposits
@@ -264,7 +263,6 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
         override
         returns (
             bool _isHealthy,
-            uint256 _debtInUsd,
             uint256 _lockedDepositInUsd,
             uint256 _depositInUsd,
             uint256 _deposit,
@@ -272,7 +270,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
             uint256 _lockedDeposit
         )
     {
-        (_debtInUsd, _lockedDepositInUsd) = _debtOf(_account);
+        (, _lockedDepositInUsd) = debtOf(_account);
 
         _lockedDeposit = oracle.convertFromUsd(depositToken.underlying(), _lockedDepositInUsd);
 
@@ -298,7 +296,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
         onlyIfSyntheticAssetExists(_syntheticAsset)
         returns (uint256 _maxIssuable)
     {
-        (, , , , , uint256 _unlockedDeposit, ) = debtPositionOf(_account);
+        (, , , , uint256 _unlockedDeposit, ) = debtPositionOf(_account);
 
         uint256 _unlockedDepositInUsd = oracle.convertToUsd(depositToken.underlying(), _unlockedDeposit);
 
@@ -353,7 +351,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
 
         address _account = _msgSender();
 
-        (, , , , , uint256 _unlockedDeposit, ) = debtPositionOf(_account);
+        (, , , , uint256 _unlockedDeposit, ) = debtPositionOf(_account);
 
         require(_amount <= _unlockedDeposit, "amount-to-withdraw-gt-unlocked");
 
@@ -424,7 +422,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
 
         require(_percentOfDebtToLiquidate <= maxLiquidable, "amount-gt-max-liquidable");
 
-        (bool _isHealthy, , , , uint256 _deposit, , ) = debtPositionOf(_account);
+        (bool _isHealthy, , , uint256 _deposit, , ) = debtPositionOf(_account);
 
         require(!_isHealthy, "position-is-healthy");
 
@@ -485,7 +483,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
             depositToken.burnAsFee(_account, _feeInMet);
         }
 
-        (bool _isHealthy, , , , , , ) = debtPositionOf(_account);
+        (bool _isHealthy, , , , , ) = debtPositionOf(_account);
 
         require(_isHealthy, "debt-position-ended-up-unhealthy");
 
@@ -510,7 +508,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
         uint256 _amountIn
     ) external nonReentrant returns (uint256 _amountOut) {
         address _account = _msgSender();
-        (bool _isHealthy, , , , , , ) = debtPositionOf(_account);
+        (bool _isHealthy, , , , , ) = debtPositionOf(_account);
         require(_isHealthy, "debt-position-is-unhealthy");
 
         return _swap(_account, _syntheticAssetIn, _syntheticAssetOut, _amountIn, swapFee);
@@ -528,7 +526,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
             "in-cratio-is-lte-out-cratio"
         );
         address _account = _msgSender();
-        (bool _isHealthy, , , , , , ) = debtPositionOf(_account);
+        (bool _isHealthy, , , , , ) = debtPositionOf(_account);
         require(!_isHealthy, "debt-position-is-healthy");
 
         _swap(_account, _syntheticAssetIn, _syntheticAssetOut, _amountToRefinance, refinanceFee);
