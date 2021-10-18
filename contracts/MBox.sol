@@ -269,6 +269,35 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     }
 
     /**
+     * @notice Get account's synthetic assets that user has debt accounted in (i.e. synthetic assets that the user has minted)
+     * @dev This is a helper function for external users (e.g. liquidators)
+     * @dev This function is not used internally because its cost is twice against simply sweep all synthetic assets
+     * @dev We could replace this by having such a list and update it whenever a debt token is minted or burned,
+     * but right now - with small amount of synthetic assets - the overhead cost and code complexity wouldn't payoff.
+     */
+    function syntheticAssetsMintedBy(address _account)
+        external
+        view
+        returns (ISyntheticAsset[] memory _syntheticAssets)
+    {
+        uint256 _length = 0;
+
+        for (uint256 i = 0; i < syntheticAssets.length; ++i) {
+            if (syntheticAssets[i].debtToken().balanceOf(_account) > 0) {
+                _length++;
+            }
+        }
+
+        _syntheticAssets = new ISyntheticAsset[](_length);
+
+        for (uint256 i = 0; i < syntheticAssets.length; ++i) {
+            if (syntheticAssets[i].debtToken().balanceOf(_account) > 0) {
+                _syntheticAssets[--_length] = syntheticAssets[i];
+            }
+        }
+    }
+
+    /**
      * @notice Get account's debt by querying latest prices from oracles
      * @dev We can optimize this function by storing an array of which synthetics the account minted avoiding looping all
      * @param _account The account to check
