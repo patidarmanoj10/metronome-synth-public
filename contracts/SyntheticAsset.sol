@@ -22,12 +22,17 @@ contract SyntheticAssetStorageV1 {
      * @notice Collaterization ration for the synthetic asset
      * @dev Use 18 decimals (e.g. 15e17 = 150%)
      */
-    uint256 public _collateralizationRatio;
+    uint256 internal _collateralizationRatio;
 
     /**
      * @notice Non-transferable token that represents users' debts
      */
-    IDebtToken public _debtToken;
+    IDebtToken internal _debtToken;
+
+    /**
+     * @notice If a mAsset isn't active, it disables minting new tokens
+     */
+    bool internal _active;
 }
 
 /**
@@ -51,6 +56,7 @@ contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 
         _symbol = symbol_;
         _debtToken = debtToken_;
         _maxTotalSupply = type(uint256).max;
+        _active = true;
         updateCollateralizationRatio(collateralizationRatio_);
     }
 
@@ -59,6 +65,9 @@ contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 
 
     /// @notice Emitted when max total supply is updated
     event MaxTotalSupplyUpdated(uint256 oldMaxTotalSupply, uint256 newMaxTotalSupply);
+
+    /// @notice Emitted when active flag is updated
+    event SyntheticAssetActiveUpdated(bool oldActive, bool newActive);
 
     function debtToken() external view returns (IDebtToken) {
         return _debtToken;
@@ -86,6 +95,10 @@ contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 
 
     function maxTotalSupply() public view virtual override returns (uint256) {
         return _maxTotalSupply;
+    }
+
+    function isActive() public view virtual override returns (bool) {
+        return _active;
     }
 
     function balanceOf(address account) public view virtual override returns (uint256) {
@@ -218,6 +231,7 @@ contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 
      * @param _amount The amount to mint
      */
     function mint(address _to, uint256 _amount) public override onlyMBox {
+        require(_active, "synthetic-asset-is-inactive");
         require(_totalSupply + _amount <= _maxTotalSupply, "surpass-max-total-supply");
         _mint(_to, _amount);
     }
@@ -248,5 +262,14 @@ contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 
     function updateMaxTotalSupply(uint256 _newMaxTotalSupply) public override onlyGovernor {
         emit MaxTotalSupplyUpdated(_maxTotalSupply, _newMaxTotalSupply);
         _maxTotalSupply = _newMaxTotalSupply;
+    }
+
+    /**
+     * @notice Enable/Disable the Synthetic Asset
+     * @param _newActive Whether the synthetic asset is enabled or not
+     */
+    function updateIsActive(bool _newActive) public override onlyGovernor {
+        emit SyntheticAssetActiveUpdated(_active, _newActive);
+        _active = _newActive;
     }
 }

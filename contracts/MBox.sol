@@ -182,6 +182,14 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     }
 
     /**
+     * @dev Throws if synthetic asset isn't enabled
+     */
+    modifier onlyIfSyntheticAssetIsActive(ISyntheticAsset _syntheticAsset) {
+        require(_syntheticAsset.isActive(), "synthetic-asset-is-not-active");
+        _;
+    }
+
+    /**
      * @dev Update prices of assets that are used by the account (checks synthetic assets and MET)
      */
     modifier updatePricesOfAssetsUsedBy(address _account) {
@@ -378,6 +386,10 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
         onlyIfSyntheticAssetExists(_syntheticAsset)
         returns (uint256 _maxIssuable, bool _anyPriceInvalid)
     {
+        if (!_syntheticAsset.isActive()) {
+            return (0, false);
+        }
+
         (, , , , uint256 _unlockedDeposit, , ) = debtPositionOfUsingLatestPrices(_account);
 
         (_maxIssuable, _anyPriceInvalid) = oracle.convertUsingLatestPrice(
@@ -413,6 +425,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     function mint(ISyntheticAsset _syntheticAsset, uint256 _amount)
         external
         onlyIfSyntheticAssetExists(_syntheticAsset)
+        onlyIfSyntheticAssetIsActive(_syntheticAsset)
         nonReentrant
     {
         require(_amount > 0, "amount-to-mint-is-zero");
@@ -563,6 +576,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
         private
         onlyIfSyntheticAssetExists(_syntheticAssetIn)
         onlyIfSyntheticAssetExists(_syntheticAssetOut)
+        onlyIfSyntheticAssetIsActive(_syntheticAssetOut)
         returns (uint256 _amountOut)
     {
         require(_amountIn > 0, "amount-in-is-zero");
@@ -657,14 +671,10 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
         onlyIfSyntheticAssetExists(_synthetic)
     {
         require(_synthetic.totalSupply() == 0, "synthetic-asset-with-supply");
-
-        address _syntheticAddress = address(_synthetic);
+        require(_synthetic != syntheticAssets[0], "can-not-delete-meth");
 
         for (uint256 i = 0; i < syntheticAssets.length; i++) {
             if (syntheticAssets[i] == _synthetic) {
-                require(i > 0, "can-not-delete-meth");
-                delete syntheticAssets[i];
-
                 // Copy the last synthetic asset into the place of the one we just deleted
                 // If there's only one synthetic asset, this is syntheticAssets[0] = syntheticAssets[0]
                 syntheticAssets[i] = syntheticAssets[syntheticAssets.length - 1];
@@ -675,6 +685,8 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
                 break;
             }
         }
+
+        address _syntheticAddress = address(_synthetic);
 
         delete syntheticAssetsByAddress[_syntheticAddress];
 

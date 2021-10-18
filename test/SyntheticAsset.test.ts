@@ -68,6 +68,17 @@ describe('SyntheticAsset', function () {
       // then
       await expect(tx).to.revertedWith('surpass-max-total-supply')
     })
+
+    it('should revert if mAsset is inactive', async function () {
+      // given
+      await mAsset.updateIsActive(false)
+
+      // when
+      const tx = mAsset.connect(mBoxMock).mint(deployer.address, '1')
+
+      // then
+      await expect(tx).to.revertedWith('synthetic-asset-is-inactive')
+    })
   })
 
   describe('burn', function () {
@@ -120,6 +131,20 @@ describe('SyntheticAsset', function () {
 
     it('should revert if not governor', async function () {
       const tx = mAsset.connect(user).updateMaxTotalSupply(parseEther('10'))
+      await expect(tx).to.revertedWith('not-the-governor')
+    })
+  })
+
+  describe('updateIsActive', function () {
+    it('should update active flag', async function () {
+      expect(await mAsset.isActive()).to.eq(true)
+      const tx = mAsset.updateIsActive(false)
+      await expect(tx).to.emit(mAsset, 'SyntheticAssetActiveUpdated').withArgs(true, false)
+      expect(await mAsset.isActive()).to.eq(false)
+    })
+
+    it('should revert if not governor', async function () {
+      const tx = mAsset.connect(user).updateIsActive(false)
       await expect(tx).to.revertedWith('not-the-governor')
     })
   })
