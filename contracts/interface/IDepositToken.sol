@@ -8,6 +8,10 @@ import "../dependencies/openzeppelin/token/ERC20/extensions/IERC20Metadata.sol";
 interface IDepositToken is IERC20, IERC20Metadata {
     function underlying() external view returns (IERC20);
 
+    function minDepositTime() external view returns (uint256);
+
+    function lastDepositOf(address _account) external view returns (uint256);
+
     function mint(address _to, uint256 _amount) external;
 
     function burnAsFee(address _to, uint256 _amount) external;
