@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: MIT
 
+// solhint-disable state-visibility
+// solhint-disable no-unused-vars
+// solhint-disable no-empty-blocks
+
 pragma solidity 0.8.9;
 
 import "../access/Governable.sol";

@@ -33,6 +33,7 @@ abstract contract Governable is Context, Initializable {
      * @dev If inheriting child is using proxy then child contract can use
      * __Governable_init() function to initialization this contract
      */
+    // solhint-disable-next-line func-name-mixedcase
     function __Governable_init() internal initializer {
         address msgSender = _msgSender();
         governor = msgSender;

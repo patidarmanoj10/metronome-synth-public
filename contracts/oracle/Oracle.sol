@@ -190,6 +190,7 @@ contract Oracle is IOracle, Governable {
      * @notice Update a asset's price
      * @param _asset The asset to update
      */
+    // solhint-disable-next-line no-empty-blocks
     function update(IERC20 _asset) public updatePriceProviderIfNeeded(_asset) {}
 
     /**
