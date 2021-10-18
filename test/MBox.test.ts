@@ -1634,7 +1634,7 @@ describe('MBox', function () {
       const tx = mBOX.updateMaxLiquidable(maxLiquidable)
 
       // then
-      await expect(tx).to.revertedWith('max-liquidable-gt-1')
+      await expect(tx).to.revertedWith('max-liquidable-gt-100%')
     })
 
     it('should update max liquidable param', async function () {
