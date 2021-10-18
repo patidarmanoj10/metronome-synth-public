@@ -16,6 +16,8 @@ contract SyntheticAssetStorageV1 {
 
     uint256 internal _totalSupply;
 
+    uint256 internal _maxTotalSupply;
+
     /**
      * @notice Collaterization ration for the synthetic asset
      * @dev Use 18 decimals (e.g. 15e17 = 150%)
@@ -48,8 +50,15 @@ contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 
         _name = name_;
         _symbol = symbol_;
         _debtToken = debtToken_;
-        setCollateralizationRatio(collateralizationRatio_);
+        _maxTotalSupply = type(uint256).max;
+        updateCollateralizationRatio(collateralizationRatio_);
     }
+
+    /// @notice Emitted when CR is updated
+    event CollateralizationRatioUpdated(uint256 oldCollateralizationRatio, uint256 newCollateralizationRatio);
+
+    /// @notice Emitted when max total supply is updated
+    event MaxTotalSupplyUpdated(uint256 oldMaxTotalSupply, uint256 newMaxTotalSupply);
 
     function debtToken() external view returns (IDebtToken) {
         return _debtToken;
@@ -73,6 +82,10 @@ contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 
 
     function totalSupply() public view virtual override returns (uint256) {
         return _totalSupply;
+    }
+
+    function maxTotalSupply() public view virtual override returns (uint256) {
+        return _maxTotalSupply;
     }
 
     function balanceOf(address account) public view virtual override returns (uint256) {
@@ -205,6 +218,7 @@ contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 
      * @param _amount The amount to mint
      */
     function mint(address _to, uint256 _amount) public override onlyMBox {
+        require(_totalSupply + _amount <= _maxTotalSupply, "surpass-max-total-supply");
         _mint(_to, _amount);
     }
 
@@ -218,11 +232,21 @@ contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 
     }
 
     /**
-     * @notice Set collateralization ratio
+     * @notice Update collateralization ratio
      * @param _newCollateralizationRatio The new CR value
      */
-    function setCollateralizationRatio(uint256 _newCollateralizationRatio) public override onlyGovernor {
+    function updateCollateralizationRatio(uint256 _newCollateralizationRatio) public override onlyGovernor {
         require(_newCollateralizationRatio >= 1e18, "collaterization-ratio-lt-100%");
+        emit CollateralizationRatioUpdated(_collateralizationRatio, _newCollateralizationRatio);
         _collateralizationRatio = _newCollateralizationRatio;
+    }
+
+    /**
+     * @notice Update max total supply
+     * @param _newMaxTotalSupply The new max total supply
+     */
+    function updateMaxTotalSupply(uint256 _newMaxTotalSupply) public override onlyGovernor {
+        emit MaxTotalSupplyUpdated(_maxTotalSupply, _newMaxTotalSupply);
+        _maxTotalSupply = _newMaxTotalSupply;
     }
 }
