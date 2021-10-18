@@ -23,11 +23,6 @@ contract SyntheticAssetStorageV1 {
     uint256 public _collateralizationRatio;
 
     /**
-     * @notice Synthetic underlying asset
-     */
-    address public _underlying;
-
-    /**
      * @notice Non-transferable token that represents users' debts
      */
     IDebtToken public _debtToken;
@@ -43,24 +38,17 @@ contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 
         string memory name_,
         string memory symbol_,
         IMBox mBox_,
-        address underlying_,
         IDebtToken debtToken_,
         uint256 collateralizationRatio_
     ) public initializer {
-        require(underlying_ != address(0), "underlying-is-null");
         require(address(debtToken_) != address(0), "debt-token-is-null");
 
         __Manageable_init(mBox_);
 
         _name = name_;
         _symbol = symbol_;
-        _underlying = underlying_;
         _debtToken = debtToken_;
         setCollateralizationRatio(collateralizationRatio_);
-    }
-
-    function underlying() external view returns (address) {
-        return _underlying;
     }
 
     function debtToken() external view returns (IDebtToken) {
