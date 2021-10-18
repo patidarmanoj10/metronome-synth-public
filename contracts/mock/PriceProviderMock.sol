@@ -28,7 +28,7 @@ contract PriceProviderMock is IPriceProvider {
         amountInUsd = _amountInUsd;
     }
 
-    function convertToUsd(bytes memory _encodedTokenAddress, uint256 _amount)
+    function convertToUsd(bytes memory, uint256)
         external
         view
         override
@@ -38,7 +38,7 @@ contract PriceProviderMock is IPriceProvider {
         _lastUpdatedAt = lastUpdatedAt;
     }
 
-    function convertFromUsd(bytes memory _encodedTokenAddress, uint256 _amountInUsd)
+    function convertFromUsd(bytes memory, uint256)
         external
         view
         override
