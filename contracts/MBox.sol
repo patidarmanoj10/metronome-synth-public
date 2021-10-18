@@ -6,9 +6,6 @@ import "./dependencies/openzeppelin/token/ERC20/IERC20.sol";
 import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./access/Governable.sol";
-import "./interface/ISyntheticAsset.sol";
-import "./interface/oracle/IOracle.sol";
-import "./interface/IDepositToken.sol";
 import "./interface/IMBox.sol";
 import "./lib/WadRayMath.sol";
 import "./interface/ITreasury.sol";
@@ -66,7 +63,6 @@ contract MBoxStorageV1 {
      * @notice The max percent of the debt allowed to liquidate
      * @dev Use 18 decimals (e.g. 1e16 = 1%)
      */
-    // TODO: Set default value from `initialize` function
     uint256 public maxLiquidable;
 
     /**
@@ -238,13 +234,14 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
         refinanceFee = 15e15; // 1.5%
         liquidatorFee = 1e17; // 10%
         liquidateFee = 8e16; // 8%
+        maxLiquidable = 1e18; // 100%
     }
 
     /**
      * @notice Deposit MET as colleteral and mint mBOX-MET (tokenized deposit position)
      * @param _amount The amount of MET tokens to deposit
      */
-    function deposit(uint256 _amount) external nonReentrant {
+    function deposit(uint256 _amount) external override nonReentrant {
         require(_amount > 0, "zero-collateral-amount");
 
         address _account = _msgSender();
@@ -272,6 +269,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     function debtOfUsingLatestPrices(address _account)
         public
         view
+        override
         returns (
             uint256 _debtInUsd,
             uint256 _lockedDepositInUsd,
@@ -308,6 +306,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     function debtPositionOfUsingLatestPrices(address _account)
         public
         view
+        override
         returns (
             bool _isHealthy,
             uint256 _lockedDepositInUsd,
@@ -383,6 +382,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     function maxIssuableForUsingLatestPrices(address _account, ISyntheticAsset _syntheticAsset)
         public
         view
+        override
         onlyIfSyntheticAssetExists(_syntheticAsset)
         returns (uint256 _maxIssuable, bool _anyPriceInvalid)
     {
@@ -408,6 +408,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
      */
     function maxIssuableFor(address _account, ISyntheticAsset _syntheticAsset)
         public
+        override
         onlyIfSyntheticAssetExists(_syntheticAsset)
         updatePriceOfAsset(_syntheticAsset)
         returns (uint256 _maxIssuable)
@@ -424,6 +425,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
      */
     function mint(ISyntheticAsset _syntheticAsset, uint256 _amount)
         external
+        override
         onlyIfSyntheticAssetExists(_syntheticAsset)
         onlyIfSyntheticAssetIsActive(_syntheticAsset)
         nonReentrant
@@ -459,7 +461,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
      * @notice Burn mBOX-MET and withdraw MET
      * @param _amount The amount of MET to withdraw
      */
-    function withdraw(uint256 _amount) external nonReentrant {
+    function withdraw(uint256 _amount) external override nonReentrant {
         require(_amount > 0, "amount-to-withdraw-is-zero");
 
         address _account = _msgSender();
@@ -507,7 +509,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
      * @param _syntheticAsset The synthetic asset to burn
      * @param _amount The amount of synthetic asset to burn
      */
-    function repay(ISyntheticAsset _syntheticAsset, uint256 _amount) external nonReentrant {
+    function repay(ISyntheticAsset _syntheticAsset, uint256 _amount) external override nonReentrant {
         address _account = _msgSender();
         _repay(_syntheticAsset, _account, _account, _amount);
 
@@ -526,7 +528,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
         ISyntheticAsset _syntheticAsset,
         address _account,
         uint256 _amountToRepay
-    ) external nonReentrant {
+    ) external override nonReentrant {
         require(_amountToRepay > 0, "amount-to-repay-is-zero");
         address _liquidator = _msgSender();
         require(_liquidator != _account, "can-not-liquidate-own-position");
@@ -620,7 +622,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
         ISyntheticAsset _syntheticAssetIn,
         ISyntheticAsset _syntheticAssetOut,
         uint256 _amountIn
-    ) external nonReentrant returns (uint256 _amountOut) {
+    ) external override nonReentrant returns (uint256 _amountOut) {
         address _account = _msgSender();
         (bool _isHealthy, , , , , ) = debtPositionOf(_account);
         require(_isHealthy, "debt-position-is-unhealthy");
@@ -633,7 +635,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
      * @param _syntheticAssetIn Synthetic asset to sell
      * @param _amountToRefinance Amount to refinance
      */
-    function refinance(ISyntheticAsset _syntheticAssetIn, uint256 _amountToRefinance) external nonReentrant {
+    function refinance(ISyntheticAsset _syntheticAssetIn, uint256 _amountToRefinance) external override nonReentrant {
         ISyntheticAsset _syntheticAssetOut = syntheticAssets[0]; // mETH
         require(
             _syntheticAssetIn.collateralizationRatio() > _syntheticAssetOut.collateralizationRatio(),
@@ -651,7 +653,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     /**
      * @notice Add synthetic token to mBOX offerings
      */
-    function addSyntheticAsset(ISyntheticAsset _synthetic) public onlyGovernor {
+    function addSyntheticAsset(ISyntheticAsset _synthetic) public override onlyGovernor {
         address _syntheticAddress = address(_synthetic);
         require(_syntheticAddress != address(0), "address-is-null");
         require(address(syntheticAssetsByAddress[_syntheticAddress]) == address(0), "synthetic-asset-exists");
@@ -667,6 +669,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
      */
     function removeSyntheticAsset(ISyntheticAsset _synthetic)
         public
+        override
         onlyGovernor
         onlyIfSyntheticAssetExists(_synthetic)
     {
@@ -696,7 +699,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     /**
      * @notice Update treasury contract - will migrate funds to the new contract
      */
-    function updateTreasury(address _newTreasury) public onlyGovernor {
+    function updateTreasury(address _newTreasury) public override onlyGovernor {
         require(_newTreasury != address(0), "treasury-address-is-null");
         require(_newTreasury != address(treasury), "new-treasury-is-same-as-current");
 
@@ -711,21 +714,21 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     /**
      * @notice Set deposit (mBOX-MET) contract
      */
-    function setDepositToken(IDepositToken _depositToken) public onlyGovernor {
+    function setDepositToken(IDepositToken _depositToken) public override onlyGovernor {
         depositToken = _depositToken;
     }
 
     /**
      * @notice Set price oracle contract
      */
-    function setOracle(IOracle _oracle) public onlyGovernor {
+    function setOracle(IOracle _oracle) public override onlyGovernor {
         oracle = _oracle;
     }
 
     /**
      * @notice Set deposit fee
      */
-    function setDepositFee(uint256 _depositFee) public onlyGovernor {
+    function setDepositFee(uint256 _depositFee) public override onlyGovernor {
         depositFee = _depositFee;
         emit DepositFeeUpdated(_depositFee);
     }
@@ -733,7 +736,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     /**
      * @notice Set mint fee
      */
-    function setMintFee(uint256 _mintFee) public onlyGovernor {
+    function setMintFee(uint256 _mintFee) public override onlyGovernor {
         mintFee = _mintFee;
         emit MintFeeUpdated(_mintFee);
     }
@@ -741,7 +744,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     /**
      * @notice Set withdraw fee
      */
-    function setWithdrawFee(uint256 _withdrawFee) public onlyGovernor {
+    function setWithdrawFee(uint256 _withdrawFee) public override onlyGovernor {
         withdrawFee = _withdrawFee;
         emit WithdrawFeeUpdated(_withdrawFee);
     }
@@ -749,7 +752,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     /**
      * @notice Set repay fee
      */
-    function setRepayFee(uint256 _repayFee) public onlyGovernor {
+    function setRepayFee(uint256 _repayFee) public override onlyGovernor {
         repayFee = _repayFee;
         emit RepayFeeUpdated(_repayFee);
     }
@@ -757,7 +760,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     /**
      * @notice Set swap fee
      */
-    function setSwapFee(uint256 _swapFee) public onlyGovernor {
+    function setSwapFee(uint256 _swapFee) public override onlyGovernor {
         swapFee = _swapFee;
         emit SwapFeeUpdated(_swapFee);
     }
@@ -765,7 +768,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     /**
      * @notice Set refinance fee
      */
-    function setRefinanceFee(uint256 _refinanceFee) public onlyGovernor {
+    function setRefinanceFee(uint256 _refinanceFee) public override onlyGovernor {
         refinanceFee = _refinanceFee;
         emit RefinanceFeeUpdated(_refinanceFee);
     }
@@ -773,7 +776,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     /**
      * @notice Set liquidator fee
      */
-    function setLiquidatorFee(uint256 _liquidatorFee) public onlyGovernor {
+    function setLiquidatorFee(uint256 _liquidatorFee) public override onlyGovernor {
         liquidatorFee = _liquidatorFee;
         emit LiquidatorFeeUpdated(_liquidatorFee);
     }
@@ -781,7 +784,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     /**
      * @notice Set liquidate fee
      */
-    function setLiquidateFee(uint256 _liquidateFee) public onlyGovernor {
+    function setLiquidateFee(uint256 _liquidateFee) public override onlyGovernor {
         liquidateFee = _liquidateFee;
         emit LiquidateFeeUpdated(_liquidateFee);
     }
@@ -789,7 +792,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     /**
      * @notice Set maxLiquidable (liquidation cap)
      */
-    function setMaxLiquidable(uint256 _newMaxLiquidable) public onlyGovernor {
+    function setMaxLiquidable(uint256 _newMaxLiquidable) public override onlyGovernor {
         require(_newMaxLiquidable != maxLiquidable, "new-value-is-same-as-current");
         require(_newMaxLiquidable <= 1e18, "max-liquidable-gt-1");
         emit MaxLiquidableUpdated(maxLiquidable, _newMaxLiquidable);

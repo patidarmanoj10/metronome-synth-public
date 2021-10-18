@@ -112,7 +112,6 @@ describe('MBox', function () {
 
     await mBOX.initialize(treasury.address, depositToken.address, oracle.address)
     await mBOX.setLiquidatorFee(liquidatorFee)
-    await mBOX.setMaxLiquidable(parseEther('1')) // 100%
     await mBOX.addSyntheticAsset(mEth.address)
     await mBOX.addSyntheticAsset(mDoge.address)
 
