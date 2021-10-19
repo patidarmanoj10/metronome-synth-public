@@ -30,7 +30,7 @@ import {
 } from '../typechain'
 import {disableForking, enableForking} from './helpers'
 
-const {MET_ADDRESS, WETH_ADDRESS} = process.env
+const {MET_ADDRESS} = process.env
 
 describe('Deployments', function () {
   let deployer: SignerWithAddress
@@ -208,7 +208,6 @@ describe('Deployments', function () {
     it('mETH token should have correct params', async function () {
       expect(await mEth.mBox()).to.eq(mBox.address)
       expect(await mEth.debtToken()).to.eq(mEthDebtToken.address)
-      expect(await mEth.underlying()).to.eq(WETH_ADDRESS)
       expect(await mEth.governor()).to.eq(deployer.address)
       await mEth.connect(governor).acceptGovernorship()
       expect(await mEth.governor()).to.eq(governor.address)

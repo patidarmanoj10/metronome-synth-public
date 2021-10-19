@@ -28,7 +28,6 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     'Metronome ETH',
     'mETH',
     mBoxAddress,
-    WETH_ADDRESS,
     mEthDebtTokenAddress,
     parseEther('1.5') // CR = 150%
   )
