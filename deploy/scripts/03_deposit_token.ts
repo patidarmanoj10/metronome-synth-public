@@ -1,22 +1,18 @@
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
-import {Contracts, deterministic} from '../helpers'
+import {UpgradableContracts, deterministic} from '../helpers'
+import Address from '../../helpers/address'
 
-const {MET_ADDRESS} = process.env
-
-const {alias: DepositToken} = Contracts.DepositToken
+const {MET_ADDRESS} = Address
+const {alias: DepositToken} = UpgradableContracts.DepositToken
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
-  if (!MET_ADDRESS) {
-    throw Error('process.env.MET_ADDRESS undefined!')
-  }
-
   const {getNamedAccounts, deployments} = hre
   const {execute} = deployments
   const {deployer, governor} = await getNamedAccounts()
 
-  const {address: mBoxAddress} = await deterministic(hre, Contracts.MBox)
-  const {deploy} = await deterministic(hre, Contracts.DepositToken)
+  const {address: mBoxAddress} = await deterministic(hre, UpgradableContracts.MBox)
+  const {deploy} = await deterministic(hre, UpgradableContracts.DepositToken)
 
   await deploy()
 

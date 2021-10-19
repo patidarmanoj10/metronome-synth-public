@@ -29,8 +29,9 @@ import {
   UpgraderBase,
 } from '../typechain'
 import {disableForking, enableForking} from './helpers'
+import Address from '../helpers/address'
 
-const {MET_ADDRESS} = process.env
+const {MET_ADDRESS} = Address
 
 describe('Deployments', function () {
   let deployer: SignerWithAddress

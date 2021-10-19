@@ -17,19 +17,23 @@ import {
 } from '../../typechain'
 import {
   DEFAULT_TWAP_PERIOD,
-  MET_ADDRESS,
-  DAI_ADDRESS,
   CHAINLINK_DOGE_AGGREGATOR_ADDRESS,
-  UNISWAP_V3_CROSS_POOL_ORACLE_ADDRESS,
   enableForking,
   disableForking,
-  WETH_ADDRESS,
-  UNISWAP_V2_ROUTER02_ADDRESS,
   increaseTime,
-  WBTC_ADDRESS,
   CHAINLINK_BTC_AGGREGATOR_ADDRESS,
   CHAINLINK_ETH_AGGREGATOR_ADDRESS,
-} from './../helpers'
+} from '../helpers'
+import Address from '../../helpers/address'
+
+const {
+  MET_ADDRESS,
+  DAI_ADDRESS,
+  UNISWAP_V3_CROSS_POOL_ORACLE_ADDRESS,
+  WETH_ADDRESS,
+  UNISWAP_V2_ROUTER02_ADDRESS,
+  WBTC_ADDRESS,
+} = Address
 
 const STALE_PERIOD = ethers.constants.MaxUint256
 

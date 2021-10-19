@@ -5,17 +5,11 @@ import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
 import {UniswapV3PriceProvider, UniswapV3PriceProvider__factory} from '../../typechain'
-import {
-  DEFAULT_TWAP_PERIOD,
-  MET_ADDRESS,
-  USDC_ADDRESS,
-  DAI_ADDRESS,
-  UNISWAP_V3_CROSS_POOL_ORACLE_ADDRESS,
-  WBTC_ADDRESS,
-  enableForking,
-  disableForking,
-  WETH_ADDRESS,
-} from './../helpers'
+import {DEFAULT_TWAP_PERIOD, enableForking, disableForking} from '../helpers'
+import Address from '../../helpers/address'
+
+const {MET_ADDRESS, DAI_ADDRESS, USDC_ADDRESS, WETH_ADDRESS, UNISWAP_V3_CROSS_POOL_ORACLE_ADDRESS, WBTC_ADDRESS} =
+  Address
 
 const abi = new ethers.utils.AbiCoder()
 const encodedMetAddress = abi.encode(['address'], [MET_ADDRESS])
