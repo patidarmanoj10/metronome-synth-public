@@ -25,13 +25,13 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {execute, deploy} = deployments
   const {deployer, governor} = await getNamedAccounts()
 
-  const uniswapV3priceProvider = await deploy('UniswapV3PriceProvider', {
+  const uniswapV3PriceProvider = await deploy('UniswapV3PriceProvider', {
     from: deployer,
     log: true,
     args: [UNISWAP_V3_CROSS_POOL_ORACLE_ADDRESS, DAI_ADDRESS, TWAP_PERIOD],
   })
 
-  const uniswapV2priceProvider = await deploy('UniswapV2PriceProvider', {
+  const uniswapV2PriceProvider = await deploy('UniswapV2PriceProvider', {
     from: deployer,
     log: true,
     args: [UNISWAP_V2_ROUTER02_ADDRESS, DAI_ADDRESS, TWAP_PERIOD],
@@ -48,8 +48,8 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     args: [STALE_PERIOD],
   })
 
-  await execute(Oracle, {from: deployer, log: true}, 'setPriceProvider', UNISWAP_V3, uniswapV3priceProvider.address)
-  await execute(Oracle, {from: deployer, log: true}, 'setPriceProvider', UNISWAP_V2, uniswapV2priceProvider.address)
+  await execute(Oracle, {from: deployer, log: true}, 'setPriceProvider', UNISWAP_V3, uniswapV3PriceProvider.address)
+  await execute(Oracle, {from: deployer, log: true}, 'setPriceProvider', UNISWAP_V2, uniswapV2PriceProvider.address)
   await execute(Oracle, {from: deployer, log: true}, 'setPriceProvider', CHAINLINK, chainlinkPriceProvider.address)
 
   await execute(Oracle, {from: deployer, log: true}, 'setUsdAsset', DAI_ADDRESS)
