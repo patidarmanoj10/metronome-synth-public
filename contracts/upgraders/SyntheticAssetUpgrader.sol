@@ -5,7 +5,7 @@ pragma solidity 0.8.9;
 import "./UpgraderBase.sol";
 
 contract SyntheticAssetUpgrader is UpgraderBase {
-    constructor(address _owner) UpgraderBase(address(0)) {
+    constructor(address _owner) {
         transferOwnership(_owner);
     }
 
@@ -21,6 +21,6 @@ contract SyntheticAssetUpgrader is UpgraderBase {
     function _checkResults(bytes[] memory _beforeResults, bytes[] memory _afterResults) internal pure override {
         _checkStringResults(_beforeResults, _afterResults, 0, 1);
         _checkUint256Results(_beforeResults, _afterResults, 2, 3);
-        _checkAddress256Results(_beforeResults, _afterResults, 4, 4);
+        _checkAddressResults(_beforeResults, _afterResults, 4, 4);
     }
 }

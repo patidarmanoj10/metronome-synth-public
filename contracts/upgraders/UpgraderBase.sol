@@ -7,14 +7,10 @@ import "../dependencies/openzeppelin//proxy/transparent/TransparentUpgradeablePr
 import "../interface/multicall/IMulticall.sol";
 
 abstract contract UpgraderBase is ProxyAdmin {
-    address public multicall;
+    address public multicall = 0xeefBa1e63905eF1D7ACbA5a8513c70307C1cE441;
 
-    constructor(address) {
-        // Note: hardhat-deploy doesn't support passings args to a custom ProxyAdmin contract
-        // There is an open PR to address this: https://github.com/wighawag/hardhat-deploy/pull/142
-        // TODO: If take too long for their to support it, we could deploy using DefaultProxyAdmin and transfer ownership to upgraders manually
-        // multicall = _multicall;
-        multicall = 0xeefBa1e63905eF1D7ACbA5a8513c70307C1cE441;
+    function updateMulticall(address _multicall) public onlyOwner {
+        multicall = _multicall;
     }
 
     function upgrade(TransparentUpgradeableProxy _proxy, address _implementation) public override onlyOwner {
@@ -83,7 +79,7 @@ abstract contract UpgraderBase is ProxyAdmin {
         }
     }
 
-    function _checkAddress256Results(
+    function _checkAddressResults(
         bytes[] memory _beforeResults,
         bytes[] memory _afterResults,
         uint256 _from,

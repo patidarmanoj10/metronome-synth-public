@@ -5,12 +5,12 @@ pragma solidity 0.8.9;
 import "./UpgraderBase.sol";
 
 contract MBoxUpgrader is UpgraderBase {
-    constructor(address _owner) UpgraderBase(address(0)) {
+    constructor(address _owner) {
         transferOwnership(_owner);
     }
 
     function _calls() internal pure override returns (bytes[] memory calls) {
-        calls = new bytes[](11);
+        calls = new bytes[](12);
         calls[0] = abi.encodeWithSignature("depositFee()");
         calls[1] = abi.encodeWithSignature("mintFee()");
         calls[2] = abi.encodeWithSignature("withdrawFee()");
@@ -22,10 +22,11 @@ contract MBoxUpgrader is UpgraderBase {
         calls[8] = abi.encodeWithSignature("maxLiquidable()");
         calls[9] = abi.encodeWithSignature("treasury()");
         calls[10] = abi.encodeWithSignature("oracle()");
+        calls[11] = abi.encodeWithSignature("depositToken()");
     }
 
     function _checkResults(bytes[] memory _beforeResults, bytes[] memory _afterResults) internal pure override {
         _checkUint256Results(_beforeResults, _afterResults, 0, 8);
-        _checkAddress256Results(_beforeResults, _afterResults, 9, 10);
+        _checkAddressResults(_beforeResults, _afterResults, 9, 11);
     }
 }
