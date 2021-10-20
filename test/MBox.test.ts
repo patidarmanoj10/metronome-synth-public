@@ -110,9 +110,8 @@ describe('MBox', function () {
     await mDogeDebtToken.transferGovernorship(governor.address)
     await mDogeDebtToken.connect(governor).acceptGovernorship()
 
-    await mBOX.initialize(treasury.address, depositToken.address, oracle.address)
+    await mBOX.initialize(treasury.address, depositToken.address, mEth.address, oracle.address)
     await mBOX.updateLiquidatorFee(liquidatorFee)
-    await mBOX.addSyntheticAsset(mEth.address)
     await mBOX.addSyntheticAsset(mDoge.address)
 
     // mint some MET to users
@@ -134,9 +133,9 @@ describe('MBox', function () {
 
       it('should add synthetic asset', async function () {
         const someTokenAddress = met.address
-        expect(await mBOX.syntheticAssetsByAddress(someTokenAddress)).to.eq(ethers.constants.AddressZero)
+        expect(await mBOX.syntheticAssetByAddress(someTokenAddress)).to.eq(ethers.constants.AddressZero)
         await mBOX.addSyntheticAsset(someTokenAddress)
-        expect(await mBOX.syntheticAssetsByAddress(someTokenAddress)).to.not.eq(ethers.constants.AddressZero)
+        expect(await mBOX.syntheticAssetByAddress(someTokenAddress)).to.not.eq(ethers.constants.AddressZero)
       })
     })
 
@@ -147,13 +146,13 @@ describe('MBox', function () {
         const someToken = await wbtcMockFactory.deploy('Wrapped Bitcoin', 'WBTC', 8)
         expect(await someToken.totalSupply()).to.eq(0)
         await mBOX.addSyntheticAsset(someToken.address)
-        expect(await mBOX.syntheticAssetsByAddress(someToken.address)).to.not.eq(ethers.constants.AddressZero)
+        expect(await mBOX.syntheticAssetByAddress(someToken.address)).to.not.eq(ethers.constants.AddressZero)
 
         // when
         await mBOX.removeSyntheticAsset(someToken.address)
 
         // then
-        expect(await mBOX.syntheticAssetsByAddress(someToken.address)).to.eq(ethers.constants.AddressZero)
+        expect(await mBOX.syntheticAssetByAddress(someToken.address)).to.eq(ethers.constants.AddressZero)
       })
 
       it('should revert if removing mETH (i.e. syntheticAssets[0])', async function () {
@@ -1613,7 +1612,7 @@ describe('MBox', function () {
   describe('updateMaxLiquidable', function () {
     it('should revert if caller is not governor', async function () {
       // when
-      const tx = mBOX.connect(user.address).updateMaxLiquidable(treasury.address)
+      const tx = mBOX.connect(user.address).updateMaxLiquidable(parseEther('1'))
 
       // then
       await expect(tx).to.revertedWith('not-the-governor')

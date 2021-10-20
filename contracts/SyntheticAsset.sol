@@ -22,7 +22,7 @@ contract SyntheticAssetStorageV1 {
      * @notice Collaterization ration for the synthetic asset
      * @dev Use 18 decimals (e.g. 15e17 = 150%)
      */
-    uint256 internal _collateralizationRatio;
+    uint128 internal _collateralizationRatio;
 
     /**
      * @notice Non-transferable token that represents users' debts
@@ -46,7 +46,7 @@ contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 
         string memory symbol_,
         IMBox mBox_,
         IDebtToken debtToken_,
-        uint256 collateralizationRatio_
+        uint128 collateralizationRatio_
     ) public initializer {
         require(address(debtToken_) != address(0), "debt-token-is-null");
 
@@ -249,7 +249,7 @@ contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 
      * @notice Update collateralization ratio
      * @param _newCollateralizationRatio The new CR value
      */
-    function updateCollateralizationRatio(uint256 _newCollateralizationRatio) public override onlyGovernor {
+    function updateCollateralizationRatio(uint128 _newCollateralizationRatio) public override onlyGovernor {
         require(_newCollateralizationRatio >= 1e18, "collaterization-ratio-lt-100%");
         emit CollateralizationRatioUpdated(_collateralizationRatio, _newCollateralizationRatio);
         _collateralizationRatio = _newCollateralizationRatio;

@@ -85,7 +85,7 @@ contract MBoxStorageV1 {
      * @dev The syntheticAssets[0] is mETH
      */
     ISyntheticAsset[] public syntheticAssets;
-    mapping(address => ISyntheticAsset) public syntheticAssetsByAddress;
+    mapping(address => ISyntheticAsset) public syntheticAssetByAddress;
 }
 
 /**
@@ -177,7 +177,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
      */
     modifier onlyIfSyntheticAssetExists(ISyntheticAsset _syntheticAsset) {
         require(
-            syntheticAssetsByAddress[address(_syntheticAsset)] != ISyntheticAsset(address(0)),
+            syntheticAssetByAddress[address(_syntheticAsset)] != ISyntheticAsset(address(0)),
             "synthetic-asset-does-not-exists"
         );
         _;
@@ -219,6 +219,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     function initialize(
         ITreasury _treasury,
         IDepositToken _depositToken,
+        ISyntheticAsset _mETH,
         IOracle _oracle
     ) public initializer {
         require(address(_treasury) != address(0), "treasury-address-is-null");
@@ -241,6 +242,9 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
         liquidatorFee = 1e17; // 10%
         liquidateFee = 8e16; // 8%
         maxLiquidable = 1e18; // 100%
+
+        // Ensuring that mETH is 0 the syntheticAssets[0]
+        addSyntheticAsset(_mETH);
     }
 
     /**
@@ -440,18 +444,17 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
 
         address _account = _msgSender();
 
-        uint256 _maxIssuable = maxIssuableFor(_account, _syntheticAsset);
-
-        require(_amount <= _maxIssuable, "not-enough-collateral");
+        require(_amount <= maxIssuableFor(_account, _syntheticAsset), "not-enough-collateral");
 
         uint256 _feeInSyntheticAsset;
 
         if (mintFee > 0) {
             _feeInSyntheticAsset = _amount.wadMul(mintFee);
 
-            uint256 _feeInMet = oracle.convert(_syntheticAsset, depositToken.underlying(), _feeInSyntheticAsset);
-
-            depositToken.burnAsFee(_account, _feeInMet);
+            depositToken.burnAsFee(
+                _account,
+                oracle.convert(_syntheticAsset, depositToken.underlying(), _feeInSyntheticAsset)
+            );
         }
 
         uint256 _amountToMint = _amount - _feeInSyntheticAsset;
@@ -521,8 +524,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
 
         // Charging fee after repayment to reduce chances to have tx reverted due to low unlocked deposit
         if (repayFee > 0) {
-            uint256 _feeInSyntheticAsset = _amount.wadMul(repayFee);
-            uint256 _feeInMet = oracle.convert(_syntheticAsset, depositToken.underlying(), _feeInSyntheticAsset);
+            uint256 _feeInMet = oracle.convert(_syntheticAsset, depositToken.underlying(), _amount.wadMul(repayFee));
             depositToken.burnAsFee(_account, _feeInMet);
         }
     }
@@ -547,20 +549,20 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
 
         require(!_isHealthy, "position-is-healthy");
 
-        _repay(_syntheticAsset, _account, _liquidator, _amountToRepay);
-
         uint256 _amountToRepayInMET = oracle.convert(_syntheticAsset, depositToken.underlying(), _amountToRepay);
 
-        uint256 _toCollect = liquidateFee > 0 ? _amountToRepayInMET.wadMul(liquidateFee) : 0;
+        uint256 _toCollectAsFee = liquidateFee > 0 ? _amountToRepayInMET.wadMul(liquidateFee) : 0;
         uint256 _toLiquidator = _amountToRepayInMET + _amountToRepayInMET.wadMul(liquidatorFee);
-        uint256 _depositToSeize = _toCollect + _toLiquidator;
+        uint256 _depositToSeize = _toCollectAsFee + _toLiquidator;
         require(_depositToSeize <= _deposit, "amount-to-repay-is-too-high");
+
+        _repay(_syntheticAsset, _account, _liquidator, _amountToRepay);
 
         depositToken.seize(_account, _liquidator, _toLiquidator);
 
-        if (_toCollect > 0) {
+        if (_toCollectAsFee > 0) {
             // Not using `burnAsFee` because we want to collect even from the locked amount
-            depositToken.burn(_account, _toCollect);
+            depositToken.burn(_account, _toCollectAsFee);
         }
 
         emit PositionLiquidated(_liquidator, _account, address(_syntheticAsset), _amountToRepay, _depositToSeize);
@@ -662,10 +664,10 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     function addSyntheticAsset(ISyntheticAsset _synthetic) public override onlyGovernor {
         address _syntheticAddress = address(_synthetic);
         require(_syntheticAddress != address(0), "address-is-null");
-        require(address(syntheticAssetsByAddress[_syntheticAddress]) == address(0), "synthetic-asset-exists");
+        require(address(syntheticAssetByAddress[_syntheticAddress]) == address(0), "synthetic-asset-exists");
 
         syntheticAssets.push(_synthetic);
-        syntheticAssetsByAddress[_syntheticAddress] = _synthetic;
+        syntheticAssetByAddress[_syntheticAddress] = _synthetic;
 
         emit SyntheticAssetAdded(_syntheticAddress);
     }
@@ -697,7 +699,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
 
         address _syntheticAddress = address(_synthetic);
 
-        delete syntheticAssetsByAddress[_syntheticAddress];
+        delete syntheticAssetByAddress[_syntheticAddress];
 
         emit SyntheticAssetRemoved(_syntheticAddress);
     }
