@@ -79,7 +79,7 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
         }
 
         if (depositToken().balanceOf(_account) > 0) {
-            oracle.update(depositToken().underlying());
+            oracle.update(met());
         }
         _;
     }
@@ -89,7 +89,7 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
      */
     modifier updatePriceOfAsset(ISyntheticAsset _syntheticAsset) {
         oracle.update(_syntheticAsset);
-        oracle.update(depositToken().underlying());
+        oracle.update(met());
         _;
     }
 
@@ -110,7 +110,7 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
         depositTokens.push(depositToken_);
         oracle = oracle_;
 
-        // Ensuring that mETH is 0 the syntheticAssets[0]
+        // Ensuring that mETH is the syntheticAssets[0]
         addSyntheticAsset(mETH_);
     }
 
@@ -120,6 +120,13 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
      */
     function depositToken() public view override returns (IDepositToken) {
         return depositTokens[0];
+    }
+
+    /**
+     * @notice Get MET
+     */
+    function met() public view override returns (IERC20) {
+        return depositToken().underlying();
     }
 
     /**
@@ -230,13 +237,10 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
         (, _lockedDepositInUsd, _anyPriceInvalid) = debtOfUsingLatestPrices(_account);
 
         bool _depositPriceInvalid;
-        (_lockedDeposit, _depositPriceInvalid) = oracle.convertFromUsdUsingLatestPrice(
-            depositToken().underlying(),
-            _lockedDepositInUsd
-        );
+        (_lockedDeposit, _depositPriceInvalid) = oracle.convertFromUsdUsingLatestPrice(met(), _lockedDepositInUsd);
 
         _deposit = depositToken().balanceOf(_account);
-        (_depositInUsd, ) = oracle.convertToUsdUsingLatestPrice(depositToken().underlying(), _deposit);
+        (_depositInUsd, ) = oracle.convertToUsdUsingLatestPrice(met(), _deposit);
 
         if (_lockedDeposit > _deposit) {
             _lockedDeposit = _deposit;
@@ -257,7 +261,7 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
      * @return _lockedDeposit The amount of deposit that's covering the account's debt
      */
     function debtPositionOf(address _account)
-        public
+        external
         override
         updatePricesOfAssetsUsedBy(_account)
         returns (
@@ -290,7 +294,7 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
      * @return _maxIssuable The max issuable amount
      */
     function maxIssuableFor(address _account, ISyntheticAsset _syntheticAsset)
-        public
+        external
         override
         onlyIfSyntheticAssetExists(_syntheticAsset)
         updatePriceOfAsset(_syntheticAsset)
@@ -322,7 +326,7 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
         (, , , , uint256 _unlockedDeposit, , ) = debtPositionOfUsingLatestPrices(_account);
 
         (_maxIssuable, _anyPriceInvalid) = oracle.convertUsingLatestPrice(
-            depositToken().underlying(),
+            met(),
             _syntheticAsset,
             _unlockedDeposit.wadDiv(_syntheticAsset.collateralizationRatio())
         );
@@ -339,7 +343,7 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
         ISyntheticAsset _syntheticAsset,
         address _to,
         uint256 _amount
-    ) public onlyMBox {
+    ) external nonReentrant onlyMBox {
         require(_amount > 0, "amount-to-mint-is-zero");
         _syntheticAsset.mint(_to, _amount);
         _syntheticAsset.debtToken().mint(_to, _amount);
@@ -358,7 +362,7 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
         address _syntheticAssetFrom,
         address _debtTokenFrom,
         uint256 _amount
-    ) public override onlyMBox {
+    ) external override nonReentrant onlyMBox {
         require(_amount > 0, "amount-to-burn-is-zero");
         require(_amount <= _syntheticAsset.debtToken().balanceOf(_debtTokenFrom), "amount-gt-burnable-debt");
         require(_amount <= _syntheticAsset.balanceOf(_syntheticAssetFrom), "amount-gt-burnable-synthetic");
@@ -371,7 +375,7 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
      * @param _to The synthetic asset to mint
      * @param _amount The account to burn synthetic assets from
      */
-    function mintDepositToken(address _to, uint256 _amount) public override onlyMBox {
+    function mintDepositToken(address _to, uint256 _amount) external override nonReentrant onlyMBox {
         require(_amount > 0, "amount-to-mint-is-zero");
         depositToken().mint(_to, _amount);
     }
@@ -388,7 +392,7 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
         address _account,
         uint256 _fee,
         bool _onlyFromUnlocked
-    ) public override onlyMBox {
+    ) external override nonReentrant onlyMBox {
         require(_fee > 0, "fee-to-collect-is-zero");
         if (_onlyFromUnlocked) {
             depositToken().burnFromUnlocked(_account, _fee);
@@ -404,7 +408,7 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
      * @param _account The account to burn from
      * @param _amount The amount to burn
      */
-    function burnWithdrawnDeposit(address _account, uint256 _amount) public override onlyMBox {
+    function burnWithdrawnDeposit(address _account, uint256 _amount) external override nonReentrant onlyMBox {
         require(_amount > 0, "amount-to-burn-is-zero");
         depositToken().burnForWithdraw(_account, _amount);
     }
@@ -419,7 +423,7 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
         address _from,
         address _to,
         uint256 _amount
-    ) public override onlyMBox {
+    ) external override nonReentrant onlyMBox {
         require(_from != _to, "seize-from-and-to-are-the-same");
         require(_amount > 0, "amount-to-seize-is-zero");
         depositToken().seize(_from, _to, _amount);
@@ -443,13 +447,13 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
      * @notice Remove synthetic token from mBOX offerings
      */
     function removeSyntheticAsset(ISyntheticAsset _synthetic)
-        public
+        external
         override
         onlyGovernor
         onlyIfSyntheticAssetExists(_synthetic)
     {
         require(_synthetic.totalSupply() == 0, "synthetic-asset-with-supply");
-        require(_synthetic != syntheticAssets[0], "can-not-delete-meth");
+        require(_synthetic != mEth(), "can-not-delete-meth");
 
         for (uint256 i = 0; i < syntheticAssets.length; i++) {
             if (syntheticAssets[i] == _synthetic) {

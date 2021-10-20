@@ -98,16 +98,16 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     event CollateralWithdrawn(address indexed account, uint256 amount);
 
     /// @notice Emitted when synthetic asset is minted
-    event SyntheticAssetMinted(address indexed account, address indexed syntheticAsset, uint256 amount);
+    event SyntheticAssetMinted(address indexed account, ISyntheticAsset indexed syntheticAsset, uint256 amount);
 
     /// @notice Emitted when synthetic's debt is repayed
-    event DebtRepayed(address indexed account, address indexed syntheticAsset, uint256 amount);
+    event DebtRepayed(address indexed account, ISyntheticAsset indexed syntheticAsset, uint256 amount);
 
     /// @notice Emitted when a position is liquidated
     event PositionLiquidated(
         address indexed liquidator,
         address indexed account,
-        address indexed syntheticAsset,
+        ISyntheticAsset indexed syntheticAsset,
         uint256 debtRepayed,
         uint256 depositSeized
     );
@@ -115,20 +115,20 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     /// @notice Emitted when synthetic asset is swapped
     event SyntheticAssetSwapped(
         address indexed account,
-        address indexed syntheticAssetIn,
-        address indexed syntheticAssetOut,
+        ISyntheticAsset indexed syntheticAssetIn,
+        ISyntheticAsset indexed syntheticAssetOut,
         uint256 amountIn,
         uint256 amountOut
     );
 
     /// @notice Emitted when debt is refinancied
-    event DebtRefinancied(address indexed account, address syntheticAsset, uint256 amount);
+    event DebtRefinancied(address indexed account, ISyntheticAsset syntheticAsset, uint256 amount);
 
     /// @notice Emitted when synthetic asset is enabled
-    event SyntheticAssetAdded(address indexed syntheticAsset);
+    event SyntheticAssetAdded(ISyntheticAsset indexed syntheticAsset);
 
     /// @notice Emitted when synthetic asset is disabled
-    event SyntheticAssetRemoved(address indexed syntheticAsset);
+    event SyntheticAssetRemoved(ISyntheticAsset indexed syntheticAsset);
 
     /// @notice Emitted when deposit fee is updated
     event DepositFeeUpdated(uint256 oldDepositFee, uint256 newDepositFee);
@@ -158,7 +158,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     event LiquidateFeeUpdated(uint256 oldLiquidateFee, uint256 newLiquidateFee);
 
     /// @notice Emitted when treasury contract is updated
-    event TreasuryUpdated(address indexed oldTreasury, address indexed newTreasury);
+    event TreasuryUpdated(ITreasury indexed oldTreasury, ITreasury indexed newTreasury);
 
     /// @notice Emitted when oracle contract is updated
     event OracleUpdated(IOracle indexed oldOracle, IOracle indexed newOracle);
@@ -209,10 +209,16 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
 
     /**
      * @notice Get MET deposit token
-     * @dev We have an array just to have storage prepared to support other collaterals in future if we want
      */
-    function depositToken() public view returns (IDepositToken) {
+    function depositToken() public view override returns (IDepositToken) {
         return issuer.depositToken();
+    }
+
+    /**
+     * @notice Get MET
+     */
+    function met() public view override returns (IERC20) {
+        return issuer.met();
     }
 
     /**
@@ -224,9 +230,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
 
         address _account = _msgSender();
 
-        IERC20 met = IERC20(depositToken().underlying());
-
-        met.safeTransferFrom(_account, address(treasury), _amount);
+        met().safeTransferFrom(_account, address(treasury), _amount);
 
         uint256 _amountToMint = depositFee > 0 ? _amount.wadMul(1e18 - depositFee) : _amount;
 
@@ -259,18 +263,14 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
         if (mintFee > 0) {
             _feeInSyntheticAsset = _amount.wadMul(mintFee);
 
-            issuer.collectFee(
-                _account,
-                oracle.convert(_syntheticAsset, depositToken().underlying(), _feeInSyntheticAsset),
-                true
-            );
+            issuer.collectFee(_account, oracle.convert(_syntheticAsset, met(), _feeInSyntheticAsset), true);
         }
 
         uint256 _amountToMint = _amount - _feeInSyntheticAsset;
 
         issuer.mintSyntheticAssetAndDebtToken(_syntheticAsset, _account, _amountToMint);
 
-        emit SyntheticAssetMinted(_account, address(_syntheticAsset), _amountToMint);
+        emit SyntheticAssetMinted(_account, _syntheticAsset, _amountToMint);
     }
 
     /**
@@ -313,7 +313,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
 
         issuer.burnSyntheticAssetAndDebtToken(_syntheticAsset, _payer, _account, _amount);
 
-        emit DebtRepayed(_account, address(_syntheticAsset), _amount);
+        emit DebtRepayed(_account, _syntheticAsset, _amount);
     }
 
     /**
@@ -328,7 +328,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
 
         // Charging fee after repayment to reduce chances to have tx reverted due to low unlocked deposit
         if (repayFee > 0) {
-            uint256 _feeInMet = oracle.convert(_syntheticAsset, depositToken().underlying(), _amount.wadMul(repayFee));
+            uint256 _feeInMet = oracle.convert(_syntheticAsset, met(), _amount.wadMul(repayFee));
             issuer.collectFee(_account, _feeInMet, true);
         }
     }
@@ -353,22 +353,22 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
 
         require(!_isHealthy, "position-is-healthy");
 
-        uint256 _amountToRepayInMET = oracle.convert(_syntheticAsset, depositToken().underlying(), _amountToRepay);
+        uint256 _amountToRepayInMET = oracle.convert(_syntheticAsset, met(), _amountToRepay);
 
-        uint256 _toCollectAsFee = liquidateFee > 0 ? _amountToRepayInMET.wadMul(liquidateFee) : 0;
+        uint256 _feeToCollect = liquidateFee > 0 ? _amountToRepayInMET.wadMul(liquidateFee) : 0;
         uint256 _toLiquidator = _amountToRepayInMET + _amountToRepayInMET.wadMul(liquidatorFee);
-        uint256 _depositToSeize = _toCollectAsFee + _toLiquidator;
-        require(_depositToSeize <= _deposit, "amount-to-repay-is-too-high");
+        uint256 _totalToSeize = _feeToCollect + _toLiquidator;
+        require(_totalToSeize <= _deposit, "amount-to-repay-is-too-high");
 
         _repay(_syntheticAsset, _account, _liquidator, _amountToRepay);
 
         issuer.seizeDepositToken(_account, _liquidator, _toLiquidator);
 
-        if (_toCollectAsFee > 0) {
-            issuer.collectFee(_account, _toCollectAsFee, false);
+        if (_feeToCollect > 0) {
+            issuer.collectFee(_account, _feeToCollect, false);
         }
 
-        emit PositionLiquidated(_liquidator, _account, address(_syntheticAsset), _amountToRepay, _depositToSeize);
+        emit PositionLiquidated(_liquidator, _account, _syntheticAsset, _amountToRepay, _totalToSeize);
     }
 
     /**
@@ -403,7 +403,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
         issuer.mintSyntheticAssetAndDebtToken(_syntheticAssetOut, _account, _amountOut);
 
         if (_feeInSyntheticAssetIn > 0) {
-            uint256 _feeInMet = oracle.convert(_syntheticAssetIn, depositToken().underlying(), _feeInSyntheticAssetIn);
+            uint256 _feeInMet = oracle.convert(_syntheticAssetIn, met(), _feeInSyntheticAssetIn);
             issuer.collectFee(_account, _feeInMet, true);
         }
 
@@ -411,13 +411,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
 
         require(_isHealthy, "debt-position-ended-up-unhealthy");
 
-        emit SyntheticAssetSwapped(
-            _account,
-            address(_syntheticAssetIn),
-            address(_syntheticAssetOut),
-            _amountIn,
-            _amountOut
-        );
+        emit SyntheticAssetSwapped(_account, _syntheticAssetIn, _syntheticAssetOut, _amountIn, _amountOut);
     }
 
     /**
@@ -455,28 +449,27 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
 
         _swap(_account, _syntheticAssetIn, _syntheticAssetOut, _amountToRefinance, refinanceFee);
 
-        emit DebtRefinancied(_account, address(_syntheticAssetIn), _amountToRefinance);
+        emit DebtRefinancied(_account, _syntheticAssetIn, _amountToRefinance);
     }
 
     /**
      * @notice Update treasury contract - will migrate funds to the new contract
      */
-    function updateTreasury(address _newTreasury) public override onlyGovernor {
-        require(_newTreasury != address(0), "treasury-address-is-null");
-        require(_newTreasury != address(treasury), "new-treasury-is-same-as-current");
+    function updateTreasury(ITreasury _newTreasury) external override onlyGovernor {
+        require(address(_newTreasury) != address(0), "treasury-address-is-null");
+        require(_newTreasury != treasury, "new-treasury-is-same-as-current");
 
-        IERC20 met = IERC20(depositToken().underlying());
-        treasury.pull(_newTreasury, met.balanceOf(address(treasury)));
+        treasury.pull(address(_newTreasury), met().balanceOf(address(treasury)));
 
-        emit TreasuryUpdated(address(treasury), _newTreasury);
+        emit TreasuryUpdated(treasury, _newTreasury);
 
-        treasury = ITreasury(_newTreasury);
+        treasury = _newTreasury;
     }
 
     /**
      * @notice Update price oracle contract
      */
-    function updateOracle(IOracle _newOracle) public override onlyGovernor {
+    function updateOracle(IOracle _newOracle) external override onlyGovernor {
         require(address(_newOracle) != address(0), "oracle-address-is-null");
         require(_newOracle != oracle, "new-oracle-is-same-as-current");
 
@@ -487,7 +480,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     /**
      * @notice Update deposit fee
      */
-    function updateDepositFee(uint256 _newDepositFee) public override onlyGovernor {
+    function updateDepositFee(uint256 _newDepositFee) external override onlyGovernor {
         require(_newDepositFee <= 1e18, "deposit-fee-gt-100%");
         emit DepositFeeUpdated(depositFee, _newDepositFee);
         depositFee = _newDepositFee;
@@ -496,7 +489,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     /**
      * @notice Update mint fee
      */
-    function updateMintFee(uint256 _newMintFee) public override onlyGovernor {
+    function updateMintFee(uint256 _newMintFee) external override onlyGovernor {
         require(_newMintFee <= 1e18, "mint-fee-gt-100%");
         emit MintFeeUpdated(mintFee, _newMintFee);
         mintFee = _newMintFee;
@@ -505,7 +498,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     /**
      * @notice Update withdraw fee
      */
-    function updateWithdrawFee(uint256 _newWithdrawFee) public override onlyGovernor {
+    function updateWithdrawFee(uint256 _newWithdrawFee) external override onlyGovernor {
         require(_newWithdrawFee <= 1e18, "withdraw-fee-gt-100%");
         emit WithdrawFeeUpdated(withdrawFee, _newWithdrawFee);
         withdrawFee = _newWithdrawFee;
@@ -514,7 +507,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     /**
      * @notice Update repay fee
      */
-    function updateRepayFee(uint256 _newRepayFee) public override onlyGovernor {
+    function updateRepayFee(uint256 _newRepayFee) external override onlyGovernor {
         require(_newRepayFee <= 1e18, "repay-fee-gt-100%");
         emit RepayFeeUpdated(repayFee, _newRepayFee);
         repayFee = _newRepayFee;
@@ -523,7 +516,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     /**
      * @notice Update swap fee
      */
-    function updateSwapFee(uint256 _newSwapFee) public override onlyGovernor {
+    function updateSwapFee(uint256 _newSwapFee) external override onlyGovernor {
         require(_newSwapFee <= 1e18, "swap-fee-gt-100%");
         emit SwapFeeUpdated(swapFee, _newSwapFee);
         swapFee = _newSwapFee;
@@ -532,7 +525,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     /**
      * @notice Update refinance fee
      */
-    function updateRefinanceFee(uint256 _newRefinanceFee) public override onlyGovernor {
+    function updateRefinanceFee(uint256 _newRefinanceFee) external override onlyGovernor {
         require(_newRefinanceFee <= 1e18, "refinance-fee-gt-100%");
         emit RefinanceFeeUpdated(refinanceFee, _newRefinanceFee);
         refinanceFee = _newRefinanceFee;
@@ -541,7 +534,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     /**
      * @notice Update liquidator fee
      */
-    function updateLiquidatorFee(uint256 _newLiquidatorFee) public override onlyGovernor {
+    function updateLiquidatorFee(uint256 _newLiquidatorFee) external override onlyGovernor {
         require(_newLiquidatorFee <= 1e18, "liquidator-fee-gt-100%");
         emit LiquidatorFeeUpdated(liquidatorFee, _newLiquidatorFee);
         liquidatorFee = _newLiquidatorFee;
@@ -550,7 +543,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     /**
      * @notice Update liquidate fee
      */
-    function updateLiquidateFee(uint256 _newLiquidateFee) public override onlyGovernor {
+    function updateLiquidateFee(uint256 _newLiquidateFee) external override onlyGovernor {
         require(_newLiquidateFee <= 1e18, "liquidate-fee-gt-100%");
         emit LiquidateFeeUpdated(liquidateFee, _newLiquidateFee);
         liquidateFee = _newLiquidateFee;
@@ -559,7 +552,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     /**
      * @notice Update maxLiquidable (liquidation cap)
      */
-    function updateMaxLiquidable(uint256 _newMaxLiquidable) public override onlyGovernor {
+    function updateMaxLiquidable(uint256 _newMaxLiquidable) external override onlyGovernor {
         require(_newMaxLiquidable != maxLiquidable, "new-value-is-same-as-current");
         require(_newMaxLiquidable <= 1e18, "max-liquidable-gt-100%");
         emit MaxLiquidableUpdated(maxLiquidable, _newMaxLiquidable);
