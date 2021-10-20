@@ -53,7 +53,7 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
      * @notice Requires that amount is lower than the account's unlocked balance
      */
     modifier onlyIfNotLocked(address _account, uint256 _amount) {
-        (, , , , , uint256 _unlockedDeposit, ) = mBox.debtPositionOf(_account);
+        (, , , , uint256 _unlockedDeposit, ) = mBox.debtPositionOf(_account);
         require(_unlockedDeposit >= _amount, "not-enough-free-balance");
         _;
     }
