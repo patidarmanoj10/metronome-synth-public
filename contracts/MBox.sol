@@ -104,16 +104,16 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     event CollateralWithdrawn(address indexed account, uint256 amount);
 
     /// @notice Emitted when synthetic asset is minted
-    event SyntheticAssetMinted(address indexed account, address syntheticAsseet, uint256 amount);
+    event SyntheticAssetMinted(address indexed account, address indexed syntheticAsset, uint256 amount);
 
     /// @notice Emitted when synthetic's debt is repayed
-    event DebtRepayed(address indexed account, address syntheticAsseet, uint256 amount);
+    event DebtRepayed(address indexed account, address indexed syntheticAsset, uint256 amount);
 
     /// @notice Emitted when a position is liquidated
     event PositionLiquidated(
         address indexed liquidator,
         address indexed account,
-        address syntheticAsseet,
+        address indexed syntheticAsset,
         uint256 debtRepayed,
         uint256 depositSeized
     );
@@ -121,8 +121,8 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     /// @notice Emitted when synthetic asset is swapped
     event SyntheticAssetSwapped(
         address indexed account,
-        address syntheticAssetIn,
-        address syntheticAssetOut,
+        address indexed syntheticAssetIn,
+        address indexed syntheticAssetOut,
         uint256 amountIn,
         uint256 amountOut
     );
@@ -137,34 +137,40 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     event SyntheticAssetRemoved(address indexed syntheticAsset);
 
     /// @notice Emitted when deposit fee is updated
-    event DepositFeeUpdated(uint256 newDepositFee);
+    event DepositFeeUpdated(uint256 oldDepositFee, uint256 newDepositFee);
 
     /// @notice Emitted when mint fee is updated
-    event MintFeeUpdated(uint256 newMintFee);
+    event MintFeeUpdated(uint256 oldMintFee, uint256 newMintFee);
 
     /// @notice Emitted when withdraw fee is updated
-    event WithdrawFeeUpdated(uint256 newWithdrawFee);
+    event WithdrawFeeUpdated(uint256 oldWithdrawFee, uint256 newWithdrawFee);
 
     /// @notice Emitted when repay fee is updated
-    event RepayFeeUpdated(uint256 newRepayFee);
+    event RepayFeeUpdated(uint256 oldRepayFee, uint256 newRepayFee);
 
     /// @notice Emitted when swap fee is updated
-    event SwapFeeUpdated(uint256 newSwapFee);
+    event SwapFeeUpdated(uint256 oldSwapFee, uint256 newSwapFee);
 
     /// @notice Emitted when refinance fee is updated
-    event RefinanceFeeUpdated(uint256 newRefinanceFee);
+    event RefinanceFeeUpdated(uint256 oldRefinanceFee, uint256 newRefinanceFee);
 
     /// @notice Emitted when liquidator fee is updated
-    event LiquidatorFeeUpdated(uint256 newLiquidatorFee);
+    event LiquidatorFeeUpdated(uint256 oldLiquidatorFee, uint256 newLiquidatorFee);
 
     /// @notice Emitted when maxLiquidable (liquidation cap) is updated
     event MaxLiquidableUpdated(uint256 oldMaxLiquidable, uint256 newMaxLiquidable);
 
     /// @notice Emitted when liquidate fee is updated
-    event LiquidateFeeUpdated(uint256 newLiquidateFee);
+    event LiquidateFeeUpdated(uint256 oldLiquidateFee, uint256 newLiquidateFee);
 
     /// @notice Emitted when treasury contract is updated
     event TreasuryUpdated(address indexed oldTreasury, address indexed newTreasury);
+
+    /// @notice Emitted when deposit token contract is updated
+    event DepositTokenUpdated(IDepositToken indexed oldDepositToken, IDepositToken indexed newDepositToken);
+
+    /// @notice Emitted when oracle contract is updated
+    event OracleUpdated(IOracle indexed oldOracle, IOracle indexed newOracle);
 
     /**
      * @dev Throws if synthetic asset isn't enabled
@@ -714,79 +720,96 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     /**
      * @notice Update deposit (mBOX-MET) contract
      */
-    function updateDepositToken(IDepositToken _depositToken) public override onlyGovernor {
-        depositToken = _depositToken;
+    function updateDepositToken(IDepositToken _newDepositToken) public override onlyGovernor {
+        require(address(_newDepositToken) != address(0), "deposit-token-address-is-null");
+        require(_newDepositToken != depositToken, "deposit-token-is-same-as-current");
+        require(depositToken.totalSupply() == 0, "current-deposit-token-has-supply");
+
+        emit DepositTokenUpdated(depositToken, _newDepositToken);
+        depositToken = _newDepositToken;
     }
 
     /**
      * @notice Update price oracle contract
      */
-    function updateOracle(IOracle _oracle) public override onlyGovernor {
-        oracle = _oracle;
+    function updateOracle(IOracle _newOracle) public override onlyGovernor {
+        require(address(_newOracle) != address(0), "oracle-address-is-null");
+        require(_newOracle != oracle, "new-oracle-is-same-as-current");
+
+        emit OracleUpdated(oracle, _newOracle);
+        oracle = _newOracle;
     }
 
     /**
      * @notice Update deposit fee
      */
-    function updateDepositFee(uint256 _depositFee) public override onlyGovernor {
-        depositFee = _depositFee;
-        emit DepositFeeUpdated(_depositFee);
+    function updateDepositFee(uint256 _newDepositFee) public override onlyGovernor {
+        require(_newDepositFee <= 1e18, "deposit-fee-gt-100%");
+        emit DepositFeeUpdated(depositFee, _newDepositFee);
+        depositFee = _newDepositFee;
     }
 
     /**
      * @notice Update mint fee
      */
-    function updateMintFee(uint256 _mintFee) public override onlyGovernor {
-        mintFee = _mintFee;
-        emit MintFeeUpdated(_mintFee);
+    function updateMintFee(uint256 _newMintFee) public override onlyGovernor {
+        require(_newMintFee <= 1e18, "mint-fee-gt-100%");
+        emit MintFeeUpdated(mintFee, _newMintFee);
+        mintFee = _newMintFee;
     }
 
     /**
      * @notice Update withdraw fee
      */
-    function updateWithdrawFee(uint256 _withdrawFee) public override onlyGovernor {
-        withdrawFee = _withdrawFee;
-        emit WithdrawFeeUpdated(_withdrawFee);
+    function updateWithdrawFee(uint256 _newWithdrawFee) public override onlyGovernor {
+        require(_newWithdrawFee <= 1e18, "withdraw-fee-gt-100%");
+        emit WithdrawFeeUpdated(withdrawFee, _newWithdrawFee);
+        withdrawFee = _newWithdrawFee;
     }
 
     /**
      * @notice Update repay fee
      */
-    function updateRepayFee(uint256 _repayFee) public override onlyGovernor {
-        repayFee = _repayFee;
-        emit RepayFeeUpdated(_repayFee);
+    function updateRepayFee(uint256 _newRepayFee) public override onlyGovernor {
+        require(_newRepayFee <= 1e18, "repay-fee-gt-100%");
+        emit RepayFeeUpdated(repayFee, _newRepayFee);
+        repayFee = _newRepayFee;
     }
 
     /**
      * @notice Update swap fee
      */
-    function updateSwapFee(uint256 _swapFee) public override onlyGovernor {
-        swapFee = _swapFee;
-        emit SwapFeeUpdated(_swapFee);
+    function updateSwapFee(uint256 _newSwapFee) public override onlyGovernor {
+        require(_newSwapFee <= 1e18, "swap-fee-gt-100%");
+        emit SwapFeeUpdated(swapFee, _newSwapFee);
+        swapFee = _newSwapFee;
     }
 
     /**
      * @notice Update refinance fee
      */
-    function updateRefinanceFee(uint256 _refinanceFee) public override onlyGovernor {
-        refinanceFee = _refinanceFee;
-        emit RefinanceFeeUpdated(_refinanceFee);
+    function updateRefinanceFee(uint256 _newRefinanceFee) public override onlyGovernor {
+        require(_newRefinanceFee <= 1e18, "refinance-fee-gt-100%");
+        emit RefinanceFeeUpdated(refinanceFee, _newRefinanceFee);
+        refinanceFee = _newRefinanceFee;
     }
 
     /**
      * @notice Update liquidator fee
      */
-    function updateLiquidatorFee(uint256 _liquidatorFee) public override onlyGovernor {
-        liquidatorFee = _liquidatorFee;
-        emit LiquidatorFeeUpdated(_liquidatorFee);
+    function updateLiquidatorFee(uint256 _newLiquidatorFee) public override onlyGovernor {
+        require(_newLiquidatorFee <= 1e18, "liquidator-fee-gt-100%");
+        emit LiquidatorFeeUpdated(liquidatorFee, _newLiquidatorFee);
+        liquidatorFee = _newLiquidatorFee;
     }
 
     /**
      * @notice Update liquidate fee
      */
-    function updateLiquidateFee(uint256 _liquidateFee) public override onlyGovernor {
-        liquidateFee = _liquidateFee;
-        emit LiquidateFeeUpdated(_liquidateFee);
+    function updateLiquidateFee(uint256 _newLiquidateFee) public override onlyGovernor {
+        require(_newLiquidateFee <= 1e18, "liquidate-fee-gt-100%");
+        emit LiquidateFeeUpdated(liquidateFee, _newLiquidateFee);
+        liquidateFee = _newLiquidateFee;
     }
 
     /**
@@ -794,7 +817,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
      */
     function updateMaxLiquidable(uint256 _newMaxLiquidable) public override onlyGovernor {
         require(_newMaxLiquidable != maxLiquidable, "new-value-is-same-as-current");
-        require(_newMaxLiquidable <= 1e18, "max-liquidable-gt-1");
+        require(_newMaxLiquidable <= 1e18, "max-liquidable-gt-100%");
         emit MaxLiquidableUpdated(maxLiquidable, _newMaxLiquidable);
         maxLiquidable = _newMaxLiquidable;
     }
