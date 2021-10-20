@@ -5,7 +5,7 @@ pragma solidity 0.8.9;
 import "./UpgraderBase.sol";
 
 contract TreasuryUpgrader is UpgraderBase {
-    constructor(address _owner) UpgraderBase(address(0)) {
+    constructor(address _owner) {
         transferOwnership(_owner);
     }
 
@@ -15,6 +15,6 @@ contract TreasuryUpgrader is UpgraderBase {
     }
 
     function _checkResults(bytes[] memory _beforeResults, bytes[] memory _afterResults) internal pure override {
-        _checkAddress256Results(_beforeResults, _afterResults, 0, 0);
+        _checkAddressResults(_beforeResults, _afterResults, 0, 0);
     }
 }

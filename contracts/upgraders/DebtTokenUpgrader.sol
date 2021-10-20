@@ -5,7 +5,7 @@ pragma solidity 0.8.9;
 import "./UpgraderBase.sol";
 
 contract DebtTokenUpgrader is UpgraderBase {
-    constructor(address _owner) UpgraderBase(address(0)) {
+    constructor(address _owner) {
         transferOwnership(_owner);
     }
 
