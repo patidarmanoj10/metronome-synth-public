@@ -4,10 +4,10 @@ import {HardhatRuntimeEnvironment} from 'hardhat/types'
 export interface ContractConfig {
   alias: string
   contract: string
-  adminContract: string
+  adminContract?: string
 }
 
-export const Contracts: {[key: string]: ContractConfig} = {
+export const UpgradableContracts: {[key: string]: ContractConfig} = {
   MBox: {alias: 'MBox', contract: 'MBox', adminContract: 'MBoxUpgrader'},
   Treasury: {alias: 'Treasury', contract: 'Treasury', adminContract: 'TreasuryUpgrader'},
   DepositToken: {alias: 'DepositToken', contract: 'DepositToken', adminContract: 'DepositTokenUpgrader'},

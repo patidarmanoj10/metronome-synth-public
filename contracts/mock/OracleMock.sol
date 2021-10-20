@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.9;
 
-import "../interface/IOracle.sol";
+import "../interface/oracle/IOracle.sol";
 import "../lib/WadRayMath.sol";
 
 contract OracleMock is IOracle {

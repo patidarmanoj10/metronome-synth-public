@@ -10,8 +10,9 @@ import {
   DepositToken__factory,
   MBox,
   MBox__factory,
-  OracleMock,
   OracleMock__factory,
+  Oracle,
+  Oracle__factory,
   SyntheticAsset,
   SyntheticAsset__factory,
   Treasury,
@@ -27,14 +28,25 @@ import {
   SyntheticAssetUpgrader__factory,
   DebtTokenUpgrader__factory,
   UpgraderBase,
+  UniswapV3PriceProvider,
+  UniswapV2PriceProvider,
+  ChainlinkPriceProvider,
+  ChainlinkPriceProvider__factory,
+  UniswapV2PriceProvider__factory,
+  UniswapV3PriceProvider__factory,
 } from '../typechain'
 import {disableForking, enableForking} from './helpers'
+import Address from '../helpers/address'
 
-const {MET_ADDRESS, WETH_ADDRESS} = process.env
+const {MET_ADDRESS} = Address
 
 describe('Deployments', function () {
   let deployer: SignerWithAddress
   let governor: SignerWithAddress
+  let uniswapV3PriceProvider: UniswapV3PriceProvider
+  let uniswapV2PriceProvider: UniswapV2PriceProvider
+  let chainlinkPriceProvider: ChainlinkPriceProvider
+  let oracle: Oracle
   let mBox: MBox
   let mBoxUpgrader: MBoxUpgrader
   let treasury: Treasury
@@ -45,7 +57,6 @@ describe('Deployments', function () {
   let syntheticAssetUpgrader: SyntheticAssetUpgrader
   let mEthDebtToken: DebtToken
   let debtTokenUpgrader: DebtTokenUpgrader
-  let oracle: OracleMock
 
   // Note: Enabling fork to be able to use MultiCall contract
   before(enableForking)
@@ -57,6 +68,9 @@ describe('Deployments', function () {
     ;[deployer, governor] = await ethers.getSigners()
 
     const {
+      UniswapV3PriceProvider: {address: uniswapV3PriceProviderAddress},
+      UniswapV2PriceProvider: {address: uniswapV2PriceProviderAddress},
+      ChainlinkPriceProvider: {address: chainlinkPriceProviderAddress},
       Oracle: {address: oracleAddress},
       MBox: {address: mboxAddress},
       MBoxUpgrader: {address: mBoxUpgraderAddress},
@@ -69,6 +83,11 @@ describe('Deployments', function () {
       MEthDebtToken: {address: mETHDebtTokenAddress},
       DebtTokenUpgrader: {address: debtTokenUpgraderAddress},
     } = await deployments.fixture()
+
+    uniswapV3PriceProvider = UniswapV3PriceProvider__factory.connect(uniswapV3PriceProviderAddress, deployer)
+    uniswapV2PriceProvider = UniswapV2PriceProvider__factory.connect(uniswapV2PriceProviderAddress, deployer)
+    chainlinkPriceProvider = ChainlinkPriceProvider__factory.connect(chainlinkPriceProviderAddress, deployer)
+    oracle = Oracle__factory.connect(oracleAddress, deployer)
 
     mBox = MBox__factory.connect(mboxAddress, deployer)
     mBoxUpgrader = MBoxUpgrader__factory.connect(mBoxUpgraderAddress, deployer)
@@ -84,8 +103,6 @@ describe('Deployments', function () {
 
     mEthDebtToken = DebtToken__factory.connect(mETHDebtTokenAddress, deployer)
     debtTokenUpgrader = DebtTokenUpgrader__factory.connect(debtTokenUpgraderAddress, deployer)
-
-    oracle = OracleMock__factory.connect(oracleAddress, deployer)
   })
 
   const upgradeTestcase = async function ({
@@ -117,6 +134,25 @@ describe('Deployments', function () {
       expect(await upgrader.getProxyImplementation(proxy.address)).to.eq(newImpl.address)
     }
   }
+
+  describe('Oracle', function () {
+    it('should have correct params', async function () {
+      const Protocol = {
+        NONE: 0,
+        UNISWAP_V3: 1,
+        UNISWAP_V2: 2,
+        CHAINLINK: 3,
+      }
+
+      expect(await oracle.providerByProtocol(Protocol.UNISWAP_V3)).to.eq(uniswapV3PriceProvider.address)
+      expect(await oracle.providerByProtocol(Protocol.UNISWAP_V2)).to.eq(uniswapV2PriceProvider.address)
+      expect(await oracle.providerByProtocol(Protocol.CHAINLINK)).to.eq(chainlinkPriceProvider.address)
+
+      expect(await mBox.governor()).to.eq(deployer.address)
+      await oracle.connect(governor).acceptGovernorship()
+      expect(await oracle.governor()).to.eq(governor.address)
+    })
+  })
 
   describe('MBox', function () {
     it('should have correct params', async function () {
@@ -208,7 +244,6 @@ describe('Deployments', function () {
     it('mETH token should have correct params', async function () {
       expect(await mEth.mBox()).to.eq(mBox.address)
       expect(await mEth.debtToken()).to.eq(mEthDebtToken.address)
-      expect(await mEth.underlying()).to.eq(WETH_ADDRESS)
       expect(await mEth.governor()).to.eq(deployer.address)
       await mEth.connect(governor).acceptGovernorship()
       expect(await mEth.governor()).to.eq(governor.address)

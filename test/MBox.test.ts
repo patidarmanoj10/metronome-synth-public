@@ -54,7 +54,7 @@ describe('MBox', function () {
     await oracle.deployed()
 
     const metMockFactory = new ERC20Mock__factory(deployer)
-    met = await metMockFactory.deploy('Metronome', 'MET')
+    met = await metMockFactory.deploy('Metronome', 'MET', 18)
     await met.deployed()
 
     const treasuryFactory = new Treasury__factory(deployer)
@@ -145,7 +145,7 @@ describe('MBox', function () {
       it('should remove synthetic asset', async function () {
         // given
         const wbtcMockFactory = new ERC20Mock__factory(deployer)
-        const someToken = await wbtcMockFactory.deploy('Wrapped Bitcoin', 'WBTC')
+        const someToken = await wbtcMockFactory.deploy('Wrapped Bitcoin', 'WBTC', 8)
         expect(await someToken.totalSupply()).to.eq(0)
         await mBOX.addSyntheticAsset(someToken.address)
         expect(await mBOX.syntheticAssetsByAddress(someToken.address)).to.not.eq(ethers.constants.AddressZero)
