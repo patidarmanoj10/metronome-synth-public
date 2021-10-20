@@ -167,6 +167,19 @@ describe('MBox', function () {
         // then
         await expect(tx).to.revertedWith('can-not-delete-meth')
       })
+
+      it('should revert if mAsset has any supply', async function () {
+        // given
+        await mDoge.connect(governor).setMBox(deployer.address)
+        await mDoge.mint(deployer.address, parseEther('100'))
+        expect(await mDoge.totalSupply()).to.gt(0)
+
+        // when
+        const tx = mBOX.removeSyntheticAsset(mDoge.address)
+
+        // then
+        await expect(tx).to.revertedWith('synthetic-asset-with-supply')
+      })
     })
   })
 
@@ -234,7 +247,7 @@ describe('MBox', function () {
           maxIssuableInEth = maxIssuableInUsd.mul(parseEther('1')).div(ethRate)
         })
 
-        it('should reject if synthetic is not active', async function () {
+        it('should reject if synthetic does not exist', async function () {
           // when
           const toIssue = maxIssuableInEth.add(parseEther('1'))
           const invalidSynthetic = met
@@ -242,6 +255,18 @@ describe('MBox', function () {
 
           // then
           await expect(tx).to.revertedWith('synthetic-asset-does-not-exists')
+        })
+
+        it('should reject if synthetic is not active', async function () {
+          // given
+          await mEth.connect(governor).updateIsActive(false)
+
+          // when
+          const amountToMint = parseEther('1')
+          const tx = mBOX.connect(user).mint(mEth.address, amountToMint)
+
+          // then
+          await expect(tx).to.revertedWith('synthetic-asset-is-not-active')
         })
 
         it('should reject if user has not enough collateral deposited', async function () {
@@ -593,6 +618,18 @@ describe('MBox', function () {
 
             // then
             await expect(tx).to.revertedWith('amount-in-is-zero')
+          })
+
+          it('should reject if synthetic out is not active', async function () {
+            // given
+            await mDoge.connect(governor).updateIsActive(false)
+
+            // when
+            const amountIn = await mEth.balanceOf(user.address)
+            const tx = mBOX.connect(user).swap(mEth.address, mDoge.address, amountIn)
+
+            // then
+            await expect(tx).to.revertedWith('synthetic-asset-is-not-active')
           })
 
           it('should revert if user has not enough balance', async function () {
