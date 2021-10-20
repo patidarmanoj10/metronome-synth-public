@@ -157,7 +157,6 @@ describe('Deployments', function () {
   describe('MBox', function () {
     it('should have correct params', async function () {
       expect(await mBox.treasury()).to.eq(treasury.address)
-      expect(await mBox.depositToken()).to.eq(depositToken.address)
       expect(await mBox.syntheticAssets(0)).to.eq(mEth.address)
       expect(await mBox.oracle()).to.eq(oracle.address)
       expect(await mBox.governor()).to.eq(deployer.address)
