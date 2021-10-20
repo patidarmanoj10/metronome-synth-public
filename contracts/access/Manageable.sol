@@ -15,6 +15,7 @@ abstract contract Manageable is Governable {
      */
     IMBox public mBox;
 
+    // solhint-disable-next-line func-name-mixedcase
     function __Manageable_init(IMBox _mBox) internal initializer {
         require(address(_mBox) != address(0), "mbox-is-null");
 
@@ -32,10 +33,10 @@ abstract contract Manageable is Governable {
     }
 
     /**
-     * @notice Set mBox contract
+     * @notice Update mBox contract
      * @param _mBox The new mBox contract
      */
-    function setMBox(IMBox _mBox) public onlyGovernor {
+    function updateMBox(IMBox _mBox) public onlyGovernor {
         require(address(_mBox) != address(0), "new-mbox-address-is-zero");
         mBox = _mBox;
     }

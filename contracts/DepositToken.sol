@@ -20,14 +20,13 @@ contract DepositTokenStorageV1 {
 
     /**
      * @notice The min amount of time that an account should wait after depoist MET before be able to withdraw
-     * TODO: Set default value from `initialize` function
      */
-    uint256 public minDepositTime;
+    uint256 internal _minDepositTime;
 
     /**
      * @notice Stores de timestamp of last deposit event of each account. It's used combined with `minDepositTime`.
      */
-    mapping(address => uint256) public lastDepositOf;
+    mapping(address => uint256) internal _lastDepositOf;
 }
 
 /**
@@ -45,7 +44,7 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
      * @dev Throws if minimum deposit time haven't passed
      */
     modifier onlyIfMinDepositTimePassed(address _account, uint256 _amount) {
-        require(block.timestamp >= lastDepositOf[_account] + minDepositTime, "min-deposit-time-have-not-passed");
+        require(block.timestamp >= _lastDepositOf[_account] + _minDepositTime, "min-deposit-time-have-not-passed");
         _;
     }
 
@@ -66,6 +65,7 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
         _name = "Tokenized deposit position";
         _symbol = "mBOX-MET";
         _underlying = underlying_;
+        _minDepositTime = 0;
     }
 
     function name() public view virtual override returns (string memory) {
@@ -88,8 +88,16 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
         return _balances[account];
     }
 
-    function underlying() public view virtual override returns (IERC20) {
+    function underlying() public view override returns (IERC20) {
         return _underlying;
+    }
+
+    function minDepositTime() public view override returns (uint256) {
+        return _minDepositTime;
+    }
+
+    function lastDepositOf(address _account) public view override returns (uint256) {
+        return _lastDepositOf[_account];
     }
 
     function allowance(address owner, address spender) public view virtual override returns (uint256) {
@@ -182,13 +190,13 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
     function _beforeTokenTransfer(
         address from,
         address to,
-        uint256 amount
+        uint256 amount // solhint-disable-next-line no-empty-blocks
     ) internal virtual {}
 
     function _afterTokenTransfer(
         address from,
         address to,
-        uint256 amount
+        uint256 amount // solhint-disable-next-line no-empty-blocks
     ) internal virtual {}
 
     /**
@@ -198,7 +206,7 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
      */
     function mint(address _to, uint256 _amount) public override onlyMBox {
         _mint(_to, _amount);
-        lastDepositOf[_to] = block.timestamp;
+        _lastDepositOf[_to] = block.timestamp;
     }
 
     /**
@@ -277,11 +285,11 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
     }
 
     /**
-     * @notice Set minimum deposit time
+     * @notice Update minimum deposit time
      */
-    function setMinDepositTime(uint256 _newMinDepositTime) public onlyGovernor {
-        require(_newMinDepositTime != minDepositTime, "new-value-is-same-as-current");
-        emit MinDepositTimeUpdated(minDepositTime, _newMinDepositTime);
-        minDepositTime = _newMinDepositTime;
+    function updateMinDepositTime(uint256 _newMinDepositTime) public onlyGovernor {
+        require(_newMinDepositTime != _minDepositTime, "new-value-is-same-as-current");
+        emit MinDepositTimeUpdated(_minDepositTime, _newMinDepositTime);
+        _minDepositTime = _newMinDepositTime;
     }
 }

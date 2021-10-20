@@ -120,7 +120,7 @@ describe('DepositToken', function () {
 
       it('should revert if minimum deposit time have not passed', async function () {
         // given
-        await depositToken.connect(governor).setMinDepositTime(HOUR)
+        await depositToken.connect(governor).updateMinDepositTime(HOUR)
 
         // when
         const call = depositToken.interface.encodeFunctionData('burnForWithdraw', [user.address, parseEther('10')])
@@ -186,7 +186,7 @@ describe('DepositToken', function () {
 
       it('should revert if minimum deposit time have not passed', async function () {
         // given
-        await depositToken.connect(governor).setMinDepositTime(HOUR)
+        await depositToken.connect(governor).updateMinDepositTime(HOUR)
 
         // when
         const {_unlockedDeposit} = await mBox.debtPositionOf(user.address)
@@ -218,7 +218,7 @@ describe('DepositToken', function () {
 
       it('should revert if minimum deposit time have not passed', async function () {
         // given
-        await depositToken.connect(governor).setMinDepositTime(HOUR)
+        await depositToken.connect(governor).updateMinDepositTime(HOUR)
 
         // when
         const {_unlockedDeposit} = await mBox.debtPositionOf(user.address)

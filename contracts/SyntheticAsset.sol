@@ -216,13 +216,13 @@ contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 
     function _beforeTokenTransfer(
         address from,
         address to,
-        uint256 amount
+        uint256 amount // solhint-disable-next-line no-empty-blocks
     ) internal virtual {}
 
     function _afterTokenTransfer(
         address from,
         address to,
-        uint256 amount
+        uint256 amount // solhint-disable-next-line no-empty-blocks
     ) internal virtual {}
 
     /**

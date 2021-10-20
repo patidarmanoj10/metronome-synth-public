@@ -31,6 +31,7 @@ contract UniswapV2PriceProvider is IPriceProvider, Governable {
      * @notice The WETH-like contract
      * @dev The address isn't hardcoded because we may want to deploy mBOX to other chains
      */
+    // solhint-disable-next-line var-name-mixedcase
     address public immutable WETH;
 
     /**

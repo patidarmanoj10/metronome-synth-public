@@ -94,7 +94,7 @@ contract DebtToken is IDebtToken, Manageable, DebtTokenStorageV1 {
     }
 
     /**
-     * @dev Change from OZ original code was hooks removal
+     * @dev Changes from the OZ original code: hooks removal
      */
     function _mint(address account, uint256 amount) internal virtual {
         require(account != address(0), "mint-to-the-zero-address");
@@ -105,7 +105,7 @@ contract DebtToken is IDebtToken, Manageable, DebtTokenStorageV1 {
     }
 
     /**
-     * @dev Change from OZ original code was hooks removal
+     * @dev Changes from the OZ original code: hooks removal
      */
     function _burn(address account, uint256 amount) internal virtual {
         require(account != address(0), "burn-from-the-zero-address");

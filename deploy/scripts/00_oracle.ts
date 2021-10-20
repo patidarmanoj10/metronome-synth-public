@@ -52,13 +52,19 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   await execute(Oracle, {from: deployer, log: true}, 'setPriceProvider', UNISWAP_V2, uniswapV2PriceProvider.address)
   await execute(Oracle, {from: deployer, log: true}, 'setPriceProvider', CHAINLINK, chainlinkPriceProvider.address)
 
-  await execute(Oracle, {from: deployer, log: true}, 'setUsdAsset', DAI_ADDRESS)
+  await execute(Oracle, {from: deployer, log: true}, 'addOrUpdateUsdAsset', DAI_ADDRESS)
 
   const {address: mEthAddress} = await deterministic(hre, UpgradableContracts.MEth)
-  await execute(Oracle, {from: deployer, log: true}, 'setAssetThatUsesUniswapV2', mEthAddress, WETH_ADDRESS)
+  await execute(Oracle, {from: deployer, log: true}, 'addOrUpdateAssetThatUsesUniswapV2', mEthAddress, WETH_ADDRESS)
 
   const {address: depositTokenAddress} = await deterministic(hre, UpgradableContracts.DepositToken)
-  await execute(Oracle, {from: deployer, log: true}, 'setAssetThatUsesUniswapV3', depositTokenAddress, MET_ADDRESS)
+  await execute(
+    Oracle,
+    {from: deployer, log: true},
+    'addOrUpdateAssetThatUsesUniswapV3',
+    depositTokenAddress,
+    MET_ADDRESS
+  )
   await execute(Oracle, {from: deployer, log: true}, 'transferGovernorship', governor)
 }
 
