@@ -126,13 +126,12 @@ contract Oracle is IOracle, Governable {
 
     /**
      * @notice Store an asset
-     * @dev This function is also used for update a asset setup
      * @param _asset The asset to store
      * @param _protocol The protocol to use as source of price
      * @param _assetData The asset's encoded data
      * @param _isUsd If the asset is a USD token coin
      */
-    function _setAsset(
+    function _addOrUpdateAsset(
         IERC20 _asset,
         Protocol _protocol,
         bytes memory _assetData,
@@ -145,34 +144,31 @@ contract Oracle is IOracle, Governable {
 
     /**
      * @notice Store an USD asset (no protocol)
-     * @dev This function is also used for update a asset setup
      * @param _asset The asset to store
      */
-    function setUsdAsset(IERC20 _asset) external onlyGovernor {
-        _setAsset(_asset, Protocol.NONE, new bytes(0), true);
+    function addOrUpdateUsdAsset(IERC20 _asset) external onlyGovernor {
+        _addOrUpdateAsset(_asset, Protocol.NONE, new bytes(0), true);
     }
 
     /**
      * @notice Store an asset that uses Chainlink source of price
-     * @dev This function is also used for update a asset setup
      * @param _asset The asset to store
      * @param _aggregator The asset's chainlink aggregator contract
      */
-    function setAssetThatUsesChainlink(IERC20Metadata _asset, address _aggregator) external onlyGovernor {
+    function addOrUpdateAssetThatUsesChainlink(IERC20Metadata _asset, address _aggregator) external onlyGovernor {
         require(address(_asset) != address(0), "asset-address-is-null");
         require(address(_aggregator) != address(0), "aggregator-address-is-null");
-        _setAsset(_asset, Protocol.CHAINLINK, abi.encode(_aggregator, _asset.decimals()), false);
+        _addOrUpdateAsset(_asset, Protocol.CHAINLINK, abi.encode(_aggregator, _asset.decimals()), false);
     }
 
     /**
      * @notice Store an asset that uses UniswapV2 source of price
-     * @dev This function is also used for update a asset setup
      * @param _asset The asset to store
      * @param _underlying The actual asset to get prices from (e.g. mETH uses WETH)
      */
-    function setAssetThatUsesUniswapV2(IERC20 _asset, IERC20 _underlying) external onlyGovernor {
+    function addOrUpdateAssetThatUsesUniswapV2(IERC20 _asset, IERC20 _underlying) external onlyGovernor {
         require(address(_underlying) != address(0), "underlying-address-is-null");
-        _setAsset(_asset, Protocol.UNISWAP_V2, abi.encode(_underlying), false);
+        _addOrUpdateAsset(_asset, Protocol.UNISWAP_V2, abi.encode(_underlying), false);
     }
 
     /**
@@ -181,9 +177,9 @@ contract Oracle is IOracle, Governable {
      * @param _asset The asset to store
      * @param _underlying The actual asset to get prices from (e.g. mETH uses WETH)
      */
-    function setAssetThatUsesUniswapV3(IERC20 _asset, IERC20 _underlying) external onlyGovernor {
+    function addOrUpdateAssetThatUsesUniswapV3(IERC20 _asset, IERC20 _underlying) external onlyGovernor {
         require(address(_underlying) != address(0), "underlying-address-is-null");
-        _setAsset(_asset, Protocol.UNISWAP_V3, abi.encode(_underlying), false);
+        _addOrUpdateAsset(_asset, Protocol.UNISWAP_V3, abi.encode(_underlying), false);
     }
 
     /**

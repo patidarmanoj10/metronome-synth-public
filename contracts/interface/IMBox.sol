@@ -78,25 +78,25 @@ interface IMBox {
 
     function updateTreasury(address _newTreasury) external;
 
-    function setDepositToken(IDepositToken _newDepositToken) external;
+    function updateDepositToken(IDepositToken _newDepositToken) external;
 
-    function setOracle(IOracle _newOracle) external;
+    function updateOracle(IOracle _newOracle) external;
 
-    function setDepositFee(uint256 _newDepositFee) external;
+    function updateDepositFee(uint256 _newDepositFee) external;
 
-    function setMintFee(uint256 _newMintFee) external;
+    function updateMintFee(uint256 _newMintFee) external;
 
-    function setWithdrawFee(uint256 _newWithdrawFee) external;
+    function updateWithdrawFee(uint256 _newWithdrawFee) external;
 
-    function setRepayFee(uint256 _newRepayFee) external;
+    function updateRepayFee(uint256 _newRepayFee) external;
 
-    function setSwapFee(uint256 _newSwapFee) external;
+    function updateSwapFee(uint256 _newSwapFee) external;
 
-    function setRefinanceFee(uint256 _newRefinanceFee) external;
+    function updateRefinanceFee(uint256 _newRefinanceFee) external;
 
-    function setLiquidatorFee(uint256 _newLiquidatorFee) external;
+    function updateLiquidatorFee(uint256 _newLiquidatorFee) external;
 
-    function setLiquidateFee(uint256 _newLiquidateFee) external;
+    function updateLiquidateFee(uint256 _newLiquidateFee) external;
 
-    function setMaxLiquidable(uint256 _newMaxLiquidable) external;
+    function updateMaxLiquidable(uint256 _newMaxLiquidable) external;
 }

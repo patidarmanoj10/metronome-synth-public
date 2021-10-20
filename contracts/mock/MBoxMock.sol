@@ -142,47 +142,47 @@ contract MBoxMock is IMBox {
         revert("mock-does-not-implement");
     }
 
-    function setDepositFee(uint256 _newDepositFee) external {
+    function updateDepositFee(uint256 _newDepositFee) external {
         revert("mock-does-not-implement");
     }
 
-    function setDepositToken(IDepositToken _newDepositToken) external {
+    function updateDepositToken(IDepositToken _newDepositToken) external {
         revert("mock-does-not-implement");
     }
 
-    function setLiquidateFee(uint256 _newLiquidateFee) external {
+    function updateLiquidateFee(uint256 _newLiquidateFee) external {
         revert("mock-does-not-implement");
     }
 
-    function setLiquidatorFee(uint256 _newLiquidatorFee) external {
+    function updateLiquidatorFee(uint256 _newLiquidatorFee) external {
         revert("mock-does-not-implement");
     }
 
-    function setMaxLiquidable(uint256 _newMaxLiquidable) external {
+    function updateMaxLiquidable(uint256 _newMaxLiquidable) external {
         revert("mock-does-not-implement");
     }
 
-    function setMintFee(uint256 _newMintFee) external {
+    function updateMintFee(uint256 _newMintFee) external {
         revert("mock-does-not-implement");
     }
 
-    function setOracle(IOracle _newOracle) external {
+    function updateOracle(IOracle _newOracle) external {
         revert("mock-does-not-implement");
     }
 
-    function setRefinanceFee(uint256 _newRefinanceFee) external {
+    function updateRefinanceFee(uint256 _newRefinanceFee) external {
         revert("mock-does-not-implement");
     }
 
-    function setRepayFee(uint256 _newRepayFee) external {
+    function updateRepayFee(uint256 _newRepayFee) external {
         revert("mock-does-not-implement");
     }
 
-    function setSwapFee(uint256 _newSwapFee) external {
+    function updateSwapFee(uint256 _newSwapFee) external {
         revert("mock-does-not-implement");
     }
 
-    function setWithdrawFee(uint256 _newWithdrawFee) external {
+    function updateWithdrawFee(uint256 _newWithdrawFee) external {
         revert("mock-does-not-implement");
     }
 

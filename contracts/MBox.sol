@@ -712,87 +712,87 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     }
 
     /**
-     * @notice Set deposit (mBOX-MET) contract
+     * @notice Update deposit (mBOX-MET) contract
      */
-    function setDepositToken(IDepositToken _depositToken) public override onlyGovernor {
+    function updateDepositToken(IDepositToken _depositToken) public override onlyGovernor {
         depositToken = _depositToken;
     }
 
     /**
-     * @notice Set price oracle contract
+     * @notice Update price oracle contract
      */
-    function setOracle(IOracle _oracle) public override onlyGovernor {
+    function updateOracle(IOracle _oracle) public override onlyGovernor {
         oracle = _oracle;
     }
 
     /**
-     * @notice Set deposit fee
+     * @notice Update deposit fee
      */
-    function setDepositFee(uint256 _depositFee) public override onlyGovernor {
+    function updateDepositFee(uint256 _depositFee) public override onlyGovernor {
         depositFee = _depositFee;
         emit DepositFeeUpdated(_depositFee);
     }
 
     /**
-     * @notice Set mint fee
+     * @notice Update mint fee
      */
-    function setMintFee(uint256 _mintFee) public override onlyGovernor {
+    function updateMintFee(uint256 _mintFee) public override onlyGovernor {
         mintFee = _mintFee;
         emit MintFeeUpdated(_mintFee);
     }
 
     /**
-     * @notice Set withdraw fee
+     * @notice Update withdraw fee
      */
-    function setWithdrawFee(uint256 _withdrawFee) public override onlyGovernor {
+    function updateWithdrawFee(uint256 _withdrawFee) public override onlyGovernor {
         withdrawFee = _withdrawFee;
         emit WithdrawFeeUpdated(_withdrawFee);
     }
 
     /**
-     * @notice Set repay fee
+     * @notice Update repay fee
      */
-    function setRepayFee(uint256 _repayFee) public override onlyGovernor {
+    function updateRepayFee(uint256 _repayFee) public override onlyGovernor {
         repayFee = _repayFee;
         emit RepayFeeUpdated(_repayFee);
     }
 
     /**
-     * @notice Set swap fee
+     * @notice Update swap fee
      */
-    function setSwapFee(uint256 _swapFee) public override onlyGovernor {
+    function updateSwapFee(uint256 _swapFee) public override onlyGovernor {
         swapFee = _swapFee;
         emit SwapFeeUpdated(_swapFee);
     }
 
     /**
-     * @notice Set refinance fee
+     * @notice Update refinance fee
      */
-    function setRefinanceFee(uint256 _refinanceFee) public override onlyGovernor {
+    function updateRefinanceFee(uint256 _refinanceFee) public override onlyGovernor {
         refinanceFee = _refinanceFee;
         emit RefinanceFeeUpdated(_refinanceFee);
     }
 
     /**
-     * @notice Set liquidator fee
+     * @notice Update liquidator fee
      */
-    function setLiquidatorFee(uint256 _liquidatorFee) public override onlyGovernor {
+    function updateLiquidatorFee(uint256 _liquidatorFee) public override onlyGovernor {
         liquidatorFee = _liquidatorFee;
         emit LiquidatorFeeUpdated(_liquidatorFee);
     }
 
     /**
-     * @notice Set liquidate fee
+     * @notice Update liquidate fee
      */
-    function setLiquidateFee(uint256 _liquidateFee) public override onlyGovernor {
+    function updateLiquidateFee(uint256 _liquidateFee) public override onlyGovernor {
         liquidateFee = _liquidateFee;
         emit LiquidateFeeUpdated(_liquidateFee);
     }
 
     /**
-     * @notice Set maxLiquidable (liquidation cap)
+     * @notice Update maxLiquidable (liquidation cap)
      */
-    function setMaxLiquidable(uint256 _newMaxLiquidable) public override onlyGovernor {
+    function updateMaxLiquidable(uint256 _newMaxLiquidable) public override onlyGovernor {
         require(_newMaxLiquidable != maxLiquidable, "new-value-is-same-as-current");
         require(_newMaxLiquidable <= 1e18, "max-liquidable-gt-1");
         emit MaxLiquidableUpdated(maxLiquidable, _newMaxLiquidable);

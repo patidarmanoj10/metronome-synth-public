@@ -125,11 +125,11 @@ describe('Oracle', function () {
     await oracle.setPriceProvider(Protocol.UNISWAP_V2, uniswapV2PriceProvider.address)
     await oracle.setPriceProvider(Protocol.CHAINLINK, chainlinkPriceProvider.address)
 
-    await oracle.setUsdAsset(mUSD.address)
-    await oracle.setAssetThatUsesUniswapV3(mETH.address, WETH_ADDRESS)
-    await oracle.setAssetThatUsesUniswapV3(mETH.address, WETH_ADDRESS)
-    await oracle.setAssetThatUsesUniswapV2(depositToken.address, MET_ADDRESS)
-    await oracle.setAssetThatUsesChainlink(mDOGE.address, CHAINLINK_DOGE_AGGREGATOR_ADDRESS)
+    await oracle.addOrUpdateUsdAsset(mUSD.address)
+    await oracle.addOrUpdateAssetThatUsesUniswapV3(mETH.address, WETH_ADDRESS)
+    await oracle.addOrUpdateAssetThatUsesUniswapV3(mETH.address, WETH_ADDRESS)
+    await oracle.addOrUpdateAssetThatUsesUniswapV2(depositToken.address, MET_ADDRESS)
+    await oracle.addOrUpdateAssetThatUsesChainlink(mDOGE.address, CHAINLINK_DOGE_AGGREGATOR_ADDRESS)
   })
 
   afterEach(async function () {
@@ -352,8 +352,8 @@ describe('Oracle', function () {
 
       it('should convert assets using the same price provider (UniswapV2)', async function () {
         // given
-        await oracle.setAssetThatUsesUniswapV2(mBTC.address, WBTC_ADDRESS)
-        await oracle.setAssetThatUsesUniswapV2(mETH.address, WETH_ADDRESS)
+        await oracle.addOrUpdateAssetThatUsesUniswapV2(mBTC.address, WBTC_ADDRESS)
+        await oracle.addOrUpdateAssetThatUsesUniswapV2(mETH.address, WETH_ADDRESS)
         await increaseTime(DEFAULT_TWAP_PERIOD)
 
         // when
@@ -367,8 +367,8 @@ describe('Oracle', function () {
 
       it('should convert assets using the same price provider (UniswapV3)', async function () {
         // given
-        await oracle.setAssetThatUsesUniswapV3(mBTC.address, WBTC_ADDRESS)
-        await oracle.setAssetThatUsesUniswapV3(mETH.address, WETH_ADDRESS)
+        await oracle.addOrUpdateAssetThatUsesUniswapV3(mBTC.address, WBTC_ADDRESS)
+        await oracle.addOrUpdateAssetThatUsesUniswapV3(mETH.address, WETH_ADDRESS)
 
         // when
         const amountIn = parseUnits('1', 8) // 1 BTC
@@ -381,8 +381,8 @@ describe('Oracle', function () {
 
       it('should convert assets using the same price provider (Chainlink)', async function () {
         // given
-        await oracle.setAssetThatUsesChainlink(mBTC.address, CHAINLINK_BTC_AGGREGATOR_ADDRESS)
-        await oracle.setAssetThatUsesChainlink(mETH.address, CHAINLINK_ETH_AGGREGATOR_ADDRESS)
+        await oracle.addOrUpdateAssetThatUsesChainlink(mBTC.address, CHAINLINK_BTC_AGGREGATOR_ADDRESS)
+        await oracle.addOrUpdateAssetThatUsesChainlink(mETH.address, CHAINLINK_ETH_AGGREGATOR_ADDRESS)
 
         // when
         const amountIn = parseUnits('1', 8) // 1 BTC
@@ -457,41 +457,43 @@ describe('Oracle', function () {
     })
   })
 
-  describe('setUsdAsset', function () {
+  describe('addOrUpdateUsdAsset', function () {
     it('should revert if not governor', async function () {
-      const tx = oracle.connect(user).setUsdAsset(mUSD.address)
+      const tx = oracle.connect(user).addOrUpdateUsdAsset(mUSD.address)
       await expect(tx).to.be.revertedWith('not-the-governor')
     })
 
     it('should revert if asset address is null', async function () {
-      const tx = oracle.setUsdAsset(ethers.constants.AddressZero)
+      const tx = oracle.addOrUpdateUsdAsset(ethers.constants.AddressZero)
       await expect(tx).to.be.revertedWith('asset-address-is-null')
     })
 
     it('should set an USD asset', async function () {
-      const tx = oracle.setUsdAsset(mUSD.address)
+      const tx = oracle.addOrUpdateUsdAsset(mUSD.address)
       await expect(tx).to.emit(oracle, 'AssetUpdated').withArgs(mUSD.address, Protocol.NONE, '0x', true)
     })
   })
 
-  describe('setAssetThatUsesChainlink', function () {
+  describe('addOrUpdateAssetThatUsesChainlink', function () {
     it('should revert if not governor', async function () {
-      const tx = oracle.connect(user).setAssetThatUsesChainlink(depositToken.address, ethers.constants.AddressZero)
+      const tx = oracle
+        .connect(user)
+        .addOrUpdateAssetThatUsesChainlink(depositToken.address, ethers.constants.AddressZero)
       await expect(tx).to.be.revertedWith('not-the-governor')
     })
 
     it('should revert if asset address is null', async function () {
-      const tx = oracle.setAssetThatUsesChainlink(ethers.constants.AddressZero, depositToken.address)
+      const tx = oracle.addOrUpdateAssetThatUsesChainlink(ethers.constants.AddressZero, depositToken.address)
       await expect(tx).to.be.revertedWith('asset-address-is-null')
     })
 
     it('should revert if aggregator address is null', async function () {
-      const tx = oracle.setAssetThatUsesChainlink(depositToken.address, ethers.constants.AddressZero)
+      const tx = oracle.addOrUpdateAssetThatUsesChainlink(depositToken.address, ethers.constants.AddressZero)
       await expect(tx).to.be.revertedWith('aggregator-address-is-null')
     })
 
     it('should set an asset that uses Chainlink as oracle', async function () {
-      const tx = oracle.setAssetThatUsesChainlink(depositToken.address, CHAINLINK_DOGE_AGGREGATOR_ADDRESS)
+      const tx = oracle.addOrUpdateAssetThatUsesChainlink(depositToken.address, CHAINLINK_DOGE_AGGREGATOR_ADDRESS)
       const assetData = abi.encode(['address', 'uint256'], [CHAINLINK_DOGE_AGGREGATOR_ADDRESS, 18])
       await expect(tx)
         .to.emit(oracle, 'AssetUpdated')
@@ -499,24 +501,26 @@ describe('Oracle', function () {
     })
   })
 
-  describe('setAssetThatUsesUniswapV2', function () {
+  describe('addOrUpdateAssetThatUsesUniswapV2', function () {
     it('should revert if not governor', async function () {
-      const tx = oracle.connect(user).setAssetThatUsesUniswapV2(depositToken.address, ethers.constants.AddressZero)
+      const tx = oracle
+        .connect(user)
+        .addOrUpdateAssetThatUsesUniswapV2(depositToken.address, ethers.constants.AddressZero)
       await expect(tx).to.be.revertedWith('not-the-governor')
     })
 
     it('should revert if asset address is null', async function () {
-      const tx = oracle.setAssetThatUsesUniswapV2(ethers.constants.AddressZero, depositToken.address)
+      const tx = oracle.addOrUpdateAssetThatUsesUniswapV2(ethers.constants.AddressZero, depositToken.address)
       await expect(tx).to.be.revertedWith('asset-address-is-null')
     })
 
     it('should revert if underlying address is null', async function () {
-      const tx = oracle.setAssetThatUsesUniswapV2(depositToken.address, ethers.constants.AddressZero)
+      const tx = oracle.addOrUpdateAssetThatUsesUniswapV2(depositToken.address, ethers.constants.AddressZero)
       await expect(tx).to.be.revertedWith('underlying-address-is-null')
     })
 
     it('should set an asset that uses UniswapV2 as oracle', async function () {
-      const tx = oracle.setAssetThatUsesUniswapV2(depositToken.address, MET_ADDRESS)
+      const tx = oracle.addOrUpdateAssetThatUsesUniswapV2(depositToken.address, MET_ADDRESS)
       const encodedMetAddress = abi.encode(['address'], [MET_ADDRESS])
       await expect(tx)
         .to.emit(oracle, 'AssetUpdated')
@@ -524,24 +528,26 @@ describe('Oracle', function () {
     })
   })
 
-  describe('setAssetThatUsesUniswapV3', function () {
+  describe('addOrUpdateAssetThatUsesUniswapV3', function () {
     it('should revert if not governor', async function () {
-      const tx = oracle.connect(user).setAssetThatUsesUniswapV3(depositToken.address, ethers.constants.AddressZero)
+      const tx = oracle
+        .connect(user)
+        .addOrUpdateAssetThatUsesUniswapV3(depositToken.address, ethers.constants.AddressZero)
       await expect(tx).to.be.revertedWith('not-the-governor')
     })
 
     it('should revert if asset address is null', async function () {
-      const tx = oracle.setAssetThatUsesUniswapV3(ethers.constants.AddressZero, depositToken.address)
+      const tx = oracle.addOrUpdateAssetThatUsesUniswapV3(ethers.constants.AddressZero, depositToken.address)
       await expect(tx).to.be.revertedWith('asset-address-is-null')
     })
 
     it('should revert if underlying address is null', async function () {
-      const tx = oracle.setAssetThatUsesUniswapV3(depositToken.address, ethers.constants.AddressZero)
+      const tx = oracle.addOrUpdateAssetThatUsesUniswapV3(depositToken.address, ethers.constants.AddressZero)
       await expect(tx).to.be.revertedWith('underlying-address-is-null')
     })
 
     it('should set an asset that uses UniswapV3 as oracle', async function () {
-      const tx = oracle.setAssetThatUsesUniswapV3(depositToken.address, MET_ADDRESS)
+      const tx = oracle.addOrUpdateAssetThatUsesUniswapV3(depositToken.address, MET_ADDRESS)
       const encodedMetAddress = abi.encode(['address'], [MET_ADDRESS])
       await expect(tx)
         .to.emit(oracle, 'AssetUpdated')

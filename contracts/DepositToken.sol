@@ -285,9 +285,9 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
     }
 
     /**
-     * @notice Set minimum deposit time
+     * @notice Update minimum deposit time
      */
-    function setMinDepositTime(uint256 _newMinDepositTime) public onlyGovernor {
+    function updateMinDepositTime(uint256 _newMinDepositTime) public onlyGovernor {
         require(_newMinDepositTime != _minDepositTime, "new-value-is-same-as-current");
         emit MinDepositTimeUpdated(_minDepositTime, _newMinDepositTime);
         _minDepositTime = _newMinDepositTime;

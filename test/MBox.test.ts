@@ -111,7 +111,7 @@ describe('MBox', function () {
     await mDogeDebtToken.connect(governor).acceptGovernorship()
 
     await mBOX.initialize(treasury.address, depositToken.address, oracle.address)
-    await mBOX.setLiquidatorFee(liquidatorFee)
+    await mBOX.updateLiquidatorFee(liquidatorFee)
     await mBOX.addSyntheticAsset(mEth.address)
     await mBOX.addSyntheticAsset(mDoge.address)
 
@@ -169,7 +169,7 @@ describe('MBox', function () {
 
       it('should revert if mAsset has any supply', async function () {
         // given
-        await mDoge.connect(governor).setMBox(deployer.address)
+        await mDoge.connect(governor).updateMBox(deployer.address)
         await mDoge.mint(deployer.address, parseEther('100'))
         expect(await mDoge.totalSupply()).to.gt(0)
 
@@ -214,7 +214,7 @@ describe('MBox', function () {
     it('should deposit MET and mint mBOX-MET (depositFee > 0)', async function () {
       // given
       const depositFee = parseEther('0.01') // 1%
-      await mBOX.setDepositFee(depositFee)
+      await mBOX.updateDepositFee(depositFee)
 
       // when
       const amount = parseEther('10')
@@ -345,7 +345,7 @@ describe('MBox', function () {
         it('should mint mEth (mintFee > 0)', async function () {
           // given
           const mintFee = parseEther('0.1') // 10%
-          await mBOX.setMintFee(mintFee)
+          await mBOX.updateMintFee(mintFee)
 
           // when
           const amountToMint = parseEther('1')
@@ -379,7 +379,7 @@ describe('MBox', function () {
         it('should mint max issuable amount (mintFee > 0)', async function () {
           // given
           const mintFee = parseEther('0.1') // 10%
-          await mBOX.setMintFee(mintFee)
+          await mBOX.updateMintFee(mintFee)
 
           const amountToMint = maxIssuableInEth
           const expectedFeeInSynthetic = amountToMint.mul(mintFee).div(parseEther('1'))
@@ -401,7 +401,7 @@ describe('MBox', function () {
         describe('withdraw', function () {
           describe('when minimum deposit time is > 0', function () {
             beforeEach(async function () {
-              await depositToken.connect(governor).setMinDepositTime(HOUR)
+              await depositToken.connect(governor).updateMinDepositTime(HOUR)
             })
 
             it('should revert if minimum deposit time have not passed', async function () {
@@ -467,7 +467,7 @@ describe('MBox', function () {
             it('should withdraw if amount <= unlocked collateral amount (withdrawFee > 0)', async function () {
               // given
               const withdrawFee = parseEther('0.1') // 10%
-              await mBOX.setWithdrawFee(withdrawFee)
+              await mBOX.updateWithdrawFee(withdrawFee)
               const metBalanceBefore = await met.balanceOf(user.address)
               const depositBefore = await depositToken.balanceOf(user.address)
               const {_unlockedDeposit: amountToWithdraw} = await mBOX.debtPositionOfUsingLatestPrices(user.address)
@@ -545,7 +545,7 @@ describe('MBox', function () {
           it('should repay if amount == debt (repayFee > 0)', async function () {
             // given
             const repayFee = parseEther('0.1') // 10%
-            await mBOX.setRepayFee(repayFee)
+            await mBOX.updateRepayFee(repayFee)
             const amountToRepay = await mEthDebtToken.balanceOf(user.address)
             const {
               _lockedDeposit: lockedDepositBefore,
@@ -578,7 +578,7 @@ describe('MBox', function () {
           it('should repay if amount < debt (repayFee > 0)', async function () {
             // given
             const repayFee = parseEther('0.1') // 10%
-            await mBOX.setRepayFee(repayFee)
+            await mBOX.updateRepayFee(repayFee)
             const amountToRepay = (await mEthDebtToken.balanceOf(user.address)).div('2')
             const {
               _lockedDeposit: lockedDepositBefore,
@@ -662,7 +662,7 @@ describe('MBox', function () {
             // and try to swap all balance for mDOGE that has 200% CR
 
             // given
-            await mBOX.setSwapFee(0)
+            await mBOX.updateSwapFee(0)
             const {_maxIssuable} = await mBOX.maxIssuableForUsingLatestPrices(user.address, mEth.address)
             await mBOX.connect(user).mint(mEth.address, _maxIssuable)
             const mAssetInBalance = await mEth.balanceOf(user.address)
@@ -677,7 +677,7 @@ describe('MBox', function () {
 
           it('should swap synthetic assets (swapFee == 0)', async function () {
             // given
-            await mBOX.setSwapFee(0)
+            await mBOX.updateSwapFee(0)
             const mAssetInBalanceBefore = await mEth.balanceOf(user.address)
             const mAssetInDebtBalanceBefore = await mEthDebtToken.balanceOf(user.address)
             const mAssetOutBalanceBefore = await mDoge.balanceOf(user.address)
@@ -716,7 +716,7 @@ describe('MBox', function () {
           it('should swap synthetic assets (swapFee > 0)', async function () {
             // given
             const swapFee = parseEther('0.1') // 10%
-            await mBOX.setSwapFee(swapFee)
+            await mBOX.updateSwapFee(swapFee)
             const mAssetInBalanceBefore = await mEth.balanceOf(user.address)
             const mAssetInDebtBalanceBefore = await mEthDebtToken.balanceOf(user.address)
             const mAssetOutBalanceBefore = await mDoge.balanceOf(user.address)
@@ -803,7 +803,7 @@ describe('MBox', function () {
 
             it('should revert if debt position stills unhealty (refinanceFee == 0)', async function () {
               // given
-              await mBOX.setRefinanceFee(0)
+              await mBOX.updateRefinanceFee(0)
 
               // when
               const amountIn = await mDoge.balanceOf(user.address)
@@ -815,7 +815,7 @@ describe('MBox', function () {
 
             it('should refinance debt (refinanceFee == 0)', async function () {
               // given
-              await mBOX.setRefinanceFee(0)
+              await mBOX.updateRefinanceFee(0)
               await oracle.updateRate(met.address, parseEther('3.5')) // putting debt in a position that is able to save
               const mAssetInBalanceBefore = await mDoge.balanceOf(user.address)
               const mAssetInDebtBalanceBefore = await mDogeDebtToken.balanceOf(user.address)
@@ -859,7 +859,7 @@ describe('MBox', function () {
             it('should refinance debt (refinanceFee > 0)', async function () {
               // given
               const refinanceFee = parseEther('0.1') // 10%
-              await mBOX.setRefinanceFee(refinanceFee)
+              await mBOX.updateRefinanceFee(refinanceFee)
               await oracle.updateRate(met.address, parseEther('3.5')) // putting debt in a position that is able to save
               const mAssetInBalanceBefore = await mDoge.balanceOf(user.address)
               const mAssetInDebtBalanceBefore = await mDogeDebtToken.balanceOf(user.address)
@@ -1000,7 +1000,7 @@ describe('MBox', function () {
             it('should revert if repaying more than max allowed to liquidate', async function () {
               // given
               const maxLiquidable = parseEther('0.5') // 50%
-              await mBOX.setMaxLiquidable(maxLiquidable)
+              await mBOX.updateMaxLiquidable(maxLiquidable)
               const mEthDebt = await mEthDebtToken.balanceOf(user.address)
 
               // when
@@ -1013,7 +1013,7 @@ describe('MBox', function () {
 
             it('should liquidate by repaying all debt (liquidateFee == 0)', async function () {
               // given
-              await mBOX.setLiquidateFee(0)
+              await mBOX.updateLiquidateFee(0)
               const {_debtInUsd: debtInUsdBefore} = await mBOX.debtOfUsingLatestPrices(user.address)
               const {_depositInUsd: collateralInUsdBefore} = await mBOX.debtPositionOfUsingLatestPrices(user.address)
 
@@ -1046,7 +1046,7 @@ describe('MBox', function () {
             it('should liquidate by repaying all debt (liquidateFee > 0)', async function () {
               // given
               const liquidateFee = parseEther('0.01') // 1%
-              await mBOX.setLiquidateFee(liquidateFee)
+              await mBOX.updateLiquidateFee(liquidateFee)
               const {_debtInUsd: debtInUsdBefore} = await mBOX.debtOfUsingLatestPrices(user.address)
               const {_deposit: depositBefore} = await mBOX.debtPositionOfUsingLatestPrices(user.address)
 
@@ -1085,7 +1085,7 @@ describe('MBox', function () {
 
             it('should liquidate by repaying > needed to make position healthy (liquidateFee == 0)', async function () {
               // given
-              await mBOX.setLiquidateFee(0)
+              await mBOX.updateLiquidateFee(0)
               const {_debtInUsd: debtInUsdBefore} = await mBOX.debtOfUsingLatestPrices(user.address)
               const {_deposit: collateralBefore} = await mBOX.debtPositionOfUsingLatestPrices(user.address)
               const minAmountToRepayInUsd = await getMinLiquidationAmountInUsd(mBOX, user.address, mEth)
@@ -1132,7 +1132,7 @@ describe('MBox', function () {
             it('should liquidate by repaying > needed to make position healthy (liquidateFee > 0)', async function () {
               // given
               const liquidateFee = parseEther('0.01') // 1%
-              await mBOX.setLiquidateFee(liquidateFee)
+              await mBOX.updateLiquidateFee(liquidateFee)
               const {_debtInUsd: debtInUsdBefore} = await mBOX.debtOfUsingLatestPrices(user.address)
               const {_deposit: collateralBefore} = await mBOX.debtPositionOfUsingLatestPrices(user.address)
               const minAmountToRepayInUsd = await getMinLiquidationAmountInUsd(mBOX, user.address, mEth)
@@ -1183,7 +1183,7 @@ describe('MBox', function () {
 
             it('should liquidate by repaying < needed to make position healthy (liquidateFee == 0)', async function () {
               // given
-              await mBOX.setLiquidateFee(0)
+              await mBOX.updateLiquidateFee(0)
               const {_deposit: collateralBefore} = await mBOX.debtPositionOfUsingLatestPrices(user.address)
 
               // when
@@ -1222,7 +1222,7 @@ describe('MBox', function () {
             it('should liquidate by repaying < needed to make position healthy (liquidateFee > 0)', async function () {
               // given
               const liquidateFee = parseEther('0.01') // 1%
-              await mBOX.setLiquidateFee(liquidateFee)
+              await mBOX.updateLiquidateFee(liquidateFee)
               const {_deposit: collateralBefore} = await mBOX.debtPositionOfUsingLatestPrices(user.address)
 
               // when
@@ -1267,7 +1267,7 @@ describe('MBox', function () {
 
             it('should liquidate by repaying the exact amount to make healthy (liquidateFee == 0)', async function () {
               // given
-              await mBOX.setLiquidateFee(0)
+              await mBOX.updateLiquidateFee(0)
               const {_deposit: depositBefore} = await mBOX.debtPositionOfUsingLatestPrices(user.address)
 
               // when
@@ -1307,7 +1307,7 @@ describe('MBox', function () {
             it('should liquidate by repaying the exact amount to make healthy (liquidateFee > 0)', async function () {
               // given
               const liquidateFee = parseEther('0.01') // 1%
-              await mBOX.setLiquidateFee(liquidateFee)
+              await mBOX.updateLiquidateFee(liquidateFee)
               const {_deposit: depositBefore} = await mBOX.debtPositionOfUsingLatestPrices(user.address)
 
               // when
@@ -1375,7 +1375,7 @@ describe('MBox', function () {
 
             it('should liquidate by repaying max possible amount (liquidafeFee == 0)', async function () {
               // given
-              await mBOX.setLiquidateFee(0)
+              await mBOX.updateLiquidateFee(0)
               const depositBefore = await depositToken.balanceOf(user.address)
 
               // when
@@ -1404,7 +1404,7 @@ describe('MBox', function () {
             it('should liquidate by repaying max possible amount (liquidafeFee > 0)', async function () {
               // given
               const liquidateFee = parseEther('0.01') // 1%
-              await mBOX.setLiquidateFee(liquidateFee)
+              await mBOX.updateLiquidateFee(liquidateFee)
               const depositBefore = await depositToken.balanceOf(user.address)
 
               // when
@@ -1440,7 +1440,7 @@ describe('MBox', function () {
 
             it('should liquidate by not repaying all debt (liquidaFee == 0)', async function () {
               // given
-              await mBOX.setLiquidateFee(0)
+              await mBOX.updateLiquidateFee(0)
               const {_deposit: collateralBefore} = await mBOX.debtPositionOfUsingLatestPrices(user.address)
 
               // when
@@ -1479,7 +1479,7 @@ describe('MBox', function () {
             it('should liquidate by not repaying all debt (liquidaFee > 0)', async function () {
               // given
               const liquidateFee = parseEther('0.01') // 1%
-              await mBOX.setLiquidateFee(liquidateFee)
+              await mBOX.updateLiquidateFee(liquidateFee)
               const {_deposit: collateralBefore} = await mBOX.debtPositionOfUsingLatestPrices(user.address)
 
               // when
@@ -1525,7 +1525,7 @@ describe('MBox', function () {
 
           describe('when user minted both mETH and mDOGE using all collateral', function () {
             beforeEach(async function () {
-              await mBOX.setLiquidateFee(0)
+              await mBOX.updateLiquidateFee(0)
               const {_maxIssuable: maxIssuableDoge} = await mBOX.maxIssuableForUsingLatestPrices(
                 user.address,
                 mDoge.address
@@ -1610,10 +1610,10 @@ describe('MBox', function () {
     })
   })
 
-  describe('setMaxLiquidable', function () {
+  describe('updateMaxLiquidable', function () {
     it('should revert if caller is not governor', async function () {
       // when
-      const tx = mBOX.connect(user.address).setMaxLiquidable(treasury.address)
+      const tx = mBOX.connect(user.address).updateMaxLiquidable(treasury.address)
 
       // then
       await expect(tx).to.revertedWith('not-the-governor')
@@ -1622,7 +1622,7 @@ describe('MBox', function () {
     it('should revert if using the current value', async function () {
       // when
       const maxLiquidable = await mBOX.maxLiquidable()
-      const tx = mBOX.setMaxLiquidable(maxLiquidable)
+      const tx = mBOX.updateMaxLiquidable(maxLiquidable)
 
       // then
       await expect(tx).to.revertedWith('new-value-is-same-as-current')
@@ -1631,7 +1631,7 @@ describe('MBox', function () {
     it('should revert if max liquidable > 100%', async function () {
       // when
       const maxLiquidable = parseEther('1').add('1')
-      const tx = mBOX.setMaxLiquidable(maxLiquidable)
+      const tx = mBOX.updateMaxLiquidable(maxLiquidable)
 
       // then
       await expect(tx).to.revertedWith('max-liquidable-gt-1')
@@ -1643,7 +1643,7 @@ describe('MBox', function () {
       const newMaxLiquidable = currentMaxLiquidable.div('2')
 
       // when
-      const tx = mBOX.setMaxLiquidable(newMaxLiquidable)
+      const tx = mBOX.updateMaxLiquidable(newMaxLiquidable)
 
       // then
       await expect(tx).to.emit(mBOX, 'MaxLiquidableUpdated').withArgs(currentMaxLiquidable, newMaxLiquidable)
