@@ -19,7 +19,7 @@ interface ISyntheticAsset is IERC20, IERC20Metadata {
 
     function burn(address _from, uint256 amount) external;
 
-    function updateCollateralizationRatio(uint256 _newCollateralizationRatio) external;
+    function updateCollateralizationRatio(uint128 _newCollateralizationRatio) external;
 
     function updateMaxTotalSupply(uint256 _newMaxTotalSupply) external;
 

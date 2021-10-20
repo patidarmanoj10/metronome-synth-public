@@ -41,33 +41,33 @@ contract MBoxMock is IMBox {
         }
     }
 
-    function deposit(uint256 _amount) external {
+    function deposit(uint256) external pure {
         revert("mock-does-not-implement");
     }
 
-    function debtOfUsingLatestPrices(address _account)
+    function debtOfUsingLatestPrices(address)
         external
-        view
+        pure
         returns (
-            uint256 _debtInUsd,
-            uint256 _lockedDepositInUsd,
-            bool _anyPriceInvalid
+            uint256,
+            uint256,
+            bool
         )
     {
         revert("mock-does-not-implement");
     }
 
-    function debtPositionOfUsingLatestPrices(address _account)
+    function debtPositionOfUsingLatestPrices(address)
         external
-        view
+        pure
         returns (
-            bool _isHealthy,
-            uint256 _lockedDepositInUsd,
-            uint256 _depositInUsd,
-            uint256 _deposit,
-            uint256 _unlockedDeposit,
-            uint256 _lockedDeposit,
-            bool _anyPriceInvalid
+            bool,
+            uint256,
+            uint256,
+            uint256,
+            uint256,
+            uint256,
+            bool
         )
     {
         revert("mock-does-not-implement");
@@ -94,103 +94,99 @@ contract MBoxMock is IMBox {
         _unlockedDeposit = _deposit - _lockedDeposit;
     }
 
-    function addSyntheticAsset(ISyntheticAsset _synthetic) external {
+    function addSyntheticAsset(ISyntheticAsset) external pure {
         revert("mock-does-not-implement");
     }
 
-    function maxIssuableFor(address _account, ISyntheticAsset _syntheticAsset) external returns (uint256 _maxIssuable) {
+    function maxIssuableFor(address, ISyntheticAsset) external pure returns (uint256) {
         revert("mock-does-not-implement");
     }
 
-    function maxIssuableForUsingLatestPrices(address _account, ISyntheticAsset _syntheticAsset)
-        external
-        view
-        returns (uint256 _maxIssuable, bool _anyPriceInvalid)
-    {
+    function maxIssuableForUsingLatestPrices(address, ISyntheticAsset) external pure returns (uint256, bool) {
         revert("mock-does-not-implement");
     }
 
-    function mint(ISyntheticAsset _syntheticAsset, uint256 _amount) external {
+    function mint(ISyntheticAsset, uint256) external pure {
         revert("mock-does-not-implement");
     }
 
-    function refinance(ISyntheticAsset _syntheticAssetIn, uint256 _amountToRefinance) external {
+    function refinance(ISyntheticAsset, uint256) external pure {
         revert("mock-does-not-implement");
     }
 
-    function removeSyntheticAsset(ISyntheticAsset _synthetic) external {
+    function removeSyntheticAsset(ISyntheticAsset) external pure {
         revert("mock-does-not-implement");
     }
 
-    function repay(ISyntheticAsset _syntheticAsset, uint256 _amount) external {
+    function repay(ISyntheticAsset, uint256) external pure {
         revert("mock-does-not-implement");
     }
 
     function liquidate(
-        ISyntheticAsset _syntheticAsset,
-        address _account,
-        uint256 _amountToRepay
-    ) external {
+        ISyntheticAsset,
+        address,
+        uint256
+    ) external pure {
         revert("mock-does-not-implement");
     }
 
     function swap(
-        ISyntheticAsset _syntheticAssetIn,
-        ISyntheticAsset _syntheticAssetOut,
-        uint256 _amountIn
-    ) external returns (uint256 _amountOut) {
+        ISyntheticAsset,
+        ISyntheticAsset,
+        uint256
+    ) external pure returns (uint256) {
         revert("mock-does-not-implement");
     }
 
-    function updateDepositFee(uint256 _newDepositFee) external {
+    function updateDepositFee(uint256) external pure {
         revert("mock-does-not-implement");
     }
 
-    function updateDepositToken(IDepositToken _newDepositToken) external {
+    function updateDepositToken(IDepositToken) external pure {
         revert("mock-does-not-implement");
     }
 
-    function updateLiquidateFee(uint256 _newLiquidateFee) external {
+    function updateLiquidateFee(uint256) external pure {
         revert("mock-does-not-implement");
     }
 
-    function updateLiquidatorFee(uint256 _newLiquidatorFee) external {
+    function updateLiquidatorFee(uint256) external pure {
         revert("mock-does-not-implement");
     }
 
-    function updateMaxLiquidable(uint256 _newMaxLiquidable) external {
+    function updateMaxLiquidable(uint256) external pure {
         revert("mock-does-not-implement");
     }
 
-    function updateMintFee(uint256 _newMintFee) external {
+    function updateMintFee(uint256) external pure {
         revert("mock-does-not-implement");
     }
 
-    function updateOracle(IOracle _newOracle) external {
+    function updateOracle(IOracle) external pure {
         revert("mock-does-not-implement");
     }
 
-    function updateRefinanceFee(uint256 _newRefinanceFee) external {
+    function updateRefinanceFee(uint256) external pure {
         revert("mock-does-not-implement");
     }
 
-    function updateRepayFee(uint256 _newRepayFee) external {
+    function updateRepayFee(uint256) external pure {
         revert("mock-does-not-implement");
     }
 
-    function updateSwapFee(uint256 _newSwapFee) external {
+    function updateSwapFee(uint256) external pure {
         revert("mock-does-not-implement");
     }
 
-    function updateWithdrawFee(uint256 _newWithdrawFee) external {
+    function updateWithdrawFee(uint256) external pure {
         revert("mock-does-not-implement");
     }
 
-    function updateTreasury(address _newTreasury) external {
+    function updateTreasury(address) external pure {
         revert("mock-does-not-implement");
     }
 
-    function withdraw(uint256 _amount) external {
+    function withdraw(uint256) external pure {
         revert("mock-does-not-implement");
     }
 }

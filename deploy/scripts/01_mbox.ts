@@ -18,8 +18,15 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {deploy: deployMBox} = await deterministic(hre, UpgradableContracts.MBox)
   await deployMBox()
 
-  await execute(MBox, {from: deployer, log: true}, 'initialize', treasuryAddress, depositTokenAddress, oracle.address)
-  await execute(MBox, {from: deployer, log: true}, 'addSyntheticAsset', mEthAddress)
+  await execute(
+    MBox,
+    {from: deployer, log: true},
+    'initialize',
+    treasuryAddress,
+    depositTokenAddress,
+    mEthAddress,
+    oracle.address
+  )
   await execute(MBox, {from: deployer, log: true}, 'transferGovernorship', governor)
 }
 

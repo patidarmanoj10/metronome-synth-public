@@ -25,6 +25,7 @@ contract OracleMock is IOracle {
         returns (uint256 _amountInUsd, bool _priceInvalid)
     {
         _amountInUsd = _amount.wadMul(rates[_asset]);
+        _priceInvalid = false;
     }
 
     function convertFromUsdUsingLatestPrice(IERC20 _asset, uint256 _amountInUsd)
@@ -34,6 +35,7 @@ contract OracleMock is IOracle {
         returns (uint256 _amount, bool _priceInvalid)
     {
         _amount = _amountInUsd.wadDiv(rates[_asset]);
+        _priceInvalid = false;
     }
 
     function convertUsingLatestPrice(
@@ -43,6 +45,7 @@ contract OracleMock is IOracle {
     ) public view override returns (uint256 _amountOut, bool _priceInvalid) {
         uint256 _amountInUsd = convertToUsd(_assetIn, _amountIn);
         _amountOut = convertFromUsd(_assetOut, _amountInUsd);
+        _priceInvalid = false;
     }
 
     function convertToUsd(IERC20 _asset, uint256 _amount) public view override returns (uint256 _amountInUsd) {
