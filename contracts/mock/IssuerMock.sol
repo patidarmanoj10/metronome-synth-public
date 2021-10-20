@@ -6,10 +6,10 @@
 
 pragma solidity 0.8.9;
 
-import "../interface/IMBox.sol";
+import "../interface/IIssuer.sol";
 import "../interface/IDepositToken.sol";
 
-contract MBoxMock is IMBox {
+contract IssuerMock is IIssuer {
     IDepositToken public depositToken;
     uint256 public lockedCollateral;
 
@@ -94,6 +94,10 @@ contract MBoxMock is IMBox {
         _unlockedDeposit = _deposit - _lockedDeposit;
     }
 
+    function syntheticAssetsMintedBy(address) external pure returns (ISyntheticAsset[] memory) {
+        revert("mock-does-not-implement");
+    }
+
     function addSyntheticAsset(ISyntheticAsset) external pure {
         revert("mock-does-not-implement");
     }
@@ -106,59 +110,7 @@ contract MBoxMock is IMBox {
         revert("mock-does-not-implement");
     }
 
-    function mint(ISyntheticAsset, uint256) external pure {
-        revert("mock-does-not-implement");
-    }
-
-    function refinance(ISyntheticAsset, uint256) external pure {
-        revert("mock-does-not-implement");
-    }
-
     function removeSyntheticAsset(ISyntheticAsset) external pure {
-        revert("mock-does-not-implement");
-    }
-
-    function repay(ISyntheticAsset, uint256) external pure {
-        revert("mock-does-not-implement");
-    }
-
-    function liquidate(
-        ISyntheticAsset,
-        address,
-        uint256
-    ) external pure {
-        revert("mock-does-not-implement");
-    }
-
-    function swap(
-        ISyntheticAsset,
-        ISyntheticAsset,
-        uint256
-    ) external pure returns (uint256) {
-        revert("mock-does-not-implement");
-    }
-
-    function updateDepositFee(uint256) external pure {
-        revert("mock-does-not-implement");
-    }
-
-    function updateDepositToken(IDepositToken) external pure {
-        revert("mock-does-not-implement");
-    }
-
-    function updateLiquidateFee(uint256) external pure {
-        revert("mock-does-not-implement");
-    }
-
-    function updateLiquidatorFee(uint256) external pure {
-        revert("mock-does-not-implement");
-    }
-
-    function updateMaxLiquidable(uint256) external pure {
-        revert("mock-does-not-implement");
-    }
-
-    function updateMintFee(uint256) external pure {
         revert("mock-does-not-implement");
     }
 
@@ -166,27 +118,56 @@ contract MBoxMock is IMBox {
         revert("mock-does-not-implement");
     }
 
-    function updateRefinanceFee(uint256) external pure {
+    function mEth() external pure returns (ISyntheticAsset) {
         revert("mock-does-not-implement");
     }
 
-    function updateRepayFee(uint256) external pure {
+    function mintSyntheticAssetAndDebtToken(
+        ISyntheticAsset,
+        address,
+        uint256
+    ) external pure {
         revert("mock-does-not-implement");
     }
 
-    function updateSwapFee(uint256) external pure {
+    function burnSyntheticAssetAndDebtToken(
+        ISyntheticAsset,
+        address,
+        address,
+        uint256
+    ) external pure {
         revert("mock-does-not-implement");
     }
 
-    function updateWithdrawFee(uint256) external pure {
+    function mintDepositToken(address, uint256) external pure {
         revert("mock-does-not-implement");
     }
 
-    function updateTreasury(address) external pure {
+    function collectFee(
+        address,
+        uint256,
+        bool
+    ) external pure {
         revert("mock-does-not-implement");
     }
 
-    function withdraw(uint256) external pure {
+    function burnWithdrawnDeposit(address, uint256) external pure {
+        revert("mock-does-not-implement");
+    }
+
+    function seizeDepositToken(
+        address,
+        address,
+        uint256
+    ) external pure {
+        revert("mock-does-not-implement");
+    }
+
+    function updateDepositToken(IDepositToken) external pure {
+        revert("mock-does-not-implement");
+    }
+
+    function isSyntheticAssetExists(ISyntheticAsset) external pure returns (bool) {
         revert("mock-does-not-implement");
     }
 }

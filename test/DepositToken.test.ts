@@ -8,8 +8,8 @@ import {
   DepositToken,
   ERC20Mock__factory,
   ERC20Mock,
-  MBoxMock,
-  MBoxMock__factory,
+  IssuerMock,
+  IssuerMock__factory,
 } from '../typechain'
 import {HOUR} from './helpers'
 
@@ -18,7 +18,7 @@ describe('DepositToken', function () {
   let governor: SignerWithAddress
   let user: SignerWithAddress
   let met: ERC20Mock
-  let mBox: MBoxMock
+  let issuerMock: IssuerMock
   let depositToken: DepositToken
 
   beforeEach(async function () {
@@ -33,11 +33,11 @@ describe('DepositToken', function () {
     depositToken = await depositTokenFactory.deploy()
     await depositToken.deployed()
 
-    const mBoxMockFactory = new MBoxMock__factory(deployer)
-    mBox = await mBoxMockFactory.deploy(depositToken.address)
-    await mBox.deployed()
+    const issuerMockFactory = new IssuerMock__factory(deployer)
+    issuerMock = await issuerMockFactory.deploy(depositToken.address)
+    await issuerMock.deployed()
 
-    await depositToken.initialize(met.address, mBox.address)
+    await depositToken.initialize(met.address, issuerMock.address)
     await depositToken.transferGovernorship(governor.address)
     await depositToken.connect(governor).acceptGovernorship()
     depositToken = depositToken.connect(governor)
@@ -54,7 +54,7 @@ describe('DepositToken', function () {
 
       const call = depositToken.interface.encodeFunctionData('mint', [user.address, amount])
 
-      await mBox.mockCall(depositToken.address, call)
+      await issuerMock.mockCall(depositToken.address, call)
 
       // then
       expect(await depositToken.balanceOf(user.address)).to.eq(amount)
@@ -62,9 +62,9 @@ describe('DepositToken', function () {
       expect(await depositToken.lastDepositOf(user.address)).to.eq(lastBlock.timestamp)
     })
 
-    it('should revert if not mbox', async function () {
+    it('should revert if not issuer', async function () {
       const tx = depositToken.connect(user).mint(user.address, parseEther('10'))
-      await expect(tx).to.revertedWith('not-mbox')
+      await expect(tx).to.revertedWith('not-issuer')
     })
   })
 
@@ -73,26 +73,26 @@ describe('DepositToken', function () {
 
     beforeEach(async function () {
       const call = depositToken.interface.encodeFunctionData('mint', [user.address, amount])
-      await mBox.mockCall(depositToken.address, call)
+      await issuerMock.mockCall(depositToken.address, call)
       expect(await depositToken.balanceOf(user.address)).to.eq(amount)
     })
 
-    describe('burnAsFee', function () {
-      it('should revert if not mbox', async function () {
-        const tx = depositToken.connect(user).burnAsFee(user.address, parseEther('10'))
-        await expect(tx).to.revertedWith('not-mbox')
+    describe('burnFromUnlocked', function () {
+      it('should revert if not issuer', async function () {
+        const tx = depositToken.connect(user).burnFromUnlocked(user.address, parseEther('10'))
+        await expect(tx).to.revertedWith('not-issuer')
       })
 
       it('should revert if amount > free amount', async function () {
         // given
-        const {_unlockedDeposit} = await mBox.debtPositionOf(user.address)
+        const {_unlockedDeposit} = await issuerMock.debtPositionOf(user.address)
 
         // when
-        const call = depositToken.interface.encodeFunctionData('burnAsFee', [
+        const call = depositToken.interface.encodeFunctionData('burnFromUnlocked', [
           deployer.address,
           _unlockedDeposit.add('1'),
         ])
-        const tx = mBox.mockCall(depositToken.address, call)
+        const tx = issuerMock.mockCall(depositToken.address, call)
 
         // then
         await expect(tx).to.revertedWith('not-enough-free-balance')
@@ -100,12 +100,12 @@ describe('DepositToken', function () {
 
       it('should burn if amount <= free amount', async function () {
         // given
-        const {_unlockedDeposit} = await mBox.debtPositionOf(user.address)
+        const {_unlockedDeposit} = await issuerMock.debtPositionOf(user.address)
         expect(await depositToken.balanceOf(user.address)).to.eq(amount)
 
         // when
-        const call = depositToken.interface.encodeFunctionData('burnAsFee', [user.address, _unlockedDeposit])
-        await mBox.mockCall(depositToken.address, call)
+        const call = depositToken.interface.encodeFunctionData('burnFromUnlocked', [user.address, _unlockedDeposit])
+        await issuerMock.mockCall(depositToken.address, call)
 
         // then
         expect(await depositToken.balanceOf(user.address)).to.eq(amount.sub(_unlockedDeposit))
@@ -113,9 +113,9 @@ describe('DepositToken', function () {
     })
 
     describe('burnForWithdraw', function () {
-      it('should revert if not mbox', async function () {
+      it('should revert if not issuer', async function () {
         const tx = depositToken.connect(user).burnForWithdraw(user.address, parseEther('10'))
-        await expect(tx).to.revertedWith('not-mbox')
+        await expect(tx).to.revertedWith('not-issuer')
       })
 
       it('should revert if minimum deposit time have not passed', async function () {
@@ -124,7 +124,7 @@ describe('DepositToken', function () {
 
         // when
         const call = depositToken.interface.encodeFunctionData('burnForWithdraw', [user.address, parseEther('10')])
-        const tx = mBox.mockCall(depositToken.address, call)
+        const tx = issuerMock.mockCall(depositToken.address, call)
 
         // then
         await expect(tx).to.revertedWith('min-deposit-time-have-not-passed')
@@ -132,14 +132,14 @@ describe('DepositToken', function () {
 
       it('should revert if amount > free amount', async function () {
         // given
-        const {_unlockedDeposit} = await mBox.debtPositionOf(user.address)
+        const {_unlockedDeposit} = await issuerMock.debtPositionOf(user.address)
 
         // when
         const call = depositToken.interface.encodeFunctionData('burnForWithdraw', [
           user.address,
           _unlockedDeposit.add('1'),
         ])
-        const tx = mBox.mockCall(depositToken.address, call)
+        const tx = issuerMock.mockCall(depositToken.address, call)
 
         // then
         await expect(tx).to.revertedWith('not-enough-free-balance')
@@ -147,12 +147,12 @@ describe('DepositToken', function () {
 
       it('should burn if amount <= free amount', async function () {
         // given
-        const {_unlockedDeposit} = await mBox.debtPositionOf(user.address)
+        const {_unlockedDeposit} = await issuerMock.debtPositionOf(user.address)
         expect(await depositToken.balanceOf(user.address)).to.eq(amount)
 
         // when
         const call = depositToken.interface.encodeFunctionData('burnForWithdraw', [user.address, _unlockedDeposit])
-        await mBox.mockCall(depositToken.address, call)
+        await issuerMock.mockCall(depositToken.address, call)
 
         // then
         expect(await depositToken.balanceOf(user.address)).to.eq(amount.sub(_unlockedDeposit))
@@ -162,23 +162,23 @@ describe('DepositToken', function () {
     describe('burn', function () {
       it('should burn', async function () {
         const call = depositToken.interface.encodeFunctionData('burn', [user.address, amount])
-        await mBox.mockCall(depositToken.address, call)
+        await issuerMock.mockCall(depositToken.address, call)
         expect(await depositToken.balanceOf(user.address)).to.eq(0)
       })
 
-      it('should revert if not mbox', async function () {
+      it('should revert if not issuer', async function () {
         const tx = depositToken.connect(user).burn(user.address, parseEther('10'))
-        await expect(tx).to.revertedWith('not-mbox')
+        await expect(tx).to.revertedWith('not-issuer')
       })
     })
 
     describe('transfer', function () {
       beforeEach(async function () {
-        await mBox.updateLockedCollateral(amount.div('2'))
+        await issuerMock.updateLockedCollateral(amount.div('2'))
       })
 
       it('should transfer if amount <= free amount', async function () {
-        const {_unlockedDeposit} = await mBox.debtPositionOf(user.address)
+        const {_unlockedDeposit} = await issuerMock.debtPositionOf(user.address)
         expect(await depositToken.balanceOf(user.address)).to.eq(amount)
         await depositToken.connect(user).transfer(deployer.address, _unlockedDeposit)
         expect(await depositToken.balanceOf(user.address)).to.eq(amount.sub(_unlockedDeposit))
@@ -189,7 +189,7 @@ describe('DepositToken', function () {
         await depositToken.connect(governor).updateMinDepositTime(HOUR)
 
         // when
-        const {_unlockedDeposit} = await mBox.debtPositionOf(user.address)
+        const {_unlockedDeposit} = await issuerMock.debtPositionOf(user.address)
         const tx = depositToken.connect(user).transfer(deployer.address, _unlockedDeposit)
 
         // then
@@ -197,7 +197,7 @@ describe('DepositToken', function () {
       })
 
       it('should revert if amount > free amount', async function () {
-        const {_unlockedDeposit} = await mBox.debtPositionOf(user.address)
+        const {_unlockedDeposit} = await issuerMock.debtPositionOf(user.address)
         const tx = depositToken.connect(user).transfer(deployer.address, _unlockedDeposit.add('1'))
         await expect(tx).to.revertedWith('not-enough-free-balance')
       })
@@ -205,12 +205,12 @@ describe('DepositToken', function () {
 
     describe('transferFrom', function () {
       beforeEach(async function () {
-        await mBox.updateLockedCollateral(amount.div('2'))
+        await issuerMock.updateLockedCollateral(amount.div('2'))
         await depositToken.connect(user).approve(deployer.address, ethers.constants.MaxUint256)
       })
 
       it('should transfer if amount <= free amount', async function () {
-        const {_unlockedDeposit} = await mBox.debtPositionOf(user.address)
+        const {_unlockedDeposit} = await issuerMock.debtPositionOf(user.address)
         expect(await depositToken.balanceOf(user.address)).to.eq(amount)
         await depositToken.connect(deployer).transferFrom(user.address, deployer.address, _unlockedDeposit)
         expect(await depositToken.balanceOf(user.address)).to.eq(amount.sub(_unlockedDeposit))
@@ -221,7 +221,7 @@ describe('DepositToken', function () {
         await depositToken.connect(governor).updateMinDepositTime(HOUR)
 
         // when
-        const {_unlockedDeposit} = await mBox.debtPositionOf(user.address)
+        const {_unlockedDeposit} = await issuerMock.debtPositionOf(user.address)
         const tx = depositToken.connect(deployer).transferFrom(user.address, deployer.address, _unlockedDeposit)
 
         // then
@@ -229,7 +229,7 @@ describe('DepositToken', function () {
       })
 
       it('should revert if amount > free amount', async function () {
-        const {_unlockedDeposit} = await mBox.debtPositionOf(user.address)
+        const {_unlockedDeposit} = await issuerMock.debtPositionOf(user.address)
         const tx = depositToken
           .connect(deployer)
           .transferFrom(user.address, deployer.address, _unlockedDeposit.add('1'))
@@ -238,16 +238,16 @@ describe('DepositToken', function () {
     })
 
     describe('seize', function () {
-      it('should revert if not mbox', async function () {
+      it('should revert if not issuer', async function () {
         const tx = depositToken.connect(user).seize(user.address, deployer.address, parseEther('10'))
-        await expect(tx).to.revertedWith('not-mbox')
+        await expect(tx).to.revertedWith('not-issuer')
       })
 
       it('should seize tokens', async function () {
         const amountToSeize = parseEther('10')
 
         const call = depositToken.interface.encodeFunctionData('seize', [user.address, deployer.address, amountToSeize])
-        const tx = () => mBox.mockCall(depositToken.address, call)
+        const tx = () => issuerMock.mockCall(depositToken.address, call)
 
         await expect(tx).to.changeTokenBalances(
           depositToken,

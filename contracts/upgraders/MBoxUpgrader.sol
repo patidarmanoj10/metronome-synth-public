@@ -22,7 +22,7 @@ contract MBoxUpgrader is UpgraderBase {
         calls[8] = abi.encodeWithSignature("maxLiquidable()");
         calls[9] = abi.encodeWithSignature("treasury()");
         calls[10] = abi.encodeWithSignature("oracle()");
-        calls[11] = abi.encodeWithSignature("depositToken()");
+        calls[11] = abi.encodeWithSignature("issuer()");
     }
 
     function _checkResults(bytes[] memory _beforeResults, bytes[] memory _afterResults) internal pure override {

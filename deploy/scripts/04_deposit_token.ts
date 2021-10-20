@@ -11,12 +11,12 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {execute} = deployments
   const {deployer, governor} = await getNamedAccounts()
 
-  const {address: mBoxAddress} = await deterministic(hre, UpgradableContracts.MBox)
+  const {address: issuerAddress} = await deterministic(hre, UpgradableContracts.Issuer)
   const {deploy} = await deterministic(hre, UpgradableContracts.DepositToken)
 
   await deploy()
 
-  await execute(DepositToken, {from: deployer, log: true}, 'initialize', MET_ADDRESS, mBoxAddress)
+  await execute(DepositToken, {from: deployer, log: true}, 'initialize', MET_ADDRESS, issuerAddress)
   await execute(DepositToken, {from: deployer, log: true}, 'transferGovernorship', governor)
 }
 

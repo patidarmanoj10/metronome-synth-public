@@ -44,13 +44,15 @@ contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 
     function initialize(
         string memory name_,
         string memory symbol_,
-        IMBox mBox_,
+        IIssuer issuer_,
         IDebtToken debtToken_,
         uint128 collateralizationRatio_
     ) public initializer {
         require(address(debtToken_) != address(0), "debt-token-is-null");
 
-        __Manageable_init(mBox_);
+        __Manageable_init();
+
+        setIssuer(issuer_);
 
         _name = name_;
         _symbol = symbol_;
@@ -230,7 +232,7 @@ contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 
      * @param _to The account to mint to
      * @param _amount The amount to mint
      */
-    function mint(address _to, uint256 _amount) public override onlyMBox {
+    function mint(address _to, uint256 _amount) public override onlyIssuer {
         require(_active, "synthetic-asset-is-inactive");
         require(_totalSupply + _amount <= _maxTotalSupply, "surpass-max-total-supply");
         _mint(_to, _amount);
@@ -241,7 +243,7 @@ contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 
      * @param _from The account to burn from
      * @param _amount The amount to burn
      */
-    function burn(address _from, uint256 _amount) public override onlyMBox {
+    function burn(address _from, uint256 _amount) public override onlyIssuer {
         _burn(_from, _amount);
     }
 

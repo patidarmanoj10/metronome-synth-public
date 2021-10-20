@@ -12,46 +12,6 @@ import "./IDepositToken.sol";
 interface IMBox {
     function deposit(uint256 _amount) external;
 
-    function debtOfUsingLatestPrices(address _account)
-        external
-        view
-        returns (
-            uint256 _debtInUsd,
-            uint256 _lockedDepositInUsd,
-            bool _anyPriceInvalid
-        );
-
-    function debtPositionOfUsingLatestPrices(address _account)
-        external
-        view
-        returns (
-            bool _isHealthy,
-            uint256 _lockedDepositInUsd,
-            uint256 _depositInUsd,
-            uint256 _deposit,
-            uint256 _unlockedDeposit,
-            uint256 _lockedDeposit,
-            bool _anyPriceInvalid
-        );
-
-    function debtPositionOf(address _account)
-        external
-        returns (
-            bool _isHealthy,
-            uint256 _lockedDepositInUsd,
-            uint256 _depositInUsd,
-            uint256 _deposit,
-            uint256 _unlockedDeposit,
-            uint256 _lockedDeposit
-        );
-
-    function maxIssuableForUsingLatestPrices(address _account, ISyntheticAsset _syntheticAsset)
-        external
-        view
-        returns (uint256 _maxIssuable, bool _anyPriceInvalid);
-
-    function maxIssuableFor(address _account, ISyntheticAsset _syntheticAsset) external returns (uint256 _maxIssuable);
-
     function mint(ISyntheticAsset _syntheticAsset, uint256 _amount) external;
 
     function withdraw(uint256 _amount) external;
@@ -72,13 +32,7 @@ interface IMBox {
 
     function refinance(ISyntheticAsset _syntheticAssetIn, uint256 _amountToRefinance) external;
 
-    function addSyntheticAsset(ISyntheticAsset _synthetic) external;
-
-    function removeSyntheticAsset(ISyntheticAsset _synthetic) external;
-
     function updateTreasury(address _newTreasury) external;
-
-    function updateDepositToken(IDepositToken _newDepositToken) external;
 
     function updateOracle(IOracle _newOracle) external;
 

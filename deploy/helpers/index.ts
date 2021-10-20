@@ -11,6 +11,7 @@ export interface ContractConfig {
 }
 
 export const UpgradableContracts: {[key: string]: ContractConfig} = {
+  Issuer: {alias: 'Issuer', contract: 'Issuer', adminContract: 'IssuerUpgrader'},
   MBox: {alias: 'MBox', contract: 'MBox', adminContract: 'MBoxUpgrader'},
   Treasury: {alias: 'Treasury', contract: 'Treasury', adminContract: 'TreasuryUpgrader'},
   DepositToken: {alias: 'DepositToken', contract: 'DepositToken', adminContract: 'DepositTokenUpgrader'},

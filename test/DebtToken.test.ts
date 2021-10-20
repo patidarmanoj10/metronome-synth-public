@@ -7,7 +7,7 @@ import {DebtToken, DebtToken__factory} from '../typechain'
 
 describe('DebtToken', function () {
   let deployer: SignerWithAddress
-  let mBoxMock: SignerWithAddress
+  let issuerMock: SignerWithAddress
   let user1: SignerWithAddress
   let user2: SignerWithAddress
   let debtToken: DebtToken
@@ -16,14 +16,14 @@ describe('DebtToken', function () {
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
-    ;[deployer, mBoxMock, user1, user2] = await ethers.getSigners()
+    ;[deployer, issuerMock, user1, user2] = await ethers.getSigners()
 
     const debtTokenFactory = new DebtToken__factory(deployer)
     debtToken = await debtTokenFactory.deploy()
     await debtToken.deployed()
-    await debtToken.initialize(name, symbol, mBoxMock.address)
+    await debtToken.initialize(name, symbol, issuerMock.address)
 
-    debtToken = debtToken.connect(mBoxMock)
+    debtToken = debtToken.connect(issuerMock)
   })
 
   it('default values', async function () {
@@ -41,9 +41,9 @@ describe('DebtToken', function () {
       expect(await debtToken.balanceOf(user1.address)).to.eq(amount)
     })
 
-    it('should revert if not mbox', async function () {
+    it('should revert if not issuer', async function () {
       const tx = debtToken.connect(user1).mint(user1.address, parseEther('10'))
-      await expect(tx).to.revertedWith('not-mbox')
+      await expect(tx).to.revertedWith('not-issuer')
     })
   })
 
@@ -61,9 +61,9 @@ describe('DebtToken', function () {
         expect(await debtToken.balanceOf(user1.address)).to.eq(0)
       })
 
-      it('should revert if not mbox', async function () {
+      it('should revert if not issuer', async function () {
         const tx = debtToken.connect(user1).mint(user1.address, parseEther('10'))
-        await expect(tx).to.revertedWith('not-mbox')
+        await expect(tx).to.revertedWith('not-issuer')
       })
     })
 

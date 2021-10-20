@@ -9,6 +9,7 @@ import "./access/Governable.sol";
 import "./interface/IMBox.sol";
 import "./lib/WadRayMath.sol";
 import "./interface/ITreasury.sol";
+import "./interface/IIssuer.sol";
 
 contract MBoxStorageV1 {
     /**
@@ -71,22 +72,14 @@ contract MBoxStorageV1 {
     ITreasury public treasury;
 
     /**
-     * @notice Represents collateral's deposits (i.e. mBOX-MET token)
-     * @dev For now, we only use depositTokens[0]
-     */
-    IDepositToken[] public depositTokens;
-
-    /**
      * @notice Prices oracle
      */
     IOracle public oracle;
 
     /**
-     * @notice Avaliable synthetic assets
-     * @dev The syntheticAssets[0] is mETH
+     * @notice Issuer contract
      */
-    ISyntheticAsset[] public syntheticAssets;
-    mapping(address => ISyntheticAsset) public syntheticAssetByAddress;
+    IIssuer public issuer;
 }
 
 /**
@@ -167,9 +160,6 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     /// @notice Emitted when treasury contract is updated
     event TreasuryUpdated(address indexed oldTreasury, address indexed newTreasury);
 
-    /// @notice Emitted when deposit token contract is updated
-    event DepositTokenUpdated(IDepositToken indexed oldDepositToken, IDepositToken indexed newDepositToken);
-
     /// @notice Emitted when oracle contract is updated
     event OracleUpdated(IOracle indexed oldOracle, IOracle indexed newOracle);
 
@@ -177,10 +167,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
      * @dev Throws if synthetic asset isn't enabled
      */
     modifier onlyIfSyntheticAssetExists(ISyntheticAsset _syntheticAsset) {
-        require(
-            syntheticAssetByAddress[address(_syntheticAsset)] != ISyntheticAsset(address(0)),
-            "synthetic-asset-does-not-exists"
-        );
+        require(issuer.isSyntheticAssetExists(_syntheticAsset), "synthetic-asset-does-not-exists");
         _;
     }
 
@@ -192,36 +179,11 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
         _;
     }
 
-    /**
-     * @dev Update prices of assets that are used by the account (checks synthetic assets and MET)
-     */
-    modifier updatePricesOfAssetsUsedBy(address _account) {
-        for (uint256 i = 0; i < syntheticAssets.length; ++i) {
-            if (syntheticAssets[i].debtToken().balanceOf(_account) > 0) {
-                oracle.update(syntheticAssets[i]);
-            }
-        }
-
-        if (depositToken().balanceOf(_account) > 0) {
-            oracle.update(depositToken().underlying());
-        }
-        _;
-    }
-
-    /**
-     * @dev Update a specific asset's price (also updates the MET price)
-     */
-    modifier updatePriceOfAsset(ISyntheticAsset _syntheticAsset) {
-        oracle.update(_syntheticAsset);
-        oracle.update(depositToken().underlying());
-        _;
-    }
-
     function initialize(
         ITreasury treasury_,
         IDepositToken depositToken_,
-        ISyntheticAsset mETH_,
-        IOracle oracle_
+        IOracle oracle_,
+        IIssuer issuer_
     ) public initializer {
         require(address(treasury_) != address(0), "treasury-address-is-null");
         require(address(depositToken_) != address(0), "deposit-token-is-null");
@@ -231,8 +193,8 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
         __Governable_init();
 
         treasury = treasury_;
-        depositTokens.push(depositToken_);
         oracle = oracle_;
+        issuer = issuer_;
 
         depositFee = 0;
         mintFee = 0;
@@ -243,9 +205,6 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
         liquidatorFee = 1e17; // 10%
         liquidateFee = 8e16; // 8%
         maxLiquidable = 1e18; // 100%
-
-        // Ensuring that mETH is 0 the syntheticAssets[0]
-        addSyntheticAsset(mETH_);
     }
 
     /**
@@ -253,7 +212,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
      * @dev We have an array just to have storage prepared to support other collaterals in future if we want
      */
     function depositToken() public view returns (IDepositToken) {
-        return depositTokens[0];
+        return issuer.depositToken();
     }
 
     /**
@@ -272,198 +231,9 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
         uint256 _amountToMint = depositFee > 0 ? _amount.wadMul(1e18 - depositFee) : _amount;
 
         // We are collecting fee here by minting less deposit tokens than the METs deposited
-        depositToken().mint(_account, _amountToMint);
+        issuer.mintDepositToken(_account, _amountToMint);
 
         emit CollateralDeposited(_account, _amountToMint);
-    }
-
-    /**
-     * @notice Get account's synthetic assets that user has debt accounted in (i.e. synthetic assets that the user has minted)
-     * @dev This is a helper function for external users (e.g. liquidators)
-     * @dev This function is not used internally because its cost is twice against simply sweep all synthetic assets
-     * @dev We could replace this by having such a list and update it whenever a debt token is minted or burned,
-     * but right now - with small amount of synthetic assets - the overhead cost and code complexity wouldn't payoff.
-     */
-    function syntheticAssetsMintedBy(address _account)
-        external
-        view
-        returns (ISyntheticAsset[] memory _syntheticAssets)
-    {
-        uint256 _length = 0;
-
-        for (uint256 i = 0; i < syntheticAssets.length; ++i) {
-            if (syntheticAssets[i].debtToken().balanceOf(_account) > 0) {
-                _length++;
-            }
-        }
-
-        _syntheticAssets = new ISyntheticAsset[](_length);
-
-        for (uint256 i = 0; i < syntheticAssets.length; ++i) {
-            if (syntheticAssets[i].debtToken().balanceOf(_account) > 0) {
-                _syntheticAssets[--_length] = syntheticAssets[i];
-            }
-        }
-    }
-
-    /**
-     * @notice Get account's debt by querying latest prices from oracles
-     * @dev We can optimize this function by storing an array of which synthetics the account minted avoiding looping all
-     * @param _account The account to check
-     * @return _debtInUsd The debt value in USD
-     * @return _lockedDepositInUsd The USD amount that's covering the debt (considering collateralization ratios)
-     * @return _anyPriceInvalid Returns true if any price is invalid
-     */
-    function debtOfUsingLatestPrices(address _account)
-        public
-        view
-        override
-        returns (
-            uint256 _debtInUsd,
-            uint256 _lockedDepositInUsd,
-            bool _anyPriceInvalid
-        )
-    {
-        for (uint256 i = 0; i < syntheticAssets.length; ++i) {
-            uint256 _amount = syntheticAssets[i].debtToken().balanceOf(_account);
-            if (_amount > 0) {
-                (uint256 _amountInUsd, bool _priceInvalid) = oracle.convertToUsdUsingLatestPrice(
-                    syntheticAssets[i],
-                    _amount
-                );
-
-                if (_priceInvalid) _anyPriceInvalid = true;
-
-                _debtInUsd += _amountInUsd;
-                _lockedDepositInUsd += _amountInUsd.wadMul(syntheticAssets[i].collateralizationRatio());
-            }
-        }
-    }
-
-    /**
-     * @notice Get debt position from an account
-     * @param _account The account to check
-     * @return _isHealthy Whether the account's position is healthy
-     * @return _lockedDepositInUsd The amount of deposit (is USD) that's covering all debt (considering collateralization ratios)
-     * @return _depositInUsd The total collateral deposited in USD
-     * @return _deposit The total amount of account's deposits
-     * @return _unlockedDeposit The amount of deposit that isn't covering the account's debt
-     * @return _lockedDeposit The amount of deposit that's covering the account's debt
-     * @return _anyPriceInvalid Returns true if any price is invalid
-     */
-    function debtPositionOfUsingLatestPrices(address _account)
-        public
-        view
-        override
-        returns (
-            bool _isHealthy,
-            uint256 _lockedDepositInUsd,
-            uint256 _depositInUsd,
-            uint256 _deposit,
-            uint256 _unlockedDeposit,
-            uint256 _lockedDeposit,
-            bool _anyPriceInvalid
-        )
-    {
-        (, _lockedDepositInUsd, _anyPriceInvalid) = debtOfUsingLatestPrices(_account);
-
-        bool _depositPriceInvalid;
-        (_lockedDeposit, _depositPriceInvalid) = oracle.convertFromUsdUsingLatestPrice(
-            depositToken().underlying(),
-            _lockedDepositInUsd
-        );
-
-        _deposit = depositToken().balanceOf(_account);
-        (_depositInUsd, ) = oracle.convertToUsdUsingLatestPrice(depositToken().underlying(), _deposit);
-
-        if (_lockedDeposit > _deposit) {
-            _lockedDeposit = _deposit;
-        }
-        _unlockedDeposit = _deposit - _lockedDeposit;
-        _isHealthy = _depositInUsd >= _lockedDepositInUsd;
-        _anyPriceInvalid = _anyPriceInvalid || _depositPriceInvalid;
-    }
-
-    /**
-     * @notice Get debt position from an account
-     * @param _account The account to check
-     * @return _isHealthy Whether the account's position is healthy
-     * @return _lockedDepositInUsd The amount of deposit (is USD) that's covering all debt (considering collateralization ratios)
-     * @return _depositInUsd The total collateral deposited in USD
-     * @return _deposit The total amount of account's deposits
-     * @return _unlockedDeposit The amount of deposit that isn't covering the account's debt
-     * @return _lockedDeposit The amount of deposit that's covering the account's debt
-     */
-    function debtPositionOf(address _account)
-        public
-        override
-        updatePricesOfAssetsUsedBy(_account)
-        returns (
-            bool _isHealthy,
-            uint256 _lockedDepositInUsd,
-            uint256 _depositInUsd,
-            uint256 _deposit,
-            uint256 _unlockedDeposit,
-            uint256 _lockedDeposit
-        )
-    {
-        bool _anyPriceInvalid;
-        (
-            _isHealthy,
-            _lockedDepositInUsd,
-            _depositInUsd,
-            _deposit,
-            _unlockedDeposit,
-            _lockedDeposit,
-            _anyPriceInvalid
-        ) = debtPositionOfUsingLatestPrices(_account);
-        require(!_anyPriceInvalid, "invalid-price");
-    }
-
-    /**
-     * @notice Get max issuable synthetic asset amount for a given account
-     * @param _account The account to check
-     * @param _syntheticAsset The synthetic asset to check issuance
-     * @return _maxIssuable The max issuable amount
-     * @return _anyPriceInvalid Returns true if any price is invalid
-     */
-    function maxIssuableForUsingLatestPrices(address _account, ISyntheticAsset _syntheticAsset)
-        public
-        view
-        override
-        onlyIfSyntheticAssetExists(_syntheticAsset)
-        returns (uint256 _maxIssuable, bool _anyPriceInvalid)
-    {
-        if (!_syntheticAsset.isActive()) {
-            return (0, false);
-        }
-
-        (, , , , uint256 _unlockedDeposit, , ) = debtPositionOfUsingLatestPrices(_account);
-
-        (_maxIssuable, _anyPriceInvalid) = oracle.convertUsingLatestPrice(
-            depositToken().underlying(),
-            _syntheticAsset,
-            _unlockedDeposit.wadDiv(_syntheticAsset.collateralizationRatio())
-        );
-    }
-
-    /**
-     * @notice Get max issuable synthetic asset amount for a given account
-     * @dev This function will revert if any price from oracle is invalid
-     * @param _account The account to check
-     * @param _syntheticAsset The synthetic asset to check issuance
-     * @return _maxIssuable The max issuable amount
-     */
-    function maxIssuableFor(address _account, ISyntheticAsset _syntheticAsset)
-        public
-        override
-        onlyIfSyntheticAssetExists(_syntheticAsset)
-        updatePriceOfAsset(_syntheticAsset)
-        returns (uint256 _maxIssuable)
-    {
-        bool _anyPriceInvalid;
-        (_maxIssuable, _anyPriceInvalid) = maxIssuableForUsingLatestPrices(_account, _syntheticAsset);
-        require(!_anyPriceInvalid, "invalid-price");
     }
 
     /**
@@ -482,24 +252,23 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
 
         address _account = _msgSender();
 
-        require(_amount <= maxIssuableFor(_account, _syntheticAsset), "not-enough-collateral");
+        require(_amount <= issuer.maxIssuableFor(_account, _syntheticAsset), "not-enough-collateral");
 
         uint256 _feeInSyntheticAsset;
 
         if (mintFee > 0) {
             _feeInSyntheticAsset = _amount.wadMul(mintFee);
 
-            depositToken().burnAsFee(
+            issuer.collectFee(
                 _account,
-                oracle.convert(_syntheticAsset, depositToken().underlying(), _feeInSyntheticAsset)
+                oracle.convert(_syntheticAsset, depositToken().underlying(), _feeInSyntheticAsset),
+                true
             );
         }
 
         uint256 _amountToMint = _amount - _feeInSyntheticAsset;
 
-        _syntheticAsset.debtToken().mint(_account, _amountToMint);
-
-        _syntheticAsset.mint(_account, _amountToMint);
+        issuer.mintSyntheticAssetAndDebtToken(_syntheticAsset, _account, _amountToMint);
 
         emit SyntheticAssetMinted(_account, address(_syntheticAsset), _amountToMint);
     }
@@ -513,11 +282,11 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
 
         address _account = _msgSender();
 
-        (, , , , uint256 _unlockedDeposit, ) = debtPositionOf(_account);
+        (, , , , uint256 _unlockedDeposit, ) = issuer.debtPositionOf(_account);
 
         require(_amount <= _unlockedDeposit, "amount-to-withdraw-gt-unlocked");
 
-        depositToken().burnForWithdraw(_account, _amount);
+        issuer.burnWithdrawnDeposit(_account, _amount);
 
         uint256 _amountToWithdraw = withdrawFee > 0 ? _amount - _amount.wadMul(withdrawFee) : _amount;
 
@@ -541,11 +310,8 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
         uint256 _amount
     ) private onlyIfSyntheticAssetExists(_syntheticAsset) {
         require(_amount > 0, "amount-to-repay-is-zero");
-        require(_amount <= _syntheticAsset.debtToken().balanceOf(_account), "amount-gt-burnable-debt");
-        require(_amount <= _syntheticAsset.balanceOf(_payer), "amount-gt-burnable-synthetic");
 
-        _syntheticAsset.debtToken().burn(_account, _amount);
-        _syntheticAsset.burn(_payer, _amount);
+        issuer.burnSyntheticAssetAndDebtToken(_syntheticAsset, _payer, _account, _amount);
 
         emit DebtRepayed(_account, address(_syntheticAsset), _amount);
     }
@@ -563,7 +329,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
         // Charging fee after repayment to reduce chances to have tx reverted due to low unlocked deposit
         if (repayFee > 0) {
             uint256 _feeInMet = oracle.convert(_syntheticAsset, depositToken().underlying(), _amount.wadMul(repayFee));
-            depositToken().burnAsFee(_account, _feeInMet);
+            issuer.collectFee(_account, _feeInMet, true);
         }
     }
 
@@ -583,7 +349,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
 
         require(_percentOfDebtToLiquidate <= maxLiquidable, "amount-gt-max-liquidable");
 
-        (bool _isHealthy, , , uint256 _deposit, , ) = debtPositionOf(_account);
+        (bool _isHealthy, , , uint256 _deposit, , ) = issuer.debtPositionOf(_account);
 
         require(!_isHealthy, "position-is-healthy");
 
@@ -596,11 +362,10 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
 
         _repay(_syntheticAsset, _account, _liquidator, _amountToRepay);
 
-        depositToken().seize(_account, _liquidator, _toLiquidator);
+        issuer.seizeDepositToken(_account, _liquidator, _toLiquidator);
 
         if (_toCollectAsFee > 0) {
-            // Not using `burnAsFee` because we want to collect even from the locked amount
-            depositToken().burn(_account, _toCollectAsFee);
+            issuer.collectFee(_account, _toCollectAsFee, false);
         }
 
         emit PositionLiquidated(_liquidator, _account, address(_syntheticAsset), _amountToRepay, _depositToSeize);
@@ -634,18 +399,15 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
         uint256 _amountInAfterFee = _amountIn - _feeInSyntheticAssetIn;
         _amountOut = oracle.convert(_syntheticAssetIn, _syntheticAssetOut, _amountInAfterFee);
 
-        _syntheticAssetIn.burn(_account, _amountIn);
-        _syntheticAssetIn.debtToken().burn(_account, _amountIn);
-
-        _syntheticAssetOut.mint(_account, _amountOut);
-        _syntheticAssetOut.debtToken().mint(_account, _amountOut);
+        issuer.burnSyntheticAssetAndDebtToken(_syntheticAssetIn, _account, _account, _amountIn);
+        issuer.mintSyntheticAssetAndDebtToken(_syntheticAssetOut, _account, _amountOut);
 
         if (_feeInSyntheticAssetIn > 0) {
             uint256 _feeInMet = oracle.convert(_syntheticAssetIn, depositToken().underlying(), _feeInSyntheticAssetIn);
-            depositToken().burnAsFee(_account, _feeInMet);
+            issuer.collectFee(_account, _feeInMet, true);
         }
 
-        (bool _isHealthy, , , , , ) = debtPositionOf(_account);
+        (bool _isHealthy, , , , , ) = issuer.debtPositionOf(_account);
 
         require(_isHealthy, "debt-position-ended-up-unhealthy");
 
@@ -670,7 +432,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
         uint256 _amountIn
     ) external override nonReentrant returns (uint256 _amountOut) {
         address _account = _msgSender();
-        (bool _isHealthy, , , , , ) = debtPositionOf(_account);
+        (bool _isHealthy, , , , , ) = issuer.debtPositionOf(_account);
         require(_isHealthy, "debt-position-is-unhealthy");
 
         return _swap(_account, _syntheticAssetIn, _syntheticAssetOut, _amountIn, swapFee);
@@ -682,64 +444,18 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
      * @param _amountToRefinance Amount to refinance
      */
     function refinance(ISyntheticAsset _syntheticAssetIn, uint256 _amountToRefinance) external override nonReentrant {
-        ISyntheticAsset _syntheticAssetOut = syntheticAssets[0]; // mETH
+        ISyntheticAsset _syntheticAssetOut = issuer.mEth();
         require(
             _syntheticAssetIn.collateralizationRatio() > _syntheticAssetOut.collateralizationRatio(),
             "in-cratio-is-lte-out-cratio"
         );
         address _account = _msgSender();
-        (bool _isHealthy, , , , , ) = debtPositionOf(_account);
+        (bool _isHealthy, , , , , ) = issuer.debtPositionOf(_account);
         require(!_isHealthy, "debt-position-is-healthy");
 
         _swap(_account, _syntheticAssetIn, _syntheticAssetOut, _amountToRefinance, refinanceFee);
 
         emit DebtRefinancied(_account, address(_syntheticAssetIn), _amountToRefinance);
-    }
-
-    /**
-     * @notice Add synthetic token to mBOX offerings
-     */
-    function addSyntheticAsset(ISyntheticAsset _synthetic) public override onlyGovernor {
-        address _syntheticAddress = address(_synthetic);
-        require(_syntheticAddress != address(0), "address-is-null");
-        require(address(syntheticAssetByAddress[_syntheticAddress]) == address(0), "synthetic-asset-exists");
-
-        syntheticAssets.push(_synthetic);
-        syntheticAssetByAddress[_syntheticAddress] = _synthetic;
-
-        emit SyntheticAssetAdded(_syntheticAddress);
-    }
-
-    /**
-     * @notice Remove synthetic token from mBOX offerings
-     */
-    function removeSyntheticAsset(ISyntheticAsset _synthetic)
-        public
-        override
-        onlyGovernor
-        onlyIfSyntheticAssetExists(_synthetic)
-    {
-        require(_synthetic.totalSupply() == 0, "synthetic-asset-with-supply");
-        require(_synthetic != syntheticAssets[0], "can-not-delete-meth");
-
-        for (uint256 i = 0; i < syntheticAssets.length; i++) {
-            if (syntheticAssets[i] == _synthetic) {
-                // Copy the last synthetic asset into the place of the one we just deleted
-                // If there's only one synthetic asset, this is syntheticAssets[0] = syntheticAssets[0]
-                syntheticAssets[i] = syntheticAssets[syntheticAssets.length - 1];
-
-                // Decrease the size of the array by one
-                syntheticAssets.pop();
-
-                break;
-            }
-        }
-
-        address _syntheticAddress = address(_synthetic);
-
-        delete syntheticAssetByAddress[_syntheticAddress];
-
-        emit SyntheticAssetRemoved(_syntheticAddress);
     }
 
     /**
@@ -755,18 +471,6 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
         emit TreasuryUpdated(address(treasury), _newTreasury);
 
         treasury = ITreasury(_newTreasury);
-    }
-
-    /**
-     * @notice Update deposit (mBOX-MET) contract
-     */
-    function updateDepositToken(IDepositToken _newDepositToken) public override onlyGovernor {
-        require(address(_newDepositToken) != address(0), "deposit-token-address-is-null");
-        require(_newDepositToken != depositToken(), "deposit-token-is-same-as-current");
-        require(depositToken().totalSupply() == 0, "current-deposit-token-has-supply");
-
-        emit DepositTokenUpdated(depositToken(), _newDepositToken);
-        depositTokens[0] = _newDepositToken;
     }
 
     /**

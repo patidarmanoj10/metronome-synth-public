@@ -1,7 +1,7 @@
 import {BigNumber} from '@ethersproject/bignumber'
 import {parseEther} from '@ethersproject/units'
 import {ethers, network} from 'hardhat'
-import {MBox, SyntheticAsset} from '../../typechain'
+import {MBox, Issuer, SyntheticAsset} from '../../typechain'
 
 export const HOUR = BigNumber.from(60 * 60)
 export const CHAINLINK_ETH_AGGREGATOR_ADDRESS = '0x5f4ec3df9cbd43714fe2740f5e3616155c5b8419'
@@ -18,13 +18,14 @@ export const DEFAULT_TWAP_PERIOD = HOUR.mul('2')
  * Note: This should be used when collateral:debit >= 1
  */
 export const getMinLiquidationAmountInUsd = async function (
-  mBOX: MBox,
+  mbox: MBox,
+  issuer: Issuer,
   accountAddress: string,
   mAsset: SyntheticAsset
 ): Promise<BigNumber> {
-  const {_lockedDepositInUsd, _depositInUsd} = await mBOX.debtPositionOfUsingLatestPrices(accountAddress)
+  const {_lockedDepositInUsd, _depositInUsd} = await issuer.debtPositionOfUsingLatestPrices(accountAddress)
   const mAssetCR = await mAsset.collateralizationRatio()
-  const fee = (await mBOX.liquidatorFee()).add(await mBOX.liquidateFee())
+  const fee = (await mbox.liquidatorFee()).add(await mbox.liquidateFee())
 
   const numerator = _depositInUsd.sub(_lockedDepositInUsd)
   const denominator = fee.sub(mAssetCR.sub(parseEther('1')))
@@ -37,9 +38,13 @@ export const getMinLiquidationAmountInUsd = async function (
  * L = liquidation fee
  * Calculates USD value needed = C/(1 + L)
  */
-export const getMaxLiquidationAmountInUsd = async function (mBOX: MBox, accountAddress: string): Promise<BigNumber> {
-  const {_depositInUsd} = await mBOX.debtPositionOfUsingLatestPrices(accountAddress)
-  const fee = (await mBOX.liquidatorFee()).add(await mBOX.liquidateFee())
+export const getMaxLiquidationAmountInUsd = async function (
+  mbox: MBox,
+  issuer: Issuer,
+  accountAddress: string
+): Promise<BigNumber> {
+  const {_depositInUsd} = await issuer.debtPositionOfUsingLatestPrices(accountAddress)
+  const fee = (await mbox.liquidatorFee()).add(await mbox.liquidateFee())
 
   const numerator = _depositInUsd
   const denominator = parseEther('1').add(fee)

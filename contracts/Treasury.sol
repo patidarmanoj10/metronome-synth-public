@@ -26,7 +26,9 @@ contract Treasury is ITreasury, ReentrancyGuard, Manageable, TreasuryStorageV1 {
         require(address(_met) != address(0), "met-address-is-null");
 
         __ReentrancyGuard_init();
-        __Manageable_init(_mBox);
+        __Manageable_init();
+
+        setMBox(_mBox);
 
         met = _met;
     }

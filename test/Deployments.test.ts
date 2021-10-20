@@ -34,6 +34,10 @@ import {
   ChainlinkPriceProvider__factory,
   UniswapV2PriceProvider__factory,
   UniswapV3PriceProvider__factory,
+  Issuer,
+  IssuerUpgrader,
+  IssuerUpgrader__factory,
+  Issuer__factory,
 } from '../typechain'
 import {disableForking, enableForking} from './helpers'
 import Address from '../helpers/address'
@@ -47,6 +51,8 @@ describe('Deployments', function () {
   let uniswapV2PriceProvider: UniswapV2PriceProvider
   let chainlinkPriceProvider: ChainlinkPriceProvider
   let oracle: Oracle
+  let issuer: Issuer
+  let issuerUpgrader: IssuerUpgrader
   let mBox: MBox
   let mBoxUpgrader: MBoxUpgrader
   let treasury: Treasury
@@ -72,6 +78,8 @@ describe('Deployments', function () {
       UniswapV2PriceProvider: {address: uniswapV2PriceProviderAddress},
       ChainlinkPriceProvider: {address: chainlinkPriceProviderAddress},
       Oracle: {address: oracleAddress},
+      Issuer: {address: issuerAddress},
+      IssuerUpgrader: {address: issuerUpgraderAddress},
       MBox: {address: mboxAddress},
       MBoxUpgrader: {address: mBoxUpgraderAddress},
       Treasury: {address: treasuryAddress},
@@ -88,6 +96,9 @@ describe('Deployments', function () {
     uniswapV2PriceProvider = UniswapV2PriceProvider__factory.connect(uniswapV2PriceProviderAddress, deployer)
     chainlinkPriceProvider = ChainlinkPriceProvider__factory.connect(chainlinkPriceProviderAddress, deployer)
     oracle = Oracle__factory.connect(oracleAddress, deployer)
+
+    issuer = Issuer__factory.connect(issuerAddress, deployer)
+    issuerUpgrader = IssuerUpgrader__factory.connect(issuerUpgraderAddress, deployer)
 
     mBox = MBox__factory.connect(mboxAddress, deployer)
     mBoxUpgrader = MBoxUpgrader__factory.connect(mBoxUpgraderAddress, deployer)
@@ -154,10 +165,42 @@ describe('Deployments', function () {
     })
   })
 
+  describe('Issuer', function () {
+    it('should have correct params', async function () {
+      expect(await issuer.mBox()).to.eq(mBox.address)
+      expect(await issuer.depositToken()).to.eq(depositToken.address)
+      expect(await issuer.syntheticAssets(0)).to.eq(mEth.address)
+      expect(await issuer.mEth()).to.eq(mEth.address)
+      expect(await issuer.oracle()).to.eq(oracle.address)
+      expect(await issuer.governor()).to.eq(deployer.address)
+      await issuer.connect(governor).acceptGovernorship()
+      expect(await issuer.governor()).to.eq(governor.address)
+    })
+
+    it('should upgrade implementation', async function () {
+      await upgradeTestcase({
+        newImplfactory: new Issuer__factory(deployer),
+        proxy: issuer,
+        upgrader: issuerUpgrader,
+        expectToFail: false,
+      })
+    })
+
+    it('should fail if implementation breaks storage', async function () {
+      await upgradeTestcase({
+        newImplfactory: new OracleMock__factory(deployer),
+        proxy: issuer,
+        upgrader: issuerUpgrader,
+        expectToFail: true,
+      })
+    })
+  })
+
   describe('MBox', function () {
     it('should have correct params', async function () {
       expect(await mBox.treasury()).to.eq(treasury.address)
-      expect(await mBox.syntheticAssets(0)).to.eq(mEth.address)
+      expect(await mBox.depositToken()).to.eq(depositToken.address)
+      expect(await mBox.issuer()).to.eq(issuer.address)
       expect(await mBox.oracle()).to.eq(oracle.address)
       expect(await mBox.governor()).to.eq(deployer.address)
       await mBox.connect(governor).acceptGovernorship()
@@ -213,7 +256,7 @@ describe('Deployments', function () {
 
   describe('DepositToken', function () {
     it('deposit token should have correct params', async function () {
-      expect(await depositToken.mBox()).to.eq(mBox.address)
+      expect(await depositToken.issuer()).to.eq(issuer.address)
       expect(await depositToken.underlying()).to.eq(MET_ADDRESS)
       expect(await depositToken.governor()).to.eq(deployer.address)
       await depositToken.connect(governor).acceptGovernorship()
@@ -241,7 +284,7 @@ describe('Deployments', function () {
 
   describe('SyntheticAsset', function () {
     it('mETH token should have correct params', async function () {
-      expect(await mEth.mBox()).to.eq(mBox.address)
+      expect(await mEth.issuer()).to.eq(issuer.address)
       expect(await mEth.debtToken()).to.eq(mEthDebtToken.address)
       expect(await mEth.governor()).to.eq(deployer.address)
       await mEth.connect(governor).acceptGovernorship()
@@ -269,7 +312,7 @@ describe('Deployments', function () {
 
   describe('DebtToken', function () {
     it('mETH debt token should have correct params', async function () {
-      expect(await mEthDebtToken.mBox()).to.eq(mBox.address)
+      expect(await mEthDebtToken.issuer()).to.eq(issuer.address)
       expect(await mEthDebtToken.governor()).to.eq(deployer.address)
       await mEthDebtToken.connect(governor).acceptGovernorship()
       expect(await mEthDebtToken.governor()).to.eq(governor.address)
