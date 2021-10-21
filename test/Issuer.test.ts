@@ -113,8 +113,14 @@ describe('Issuer', function () {
     describe('removeSyntheticAsset', function () {
       it('should remove synthetic asset', async function () {
         // given
-        const ERC20MockFactory = new ERC20Mock__factory(deployer)
-        const mAsset = await ERC20MockFactory.deploy('Metronome BTC', 'mBTC', 8)
+        const DebtTokenFactory = new DebtToken__factory(deployer)
+        const debtToken = await DebtTokenFactory.deploy()
+        await debtToken.initialize('Metronome BTC debt', 'mBTC-debt', issuer.address)
+
+        const SyntheticAssetFactory = new SyntheticAsset__factory(deployer)
+        const mAsset = await SyntheticAssetFactory.deploy()
+        await mAsset.initialize('Metronome BTC', 'mBTC', issuer.address, debtToken.address, parseEther('1.5'))
+
         expect(await mAsset.totalSupply()).to.eq(0)
         await issuer.addSyntheticAsset(mAsset.address)
         expect(await issuer.syntheticAssetByAddress(mAsset.address)).to.not.eq(ethers.constants.AddressZero)

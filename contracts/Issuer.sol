@@ -41,10 +41,10 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
     string public constant VERSION = "1.0.0";
 
     /// @notice Emitted when synthetic asset is enabled
-    event SyntheticAssetAdded(address indexed syntheticAsset);
+    event SyntheticAssetAdded(ISyntheticAsset indexed syntheticAsset);
 
     /// @notice Emitted when synthetic asset is disabled
-    event SyntheticAssetRemoved(address indexed syntheticAsset);
+    event SyntheticAssetRemoved(ISyntheticAsset indexed syntheticAsset);
 
     /// @notice Emitted when deposit token contract is updated
     event DepositTokenUpdated(IDepositToken indexed oldDepositToken, IDepositToken indexed newDepositToken);
@@ -237,10 +237,10 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
         (, _lockedDepositInUsd, _anyPriceInvalid) = debtOfUsingLatestPrices(_account);
 
         bool _depositPriceInvalid;
-        (_lockedDeposit, _depositPriceInvalid) = oracle.convertFromUsdUsingLatestPrice(met(), _lockedDepositInUsd);
-
         _deposit = depositToken().balanceOf(_account);
-        (_depositInUsd, ) = oracle.convertToUsdUsingLatestPrice(met(), _deposit);
+        (_depositInUsd, _depositPriceInvalid) = oracle.convertToUsdUsingLatestPrice(met(), _deposit);
+
+        _lockedDeposit = (_deposit * _lockedDepositInUsd) / _depositInUsd;
 
         if (_lockedDeposit > _deposit) {
             _lockedDeposit = _deposit;
@@ -298,6 +298,7 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
         override
         onlyIfSyntheticAssetExists(_syntheticAsset)
         updatePriceOfAsset(_syntheticAsset)
+        updatePricesOfAssetsUsedBy(_account)
         returns (uint256 _maxIssuable)
     {
         bool _anyPriceInvalid;
@@ -432,47 +433,46 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
     /**
      * @notice Add synthetic token to mBOX offerings
      */
-    function addSyntheticAsset(ISyntheticAsset _synthetic) public override onlyGovernor {
-        address _syntheticAddress = address(_synthetic);
-        require(_syntheticAddress != address(0), "address-is-null");
-        require(address(syntheticAssetByAddress[_syntheticAddress]) == address(0), "synthetic-asset-exists");
+    function addSyntheticAsset(ISyntheticAsset _syntheticAsset) public override onlyGovernor {
+        address _address = address(_syntheticAsset);
 
-        syntheticAssets.push(_synthetic);
-        syntheticAssetByAddress[_syntheticAddress] = _synthetic;
+        require(_address != address(0), "address-is-null");
+        require(address(syntheticAssetByAddress[_address]) == address(0), "synthetic-asset-exists");
 
-        emit SyntheticAssetAdded(_syntheticAddress);
+        syntheticAssets.push(_syntheticAsset);
+        syntheticAssetByAddress[_address] = _syntheticAsset;
+
+        emit SyntheticAssetAdded(_syntheticAsset);
     }
 
     /**
      * @notice Remove synthetic token from mBOX offerings
      */
-    function removeSyntheticAsset(ISyntheticAsset _synthetic)
+    function removeSyntheticAsset(ISyntheticAsset _syntheticAsset)
         external
         override
         onlyGovernor
-        onlyIfSyntheticAssetExists(_synthetic)
+        onlyIfSyntheticAssetExists(_syntheticAsset)
     {
-        require(_synthetic.totalSupply() == 0, "synthetic-asset-with-supply");
-        require(_synthetic != mEth(), "can-not-delete-meth");
+        require(_syntheticAsset != mEth(), "can-not-delete-meth");
+        require(_syntheticAsset.totalSupply() == 0, "synthetic-asset-with-supply");
+        require(_syntheticAsset.debtToken().totalSupply() == 0, "synthetic-asset-with-debt-supply");
 
         for (uint256 i = 0; i < syntheticAssets.length; i++) {
-            if (syntheticAssets[i] == _synthetic) {
-                // Copy the last synthetic asset into the place of the one we just deleted
-                // If there's only one synthetic asset, this is syntheticAssets[0] = syntheticAssets[0]
+            if (syntheticAssets[i] == _syntheticAsset) {
+                // Using the last to overwrite the synthetic asset to remove
                 syntheticAssets[i] = syntheticAssets[syntheticAssets.length - 1];
 
-                // Decrease the size of the array by one
+                // Removing the last (and duplicated) synthetic asset
                 syntheticAssets.pop();
 
                 break;
             }
         }
 
-        address _syntheticAddress = address(_synthetic);
+        delete syntheticAssetByAddress[address(_syntheticAsset)];
 
-        delete syntheticAssetByAddress[_syntheticAddress];
-
-        emit SyntheticAssetRemoved(_syntheticAddress);
+        emit SyntheticAssetRemoved(_syntheticAsset);
     }
 
     /**

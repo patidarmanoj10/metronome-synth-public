@@ -262,7 +262,6 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
 
         if (mintFee > 0) {
             _feeInSyntheticAsset = _amount.wadMul(mintFee);
-
             issuer.collectFee(_account, oracle.convert(_syntheticAsset, met(), _feeInSyntheticAsset), true);
         }
 
@@ -288,7 +287,7 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
 
         issuer.burnWithdrawnDeposit(_account, _amount);
 
-        uint256 _amountToWithdraw = withdrawFee > 0 ? _amount - _amount.wadMul(withdrawFee) : _amount;
+        uint256 _amountToWithdraw = withdrawFee > 0 ? _amount.wadMul(1e18 - withdrawFee) : _amount;
 
         treasury.pull(_account, _amountToWithdraw);
 
@@ -299,21 +298,21 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
      * @notice Send synthetic asset to decrease debt
      * @dev Burn synthetic asset and equivalent debt token to unlock deposit token (mBOX-MET)
      * @param _syntheticAsset The synthetic asset to burn
-     * @param _account The account that will have debt decreased
+     * @param _beneficiary The account that will have debt decreased
      * @param _payer The account to burn synthetic asset from
      * @param _amount The amount of synthetic asset to burn
      */
     function _repay(
         ISyntheticAsset _syntheticAsset,
-        address _account,
+        address _beneficiary,
         address _payer,
         uint256 _amount
     ) private onlyIfSyntheticAssetExists(_syntheticAsset) {
         require(_amount > 0, "amount-to-repay-is-zero");
 
-        issuer.burnSyntheticAssetAndDebtToken(_syntheticAsset, _payer, _account, _amount);
+        issuer.burnSyntheticAssetAndDebtToken(_syntheticAsset, _payer, _beneficiary, _amount);
 
-        emit DebtRepayed(_account, _syntheticAsset, _amount);
+        emit DebtRepayed(_beneficiary, _syntheticAsset, _amount);
     }
 
     /**
@@ -326,7 +325,8 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
         address _account = _msgSender();
         _repay(_syntheticAsset, _account, _account, _amount);
 
-        // Charging fee after repayment to reduce chances to have tx reverted due to low unlocked deposit
+        // Charging fee after repayment to have more unlocked deposit balance,
+        // and reducing chances to have tx reverted due to low unlocked deposit
         if (repayFee > 0) {
             uint256 _feeInMet = oracle.convert(_syntheticAsset, met(), _amount.wadMul(repayFee));
             issuer.collectFee(_account, _feeInMet, true);
@@ -334,7 +334,10 @@ contract MBox is IMBox, ReentrancyGuard, Governable, MBoxStorageV1 {
     }
 
     /**
-     * @notice Burn mEth, unlock mBOX-MET and send liquidator fee
+     * @notice Burn synthetic asset, unlock deposit token and send liquidator fee
+     * @param _syntheticAsset The mAsset to use for repayment
+     * @param _account The account with an unhealty position
+     * @param _amountToRepay The amount to repay
      */
     function liquidate(
         ISyntheticAsset _syntheticAsset,
