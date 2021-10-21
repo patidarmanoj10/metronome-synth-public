@@ -76,13 +76,13 @@ describe('Issuer', function () {
     await depositToken.transferGovernorship(governor.address)
     await depositToken.connect(governor).acceptGovernorship()
 
-    await mEth.initialize('Metronome ETH', 'mETH', issuer.address, mEthDebtToken.address, mEthCR)
-    await mEth.transferGovernorship(governor.address)
-    await mEth.connect(governor).acceptGovernorship()
-
-    await mEthDebtToken.initialize('mETH Debt', 'mETH-Debt', issuer.address)
+    await mEthDebtToken.initialize('mETH Debt', 'mETH-Debt', 18, issuer.address)
     await mEthDebtToken.transferGovernorship(governor.address)
     await mEthDebtToken.connect(governor).acceptGovernorship()
+
+    await mEth.initialize('Metronome ETH', 'mETH', 18, issuer.address, mEthDebtToken.address, mEthCR)
+    await mEth.transferGovernorship(governor.address)
+    await mEth.connect(governor).acceptGovernorship()
 
     await issuer.initialize(depositToken.address, mEth.address, oracle.address, mBoxMock.address)
 
@@ -115,11 +115,11 @@ describe('Issuer', function () {
         // given
         const DebtTokenFactory = new DebtToken__factory(deployer)
         const debtToken = await DebtTokenFactory.deploy()
-        await debtToken.initialize('Metronome BTC debt', 'mBTC-debt', issuer.address)
+        await debtToken.initialize('Metronome BTC debt', 'mBTC-debt', 8, issuer.address)
 
         const SyntheticAssetFactory = new SyntheticAsset__factory(deployer)
         const mAsset = await SyntheticAssetFactory.deploy()
-        await mAsset.initialize('Metronome BTC', 'mBTC', issuer.address, debtToken.address, parseEther('1.5'))
+        await mAsset.initialize('Metronome BTC', 'mBTC', 8, issuer.address, debtToken.address, parseEther('1.5'))
 
         expect(await mAsset.totalSupply()).to.eq(0)
         await issuer.addSyntheticAsset(mAsset.address)

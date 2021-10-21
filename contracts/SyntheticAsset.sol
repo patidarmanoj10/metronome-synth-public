@@ -15,8 +15,9 @@ contract SyntheticAssetStorageV1 {
     string internal _symbol;
 
     uint256 internal _totalSupply;
-
     uint256 internal _maxTotalSupply;
+
+    uint8 internal _decimals;
 
     /**
      * @notice Collaterization ration for the synthetic asset
@@ -44,11 +45,13 @@ contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 
     function initialize(
         string memory name_,
         string memory symbol_,
+        uint8 decimals_,
         IIssuer issuer_,
         IDebtToken debtToken_,
         uint128 collateralizationRatio_
     ) public initializer {
         require(address(debtToken_) != address(0), "debt-token-is-null");
+        require(decimals_ == debtToken_.decimals(), "debt-decimals-is-not-the-same");
 
         __Manageable_init();
 
@@ -56,6 +59,7 @@ contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 
 
         _name = name_;
         _symbol = symbol_;
+        _decimals = decimals_;
         _debtToken = debtToken_;
         _maxTotalSupply = type(uint256).max;
         _active = true;
@@ -88,7 +92,7 @@ contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 
     }
 
     function decimals() public view virtual override returns (uint8) {
-        return 18;
+        return _decimals;
     }
 
     function totalSupply() public view virtual override returns (uint256) {

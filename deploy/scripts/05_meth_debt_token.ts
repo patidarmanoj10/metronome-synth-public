@@ -11,11 +11,11 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   const {address: issuerAddress} = await deterministic(hre, UpgradableContracts.Issuer)
 
-  const {deploy: deployMEthDebtToken} = await deterministic(hre, UpgradableContracts.MEthDebtToken)
+  const {deploy} = await deterministic(hre, UpgradableContracts.MEthDebtToken)
 
-  await deployMEthDebtToken()
+  await deploy()
 
-  await execute(MEthDebtToken, {from: deployer, log: true}, 'initialize', 'mETH Debt', 'mETH-Debt', issuerAddress)
+  await execute(MEthDebtToken, {from: deployer, log: true}, 'initialize', 'mETH Debt', 'mETH-Debt', 18, issuerAddress)
   await execute(MEthDebtToken, {from: deployer, log: true}, 'transferGovernorship', governor)
 }
 
