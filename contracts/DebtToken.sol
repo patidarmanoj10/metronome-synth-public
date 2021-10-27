@@ -22,9 +22,11 @@ contract DebtToken is IDebtToken, Manageable, DebtTokenStorageV1 {
     function initialize(
         string memory name_,
         string memory symbol_,
-        IMBox mBox_
+        IIssuer issuer_
     ) public initializer {
-        __Manageable_init(mBox_);
+        __Manageable_init();
+
+        setIssuer(issuer_);
 
         _name = name_;
         _symbol = symbol_;
@@ -125,7 +127,7 @@ contract DebtToken is IDebtToken, Manageable, DebtTokenStorageV1 {
      * @param _to The account to mint to
      * @param _amount The amount to mint
      */
-    function mint(address _to, uint256 _amount) public override onlyMBox {
+    function mint(address _to, uint256 _amount) public override onlyIssuer {
         _mint(_to, _amount);
     }
 
@@ -134,7 +136,7 @@ contract DebtToken is IDebtToken, Manageable, DebtTokenStorageV1 {
      * @param _from The account to burn from
      * @param _amount The amount to burn
      */
-    function burn(address _from, uint256 _amount) public override onlyMBox {
+    function burn(address _from, uint256 _amount) public override onlyIssuer {
         _burn(_from, _amount);
     }
 }

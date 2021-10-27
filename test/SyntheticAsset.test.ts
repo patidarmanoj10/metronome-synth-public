@@ -9,7 +9,7 @@ describe('SyntheticAsset', function () {
   let deployer: SignerWithAddress
   let governor: SignerWithAddress
   let user: SignerWithAddress
-  let mBoxMock: SignerWithAddress
+  let issuerMock: SignerWithAddress
   let mAsset: SyntheticAsset
   let debtToken: DebtToken
   const name = 'Metronome ETH'
@@ -18,17 +18,17 @@ describe('SyntheticAsset', function () {
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
-    ;[deployer, governor, user, mBoxMock] = await ethers.getSigners()
+    ;[deployer, governor, user, issuerMock] = await ethers.getSigners()
 
     const debtTokenFactory = new DebtToken__factory(deployer)
     debtToken = await debtTokenFactory.deploy()
     await debtToken.deployed()
-    await debtToken.initialize('mETH Debt', 'mEth-Debt', mBoxMock.address)
+    await debtToken.initialize('mETH Debt', 'mEth-Debt', issuerMock.address)
 
     const mETHFactory = new SyntheticAsset__factory(deployer)
     mAsset = await mETHFactory.deploy()
     await mAsset.deployed()
-    await mAsset.initialize(name, symbol, mBoxMock.address, debtToken.address, collateralizationRatio)
+    await mAsset.initialize(name, symbol, issuerMock.address, debtToken.address, collateralizationRatio)
 
     await mAsset.transferGovernorship(governor.address)
     await mAsset.connect(governor).acceptGovernorship()
@@ -47,13 +47,13 @@ describe('SyntheticAsset', function () {
     it('should mint', async function () {
       expect(await mAsset.balanceOf(user.address)).to.eq(0)
       const amount = parseEther('100')
-      await mAsset.connect(mBoxMock).mint(user.address, amount)
+      await mAsset.connect(issuerMock).mint(user.address, amount)
       expect(await mAsset.balanceOf(user.address)).to.eq(amount)
     })
 
-    it('should revert if not mbox', async function () {
+    it('should revert if not issuer', async function () {
       const tx = mAsset.connect(user).mint(user.address, parseEther('10'))
-      await expect(tx).to.revertedWith('not-mbox')
+      await expect(tx).to.revertedWith('not-issuer')
     })
 
     it('should revert if surpass max total supply', async function () {
@@ -63,7 +63,7 @@ describe('SyntheticAsset', function () {
       await mAsset.updateMaxTotalSupply(max)
 
       // when
-      const tx = mAsset.connect(mBoxMock).mint(deployer.address, max.add('1'))
+      const tx = mAsset.connect(issuerMock).mint(deployer.address, max.add('1'))
 
       // then
       await expect(tx).to.revertedWith('surpass-max-total-supply')
@@ -74,7 +74,7 @@ describe('SyntheticAsset', function () {
       await mAsset.updateIsActive(false)
 
       // when
-      const tx = mAsset.connect(mBoxMock).mint(deployer.address, '1')
+      const tx = mAsset.connect(issuerMock).mint(deployer.address, '1')
 
       // then
       await expect(tx).to.revertedWith('synthetic-asset-is-inactive')
@@ -85,18 +85,18 @@ describe('SyntheticAsset', function () {
     const amount = parseEther('100')
 
     beforeEach(async function () {
-      await mAsset.connect(mBoxMock).mint(user.address, amount)
+      await mAsset.connect(issuerMock).mint(user.address, amount)
     })
 
     it('should burn', async function () {
       expect(await mAsset.balanceOf(user.address)).to.eq(amount)
-      await mAsset.connect(mBoxMock).burn(user.address, amount)
+      await mAsset.connect(issuerMock).burn(user.address, amount)
       expect(await mAsset.balanceOf(user.address)).to.eq(0)
     })
 
-    it('should revert if not mbox', async function () {
+    it('should revert if not issuer', async function () {
       const tx = mAsset.connect(user).burn(user.address, parseEther('10'))
-      await expect(tx).to.revertedWith('not-mbox')
+      await expect(tx).to.revertedWith('not-issuer')
     })
   })
 

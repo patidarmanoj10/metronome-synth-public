@@ -10,7 +10,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {execute} = deployments
   const {deployer, governor} = await getNamedAccounts()
 
-  const {address: mBoxAddress} = await deterministic(hre, UpgradableContracts.MBox)
+  const {address: issuerAddress} = await deterministic(hre, UpgradableContracts.Issuer)
   const {address: mEthDebtTokenAddress} = await deterministic(hre, UpgradableContracts.MEthDebtToken)
   const {deploy} = await deterministic(hre, UpgradableContracts.MEth)
 
@@ -22,7 +22,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     'initialize',
     'Metronome ETH',
     'mETH',
-    mBoxAddress,
+    issuerAddress,
     mEthDebtTokenAddress,
     parseEther('1.5') // CR = 150%
   )

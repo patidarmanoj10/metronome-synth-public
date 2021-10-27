@@ -52,15 +52,17 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
      * @notice Requires that amount is lower than the account's unlocked balance
      */
     modifier onlyIfNotLocked(address _account, uint256 _amount) {
-        (, , , , uint256 _unlockedDeposit, ) = mBox.debtPositionOf(_account);
+        (, , , , uint256 _unlockedDeposit, ) = issuer.debtPositionOf(_account);
         require(_unlockedDeposit >= _amount, "not-enough-free-balance");
         _;
     }
 
-    function initialize(IERC20 underlying_, IMBox mBox_) public initializer {
+    function initialize(IERC20 underlying_, IIssuer issuer_) public initializer {
         require(address(underlying_) != address(0), "underlying-is-null");
 
-        __Manageable_init(mBox_);
+        __Manageable_init();
+
+        setIssuer(issuer_);
 
         _name = "Tokenized deposit position";
         _symbol = "mBOX-MET";
@@ -204,17 +206,22 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
      * @param _to The account to mint to
      * @param _amount The amount to mint
      */
-    function mint(address _to, uint256 _amount) public override onlyMBox {
+    function mint(address _to, uint256 _amount) public override onlyIssuer {
         _mint(_to, _amount);
         _lastDepositOf[_to] = block.timestamp;
     }
 
     /**
-     * @notice Burn deposit token as fee charging
+     * @notice Burn deposit token if unlocked
      * @param _from The account to burn from
      * @param _amount The amount to burn
      */
-    function burnAsFee(address _from, uint256 _amount) public override onlyMBox onlyIfNotLocked(_from, _amount) {
+    function burnFromUnlocked(address _from, uint256 _amount)
+        public
+        override
+        onlyIssuer
+        onlyIfNotLocked(_from, _amount)
+    {
         _burn(_from, _amount);
     }
 
@@ -226,7 +233,7 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
     function burnForWithdraw(address _from, uint256 _amount)
         public
         override
-        onlyMBox
+        onlyIssuer
         onlyIfNotLocked(_from, _amount)
         onlyIfMinDepositTimePassed(_from, _amount)
     {
@@ -238,7 +245,7 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
      * @param _from The account to burn from
      * @param _amount The amount to burn
      */
-    function burn(address _from, uint256 _amount) public override onlyMBox {
+    function burn(address _from, uint256 _amount) public override onlyIssuer {
         _burn(_from, _amount);
     }
 
@@ -280,7 +287,7 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
         address _from,
         address _to,
         uint256 _amount
-    ) public override onlyMBox {
+    ) public override onlyIssuer {
         _transfer(_from, _to, _amount);
     }
 
