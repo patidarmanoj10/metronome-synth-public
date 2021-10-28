@@ -122,6 +122,10 @@ contract IssuerMock is IIssuer {
         revert("mock-does-not-implement");
     }
 
+    function met() external pure returns (IERC20) {
+        revert("mock-does-not-implement");
+    }
+
     function mintSyntheticAssetAndDebtToken(
         ISyntheticAsset,
         address,

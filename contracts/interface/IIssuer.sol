@@ -14,6 +14,8 @@ interface IIssuer {
 
     function depositToken() external view returns (IDepositToken);
 
+    function met() external view returns (IERC20);
+
     function syntheticAssetsMintedBy(address _account)
         external
         view

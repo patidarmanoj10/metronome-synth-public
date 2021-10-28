@@ -36,7 +36,7 @@ contract Treasury is ITreasury, ReentrancyGuard, Manageable, TreasuryStorageV1 {
     /**
      * @notice Pull MET from the Treasury
      */
-    function pull(address _to, uint256 _amount) external override onlyMBox {
+    function pull(address _to, uint256 _amount) external override nonReentrant onlyMBox {
         require(_amount > 0, "amount-is-zero");
         met.safeTransfer(_to, _amount);
     }

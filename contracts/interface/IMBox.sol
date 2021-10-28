@@ -5,11 +5,16 @@ pragma solidity 0.8.9;
 import "./oracle/IOracle.sol";
 import "./ISyntheticAsset.sol";
 import "./IDepositToken.sol";
+import "./ITreasury.sol";
 
 /**
  * @notice MBox interface
  */
 interface IMBox {
+    function depositToken() external view returns (IDepositToken);
+
+    function met() external view returns (IERC20);
+
     function deposit(uint256 _amount) external;
 
     function mint(ISyntheticAsset _syntheticAsset, uint256 _amount) external;
@@ -32,7 +37,7 @@ interface IMBox {
 
     function refinance(ISyntheticAsset _syntheticAssetIn, uint256 _amountToRefinance) external;
 
-    function updateTreasury(address _newTreasury) external;
+    function updateTreasury(ITreasury _newTreasury) external;
 
     function updateOracle(IOracle _newOracle) external;
 
