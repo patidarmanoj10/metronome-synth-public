@@ -9,6 +9,7 @@ contract DebtTokenStorageV1 {
     mapping(address => uint256) internal _balances;
 
     uint256 internal _totalSupply;
+    uint8 internal _decimals;
     string internal _name;
     string internal _symbol;
 }
@@ -22,6 +23,7 @@ contract DebtToken is IDebtToken, Manageable, DebtTokenStorageV1 {
     function initialize(
         string memory name_,
         string memory symbol_,
+        uint8 decimals_,
         IIssuer issuer_
     ) public initializer {
         __Manageable_init();
@@ -30,6 +32,7 @@ contract DebtToken is IDebtToken, Manageable, DebtTokenStorageV1 {
 
         _name = name_;
         _symbol = symbol_;
+        _decimals = decimals_;
     }
 
     function name() public view virtual override returns (string memory) {
@@ -41,7 +44,7 @@ contract DebtToken is IDebtToken, Manageable, DebtTokenStorageV1 {
     }
 
     function decimals() public view virtual override returns (uint8) {
-        return 18;
+        return _decimals;
     }
 
     function totalSupply() public view virtual override returns (uint256) {

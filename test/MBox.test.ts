@@ -101,21 +101,21 @@ describe('MBox', function () {
     await treasury.transferGovernorship(governor.address)
     await treasury.connect(governor).acceptGovernorship()
 
-    await mEth.initialize('Metronome ETH', 'mETH', issuer.address, mEthDebtToken.address, mEthCR)
-    await mEth.transferGovernorship(governor.address)
-    await mEth.connect(governor).acceptGovernorship()
-
-    await mDoge.initialize('Metronome DOGE', 'mDOGE', issuer.address, mDogeDebtToken.address, mDogeCR)
-    await mDoge.transferGovernorship(governor.address)
-    await mDoge.connect(governor).acceptGovernorship()
-
-    await mEthDebtToken.initialize('mETH Debt', 'mETH-Debt', issuer.address)
+    await mEthDebtToken.initialize('mETH Debt', 'mETH-Debt', 18, issuer.address)
     await mEthDebtToken.transferGovernorship(governor.address)
     await mEthDebtToken.connect(governor).acceptGovernorship()
 
-    await mDogeDebtToken.initialize('mDOGE Debt', 'mDOGE-Debt', issuer.address)
+    await mEth.initialize('Metronome ETH', 'mETH', 18, issuer.address, mEthDebtToken.address, mEthCR)
+    await mEth.transferGovernorship(governor.address)
+    await mEth.connect(governor).acceptGovernorship()
+
+    await mDogeDebtToken.initialize('mDOGE Debt', 'mDOGE-Debt', 18, issuer.address)
     await mDogeDebtToken.transferGovernorship(governor.address)
     await mDogeDebtToken.connect(governor).acceptGovernorship()
+
+    await mDoge.initialize('Metronome DOGE', 'mDOGE', 18, issuer.address, mDogeDebtToken.address, mDogeCR)
+    await mDoge.transferGovernorship(governor.address)
+    await mDoge.connect(governor).acceptGovernorship()
 
     await mBOX.initialize(treasury.address, depositToken.address, oracle.address, issuer.address)
     await mBOX.updateLiquidatorFee(liquidatorFee)

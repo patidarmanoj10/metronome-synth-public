@@ -23,12 +23,12 @@ describe('SyntheticAsset', function () {
     const debtTokenFactory = new DebtToken__factory(deployer)
     debtToken = await debtTokenFactory.deploy()
     await debtToken.deployed()
-    await debtToken.initialize('mETH Debt', 'mEth-Debt', issuerMock.address)
+    await debtToken.initialize('mETH Debt', 'mEth-Debt', 18, issuerMock.address)
 
     const mETHFactory = new SyntheticAsset__factory(deployer)
     mAsset = await mETHFactory.deploy()
     await mAsset.deployed()
-    await mAsset.initialize(name, symbol, issuerMock.address, debtToken.address, collateralizationRatio)
+    await mAsset.initialize(name, symbol, 18, issuerMock.address, debtToken.address, collateralizationRatio)
 
     await mAsset.transferGovernorship(governor.address)
     await mAsset.connect(governor).acceptGovernorship()
