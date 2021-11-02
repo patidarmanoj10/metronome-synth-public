@@ -138,13 +138,37 @@ describe('MBox', function () {
       await met.connect(user).approve(mBOX.address, ethers.constants.MaxUint256)
     })
 
-    it('should reject if collateral amount is 0', async function () {
+    it('should revert if paused', async function () {
+      // given
+      await mBOX.pause()
+
+      // when
+      const toDeposit = parseEther('10')
+      const tx = mBOX.connect(user).deposit(toDeposit)
+
+      // then
+      await expect(tx).to.revertedWith('paused')
+    })
+
+    it('should revert if shutdown', async function () {
+      // given
+      await mBOX.shutdown()
+
+      // when
+      const toDeposit = parseEther('10')
+      const tx = mBOX.connect(user).deposit(toDeposit)
+
+      // then
+      await expect(tx).to.revertedWith('paused')
+    })
+
+    it('should revert if collateral amount is 0', async function () {
       const toDeposit = 0
       const tx = mBOX.connect(user).deposit(toDeposit)
       await expect(tx).to.revertedWith('zero-collateral-amount')
     })
 
-    it('should reject if MET balance is not enough', async function () {
+    it('should revert if MET balance is not enough', async function () {
       const balance = await met.balanceOf(user.address)
       const tooHigh = balance.add('1')
       const tx = mBOX.connect(user).deposit(tooHigh)
@@ -197,7 +221,31 @@ describe('MBox', function () {
           maxIssuableInEth = maxIssuableInUsd.mul(parseEther('1')).div(ethRate)
         })
 
-        it('should reject if synthetic does not exist', async function () {
+        it('should not revert if paused', async function () {
+          // given
+          await mBOX.pause()
+
+          // when
+          const toMint = parseEther('0.1')
+          const tx = mBOX.connect(user).mint(mEth.address, toMint)
+
+          // then
+          await expect(tx).to.emit(mBOX, 'SyntheticAssetMinted')
+        })
+
+        it('should revert if shutdown', async function () {
+          // given
+          await mBOX.shutdown()
+
+          // when
+          const toMint = parseEther('0.1')
+          const tx = mBOX.connect(user).mint(mEth.address, toMint)
+
+          // then
+          await expect(tx).to.revertedWith('shutdown')
+        })
+
+        it('should revert if synthetic does not exist', async function () {
           // when
           const toIssue = maxIssuableInEth.add(parseEther('1'))
           const invalidSynthetic = met
@@ -207,7 +255,7 @@ describe('MBox', function () {
           await expect(tx).to.revertedWith('synthetic-asset-does-not-exists')
         })
 
-        it('should reject if synthetic is not active', async function () {
+        it('should revert if synthetic is not active', async function () {
           // given
           await mEth.connect(governor).updateIsActive(false)
 
@@ -219,7 +267,7 @@ describe('MBox', function () {
           await expect(tx).to.revertedWith('synthetic-asset-is-not-active')
         })
 
-        it('should reject if user has not enough collateral deposited', async function () {
+        it('should revert if user has not enough collateral deposited', async function () {
           // when
           const toIssue = maxIssuableInEth.add(parseEther('1'))
           const tx = mBOX.connect(user).mint(mEth.address, toIssue)
@@ -228,7 +276,7 @@ describe('MBox', function () {
           await expect(tx).to.revertedWith('not-enough-collateral')
         })
 
-        it('should reject if amount to mint is 0', async function () {
+        it('should revert if amount to mint is 0', async function () {
           // when
           const toIssue = 0
           const tx = mBOX.connect(user).mint(mEth.address, toIssue)
@@ -377,6 +425,30 @@ describe('MBox', function () {
           })
 
           describe('when minimum deposit time == 0', function () {
+            it('should revert not if paused', async function () {
+              // given
+              await mBOX.pause()
+
+              // when
+              const amount = 1
+              const tx = mBOX.connect(user).withdraw(amount)
+
+              // then
+              await expect(tx).to.emit(mBOX, 'CollateralWithdrawn')
+            })
+
+            it('should revert if shutdown', async function () {
+              // given
+              await mBOX.shutdown()
+
+              // when
+              const amount = 1
+              const tx = mBOX.connect(user).withdraw(amount)
+
+              // then
+              await expect(tx).to.revertedWith('shutdown')
+            })
+
             it('should revert if amount is 0', async function () {
               // when
               const tx = mBOX.connect(user).withdraw(0)
@@ -442,6 +514,30 @@ describe('MBox', function () {
         })
 
         describe('repay', function () {
+          it('should not revert if paused', async function () {
+            // given
+            await mBOX.pause()
+            const debtAmount = await mEthDebtToken.balanceOf(user.address)
+
+            // when
+            const tx = mBOX.connect(user).repay(mEth.address, debtAmount)
+
+            // then
+            await expect(tx).to.emit(mBOX, 'DebtRepayed')
+          })
+
+          it('should revert if shutdown', async function () {
+            // given
+            await mBOX.shutdown()
+            const debtAmount = await mEthDebtToken.balanceOf(user.address)
+
+            // when
+            const tx = mBOX.connect(user).repay(mEth.address, debtAmount)
+
+            // then
+            await expect(tx).to.revertedWith('shutdown')
+          })
+
           it('should revert if amount is 0', async function () {
             // when
             const tx = mBOX.connect(user).repay(mEth.address, 0)
@@ -562,6 +658,30 @@ describe('MBox', function () {
         })
 
         describe('swap', function () {
+          it('should not revert if paused', async function () {
+            // given
+            await mBOX.pause()
+
+            // when
+            const amount = parseEther('0.1')
+            const tx = mBOX.connect(user).swap(mEth.address, mDoge.address, amount)
+
+            // then
+            await expect(tx).to.emit(mBOX, 'SyntheticAssetSwapped')
+          })
+
+          it('should revert if shutdown', async function () {
+            // given
+            await mBOX.shutdown()
+
+            // when
+            const amount = parseEther('0.1')
+            const tx = mBOX.connect(user).swap(mEth.address, mDoge.address, amount)
+
+            // then
+            await expect(tx).to.revertedWith('shutdown')
+          })
+
           it('should revert if amount == 0', async function () {
             // when
             const tx = mBOX.connect(user).swap(mEth.address, mDoge.address, 0)
@@ -570,7 +690,7 @@ describe('MBox', function () {
             await expect(tx).to.revertedWith('amount-in-is-zero')
           })
 
-          it('should reject if synthetic out is not active', async function () {
+          it('should revert if synthetic out is not active', async function () {
             // given
             await mDoge.connect(governor).updateIsActive(false)
 
@@ -716,6 +836,31 @@ describe('MBox', function () {
               await oracle.updateRate(met.address, newMetRate)
               const {_isHealthy} = await issuer.debtPositionOfUsingLatestPrices(user.address)
               expect(_isHealthy).to.be.false
+            })
+
+            it('should not revert if paused', async function () {
+              // given
+              await mBOX.pause()
+              await oracle.updateRate(met.address, parseEther('3.5'))
+
+              // when
+              const amount = await mDoge.balanceOf(user.address)
+              const tx = mBOX.connect(user).refinance(mDoge.address, amount)
+
+              // then
+              await expect(tx).to.emit(mBOX, 'DebtRefinancied')
+            })
+
+            it('should revert if shutdown', async function () {
+              // given
+              await mBOX.shutdown()
+
+              // when
+              const amount = await mDoge.balanceOf(user.address)
+              const tx = mBOX.connect(user).refinance(mDoge.address, amount)
+
+              // then
+              await expect(tx).to.revertedWith('shutdown')
             })
 
             it('should revert if amount == 0', async function () {
@@ -919,6 +1064,30 @@ describe('MBox', function () {
               expect(await depositToken.balanceOf(liquidator.address)).to.eq(liquidatorDepositAmount)
               expect(await mEth.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount)
               expect(await mEthDebtToken.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount)
+            })
+
+            it('should not revert if paused', async function () {
+              // given
+              await mBOX.pause()
+
+              // when
+              const amountToRepay = userMintAmount // repay all user's debt
+              const tx = await mBOX.connect(liquidator).liquidate(mEth.address, user.address, amountToRepay)
+
+              // then
+              await expect(tx).to.emit(mBOX, 'PositionLiquidated')
+            })
+
+            it('should revert if shutdown', async function () {
+              // given
+              await mBOX.shutdown()
+
+              // when
+              const amountToRepay = userMintAmount // repay all user's debt
+              const tx = mBOX.connect(liquidator).liquidate(mEth.address, user.address, amountToRepay)
+
+              // then
+              await expect(tx).to.revertedWith('shutdown')
             })
 
             it('should revert if liquidator has not enough mAsset to repay', async function () {
