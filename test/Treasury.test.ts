@@ -23,7 +23,7 @@ describe('Treasury', function () {
     const treasuryFactory = new Treasury__factory(deployer)
     treasury = await treasuryFactory.deploy()
     await treasury.deployed()
-    await treasury.initialize(met.address, mBoxMock.address)
+    await treasury.initialize(mBoxMock.address)
 
     await met.mint(deployer.address, parseEther('1000'))
   })
@@ -35,19 +35,19 @@ describe('Treasury', function () {
     })
 
     it('should revert if now mbox', async function () {
-      const tx = treasury.connect(user).pull(user.address, 0)
+      const tx = treasury.connect(user).pull(met.address, user.address, 0)
       await expect(tx).to.revertedWith('not-mbox')
     })
 
     it('should revert if amount == 0', async function () {
-      const tx = treasury.connect(mBoxMock).pull(user.address, 0)
+      const tx = treasury.connect(mBoxMock).pull(met.address, user.address, 0)
       await expect(tx).to.revertedWith('amount-is-zero')
     })
     it('should pull MET tokens ', async function () {
       // when
       const amount = parseEther('10')
       expect(amount).to.lte(await met.balanceOf(treasury.address))
-      const tx = () => treasury.connect(mBoxMock).pull(user.address, amount)
+      const tx = () => treasury.connect(mBoxMock).pull(met.address, user.address, amount)
 
       // then
       await expect(tx).to.changeTokenBalances(met, [treasury, user], [amount.mul('-1'), amount])

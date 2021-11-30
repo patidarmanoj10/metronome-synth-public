@@ -1,9 +1,7 @@
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
 import {deterministic, UpgradableContracts} from '../helpers'
-import Address from '../../helpers/address'
 
-const {MET_ADDRESS} = Address
 const {alias: Treasury} = UpgradableContracts.Treasury
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
@@ -16,7 +14,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   await deploy()
 
-  await execute(Treasury, {from: deployer, log: true}, 'initialize', MET_ADDRESS, mBoxAddress)
+  await execute(Treasury, {from: deployer, log: true}, 'initialize', mBoxAddress)
   await execute(Treasury, {from: deployer, log: true}, 'transferGovernorship', governor)
 }
 

@@ -12,7 +12,9 @@ import "./IDepositToken.sol";
 interface IIssuer {
     function isSyntheticAssetExists(ISyntheticAsset _syntheticAsset) external view returns (bool);
 
-    function depositToken() external view returns (IDepositToken);
+    function isDepositTokenExists(IDepositToken _depositToken) external view returns (bool);
+
+    function getDepositTokens() external view returns (IDepositToken[] memory);
 
     function met() external view returns (IERC20);
 
@@ -30,6 +32,11 @@ interface IIssuer {
             bool _anyPriceInvalid
         );
 
+    function depositOfUsingLatestPrices(address _account)
+        external
+        view
+        returns (uint256 _depositInUsd, bool _anyPriceInvalid);
+
     function debtPositionOfUsingLatestPrices(address _account)
         external
         view
@@ -37,9 +44,7 @@ interface IIssuer {
             bool _isHealthy,
             uint256 _lockedDepositInUsd,
             uint256 _depositInUsd,
-            uint256 _deposit,
-            uint256 _unlockedDeposit,
-            uint256 _lockedDeposit,
+            uint256 _unlockedDepositInUsd,
             bool _anyPriceInvalid
         );
 
@@ -49,9 +54,7 @@ interface IIssuer {
             bool _isHealthy,
             uint256 _lockedDepositInUsd,
             uint256 _depositInUsd,
-            uint256 _deposit,
-            uint256 _unlockedDeposit,
-            uint256 _lockedDeposit
+            uint256 _unlockedDepositInUsd
         );
 
     function maxIssuableForUsingLatestPrices(address _account, ISyntheticAsset _syntheticAsset)
@@ -65,7 +68,9 @@ interface IIssuer {
 
     function removeSyntheticAsset(ISyntheticAsset _synthetic) external;
 
-    function updateDepositToken(IDepositToken _newDepositToken) external;
+    function addDepositToken(IDepositToken _depositToken) external;
+
+    function removeDepositToken(IDepositToken _depositToken) external;
 
     function updateOracle(IOracle _newOracle) external;
 
@@ -84,7 +89,11 @@ interface IIssuer {
         uint256 _amount
     ) external;
 
-    function mintDepositToken(address _to, uint256 _amount) external;
+    function mintDepositToken(
+        IDepositToken _depositToken,
+        address _to,
+        uint256 _amount
+    ) external;
 
     function collectFee(
         address _account,
@@ -92,9 +101,14 @@ interface IIssuer {
         bool _onlyFromUnlocked
     ) external;
 
-    function burnWithdrawnDeposit(address _account, uint256 _amount) external;
+    function burnWithdrawnDeposit(
+        IDepositToken _depositToken,
+        address _account,
+        uint256 _amount
+    ) external;
 
     function seizeDepositToken(
+        IDepositToken _depositToken,
         address _from,
         address _to,
         uint256 _amount

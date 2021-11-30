@@ -10,11 +10,8 @@ contract TreasuryUpgrader is UpgraderBase {
     }
 
     function _calls() internal pure override returns (bytes[] memory calls) {
-        calls = new bytes[](1);
-        calls[0] = abi.encodeWithSignature("met()");
+        calls = new bytes[](0);
     }
 
-    function _checkResults(bytes[] memory _beforeResults, bytes[] memory _afterResults) internal pure override {
-        _checkAddressResults(_beforeResults, _afterResults, 0, 0);
-    }
+    function _checkResults(bytes[] memory _beforeResults, bytes[] memory _afterResults) internal pure override {}
 }

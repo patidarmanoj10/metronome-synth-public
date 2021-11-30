@@ -4,6 +4,7 @@ pragma solidity 0.8.9;
 
 import "../dependencies/openzeppelin/token/ERC20/IERC20.sol";
 import "../dependencies/openzeppelin/token/ERC20/extensions/IERC20Metadata.sol";
+import "./oracle/IOracle.sol";
 
 interface IDepositToken is IERC20, IERC20Metadata {
     function underlying() external view returns (IERC20);
@@ -25,4 +26,10 @@ interface IDepositToken is IERC20, IERC20Metadata {
         address _to,
         uint256 _amount
     ) external;
+
+    function isActive() external view returns (bool);
+
+    function updateIsActive(bool _newActive) external;
+
+    function oracle() external view returns (IOracle);
 }

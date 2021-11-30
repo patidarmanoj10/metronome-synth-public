@@ -18,10 +18,10 @@ contract IssuerStorageV1 {
     IOracle public oracle;
 
     /**
-     * @notice Represents collateral's deposits (i.e. mBOX-MET token)
-     * @dev For now, we only use depositTokens[0]
+     * @notice Represents collateral's deposits (e.g. mBOX-MET token)
      */
     IDepositToken[] public depositTokens;
+    mapping(address => IDepositToken) public depositTokenByAddress;
 
     /**
      * @notice Avaliable synthetic assets
@@ -46,8 +46,11 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
     /// @notice Emitted when synthetic asset is disabled
     event SyntheticAssetRemoved(ISyntheticAsset indexed syntheticAsset);
 
-    /// @notice Emitted when deposit token contract is updated
-    event DepositTokenUpdated(IDepositToken indexed oldDepositToken, IDepositToken indexed newDepositToken);
+    /// @notice Emitted when deposit token is enabled
+    event DepositTokenAdded(IDepositToken indexed depositToken);
+
+    /// @notice Emitted when deposit token is disabled
+    event DepositTokenRemoved(IDepositToken indexed depositToken);
 
     /// @notice Emitted when oracle contract is updated
     event OracleUpdated(IOracle indexed oldOracle, IOracle indexed newOracle);
@@ -69,7 +72,23 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
     }
 
     /**
-     * @dev Update prices of assets that are used by the account (checks synthetic assets and MET)
+     * @dev Throws if synthetic asset isn't enabled
+     */
+    modifier onlyIfDepositTokenExists(IDepositToken _depositToken) {
+        require(isDepositTokenExists(_depositToken), "deposit-token-does-not-exists");
+        _;
+    }
+
+    /**
+     * @dev Throws if synthetic asset isn't enabled
+     */
+    modifier onlyIfDepositTokenIsActive(IDepositToken _depositToken) {
+        require(_depositToken.isActive(), "deposit-token-is-not-active");
+        _;
+    }
+
+    /**
+     * @dev Update prices of assets that are used by the account (checks synthetic assets and deposit tokens)
      */
     modifier updatePricesOfAssetsUsedBy(address _account) {
         for (uint256 i = 0; i < syntheticAssets.length; ++i) {
@@ -78,18 +97,24 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
             }
         }
 
-        if (depositToken().balanceOf(_account) > 0) {
-            oracle.update(met());
+        for (uint256 i = 0; i < depositTokens.length; ++i) {
+            if (depositTokens[i].balanceOf(_account) > 0) {
+                oracle.update(depositTokens[i].underlying());
+            }
         }
+
         _;
     }
 
     /**
-     * @dev Update a specific asset's price (also updates the MET price)
+     * @dev Update a specific asset's price (also updates the deposit tokens prices)
      */
     modifier updatePriceOfAsset(ISyntheticAsset _syntheticAsset) {
         oracle.update(_syntheticAsset);
-        oracle.update(met());
+
+        for (uint256 i = 0; i < depositTokens.length; ++i) {
+            oracle.update(depositTokens[i].underlying());
+        }
         _;
     }
 
@@ -106,27 +131,27 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
         __Manageable_init();
 
         setMBox(mBox_);
-
-        depositTokens.push(depositToken_);
         oracle = oracle_;
 
         // Ensuring that mETH is the syntheticAssets[0]
         addSyntheticAsset(mETH_);
+
+        // Ensuring that mBOX-MET is the depositTokens[0]
+        addDepositToken(depositToken_);
     }
 
     /**
-     * @notice Get MET deposit token
-     * @dev We have an array to have storage prepared to support other collaterals in future if we want
+     * @notice Get deposit tokens
      */
-    function depositToken() public view override returns (IDepositToken) {
-        return depositTokens[0];
+    function getDepositTokens() public view override returns (IDepositToken[] memory) {
+        return depositTokens;
     }
 
     /**
      * @notice Get MET
      */
     function met() public view override returns (IERC20) {
-        return depositToken().underlying();
+        return depositTokens[0].underlying();
     }
 
     /**
@@ -137,12 +162,21 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
     }
 
     /**
-     * @notice Check if token is part of the offerings
+     * @notice Check if token is part of the synthetic offerings
      * @param _syntheticAsset Asset to check
      * @return true if exist
      */
     function isSyntheticAssetExists(ISyntheticAsset _syntheticAsset) public view returns (bool) {
         return syntheticAssetByAddress[address(_syntheticAsset)] != ISyntheticAsset(address(0));
+    }
+
+    /**
+     * @notice Check if collateral is supported
+     * @param _depositToken Asset to check
+     * @return true if exist
+     */
+    function isDepositTokenExists(IDepositToken _depositToken) public view returns (bool) {
+        return depositTokenByAddress[address(_depositToken)] != IDepositToken(address(0));
     }
 
     /**
@@ -210,14 +244,40 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
     }
 
     /**
+     * @notice Get account's total collateral deposited by querying latest prices from oracles
+     * @dev We can optimize this function by storing an array of which deposit toekns the account deposited avoiding looping all
+     * @param _account The account to check
+     * @return _depositInUsd The total deposit value in USD among all collaterals
+     * @return _anyPriceInvalid Returns true if any price is invalid
+     */
+    function depositOfUsingLatestPrices(address _account)
+        public
+        view
+        override
+        returns (uint256 _depositInUsd, bool _anyPriceInvalid)
+    {
+        for (uint256 i = 0; i < depositTokens.length; ++i) {
+            uint256 _amount = depositTokens[i].balanceOf(_account);
+            if (_amount > 0) {
+                (uint256 _amountInUsd, bool _priceInvalid) = oracle.convertToUsdUsingLatestPrice(
+                    depositTokens[i].underlying(),
+                    _amount
+                );
+
+                if (_priceInvalid) _anyPriceInvalid = true;
+
+                _depositInUsd += _amountInUsd;
+            }
+        }
+    }
+
+    /**
      * @notice Get debt position from an account
      * @param _account The account to check
      * @return _isHealthy Whether the account's position is healthy
      * @return _lockedDepositInUsd The amount of deposit (is USD) that's covering all debt (considering collateralization ratios)
      * @return _depositInUsd The total collateral deposited in USD
-     * @return _deposit The total amount of account's deposits
-     * @return _unlockedDeposit The amount of deposit that isn't covering the account's debt
-     * @return _lockedDeposit The amount of deposit that's covering the account's debt
+     * @return _unlockedDepositInUsd The amount of deposit (is USD) that isn't covering the account's debt
      * @return _anyPriceInvalid Returns true if any price is invalid
      */
     function debtPositionOfUsingLatestPrices(address _account)
@@ -228,24 +288,18 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
             bool _isHealthy,
             uint256 _lockedDepositInUsd,
             uint256 _depositInUsd,
-            uint256 _deposit,
-            uint256 _unlockedDeposit,
-            uint256 _lockedDeposit,
+            uint256 _unlockedDepositInUsd,
             bool _anyPriceInvalid
         )
     {
         (, _lockedDepositInUsd, _anyPriceInvalid) = debtOfUsingLatestPrices(_account);
 
         bool _depositPriceInvalid;
-        _deposit = depositToken().balanceOf(_account);
-        (_depositInUsd, _depositPriceInvalid) = oracle.convertToUsdUsingLatestPrice(met(), _deposit);
 
-        _lockedDeposit = (_deposit * _lockedDepositInUsd) / _depositInUsd;
+        (_depositInUsd, _depositPriceInvalid) = depositOfUsingLatestPrices(_account);
 
-        if (_lockedDeposit > _deposit) {
-            _lockedDeposit = _deposit;
-        }
-        _unlockedDeposit = _deposit - _lockedDeposit;
+        _unlockedDepositInUsd = _depositInUsd > _lockedDepositInUsd ? _depositInUsd - _lockedDepositInUsd : 0;
+
         _isHealthy = _depositInUsd >= _lockedDepositInUsd;
         _anyPriceInvalid = _anyPriceInvalid || _depositPriceInvalid;
     }
@@ -256,9 +310,7 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
      * @return _isHealthy Whether the account's position is healthy
      * @return _lockedDepositInUsd The amount of deposit (is USD) that's covering all debt (considering collateralization ratios)
      * @return _depositInUsd The total collateral deposited in USD
-     * @return _deposit The total amount of account's deposits
-     * @return _unlockedDeposit The amount of deposit that isn't covering the account's debt
-     * @return _lockedDeposit The amount of deposit that's covering the account's debt
+     * @return _unlockedDepositInUsd The amount of deposit (is USD) that isn't covering the account's debt
      */
     function debtPositionOf(address _account)
         external
@@ -268,9 +320,7 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
             bool _isHealthy,
             uint256 _lockedDepositInUsd,
             uint256 _depositInUsd,
-            uint256 _deposit,
-            uint256 _unlockedDeposit,
-            uint256 _lockedDeposit
+            uint256 _unlockedDepositInUsd
         )
     {
         bool _anyPriceInvalid;
@@ -278,9 +328,7 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
             _isHealthy,
             _lockedDepositInUsd,
             _depositInUsd,
-            _deposit,
-            _unlockedDeposit,
-            _lockedDeposit,
+            _unlockedDepositInUsd,
             _anyPriceInvalid
         ) = debtPositionOfUsingLatestPrices(_account);
         require(!_anyPriceInvalid, "invalid-price");
@@ -324,12 +372,11 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
             return (0, false);
         }
 
-        (, , , , uint256 _unlockedDeposit, , ) = debtPositionOfUsingLatestPrices(_account);
+        (, , , uint256 __unlockedDepositInUsd, ) = debtPositionOfUsingLatestPrices(_account);
 
-        (_maxIssuable, _anyPriceInvalid) = oracle.convertUsingLatestPrice(
-            met(),
+        (_maxIssuable, _anyPriceInvalid) = oracle.convertFromUsdUsingLatestPrice(
             _syntheticAsset,
-            _unlockedDeposit.wadDiv(_syntheticAsset.collateralizationRatio())
+            __unlockedDepositInUsd.wadDiv(_syntheticAsset.collateralizationRatio())
         );
     }
 
@@ -376,9 +423,13 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
      * @param _to The synthetic asset to mint
      * @param _amount The account to burn synthetic assets from
      */
-    function mintDepositToken(address _to, uint256 _amount) external override nonReentrant onlyMBox {
+    function mintDepositToken(
+        IDepositToken _depositToken,
+        address _to,
+        uint256 _amount
+    ) external override nonReentrant onlyMBox {
         require(_amount > 0, "amount-to-mint-is-zero");
-        depositToken().mint(_to, _amount);
+        _depositToken.mint(_to, _amount);
     }
 
     /**
@@ -386,20 +437,21 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
      * @dev Our approach is to burning deposit tokens (that represent real MET),
      * that way, `totalFeesCollected = MET.supply() - depositToken.supply()`
      * @param _account The account to charge from
-     * @param _fee The amount to collect
+     * @param _feeInUsd The amount to collect
      * @param _onlyFromUnlocked If true, we only collect from unlocked balance
      */
     function collectFee(
         address _account,
-        uint256 _fee,
+        uint256 _feeInUsd,
         bool _onlyFromUnlocked
     ) external override nonReentrant onlyMBox {
-        require(_fee > 0, "fee-to-collect-is-zero");
+        require(_feeInUsd > 0, "fee-to-collect-is-zero");
+        uint256 _fee = oracle.convertFromUsd(met(), _feeInUsd);
         if (_onlyFromUnlocked) {
-            depositToken().burnFromUnlocked(_account, _fee);
+            depositTokens[0].burnFromUnlocked(_account, _fee);
         } else {
             // Liquidate feature requires burn even from locked balance
-            depositToken().burn(_account, _fee);
+            depositTokens[0].burn(_account, _fee);
         }
     }
 
@@ -409,25 +461,31 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
      * @param _account The account to burn from
      * @param _amount The amount to burn
      */
-    function burnWithdrawnDeposit(address _account, uint256 _amount) external override nonReentrant onlyMBox {
+    function burnWithdrawnDeposit(
+        IDepositToken _depositToken,
+        address _account,
+        uint256 _amount
+    ) external override nonReentrant onlyMBox {
         require(_amount > 0, "amount-to-burn-is-zero");
-        depositToken().burnForWithdraw(_account, _amount);
+        _depositToken.burnForWithdraw(_account, _amount);
     }
 
     /**
      * @notice Seize deposit tokens from a user
+     * @param _depositToken The deposit token to seize from
      * @param _from The account to seize from
      * @param _to The account to transfer to
      * @param _amount The amount to seize
      */
     function seizeDepositToken(
+        IDepositToken _depositToken,
         address _from,
         address _to,
         uint256 _amount
     ) external override nonReentrant onlyMBox {
         require(_from != _to, "seize-from-and-to-are-the-same");
         require(_amount > 0, "amount-to-seize-is-zero");
-        depositToken().seize(_from, _to, _amount);
+        _depositToken.seize(_from, _to, _amount);
     }
 
     /**
@@ -476,15 +534,47 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
     }
 
     /**
-     * @notice Update deposit (mBOX-MET) contract
+     * @notice Add deposit token (i.e. collateral) to mBOX
      */
-    function updateDepositToken(IDepositToken _newDepositToken) public override onlyGovernor {
-        require(address(_newDepositToken) != address(0), "deposit-token-address-is-null");
-        require(_newDepositToken != depositToken(), "deposit-token-is-same-as-current");
-        require(depositToken().totalSupply() == 0, "current-deposit-token-has-supply");
+    function addDepositToken(IDepositToken _depositToken) public override onlyGovernor {
+        address _address = address(_depositToken);
 
-        emit DepositTokenUpdated(depositToken(), _newDepositToken);
-        depositTokens[0] = _newDepositToken;
+        require(_address != address(0), "address-is-null");
+        require(address(depositTokenByAddress[_address]) == address(0), "deposit-token-exists");
+
+        depositTokens.push(_depositToken);
+        depositTokenByAddress[_address] = _depositToken;
+
+        emit DepositTokenAdded(_depositToken);
+    }
+
+    /**
+     * @notice Remove deposit token (i.e. collateral) from mBOX
+     */
+    function removeDepositToken(IDepositToken _depositToken)
+        external
+        override
+        onlyGovernor
+        onlyIfDepositTokenExists(_depositToken)
+    {
+        require(_depositToken.underlying() != met(), "can-not-delete-met");
+        require(_depositToken.totalSupply() == 0, "deposit-token-with-supply");
+
+        for (uint256 i = 0; i < depositTokens.length; i++) {
+            if (depositTokens[i] == _depositToken) {
+                // Using the last to overwrite the deposit token to remove
+                depositTokens[i] = depositTokens[depositTokens.length - 1];
+
+                // Removing the last (and duplicated) deposit token
+                depositTokens.pop();
+
+                break;
+            }
+        }
+
+        delete depositTokenByAddress[address(_depositToken)];
+
+        emit DepositTokenRemoved(_depositToken);
     }
 
     /**

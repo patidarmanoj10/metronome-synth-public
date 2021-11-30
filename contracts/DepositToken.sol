@@ -16,10 +16,10 @@ contract DepositTokenStorageV1 {
     string internal _name;
     string internal _symbol;
 
-    IERC20 internal _underlying; // Deposit underlying asset (i.e. MET)
+    IERC20 internal _underlying; // Deposit underlying asset (e.g. MET)
 
     /**
-     * @notice The min amount of time that an account should wait after depoist MET before be able to withdraw
+     * @notice The min amount of time that an account should wait after deposit collateral before be able to withdraw
      */
     uint256 internal _minDepositTime;
 
@@ -27,11 +27,20 @@ contract DepositTokenStorageV1 {
      * @notice Stores de timestamp of last deposit event of each account. It's used combined with `minDepositTime`.
      */
     mapping(address => uint256) internal _lastDepositOf;
+
+    /**
+     * @notice If a collateral isn't active, it disables minting new tokens
+     */
+    bool internal _active;
+
+    /**
+     * @notice Prices oracle
+     */
+    IOracle public _oracle;
 }
 
 /**
  * @title Represents the users' deposits
- * @dev For now, we only support MET as collateral
  */
 
 contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
@@ -39,6 +48,8 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
 
     /// @notice Emitted when minimum deposit time is updated
     event MinDepositTimeUpdated(uint256 oldMinDepositTime, uint256 newMinDepositTime);
+    /// @notice Emitted when active flag is updated
+    event DepositTokenActiveUpdated(bool oldActive, bool newActive);
 
     /**
      * @dev Throws if minimum deposit time haven't passed
@@ -52,12 +63,18 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
      * @notice Requires that amount is lower than the account's unlocked balance
      */
     modifier onlyIfNotLocked(address _account, uint256 _amount) {
-        (, , , , uint256 _unlockedDeposit, ) = issuer.debtPositionOf(_account);
+        (, , , uint256 _unlockedDepositInUsd) = issuer.debtPositionOf(_account);
+        uint256 _unlockedDeposit = _oracle.convertFromUsd(underlying(), _unlockedDepositInUsd);
         require(_unlockedDeposit >= _amount, "not-enough-free-balance");
         _;
     }
 
-    function initialize(IERC20 underlying_, IIssuer issuer_) public initializer {
+    function initialize(
+        IERC20 underlying_,
+        IIssuer issuer_,
+        IOracle oracle_,
+        string memory symbol_
+    ) public initializer {
         require(address(underlying_) != address(0), "underlying-is-null");
 
         __Manageable_init();
@@ -65,9 +82,11 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
         setIssuer(issuer_);
 
         _name = "Tokenized deposit position";
-        _symbol = "mBOX-MET";
+        _symbol = symbol_;
         _underlying = underlying_;
         _minDepositTime = 0;
+        _active = true;
+        _oracle = oracle_;
     }
 
     function name() public view virtual override returns (string memory) {
@@ -90,12 +109,20 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
         return _balances[account];
     }
 
+    function isActive() public view virtual override returns (bool) {
+        return _active;
+    }
+
     function underlying() public view override returns (IERC20) {
         return _underlying;
     }
 
     function minDepositTime() public view override returns (uint256) {
         return _minDepositTime;
+    }
+
+    function oracle() public view override returns (IOracle) {
+        return _oracle;
     }
 
     function lastDepositOf(address _account) public view override returns (uint256) {
@@ -202,11 +229,12 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
     ) internal virtual {}
 
     /**
-     * @notice Mint deposit token when an account deposits MET
+     * @notice Mint deposit token when an account deposits collateral
      * @param _to The account to mint to
      * @param _amount The amount to mint
      */
     function mint(address _to, uint256 _amount) public override onlyIssuer {
+        require(_active, "deposit-token-is-inactive");
         _mint(_to, _amount);
         _lastDepositOf[_to] = block.timestamp;
     }
@@ -298,5 +326,14 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
         require(_newMinDepositTime != _minDepositTime, "new-value-is-same-as-current");
         emit MinDepositTimeUpdated(_minDepositTime, _newMinDepositTime);
         _minDepositTime = _newMinDepositTime;
+    }
+
+    /**
+     * @notice Enable/Disable the Deposit Token
+     * @param _newActive Whether the synthetic asset is enabled or not
+     */
+    function updateIsActive(bool _newActive) public override onlyGovernor {
+        emit DepositTokenActiveUpdated(_active, _newActive);
+        _active = _newActive;
     }
 }
