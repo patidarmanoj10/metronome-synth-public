@@ -32,4 +32,8 @@ interface IDepositToken is IERC20, IERC20Metadata {
     function toggleIsActive() external;
 
     function oracle() external view returns (IOracle);
+
+    function maxTotalSupplyInUsd() external view returns (uint256);
+
+    function updateMaxTotalSupplyInUsd(uint256 _newMaxTotalSupplyInUsd) external;
 }

@@ -11,12 +11,16 @@ contract DepositTokenStorageV1 {
 
     mapping(address => mapping(address => uint256)) internal _allowances;
 
-    uint256 internal _totalSupply;
-
     string internal _name;
     string internal _symbol;
 
-    IERC20 internal _underlying; // Deposit underlying asset (e.g. MET)
+    uint256 internal _totalSupply;
+    uint256 internal _maxTotalSupplyInUsd;
+
+    /**
+     * @notice Deposit underlying asset (e.g. MET)
+     */
+    IERC20 internal _underlying;
 
     /**
      * @notice The min amount of time that an account should wait after deposit collateral before be able to withdraw
@@ -50,6 +54,8 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
     event MinDepositTimeUpdated(uint256 oldMinDepositTime, uint256 newMinDepositTime);
     /// @notice Emitted when active flag is updated
     event DepositTokenActiveUpdated(bool oldActive, bool newActive);
+    /// @notice Emitted when max total supply is updated
+    event MaxTotalSupplyUpdated(uint256 oldMaxTotalSupplyInUsd, uint256 newMaxTotalSupplyInUsd);
 
     /**
      * @dev Throws if minimum deposit time haven't passed
@@ -85,6 +91,7 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
         _symbol = symbol_;
         _underlying = underlying_;
         _minDepositTime = 0;
+        _maxTotalSupplyInUsd = type(uint256).max;
         _active = true;
         _oracle = oracle_;
     }
@@ -123,6 +130,10 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
 
     function oracle() public view override returns (IOracle) {
         return _oracle;
+    }
+
+    function maxTotalSupplyInUsd() public view virtual override returns (uint256) {
+        return _maxTotalSupplyInUsd;
     }
 
     function lastDepositOf(address _account) public view override returns (uint256) {
@@ -235,6 +246,8 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
      */
     function mint(address _to, uint256 _amount) public override onlyIssuer {
         require(_active, "deposit-token-is-inactive");
+        uint256 _newTotalSupplyInUsd = _oracle.convertToUsd(_underlying, _totalSupply + _amount);
+        require(_newTotalSupplyInUsd <= _maxTotalSupplyInUsd, "surpass-max-total-supply");
         _mint(_to, _amount);
         _lastDepositOf[_to] = block.timestamp;
     }
@@ -326,6 +339,15 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
         require(_newMinDepositTime != _minDepositTime, "new-value-is-same-as-current");
         emit MinDepositTimeUpdated(_minDepositTime, _newMinDepositTime);
         _minDepositTime = _newMinDepositTime;
+    }
+
+    /**
+     * @notice Update max total supply
+     * @param _newMaxTotalSupplyInUsd The new max total supply
+     */
+    function updateMaxTotalSupplyInUsd(uint256 _newMaxTotalSupplyInUsd) public override onlyGovernor {
+        emit MaxTotalSupplyUpdated(_maxTotalSupplyInUsd, _newMaxTotalSupplyInUsd);
+        _maxTotalSupplyInUsd = _newMaxTotalSupplyInUsd;
     }
 
     /**

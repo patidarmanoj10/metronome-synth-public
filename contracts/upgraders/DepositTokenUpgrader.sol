@@ -10,17 +10,18 @@ contract DepositTokenUpgrader is UpgraderBase {
     }
 
     function _calls() internal pure override returns (bytes[] memory calls) {
-        calls = new bytes[](5);
+        calls = new bytes[](6);
         calls[0] = abi.encodeWithSignature("name()");
         calls[1] = abi.encodeWithSignature("symbol()");
         calls[2] = abi.encodeWithSignature("totalSupply()");
         calls[3] = abi.encodeWithSignature("minDepositTime()");
-        calls[4] = abi.encodeWithSignature("underlying()");
+        calls[4] = abi.encodeWithSignature("maxTotalSupplyInUsd()");
+        calls[5] = abi.encodeWithSignature("underlying()");
     }
 
     function _checkResults(bytes[] memory _beforeResults, bytes[] memory _afterResults) internal pure override {
         _checkStringResults(_beforeResults, _afterResults, 0, 1);
-        _checkUint256Results(_beforeResults, _afterResults, 2, 3);
-        _checkAddressResults(_beforeResults, _afterResults, 4, 4);
+        _checkUint256Results(_beforeResults, _afterResults, 2, 4);
+        _checkAddressResults(_beforeResults, _afterResults, 5, 5);
     }
 }
