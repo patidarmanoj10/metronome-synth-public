@@ -119,7 +119,7 @@ describe('MBox', function () {
     await mEthDebtToken.transferGovernorship(governor.address)
     await mEthDebtToken.connect(governor).acceptGovernorship()
 
-    await mEth.initialize('Metronome ETH', 'mETH', 18, issuer.address, mEthDebtToken.address, mEthCR)
+    await mEth.initialize('Metronome ETH', 'mETH', 18, issuer.address, mEthDebtToken.address, mEthCR, oracle.address)
     await mEth.transferGovernorship(governor.address)
     await mEth.connect(governor).acceptGovernorship()
 
@@ -127,7 +127,15 @@ describe('MBox', function () {
     await mDogeDebtToken.transferGovernorship(governor.address)
     await mDogeDebtToken.connect(governor).acceptGovernorship()
 
-    await mDoge.initialize('Metronome DOGE', 'mDOGE', 18, issuer.address, mDogeDebtToken.address, mDogeCR)
+    await mDoge.initialize(
+      'Metronome DOGE',
+      'mDOGE',
+      18,
+      issuer.address,
+      mDogeDebtToken.address,
+      mDogeCR,
+      oracle.address
+    )
     await mDoge.transferGovernorship(governor.address)
     await mDoge.connect(governor).acceptGovernorship()
 

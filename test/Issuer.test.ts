@@ -80,7 +80,7 @@ describe('Issuer', function () {
     await mEthDebtToken.transferGovernorship(governor.address)
     await mEthDebtToken.connect(governor).acceptGovernorship()
 
-    await mEth.initialize('Metronome ETH', 'mETH', 18, issuer.address, mEthDebtToken.address, mEthCR)
+    await mEth.initialize('Metronome ETH', 'mETH', 18, issuer.address, mEthDebtToken.address, mEthCR, oracle.address)
     await mEth.transferGovernorship(governor.address)
     await mEth.connect(governor).acceptGovernorship()
 
@@ -119,7 +119,15 @@ describe('Issuer', function () {
 
         const SyntheticAssetFactory = new SyntheticAsset__factory(deployer)
         const mAsset = await SyntheticAssetFactory.deploy()
-        await mAsset.initialize('Metronome BTC', 'mBTC', 8, issuer.address, debtToken.address, parseEther('1.5'))
+        await mAsset.initialize(
+          'Metronome BTC',
+          'mBTC',
+          8,
+          issuer.address,
+          debtToken.address,
+          parseEther('1.5'),
+          oracle.address
+        )
 
         expect(await mAsset.totalSupply()).to.eq(0)
         await issuer.addSyntheticAsset(mAsset.address)

@@ -3,7 +3,14 @@ import {parseEther} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
-import {SyntheticAsset, SyntheticAsset__factory, DebtToken, DebtToken__factory} from '../typechain'
+import {
+  SyntheticAsset,
+  SyntheticAsset__factory,
+  DebtToken,
+  DebtToken__factory,
+  OracleMock__factory,
+  OracleMock,
+} from '../typechain'
 
 describe('SyntheticAsset', function () {
   let deployer: SignerWithAddress
@@ -12,6 +19,8 @@ describe('SyntheticAsset', function () {
   let issuerMock: SignerWithAddress
   let mAsset: SyntheticAsset
   let debtToken: DebtToken
+  let oracle: OracleMock
+
   const name = 'Metronome ETH'
   const symbol = 'mEth'
   const collateralizationRatio = parseEther('1.5')
@@ -19,6 +28,10 @@ describe('SyntheticAsset', function () {
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[deployer, governor, user, issuerMock] = await ethers.getSigners()
+
+    const oracleMock = new OracleMock__factory(deployer)
+    oracle = <OracleMock>await oracleMock.deploy()
+    await oracle.deployed()
 
     const debtTokenFactory = new DebtToken__factory(deployer)
     debtToken = await debtTokenFactory.deploy()
@@ -28,11 +41,21 @@ describe('SyntheticAsset', function () {
     const mETHFactory = new SyntheticAsset__factory(deployer)
     mAsset = await mETHFactory.deploy()
     await mAsset.deployed()
-    await mAsset.initialize(name, symbol, 18, issuerMock.address, debtToken.address, collateralizationRatio)
+    await mAsset.initialize(
+      name,
+      symbol,
+      18,
+      issuerMock.address,
+      debtToken.address,
+      collateralizationRatio,
+      oracle.address
+    )
 
     await mAsset.transferGovernorship(governor.address)
     await mAsset.connect(governor).acceptGovernorship()
     mAsset = mAsset.connect(governor)
+
+    await oracle.updateRate(mAsset.address, parseEther('1')) // 1 mAsset = $1
   })
 
   it('default values', async function () {
@@ -60,7 +83,7 @@ describe('SyntheticAsset', function () {
       // given
       expect(await mAsset.totalSupply()).to.eq(0)
       const max = parseEther('100')
-      await mAsset.updateMaxTotalSupply(max)
+      await mAsset.updateMaxTotalSupplyInUsd(max)
 
       // when
       const tx = mAsset.connect(issuerMock).mint(deployer.address, max.add('1'))
@@ -120,17 +143,17 @@ describe('SyntheticAsset', function () {
     })
   })
 
-  describe('updateMaxTotalSupply', function () {
+  describe('updateMaxTotalSupplyInUsd', function () {
     it('should update collateralization ratio', async function () {
-      const before = await mAsset.maxTotalSupply()
+      const before = await mAsset.maxTotalSupplyInUsd()
       const after = before.div('2')
-      const tx = mAsset.updateMaxTotalSupply(after)
+      const tx = mAsset.updateMaxTotalSupplyInUsd(after)
       await expect(tx).to.emit(mAsset, 'MaxTotalSupplyUpdated').withArgs(before, after)
-      expect(await mAsset.maxTotalSupply()).to.eq(after)
+      expect(await mAsset.maxTotalSupplyInUsd()).to.eq(after)
     })
 
     it('should revert if not governor', async function () {
-      const tx = mAsset.connect(user).updateMaxTotalSupply(parseEther('10'))
+      const tx = mAsset.connect(user).updateMaxTotalSupplyInUsd(parseEther('10'))
       await expect(tx).to.revertedWith('not-the-governor')
     })
   })
