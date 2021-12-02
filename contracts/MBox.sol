@@ -338,17 +338,22 @@ contract MBox is IMBox, ReentrancyGuard, Pausable, Governable, MBoxStorageV1 {
      * @notice Send synthetic asset to decrease debt
      * @dev The msg.sender is the payer and the account beneficied
      * @param _syntheticAsset The synthetic asset to burn
+     * @param _beneficiary The account that will have debt decreased
      * @param _amount The amount of synthetic asset to burn
      */
-    function repay(ISyntheticAsset _syntheticAsset, uint256 _amount) external override whenNotShutdown nonReentrant {
-        address _account = _msgSender();
-        _repay(_syntheticAsset, _account, _account, _amount);
+    function repay(
+        ISyntheticAsset _syntheticAsset,
+        address _beneficiary,
+        uint256 _amount
+    ) external override whenNotShutdown nonReentrant {
+        address _payer = _msgSender();
+        _repay(_syntheticAsset, _beneficiary, _payer, _amount);
 
         // Charging fee after repayment to have more unlocked deposit balance,
         // and reducing chances to have tx reverted due to low unlocked deposit
         if (repayFee > 0) {
             uint256 _feeInUsd = oracle.convertToUsd(_syntheticAsset, _amount.wadMul(repayFee));
-            issuer.collectFee(_account, _feeInUsd, true);
+            issuer.collectFee(_beneficiary, _feeInUsd, true);
         }
     }
 
