@@ -29,7 +29,7 @@ interface IDepositToken is IERC20, IERC20Metadata {
 
     function isActive() external view returns (bool);
 
-    function updateIsActive(bool _newActive) external;
+    function toggleIsActive() external;
 
     function oracle() external view returns (IOracle);
 }

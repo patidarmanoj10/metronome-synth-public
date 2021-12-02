@@ -311,7 +311,7 @@ describe('MBox', function () {
 
         it('should revert if synthetic is not active', async function () {
           // given
-          await mEth.connect(governor).updateIsActive(false)
+          await mEth.connect(governor).toggleIsActive()
 
           // when
           const amountToMint = parseEther('1')
@@ -745,7 +745,7 @@ describe('MBox', function () {
 
           it('should revert if synthetic out is not active', async function () {
             // given
-            await mDoge.connect(governor).updateIsActive(false)
+            await mDoge.connect(governor).toggleIsActive()
 
             // when
             const amountIn = await mEth.balanceOf(user.address)

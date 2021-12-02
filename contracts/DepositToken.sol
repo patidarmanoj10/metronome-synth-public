@@ -330,10 +330,9 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
 
     /**
      * @notice Enable/Disable the Deposit Token
-     * @param _newActive Whether the synthetic asset is enabled or not
      */
-    function updateIsActive(bool _newActive) public override onlyGovernor {
-        emit DepositTokenActiveUpdated(_active, _newActive);
-        _active = _newActive;
+    function toggleIsActive() public override onlyGovernor {
+        emit DepositTokenActiveUpdated(_active, !_active);
+        _active = !_active;
     }
 }

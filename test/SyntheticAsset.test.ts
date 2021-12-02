@@ -71,7 +71,7 @@ describe('SyntheticAsset', function () {
 
     it('should revert if mAsset is inactive', async function () {
       // given
-      await mAsset.updateIsActive(false)
+      await mAsset.toggleIsActive()
 
       // when
       const tx = mAsset.connect(issuerMock).mint(deployer.address, '1')
@@ -135,16 +135,16 @@ describe('SyntheticAsset', function () {
     })
   })
 
-  describe('updateIsActive', function () {
+  describe('toggleIsActive', function () {
     it('should update active flag', async function () {
       expect(await mAsset.isActive()).to.eq(true)
-      const tx = mAsset.updateIsActive(false)
+      const tx = mAsset.toggleIsActive()
       await expect(tx).to.emit(mAsset, 'SyntheticAssetActiveUpdated').withArgs(true, false)
       expect(await mAsset.isActive()).to.eq(false)
     })
 
     it('should revert if not governor', async function () {
-      const tx = mAsset.connect(user).updateIsActive(false)
+      const tx = mAsset.connect(user).toggleIsActive()
       await expect(tx).to.revertedWith('not-the-governor')
     })
   })
