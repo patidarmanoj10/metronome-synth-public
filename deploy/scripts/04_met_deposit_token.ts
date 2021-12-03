@@ -1,36 +1,37 @@
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
 import {UpgradableContracts, deterministic} from '../helpers'
+import Address from '../../helpers/address'
 
-const {alias: MBox} = UpgradableContracts.MBox
+const {MET_ADDRESS} = Address
+const {alias: MetDepositToken} = UpgradableContracts.MetDepositToken
 const Oracle = 'Oracle'
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {getNamedAccounts, deployments} = hre
-  const {execute, get} = deployments
+  const {get, execute} = deployments
   const {deployer, governor} = await getNamedAccounts()
 
   const oracle = await get(Oracle)
 
   const {address: issuerAddress} = await deterministic(hre, UpgradableContracts.Issuer)
-  const {address: treasuryAddress} = await deterministic(hre, UpgradableContracts.Treasury)
-  const {address: metDepositTokenAddress} = await deterministic(hre, UpgradableContracts.MetDepositToken)
+  const {deploy} = await deterministic(hre, UpgradableContracts.MetDepositToken)
 
-  const {deploy} = await deterministic(hre, UpgradableContracts.MBox)
   await deploy()
 
+  const symbol = 'mBOX-MET'
+
   await execute(
-    MBox,
+    MetDepositToken,
     {from: deployer, log: true},
     'initialize',
-    treasuryAddress,
-    metDepositTokenAddress,
+    MET_ADDRESS,
+    issuerAddress,
     oracle.address,
-    issuerAddress
+    symbol
   )
-  await execute(MBox, {from: deployer, log: true}, 'transferGovernorship', governor)
+  await execute(MetDepositToken, {from: deployer, log: true}, 'transferGovernorship', governor)
 }
 
 export default func
-func.tags = [MBox]
-func.dependencies = [Oracle]
+func.tags = [MetDepositToken]

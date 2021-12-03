@@ -32,7 +32,7 @@ describe('Issuer', function () {
   let mEthDebtToken: DebtToken
   let mEth: SyntheticAsset
   let treasury: Treasury
-  let depositToken: DepositToken
+  let metDepositToken: DepositToken
   let oracle: OracleMock
   let issuer: Issuer
 
@@ -57,8 +57,8 @@ describe('Issuer', function () {
     await treasury.deployed()
 
     const depositTokenFactory = new DepositToken__factory(deployer)
-    depositToken = await depositTokenFactory.deploy()
-    await depositToken.deployed()
+    metDepositToken = await depositTokenFactory.deploy()
+    await metDepositToken.deployed()
 
     const mEthDebtTokenFactory = new DebtToken__factory(deployer)
     mEthDebtToken = await mEthDebtTokenFactory.deploy()
@@ -72,9 +72,9 @@ describe('Issuer', function () {
     issuer = await issuerFactory.deploy()
     await issuer.deployed()
 
-    await depositToken.initialize(met.address, issuer.address)
-    await depositToken.transferGovernorship(governor.address)
-    await depositToken.connect(governor).acceptGovernorship()
+    await metDepositToken.initialize(met.address, issuer.address, oracle.address, 'mBOX-MET')
+    await metDepositToken.transferGovernorship(governor.address)
+    await metDepositToken.connect(governor).acceptGovernorship()
 
     await mEthDebtToken.initialize('mETH Debt', 'mETH-Debt', 18, issuer.address)
     await mEthDebtToken.transferGovernorship(governor.address)
@@ -84,7 +84,7 @@ describe('Issuer', function () {
     await mEth.transferGovernorship(governor.address)
     await mEth.connect(governor).acceptGovernorship()
 
-    await issuer.initialize(depositToken.address, mEth.address, oracle.address, mBoxMock.address)
+    await issuer.initialize(metDepositToken.address, mEth.address, oracle.address, mBoxMock.address)
 
     // mint some MET to users
     await met.mint(user.address, parseEther(`${1e6}`))
@@ -221,7 +221,7 @@ describe('Issuer', function () {
   describe('mintDepositToken', function () {
     it('should revert if not mbox', async function () {
       // when
-      const tx = issuer.connect(user.address).mintDepositToken(ethers.constants.AddressZero, 0)
+      const tx = issuer.connect(user.address).mintDepositToken(metDepositToken.address, ethers.constants.AddressZero, 0)
 
       // then
       await expect(tx).to.revertedWith('not-mbox')
@@ -230,16 +230,16 @@ describe('Issuer', function () {
     it('should mint deposit token', async function () {
       // when
       const amount = parseEther('1')
-      const tx = () => issuer.connect(mBoxMock).mintDepositToken(user.address, amount)
+      const tx = () => issuer.connect(mBoxMock).mintDepositToken(metDepositToken.address, user.address, amount)
 
       // then
-      await expect(tx).to.changeTokenBalance(depositToken, user, amount)
+      await expect(tx).to.changeTokenBalance(metDepositToken, user, amount)
     })
   })
 
   describe('when have some deposit token', function () {
     beforeEach(async function () {
-      await issuer.connect(mBoxMock).mintDepositToken(user.address, parseEther('1'))
+      await issuer.connect(mBoxMock).mintDepositToken(metDepositToken.address, user.address, parseEther('1'))
     })
 
     describe('collectFee', function () {
@@ -252,19 +252,24 @@ describe('Issuer', function () {
       })
 
       it('should collect fee', async function () {
+        // given
+        const amount = await metDepositToken.balanceOf(user.address)
+        const amountInUsd = await oracle.convertToUsd(await metDepositToken.underlying(), amount)
+
         // when
-        const amount = await depositToken.balanceOf(user.address)
-        const tx = () => issuer.connect(mBoxMock).collectFee(user.address, amount, true)
+        const tx = () => issuer.connect(mBoxMock).collectFee(user.address, amountInUsd, true)
 
         // then
-        await expect(tx).to.changeTokenBalance(depositToken, user, amount.mul('-1'))
+        await expect(tx).to.changeTokenBalance(metDepositToken, user, amount.mul('-1'))
       })
     })
 
     describe('burnWithdrawnDeposit', function () {
       it('should revert if not mbox', async function () {
         // when
-        const tx = issuer.connect(user.address).burnWithdrawnDeposit(ethers.constants.AddressZero, 0)
+        const tx = issuer
+          .connect(user.address)
+          .burnWithdrawnDeposit(metDepositToken.address, ethers.constants.AddressZero, 0)
 
         // then
         await expect(tx).to.revertedWith('not-mbox')
@@ -272,11 +277,11 @@ describe('Issuer', function () {
 
       it('should burn deposit tokens', async function () {
         // when
-        const amount = await depositToken.balanceOf(user.address)
-        const tx = () => issuer.connect(mBoxMock).burnWithdrawnDeposit(user.address, amount)
+        const amount = await metDepositToken.balanceOf(user.address)
+        const tx = () => issuer.connect(mBoxMock).burnWithdrawnDeposit(metDepositToken.address, user.address, amount)
 
         // then
-        await expect(tx).to.changeTokenBalance(depositToken, user, amount.mul('-1'))
+        await expect(tx).to.changeTokenBalance(metDepositToken, user, amount.mul('-1'))
       })
     })
 
@@ -285,7 +290,7 @@ describe('Issuer', function () {
         // when
         const tx = issuer
           .connect(user.address)
-          .seizeDepositToken(ethers.constants.AddressZero, ethers.constants.AddressZero, 0)
+          .seizeDepositToken(metDepositToken.address, ethers.constants.AddressZero, ethers.constants.AddressZero, 0)
 
         // then
         await expect(tx).to.revertedWith('not-mbox')
@@ -293,21 +298,12 @@ describe('Issuer', function () {
 
       it('should seize deposit tokens', async function () {
         // when
-        const amount = await depositToken.balanceOf(user.address)
-        const tx = () => issuer.connect(mBoxMock).seizeDepositToken(user.address, user2.address, amount)
+        const amount = await metDepositToken.balanceOf(user.address)
+        const tx = () =>
+          issuer.connect(mBoxMock).seizeDepositToken(metDepositToken.address, user.address, user2.address, amount)
 
         // then
-        await expect(tx).to.changeTokenBalances(depositToken, [user, user2], [amount.mul('-1'), amount])
-      })
-    })
-
-    describe('updateDepositToken', function () {
-      it('should revert if not gorvernor', async function () {
-        // when
-        const tx = issuer.connect(user.address).updateDepositToken(ethers.constants.AddressZero)
-
-        // then
-        await expect(tx).to.revertedWith('not-the-governor')
+        await expect(tx).to.changeTokenBalances(metDepositToken, [user, user2], [amount.mul('-1'), amount])
       })
     })
   })

@@ -11,22 +11,19 @@ import "./ITreasury.sol";
  * @notice MBox interface
  */
 interface IMBox {
-    function depositToken() external view returns (IDepositToken);
-
-    function met() external view returns (IERC20);
-
-    function deposit(uint256 _amount) external;
+    function deposit(IDepositToken _collateral, uint256 _amount) external;
 
     function mint(ISyntheticAsset _syntheticAsset, uint256 _amount) external;
 
-    function withdraw(uint256 _amount) external;
+    function withdraw(IDepositToken _collateral, uint256 _amount) external;
 
     function repay(ISyntheticAsset _syntheticAsset, uint256 _amount) external;
 
     function liquidate(
         ISyntheticAsset _syntheticAsset,
         address _account,
-        uint256 _amountToRepay
+        uint256 _amountToRepay,
+        IDepositToken _collateral
     ) external;
 
     function swap(

@@ -57,7 +57,7 @@ describe('Deployments', function () {
   let mBoxUpgrader: MBoxUpgrader
   let treasury: Treasury
   let treasuryUpgrader: TreasuryUpgrader
-  let depositToken: DepositToken
+  let metDepositToken: DepositToken
   let depositTokenUpgrader: DepositTokenUpgrader
   let mEth: SyntheticAsset
   let syntheticAssetUpgrader: SyntheticAssetUpgrader
@@ -84,7 +84,7 @@ describe('Deployments', function () {
       MBoxUpgrader: {address: mBoxUpgraderAddress},
       Treasury: {address: treasuryAddress},
       TreasuryUpgrader: {address: treasuryUpgraderAddress},
-      DepositToken: {address: depositTokenAddress},
+      MetDepositToken: {address: metDepositTokenAddress},
       DepositTokenUpgrader: {address: depositTokenUpgraderAddress},
       MEth: {address: mEthAddress},
       SyntheticAssetUpgrader: {address: syntheticAssetUpgraderAddress},
@@ -106,7 +106,7 @@ describe('Deployments', function () {
     treasury = Treasury__factory.connect(treasuryAddress, deployer)
     treasuryUpgrader = TreasuryUpgrader__factory.connect(treasuryUpgraderAddress, deployer)
 
-    depositToken = DepositToken__factory.connect(depositTokenAddress, deployer)
+    metDepositToken = DepositToken__factory.connect(metDepositTokenAddress, deployer)
     depositTokenUpgrader = DepositTokenUpgrader__factory.connect(depositTokenUpgraderAddress, deployer)
 
     mEth = SyntheticAsset__factory.connect(mEthAddress, deployer)
@@ -168,7 +168,7 @@ describe('Deployments', function () {
   describe('Issuer', function () {
     it('should have correct params', async function () {
       expect(await issuer.mBox()).to.eq(mBox.address)
-      expect(await issuer.depositToken()).to.eq(depositToken.address)
+      expect(await issuer.met()).to.eq(await metDepositToken.underlying())
       expect(await issuer.syntheticAssets(0)).to.eq(mEth.address)
       expect(await issuer.mEth()).to.eq(mEth.address)
       expect(await issuer.oracle()).to.eq(oracle.address)
@@ -199,7 +199,6 @@ describe('Deployments', function () {
   describe('MBox', function () {
     it('should have correct params', async function () {
       expect(await mBox.treasury()).to.eq(treasury.address)
-      expect(await mBox.depositToken()).to.eq(depositToken.address)
       expect(await mBox.issuer()).to.eq(issuer.address)
       expect(await mBox.oracle()).to.eq(oracle.address)
       expect(await mBox.governor()).to.eq(deployer.address)
@@ -229,7 +228,6 @@ describe('Deployments', function () {
   describe('Treasury', function () {
     it('should have correct params', async function () {
       expect(await treasury.mBox()).to.eq(mBox.address)
-      expect(await treasury.met()).to.eq(MET_ADDRESS)
       expect(await treasury.governor()).to.eq(deployer.address)
       await treasury.connect(governor).acceptGovernorship()
       expect(await treasury.governor()).to.eq(governor.address)
@@ -243,30 +241,22 @@ describe('Deployments', function () {
         expectToFail: false,
       })
     })
-
-    it('should fail if implementation breaks storage', async function () {
-      await upgradeTestcase({
-        newImplfactory: new OracleMock__factory(deployer),
-        proxy: treasury,
-        upgrader: treasuryUpgrader,
-        expectToFail: true,
-      })
-    })
   })
 
   describe('DepositToken', function () {
     it('deposit token should have correct params', async function () {
-      expect(await depositToken.issuer()).to.eq(issuer.address)
-      expect(await depositToken.underlying()).to.eq(MET_ADDRESS)
-      expect(await depositToken.governor()).to.eq(deployer.address)
-      await depositToken.connect(governor).acceptGovernorship()
-      expect(await depositToken.governor()).to.eq(governor.address)
+      expect(await metDepositToken.issuer()).to.eq(issuer.address)
+      expect(await metDepositToken.oracle()).to.eq(oracle.address)
+      expect(await metDepositToken.underlying()).to.eq(MET_ADDRESS)
+      expect(await metDepositToken.governor()).to.eq(deployer.address)
+      await metDepositToken.connect(governor).acceptGovernorship()
+      expect(await metDepositToken.governor()).to.eq(governor.address)
     })
 
     it('should upgrade implementation', async function () {
       await upgradeTestcase({
         newImplfactory: new DepositToken__factory(deployer),
-        proxy: depositToken,
+        proxy: metDepositToken,
         upgrader: depositTokenUpgrader,
         expectToFail: false,
       })
@@ -275,7 +265,7 @@ describe('Deployments', function () {
     it('should fail if implementation breaks storage', async function () {
       await upgradeTestcase({
         newImplfactory: new OracleMock__factory(deployer),
-        proxy: depositToken,
+        proxy: metDepositToken,
         upgrader: depositTokenUpgrader,
         expectToFail: true,
       })

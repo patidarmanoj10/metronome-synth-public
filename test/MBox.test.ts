@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 /* eslint-disable camelcase */
 import {BigNumber} from '@ethersproject/bignumber'
-import {parseEther} from '@ethersproject/units'
+import {formatUnits, parseEther, parseUnits} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
@@ -31,12 +31,14 @@ describe('MBox', function () {
   let user: SignerWithAddress
   let liquidator: SignerWithAddress
   let met: ERC20Mock
+  let dai: ERC20Mock
   let mEthDebtToken: DebtToken
   let mDogeDebtToken: DebtToken
   let mEth: SyntheticAsset
   let mDoge: SyntheticAsset
   let treasury: Treasury
-  let depositToken: DepositToken
+  let metDepositToken: DepositToken
+  let daiDepositToken: DepositToken
   let oracle: OracleMock
   let issuer: Issuer
   let mBOX: MBox
@@ -44,8 +46,9 @@ describe('MBox', function () {
   const liquidatorFee = parseEther('0.1') // 10%
   const mEthCR = parseEther('1.5') // 150%
   const mDogeCR = parseEther('2') // 200%
-  const ethRate = parseEther('4000') // 1 ETH = $4000
+  const ethRate = parseEther('4000') // 1 ETH = $4,000
   const metRate = parseEther('4') // 1 MET = $4
+  const daiRate = parseEther('1') // 1 DAI = $1
   const dogeRate = parseEther('0.4') // 1 DOGE = $0.4
 
   beforeEach(async function () {
@@ -56,32 +59,39 @@ describe('MBox', function () {
     oracle = <OracleMock>await oracleMock.deploy()
     await oracle.deployed()
 
-    const metMockFactory = new ERC20Mock__factory(deployer)
-    met = await metMockFactory.deploy('Metronome', 'MET', 18)
+    const erc20MockFactory = new ERC20Mock__factory(deployer)
+
+    met = await erc20MockFactory.deploy('Metronome', 'MET', 18)
     await met.deployed()
+
+    dai = await erc20MockFactory.deploy('Dai Stablecoin', 'DAI', 8)
+    await dai.deployed()
 
     const treasuryFactory = new Treasury__factory(deployer)
     treasury = await treasuryFactory.deploy()
     await treasury.deployed()
 
     const depositTokenFactory = new DepositToken__factory(deployer)
-    depositToken = await depositTokenFactory.deploy()
-    await depositToken.deployed()
+    metDepositToken = await depositTokenFactory.deploy()
+    await metDepositToken.deployed()
 
-    const mEthDebtTokenFactory = new DebtToken__factory(deployer)
-    mEthDebtToken = await mEthDebtTokenFactory.deploy()
+    daiDepositToken = await depositTokenFactory.deploy()
+    await daiDepositToken.deployed()
+
+    const debtTokenFactory = new DebtToken__factory(deployer)
+
+    mEthDebtToken = await debtTokenFactory.deploy()
     await mEthDebtToken.deployed()
 
-    const mDogeDebtTokenFactory = new DebtToken__factory(deployer)
-    mDogeDebtToken = await mDogeDebtTokenFactory.deploy()
+    mDogeDebtToken = await debtTokenFactory.deploy()
     await mDogeDebtToken.deployed()
 
-    const mEthFactory = new SyntheticAsset__factory(deployer)
-    mEth = await mEthFactory.deploy()
+    const syntheticAssetFactory = new SyntheticAsset__factory(deployer)
+
+    mEth = await syntheticAssetFactory.deploy()
     await mEth.deployed()
 
-    const mDogeFactory = new SyntheticAsset__factory(deployer)
-    mDoge = await mDogeFactory.deploy()
+    mDoge = await syntheticAssetFactory.deploy()
     await mDoge.deployed()
 
     const issuerFactory = new Issuer__factory(deployer)
@@ -93,11 +103,15 @@ describe('MBox', function () {
     await mBOX.deployed()
 
     // Deployment tasks
-    await depositToken.initialize(met.address, issuer.address)
-    await depositToken.transferGovernorship(governor.address)
-    await depositToken.connect(governor).acceptGovernorship()
+    await metDepositToken.initialize(met.address, issuer.address, oracle.address, 'mBOX-MET')
+    await metDepositToken.transferGovernorship(governor.address)
+    await metDepositToken.connect(governor).acceptGovernorship()
 
-    await treasury.initialize(met.address, mBOX.address)
+    await daiDepositToken.initialize(dai.address, issuer.address, oracle.address, 'mBOX-WBTC')
+    await daiDepositToken.transferGovernorship(governor.address)
+    await daiDepositToken.connect(governor).acceptGovernorship()
+
+    await treasury.initialize(mBOX.address)
     await treasury.transferGovernorship(governor.address)
     await treasury.connect(governor).acceptGovernorship()
 
@@ -117,17 +131,20 @@ describe('MBox', function () {
     await mDoge.transferGovernorship(governor.address)
     await mDoge.connect(governor).acceptGovernorship()
 
-    await mBOX.initialize(treasury.address, depositToken.address, oracle.address, issuer.address)
+    await mBOX.initialize(treasury.address, metDepositToken.address, oracle.address, issuer.address)
     await mBOX.updateLiquidatorFee(liquidatorFee)
 
-    await issuer.initialize(depositToken.address, mEth.address, oracle.address, mBOX.address)
+    await issuer.initialize(metDepositToken.address, mEth.address, oracle.address, mBOX.address)
+    await issuer.addDepositToken(daiDepositToken.address)
     await issuer.addSyntheticAsset(mDoge.address)
 
-    // mint some MET to users
+    // mint some collaterals to users
     await met.mint(user.address, parseEther(`${1e6}`))
     await met.mint(liquidator.address, parseEther(`${1e6}`))
+    await dai.mint(user.address, parseEther(`${1e6}`))
 
     // initialize mocked oracle
+    await oracle.updateRate(dai.address, daiRate)
     await oracle.updateRate(met.address, metRate)
     await oracle.updateRate(mEth.address, ethRate)
     await oracle.updateRate(mDoge.address, dogeRate)
@@ -144,7 +161,7 @@ describe('MBox', function () {
 
       // when
       const toDeposit = parseEther('10')
-      const tx = mBOX.connect(user).deposit(toDeposit)
+      const tx = mBOX.connect(user).deposit(metDepositToken.address, toDeposit)
 
       // then
       await expect(tx).to.revertedWith('paused')
@@ -156,7 +173,7 @@ describe('MBox', function () {
 
       // when
       const toDeposit = parseEther('10')
-      const tx = mBOX.connect(user).deposit(toDeposit)
+      const tx = mBOX.connect(user).deposit(metDepositToken.address, toDeposit)
 
       // then
       await expect(tx).to.revertedWith('paused')
@@ -164,26 +181,26 @@ describe('MBox', function () {
 
     it('should revert if collateral amount is 0', async function () {
       const toDeposit = 0
-      const tx = mBOX.connect(user).deposit(toDeposit)
+      const tx = mBOX.connect(user).deposit(metDepositToken.address, toDeposit)
       await expect(tx).to.revertedWith('zero-collateral-amount')
     })
 
     it('should revert if MET balance is not enough', async function () {
       const balance = await met.balanceOf(user.address)
       const tooHigh = balance.add('1')
-      const tx = mBOX.connect(user).deposit(tooHigh)
+      const tx = mBOX.connect(user).deposit(metDepositToken.address, tooHigh)
       await expect(tx).to.revertedWith('ERC20: transfer amount exceeds balance')
     })
 
     it('should deposit MET and mint mBOX-MET (depositFee == 0)', async function () {
       // when
       const amount = parseEther('10')
-      const tx = () => mBOX.connect(user).deposit(amount)
+      const tx = () => mBOX.connect(user).deposit(metDepositToken.address, amount)
 
       // then
       await expect(tx).changeTokenBalances(met, [user, treasury], [amount.mul('-1'), amount])
-      await expect(tx).changeTokenBalances(depositToken, [user, mBOX], [amount, 0])
-      await expect(tx()).to.emit(mBOX, 'CollateralDeposited').withArgs(user.address, amount)
+      await expect(tx).changeTokenBalances(metDepositToken, [user, mBOX], [amount, 0])
+      await expect(tx()).to.emit(mBOX, 'CollateralDeposited').withArgs(metDepositToken.address, user.address, amount)
     })
 
     it('should deposit MET and mint mBOX-MET (depositFee > 0)', async function () {
@@ -193,13 +210,50 @@ describe('MBox', function () {
 
       // when
       const amount = parseEther('10')
-      const tx = () => mBOX.connect(user).deposit(amount)
+      const tx = () => mBOX.connect(user).deposit(metDepositToken.address, amount)
       const expectedMintedAmount = amount.mul(parseEther('1').sub(depositFee)).div(parseEther('1')) // 10 * (1 - 0.01)
 
       // then
       await expect(tx).changeTokenBalances(met, [user, treasury], [amount.mul('-1'), amount])
-      await expect(tx).changeTokenBalances(depositToken, [user, mBOX], [expectedMintedAmount, 0])
-      await expect(tx()).to.emit(mBOX, 'CollateralDeposited').withArgs(user.address, expectedMintedAmount)
+      await expect(tx).changeTokenBalances(metDepositToken, [user, mBOX], [expectedMintedAmount, 0])
+      await expect(tx())
+        .to.emit(mBOX, 'CollateralDeposited')
+        .withArgs(metDepositToken.address, user.address, expectedMintedAmount)
+    })
+
+    describe('when user deposited multi-collateral', function () {
+      const metDepositAmount = parseEther('6000') // ~ $24,000
+      const daiDepositAmount = parseEther('24000') // ~ $24,000
+
+      beforeEach(async function () {
+        await met.connect(user).approve(mBOX.address, ethers.constants.MaxUint256)
+        await dai.connect(user).approve(mBOX.address, ethers.constants.MaxUint256)
+
+        await mBOX.connect(user).deposit(metDepositToken.address, metDepositAmount)
+        await mBOX.connect(user).deposit(daiDepositToken.address, daiDepositAmount)
+      })
+
+      it('should calculate deposit correctly', async function () {
+        expect(await issuer.debtPositionOfUsingLatestPrices(user.address)).deep.eq([
+          true, // _isHealthy
+          parseEther('0'), // _lockedDepositInUsd
+          parseEther('48000'), // _depositInUsd
+          parseEther('48000'), // _unlockedDepositInUsd
+          false, //_anyPriceInvalid
+        ])
+      })
+
+      it('should be able to mint using position among multiple collaterals', async function () {
+        const amountToMint = parseEther('8') // ~$32,000
+        await mBOX.connect(user).mint(mEth.address, amountToMint)
+        expect(await issuer.debtPositionOfUsingLatestPrices(user.address)).deep.eq([
+          true, // _isHealthy
+          parseEther('48000'), // _lockedDepositInUsd
+          parseEther('48000'), // _depositInUsd
+          parseEther('0'), // _unlockedDepositInUsd
+          false, //_anyPriceInvalid
+        ])
+      })
     })
 
     describe('when user deposited some MET', function () {
@@ -207,7 +261,7 @@ describe('MBox', function () {
 
       beforeEach(async function () {
         await met.connect(user).approve(mBOX.address, ethers.constants.MaxUint256)
-        await mBOX.connect(user).deposit(userDepositAmount)
+        await mBOX.connect(user).deposit(metDepositToken.address, userDepositAmount)
       })
 
       describe('mint', function () {
@@ -257,7 +311,7 @@ describe('MBox', function () {
 
         it('should revert if synthetic is not active', async function () {
           // given
-          await mEth.connect(governor).updateIsActive(false)
+          await mEth.connect(governor).toggleIsActive()
 
           // when
           const amountToMint = parseEther('1')
@@ -302,9 +356,7 @@ describe('MBox', function () {
             true, // _isHealthy
             BigNumber.from(0), // _lockedDepositInUsd
             userDepositAmount.mul(metRate).div(parseEther('1')), // _depositInUsd
-            userDepositAmount, // _deposit
-            userDepositAmount, // _unlockedDeposit
-            BigNumber.from(0), // _lockedDeposit
+            userDepositAmount.mul(metRate).div(parseEther('1')), // _unlockedDepositInUsd
             false, //_anyPriceInvalid
           ])
 
@@ -319,19 +371,23 @@ describe('MBox', function () {
             mEth.address
           )
           expect(maxIssuableAfter).to.eq(maxIssuableBefore.sub(amountToMint)).and.to.eq(parseEther('3')) // 3 ETH = $12K
-          const expectedLocked = amountToMint.mul(ethRate).mul(mEthCR).div(metRate).div(parseEther('1'))
 
           const {_debtInUsd: debtInUsdAfter} = await issuer.debtOfUsingLatestPrices(user.address)
           expect(debtInUsdAfter).to.eq(amountToMint.mul(ethRate).div(parseEther('1')))
 
+          const expectedLockedDepositInUsd = amountToMint
+            .mul(ethRate)
+            .div(parseEther('1'))
+            .mul(mEthCR)
+            .div(parseEther('1'))
+          const expectedDepositInUsd = userDepositAmount.mul(metRate).div(parseEther('1'))
+          const expectedUnlockedInUsd = expectedDepositInUsd.sub(expectedLockedDepositInUsd)
+
           expect(await issuer.debtPositionOfUsingLatestPrices(user.address)).to.deep.eq([
             true, // _isHealthy
-            // _lockedDepositInUsd
-            amountToMint.mul(ethRate).div(parseEther('1')).mul(mEthCR).div(parseEther('1')),
-            userDepositAmount.mul(metRate).div(parseEther('1')), // _depositInUsd
-            userDepositAmount, // _deposit
-            userDepositAmount.sub(expectedLocked), // _unlockedDeposit
-            expectedLocked, // _lockedDeposit
+            expectedLockedDepositInUsd,
+            expectedDepositInUsd,
+            expectedUnlockedInUsd,
             false, //_anyPriceInvalid
           ])
 
@@ -354,15 +410,11 @@ describe('MBox', function () {
           await expect(tx).changeTokenBalances(mEth, [user], [expectedAmountToMint])
 
           // then
-          const expectedFeeInDeposit = await oracle.convert(
-            mEth.address,
-            await depositToken.underlying(),
-            expectedFeeInSynthetic
-          )
+          const expectedFeeInDeposit = await oracle.convert(mEth.address, met.address, expectedFeeInSynthetic)
 
           // Note: the calls below will make additional transfers
           // See: https://github.com/EthWorks/Waffle/issues/569
-          await expect(tx).changeTokenBalances(depositToken, [user], [expectedFeeInDeposit.mul('-1')])
+          await expect(tx).changeTokenBalances(metDepositToken, [user], [expectedFeeInDeposit.mul('-1')])
           await expect(tx).changeTokenBalances(mEthDebtToken, [user], [expectedAmountToMint])
           await expect(tx())
             .to.emit(mBOX, 'SyntheticAssetMinted')
@@ -400,12 +452,12 @@ describe('MBox', function () {
         describe('withdraw', function () {
           describe('when minimum deposit time is > 0', function () {
             beforeEach(async function () {
-              await depositToken.connect(governor).updateMinDepositTime(HOUR)
+              await metDepositToken.connect(governor).updateMinDepositTime(HOUR)
             })
 
             it('should revert if minimum deposit time have not passed', async function () {
               // when
-              const tx = mBOX.connect(user).withdraw('1')
+              const tx = mBOX.connect(user).withdraw(metDepositToken.address, '1')
 
               // then
               await expect(tx).to.revertedWith('min-deposit-time-have-not-passed')
@@ -417,7 +469,7 @@ describe('MBox', function () {
 
               // when
               const amount = '1'
-              const tx = () => mBOX.connect(user).withdraw(amount)
+              const tx = () => mBOX.connect(user).withdraw(metDepositToken.address, amount)
 
               // then
               await expect(tx).to.changeTokenBalances(met, [user], [amount])
@@ -431,7 +483,7 @@ describe('MBox', function () {
 
               // when
               const amount = 1
-              const tx = mBOX.connect(user).withdraw(amount)
+              const tx = mBOX.connect(user).withdraw(metDepositToken.address, amount)
 
               // then
               await expect(tx).to.emit(mBOX, 'CollateralWithdrawn')
@@ -443,7 +495,7 @@ describe('MBox', function () {
 
               // when
               const amount = 1
-              const tx = mBOX.connect(user).withdraw(amount)
+              const tx = mBOX.connect(user).withdraw(metDepositToken.address, amount)
 
               // then
               await expect(tx).to.revertedWith('shutdown')
@@ -451,7 +503,7 @@ describe('MBox', function () {
 
             it('should revert if amount is 0', async function () {
               // when
-              const tx = mBOX.connect(user).withdraw(0)
+              const tx = mBOX.connect(user).withdraw(metDepositToken.address, 0)
 
               // then
               await expect(tx).to.revertedWith('amount-to-withdraw-is-zero')
@@ -459,10 +511,11 @@ describe('MBox', function () {
 
             it('should revert if amount > unlocked collateral amount', async function () {
               // given
-              const {_unlockedDeposit} = await issuer.debtPositionOfUsingLatestPrices(user.address)
+              const {_unlockedDepositInUsd} = await issuer.debtPositionOfUsingLatestPrices(user.address)
 
               // when
-              const tx = mBOX.connect(user).withdraw(_unlockedDeposit.add('1'))
+              const _unlockedDeposit = await oracle.convertFromUsd(met.address, _unlockedDepositInUsd)
+              const tx = mBOX.connect(user).withdraw(metDepositToken.address, _unlockedDeposit.add('1'))
 
               // then
               await expect(tx).to.revertedWith('amount-to-withdraw-gt-unlocked')
@@ -470,18 +523,23 @@ describe('MBox', function () {
 
             it('should withdraw if amount <= unlocked collateral amount (withdrawFee == 0)', async function () {
               // given
-              const {_unlockedDeposit: amountToWithdraw} = await issuer.debtPositionOfUsingLatestPrices(user.address)
+              const {_unlockedDepositInUsd: amountToWithdrawInUsd} = await issuer.debtPositionOfUsingLatestPrices(
+                user.address
+              )
               const metBalanceBefore = await met.balanceOf(user.address)
-              const depositBefore = await depositToken.balanceOf(user.address)
+              const depositBefore = await metDepositToken.balanceOf(user.address)
 
               // when
-              const tx = mBOX.connect(user).withdraw(amountToWithdraw)
-              await expect(tx).to.emit(mBOX, 'CollateralWithdrawn').withArgs(user.address, amountToWithdraw)
+              const amountToWithdraw = await oracle.convertFromUsd(met.address, amountToWithdrawInUsd)
+              const tx = mBOX.connect(user).withdraw(metDepositToken.address, amountToWithdraw)
+              await expect(tx)
+                .to.emit(mBOX, 'CollateralWithdrawn')
+                .withArgs(metDepositToken.address, user.address, amountToWithdraw)
 
               // then
               expect(await met.balanceOf(user.address)).to.eq(metBalanceBefore.add(amountToWithdraw))
-              expect(await depositToken.balanceOf(user.address)).to.eq(depositBefore.sub(amountToWithdraw))
-              const {_unlockedDeposit: unlockedCollateralAfter} = await issuer.debtPositionOfUsingLatestPrices(
+              expect(await metDepositToken.balanceOf(user.address)).to.eq(depositBefore.sub(amountToWithdraw))
+              const {_unlockedDepositInUsd: unlockedCollateralAfter} = await issuer.debtPositionOfUsingLatestPrices(
                 user.address
               )
               expect(unlockedCollateralAfter).to.eq(0)
@@ -492,20 +550,25 @@ describe('MBox', function () {
               const withdrawFee = parseEther('0.1') // 10%
               await mBOX.updateWithdrawFee(withdrawFee)
               const metBalanceBefore = await met.balanceOf(user.address)
-              const depositBefore = await depositToken.balanceOf(user.address)
-              const {_unlockedDeposit: amountToWithdraw} = await issuer.debtPositionOfUsingLatestPrices(user.address)
+              const depositBefore = await metDepositToken.balanceOf(user.address)
+              const {_unlockedDepositInUsd: amountToWithdrawInUsd} = await issuer.debtPositionOfUsingLatestPrices(
+                user.address
+              )
+              const amountToWithdraw = await oracle.convertFromUsd(met.address, amountToWithdrawInUsd)
               const expectedWithdrawnAmount = amountToWithdraw
                 .mul(parseEther('1').sub(withdrawFee))
                 .div(parseEther('1'))
 
               // when
-              const tx = mBOX.connect(user).withdraw(amountToWithdraw)
-              await expect(tx).to.emit(mBOX, 'CollateralWithdrawn').withArgs(user.address, expectedWithdrawnAmount)
+              const tx = mBOX.connect(user).withdraw(metDepositToken.address, amountToWithdraw)
+              await expect(tx)
+                .to.emit(mBOX, 'CollateralWithdrawn')
+                .withArgs(metDepositToken.address, user.address, expectedWithdrawnAmount)
 
               // then
               expect(await met.balanceOf(user.address)).to.eq(metBalanceBefore.add(expectedWithdrawnAmount))
-              expect(await depositToken.balanceOf(user.address)).to.eq(depositBefore.sub(amountToWithdraw))
-              const {_unlockedDeposit: unlockedCollateralAfter} = await issuer.debtPositionOfUsingLatestPrices(
+              expect(await metDepositToken.balanceOf(user.address)).to.eq(depositBefore.sub(amountToWithdraw))
+              const {_unlockedDepositInUsd: unlockedCollateralAfter} = await issuer.debtPositionOfUsingLatestPrices(
                 user.address
               )
               expect(unlockedCollateralAfter).to.eq(0)
@@ -560,7 +623,9 @@ describe('MBox', function () {
           it('should repay if amount == debt (repayFee == 0)', async function () {
             // given
             const debtAmount = await mEthDebtToken.balanceOf(user.address)
-            const {_lockedDeposit: lockedCollateralBefore} = await issuer.debtPositionOfUsingLatestPrices(user.address)
+            const {_lockedDepositInUsd: lockedCollateralBefore} = await issuer.debtPositionOfUsingLatestPrices(
+              user.address
+            )
             expect(lockedCollateralBefore).to.gt(0)
 
             // when
@@ -569,14 +634,18 @@ describe('MBox', function () {
 
             // then
             expect(await mEthDebtToken.balanceOf(user.address)).to.eq(0)
-            const {_lockedDeposit: lockedCollateralAfter} = await issuer.debtPositionOfUsingLatestPrices(user.address)
+            const {_lockedDepositInUsd: lockedCollateralAfter} = await issuer.debtPositionOfUsingLatestPrices(
+              user.address
+            )
             expect(lockedCollateralAfter).to.eq(0)
           })
 
           it('should repay if amount < debt (repayFee == 0)', async function () {
             // given
             const debtAmount = (await mEthDebtToken.balanceOf(user.address)).div('2')
-            const {_lockedDeposit: lockedDepositBefore} = await issuer.debtPositionOfUsingLatestPrices(user.address)
+            const {_lockedDepositInUsd: lockedDepositBefore} = await issuer.debtPositionOfUsingLatestPrices(
+              user.address
+            )
             expect(lockedDepositBefore).to.gt(0)
 
             // when
@@ -585,7 +654,7 @@ describe('MBox', function () {
 
             // then
             expect(await mEthDebtToken.balanceOf(user.address)).to.eq(debtAmount)
-            const {_lockedDeposit: lockedDepositAfter} = await issuer.debtPositionOfUsingLatestPrices(user.address)
+            const {_lockedDepositInUsd: lockedDepositAfter} = await issuer.debtPositionOfUsingLatestPrices(user.address)
             expect(lockedDepositAfter).to.eq(lockedDepositBefore.div('2'))
           })
 
@@ -594,17 +663,13 @@ describe('MBox', function () {
             const repayFee = parseEther('0.1') // 10%
             await mBOX.updateRepayFee(repayFee)
             const amountToRepay = await mEthDebtToken.balanceOf(user.address)
-            const {
-              _lockedDeposit: lockedDepositBefore,
-              _deposit: depositBefore,
-              _depositInUsd: depositInUsdBefore,
-            } = await issuer.debtPositionOfUsingLatestPrices(user.address)
+            const {_lockedDepositInUsd: lockedDepositBefore, _depositInUsd: depositInUsdBefore} =
+              await issuer.debtPositionOfUsingLatestPrices(user.address)
             expect(lockedDepositBefore).to.gt(0)
             const expectedFeeInUsd = await oracle.convertToUsd(
               mEth.address,
               amountToRepay.mul(repayFee).div(parseEther('1'))
             )
-            const expectedFeeInMET = await oracle.convertFromUsd(met.address, expectedFeeInUsd)
 
             // when
             const tx = mBOX.connect(user).repay(mEth.address, amountToRepay)
@@ -612,13 +677,9 @@ describe('MBox', function () {
 
             // then
             expect(await mEthDebtToken.balanceOf(user.address)).to.eq(0)
-            const {
-              _lockedDeposit: lockedDepositAfter,
-              _deposit: depositAfter,
-              _depositInUsd: depositInUsdAfter,
-            } = await issuer.debtPositionOfUsingLatestPrices(user.address)
+            const {_lockedDepositInUsd: lockedDepositAfter, _depositInUsd: depositInUsdAfter} =
+              await issuer.debtPositionOfUsingLatestPrices(user.address)
             expect(lockedDepositAfter).to.eq(0)
-            expect(depositAfter).to.eq(depositBefore.sub(expectedFeeInMET))
             expect(depositInUsdAfter).to.eq(depositInUsdBefore.sub(expectedFeeInUsd))
           })
 
@@ -627,18 +688,14 @@ describe('MBox', function () {
             const repayFee = parseEther('0.1') // 10%
             await mBOX.updateRepayFee(repayFee)
             const amountToRepay = (await mEthDebtToken.balanceOf(user.address)).div('2')
-            const {
-              _lockedDeposit: lockedDepositBefore,
-              _deposit: depositBefore,
-              _depositInUsd: depositInUsdBefore,
-            } = await issuer.debtPositionOfUsingLatestPrices(user.address)
-            expect(lockedDepositBefore).to.gt(0)
-            expect(lockedDepositBefore).to.gt(0)
+            const {_lockedDepositInUsd: lockedDepositInUsdBefore, _depositInUsd: depositInUsdBefore} =
+              await issuer.debtPositionOfUsingLatestPrices(user.address)
+            expect(lockedDepositInUsdBefore).to.gt(0)
+            expect(depositInUsdBefore).to.gt(0)
             const expectedFeeInUsd = await oracle.convertToUsd(
               mEth.address,
               amountToRepay.mul(repayFee).div(parseEther('1'))
             )
-            const expectedFeeInMET = await oracle.convertFromUsd(met.address, expectedFeeInUsd)
 
             // when
             const tx = mBOX.connect(user).repay(mEth.address, amountToRepay)
@@ -646,13 +703,9 @@ describe('MBox', function () {
 
             // then
             expect(await mEthDebtToken.balanceOf(user.address)).to.eq(amountToRepay)
-            const {
-              _lockedDeposit: lockedDepositAfter,
-              _deposit: depositAfter,
-              _depositInUsd: depositInUsdAfter,
-            } = await issuer.debtPositionOfUsingLatestPrices(user.address)
-            expect(lockedDepositAfter).to.eq(lockedDepositBefore.div('2'))
-            expect(depositAfter).to.eq(depositBefore.sub(expectedFeeInMET))
+            const {_lockedDepositInUsd: lockedDepositInUsdAfter, _depositInUsd: depositInUsdAfter} =
+              await issuer.debtPositionOfUsingLatestPrices(user.address)
+            expect(lockedDepositInUsdAfter).to.eq(lockedDepositInUsdBefore.div('2'))
             expect(depositInUsdAfter).to.eq(depositInUsdBefore.sub(expectedFeeInUsd))
           })
         })
@@ -692,7 +745,7 @@ describe('MBox', function () {
 
           it('should revert if synthetic out is not active', async function () {
             // given
-            await mDoge.connect(governor).updateIsActive(false)
+            await mDoge.connect(governor).toggleIsActive()
 
             // when
             const amountIn = await mEth.balanceOf(user.address)
@@ -919,11 +972,12 @@ describe('MBox', function () {
               const mAssetOutDebtBalanceBefore = await mEthDebtToken.balanceOf(user.address)
 
               const {_debtInUsd: debtBefore} = await issuer.debtOfUsingLatestPrices(user.address)
-              const {_unlockedDeposit: unlockedBefore} = await issuer.debtPositionOfUsingLatestPrices(user.address)
+              const {_unlockedDepositInUsd: unlockedInUsdBefore} = await issuer.debtPositionOfUsingLatestPrices(
+                user.address
+              )
 
               // when
               const mAssetIn = mDoge.address
-              const mAssetOut = mEth.address
               const amountToRefinance = mAssetInBalanceBefore
               const amountInUsd = amountToRefinance.mul(dogeRate).div(parseEther('1'))
               const tx = await mBOX.connect(user).refinance(mAssetIn, amountToRefinance)
@@ -935,17 +989,19 @@ describe('MBox', function () {
                 .to.emit(mBOX, 'DebtRefinancied')
                 .withArgs(user.address, mAssetIn, amountToRefinance)
                 .and.to.emit(mBOX, 'SyntheticAssetSwapped')
-                .withArgs(user.address, mAssetIn, mAssetOut, amountToRefinance, expectedAmountOut)
+                .withArgs(user.address, mAssetIn, mEth.address, amountToRefinance, expectedAmountOut)
 
               const mAssetInBalanceAfter = await mDoge.balanceOf(user.address)
               const mAssetInDebtBalanceAfter = await mDogeDebtToken.balanceOf(user.address)
               const mAssetOutBalanceAfter = await mEth.balanceOf(user.address)
               const mAssetOutDebtBalanceAfter = await mEthDebtToken.balanceOf(user.address)
               const {_debtInUsd: debtAfter} = await issuer.debtOfUsingLatestPrices(user.address)
-              const {_unlockedDeposit: unlockedAfter} = await issuer.debtPositionOfUsingLatestPrices(user.address)
+              const {_unlockedDepositInUsd: unlockedInUsdAfter} = await issuer.debtPositionOfUsingLatestPrices(
+                user.address
+              )
 
               expect(debtAfter).to.eq(debtBefore)
-              expect(unlockedAfter).to.gt(unlockedBefore)
+              expect(unlockedInUsdAfter).to.gt(unlockedInUsdBefore)
               expect(mAssetInBalanceAfter).to.eq(mAssetInBalanceBefore.sub(amountToRefinance))
               expect(mAssetInDebtBalanceAfter).to.eq(mAssetInDebtBalanceBefore.sub(amountToRefinance))
               expect(mAssetOutBalanceAfter).to.eq(mAssetOutBalanceBefore.add(expectedAmountOut))
@@ -963,11 +1019,12 @@ describe('MBox', function () {
               const mAssetOutDebtBalanceBefore = await mEthDebtToken.balanceOf(user.address)
 
               const {_debtInUsd: debtBefore} = await issuer.debtOfUsingLatestPrices(user.address)
-              const {_unlockedDeposit: unlockedBefore} = await issuer.debtPositionOfUsingLatestPrices(user.address)
+              const {_unlockedDepositInUsd: unlockedInUsdBefore} = await issuer.debtPositionOfUsingLatestPrices(
+                user.address
+              )
 
               // when
               const mAssetIn = mDoge.address
-              const mAssetOut = mEth.address
               const amountToRefinance = mAssetInBalanceBefore
               const amountInUsd = amountToRefinance.mul(dogeRate).div(parseEther('1'))
               const tx = await mBOX.connect(user).refinance(mAssetIn, amountToRefinance)
@@ -980,17 +1037,19 @@ describe('MBox', function () {
                 .to.emit(mBOX, 'DebtRefinancied')
                 .withArgs(user.address, mAssetIn, amountToRefinance)
                 .and.to.emit(mBOX, 'SyntheticAssetSwapped')
-                .withArgs(user.address, mAssetIn, mAssetOut, amountToRefinance, expectedAmountOut)
+                .withArgs(user.address, mAssetIn, mEth.address, amountToRefinance, expectedAmountOut)
 
               const mAssetInBalanceAfter = await mDoge.balanceOf(user.address)
               const mAssetInDebtBalanceAfter = await mDogeDebtToken.balanceOf(user.address)
               const mAssetOutBalanceAfter = await mEth.balanceOf(user.address)
               const mAssetOutDebtBalanceAfter = await mEthDebtToken.balanceOf(user.address)
               const {_debtInUsd: debtAfter} = await issuer.debtOfUsingLatestPrices(user.address)
-              const {_unlockedDeposit: unlockedAfter} = await issuer.debtPositionOfUsingLatestPrices(user.address)
+              const {_unlockedDepositInUsd: unlockedInUsdAfter} = await issuer.debtPositionOfUsingLatestPrices(
+                user.address
+              )
 
               expect(debtAfter).to.eq(debtBefore.sub(feeInUsd))
-              expect(unlockedAfter).to.gt(unlockedBefore)
+              expect(unlockedInUsdAfter).to.gt(unlockedInUsdBefore)
               expect(mAssetInBalanceAfter).to.eq(mAssetInBalanceBefore.sub(amountToRefinance))
               expect(mAssetInDebtBalanceAfter).to.eq(mAssetInDebtBalanceBefore.sub(amountToRefinance))
               expect(mAssetOutBalanceAfter).to.eq(mAssetOutBalanceBefore.add(expectedAmountOut))
@@ -1005,13 +1064,13 @@ describe('MBox', function () {
 
           beforeEach(async function () {
             await met.connect(liquidator).approve(mBOX.address, ethers.constants.MaxUint256)
-            await mBOX.connect(liquidator).deposit(liquidatorDepositAmount)
+            await mBOX.connect(liquidator).deposit(metDepositToken.address, liquidatorDepositAmount)
             await mBOX.connect(liquidator).mint(mEth.address, liquidatorMintAmount)
           })
 
           it('should revert if amount to repay == 0', async function () {
             // when
-            const tx = mBOX.liquidate(mEth.address, user.address, 0)
+            const tx = mBOX.liquidate(mEth.address, user.address, 0, metDepositToken.address)
 
             // then
             await expect(tx).to.revertedWith('amount-to-repay-is-zero')
@@ -1019,7 +1078,7 @@ describe('MBox', function () {
 
           it('should revert if liquidator == account', async function () {
             // when
-            const tx = mBOX.connect(user).liquidate(mEth.address, user.address, 1)
+            const tx = mBOX.connect(user).liquidate(mEth.address, user.address, 1, metDepositToken.address)
 
             // then
             await expect(tx).to.revertedWith('can-not-liquidate-own-position')
@@ -1033,7 +1092,7 @@ describe('MBox', function () {
             expect(isHealthy).to.true
 
             // when
-            const tx = mBOX.liquidate(mEth.address, user.address, parseEther('1'))
+            const tx = mBOX.liquidate(mEth.address, user.address, parseEther('1'), metDepositToken.address)
 
             // then
             await expect(tx).to.revertedWith('position-is-healthy')
@@ -1053,15 +1112,13 @@ describe('MBox', function () {
                 // _lockedDepositInUsd
                 userMintAmount.mul(ethRate).div(parseEther('1')).mul(mEthCR).div(parseEther('1')),
                 userDepositAmount.mul(newMetRate).div(parseEther('1')), // _depositInUsd
-                userDepositAmount, // _deposit
-                BigNumber.from(0), // _unlockedDeposit
-                userDepositAmount, // _lockedDeposit
+                BigNumber.from(0), // _unlockedDepositInUsd
                 false, //_anyPriceInvalid
               ])
-              expect(await depositToken.balanceOf(user.address)).to.eq(userDepositAmount)
+              expect(await metDepositToken.balanceOf(user.address)).to.eq(userDepositAmount)
               expect(await mEth.balanceOf(user.address)).to.eq(userMintAmount)
               expect(await mEthDebtToken.balanceOf(user.address)).to.eq(userMintAmount)
-              expect(await depositToken.balanceOf(liquidator.address)).to.eq(liquidatorDepositAmount)
+              expect(await metDepositToken.balanceOf(liquidator.address)).to.eq(liquidatorDepositAmount)
               expect(await mEth.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount)
               expect(await mEthDebtToken.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount)
             })
@@ -1072,7 +1129,9 @@ describe('MBox', function () {
 
               // when
               const amountToRepay = userMintAmount // repay all user's debt
-              const tx = await mBOX.connect(liquidator).liquidate(mEth.address, user.address, amountToRepay)
+              const tx = await mBOX
+                .connect(liquidator)
+                .liquidate(mEth.address, user.address, amountToRepay, metDepositToken.address)
 
               // then
               await expect(tx).to.emit(mBOX, 'PositionLiquidated')
@@ -1084,7 +1143,9 @@ describe('MBox', function () {
 
               // when
               const amountToRepay = userMintAmount // repay all user's debt
-              const tx = mBOX.connect(liquidator).liquidate(mEth.address, user.address, amountToRepay)
+              const tx = mBOX
+                .connect(liquidator)
+                .liquidate(mEth.address, user.address, amountToRepay, metDepositToken.address)
 
               // then
               await expect(tx).to.revertedWith('shutdown')
@@ -1099,7 +1160,9 @@ describe('MBox', function () {
               expect(await mEth.balanceOf(liquidator.address)).to.lt(amountToRepayInMEth)
 
               // when
-              const tx = mBOX.connect(liquidator).liquidate(mEth.address, user.address, amountToRepayInMEth)
+              const tx = mBOX
+                .connect(liquidator)
+                .liquidate(mEth.address, user.address, amountToRepayInMEth, metDepositToken.address)
 
               // then
               await expect(tx).to.revertedWith('amount-gt-burnable-synthetic')
@@ -1111,7 +1174,9 @@ describe('MBox', function () {
 
               // when
               const amountToRepay = mEthDebt.add('1')
-              const tx = mBOX.connect(liquidator).liquidate(mEth.address, user.address, amountToRepay)
+              const tx = mBOX
+                .connect(liquidator)
+                .liquidate(mEth.address, user.address, amountToRepay, metDepositToken.address)
 
               // then
               await expect(tx).to.revertedWith('amount-gt-max-liquidable')
@@ -1125,7 +1190,9 @@ describe('MBox', function () {
 
               // when
               const amountToRepay = mEthDebt.div('2').add('1')
-              const tx = mBOX.connect(liquidator).liquidate(mEth.address, user.address, amountToRepay)
+              const tx = mBOX
+                .connect(liquidator)
+                .liquidate(mEth.address, user.address, amountToRepay, metDepositToken.address)
 
               // then
               await expect(tx).to.revertedWith('amount-gt-max-liquidable')
@@ -1139,7 +1206,9 @@ describe('MBox', function () {
 
               // when
               const amountToRepay = userMintAmount // repay all user's debt
-              const tx = await mBOX.connect(liquidator).liquidate(mEth.address, user.address, amountToRepay)
+              const tx = await mBOX
+                .connect(liquidator)
+                .liquidate(mEth.address, user.address, amountToRepay, metDepositToken.address)
 
               // then
               const [PositionLiquidated] = (await tx.wait()).events!.filter(({event}) => event === 'PositionLiquidated')
@@ -1155,10 +1224,12 @@ describe('MBox', function () {
 
               expect(_isHealthy).to.true
               expect(depositSeized).to.eq(expectedDepositSeized)
-              expect(await depositToken.balanceOf(user.address)).to.eq(expectedDepositAfter)
+              expect(await metDepositToken.balanceOf(user.address)).to.eq(expectedDepositAfter)
               expect(await mEth.balanceOf(user.address)).to.eq(userMintAmount)
               expect(await mEthDebtToken.balanceOf(user.address)).to.eq(0)
-              expect(await depositToken.balanceOf(liquidator.address)).to.eq(liquidatorDepositAmount.add(depositSeized))
+              expect(await metDepositToken.balanceOf(liquidator.address)).to.eq(
+                liquidatorDepositAmount.add(depositSeized)
+              )
               expect(await mEth.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount.sub(amountToRepay))
               expect(await mEthDebtToken.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount)
             })
@@ -1168,11 +1239,14 @@ describe('MBox', function () {
               const liquidateFee = parseEther('0.01') // 1%
               await mBOX.updateLiquidateFee(liquidateFee)
               const {_debtInUsd: debtInUsdBefore} = await issuer.debtOfUsingLatestPrices(user.address)
-              const {_deposit: depositBefore} = await issuer.debtPositionOfUsingLatestPrices(user.address)
+              const {_depositInUsd: depositInUsdBefore} = await issuer.debtPositionOfUsingLatestPrices(user.address)
+              const depositBefore = await oracle.convertFromUsd(met.address, depositInUsdBefore)
 
               // when
               const amountToRepay = userMintAmount // repay all user's debt
-              const tx = await mBOX.connect(liquidator).liquidate(mEth.address, user.address, amountToRepay)
+              const tx = await mBOX
+                .connect(liquidator)
+                .liquidate(mEth.address, user.address, amountToRepay, metDepositToken.address)
 
               // then
               const [PositionLiquidated] = (await tx.wait()).events!.filter(({event}) => event === 'PositionLiquidated')
@@ -1192,10 +1266,10 @@ describe('MBox', function () {
 
               expect(_isHealthy).to.true
               expect(depositSeized).to.eq(expectedDepositSeized)
-              expect(await depositToken.balanceOf(user.address)).to.eq(expectedDepositAfter)
+              expect(await metDepositToken.balanceOf(user.address)).to.eq(expectedDepositAfter)
               expect(await mEth.balanceOf(user.address)).to.eq(userMintAmount)
               expect(await mEthDebtToken.balanceOf(user.address)).to.eq(0)
-              expect(await depositToken.balanceOf(liquidator.address)).to.closeTo(
+              expect(await metDepositToken.balanceOf(liquidator.address)).to.closeTo(
                 liquidatorDepositAmount.add(expectedDepositToLiquidator),
                 1
               )
@@ -1207,26 +1281,30 @@ describe('MBox', function () {
               // given
               await mBOX.updateLiquidateFee(0)
               const {_debtInUsd: debtInUsdBefore} = await issuer.debtOfUsingLatestPrices(user.address)
-              const {_deposit: collateralBefore} = await issuer.debtPositionOfUsingLatestPrices(user.address)
+              const {_depositInUsd: collateralInUsdBefore} = await issuer.debtPositionOfUsingLatestPrices(user.address)
+              const collateralBefore = await oracle.convertFromUsd(met.address, collateralInUsdBefore)
               const minAmountToRepayInUsd = await getMinLiquidationAmountInUsd(mBOX, issuer, user.address, mEth)
 
               // when
               const amountToRepayInUsd = minAmountToRepayInUsd.mul(parseEther('1.1')).div(parseEther('1')) // min + 10%
               expect(amountToRepayInUsd).to.lt(debtInUsdBefore) // ensure that isn't paying all debt
               const amountToRepay = amountToRepayInUsd.mul(parseEther('1')).div(ethRate)
-              const tx = await mBOX.connect(liquidator).liquidate(mEth.address, user.address, amountToRepay)
+              const tx = await mBOX
+                .connect(liquidator)
+                .liquidate(mEth.address, user.address, amountToRepay, metDepositToken.address)
               const [PositionLiquidated] = (await tx.wait()).events!.filter(({event}) => event === 'PositionLiquidated')
               const [, , , , depositSeized] = PositionLiquidated.args!
+              const depositSeizedInUsd = await oracle.convertToUsd(met.address, depositSeized)
 
               // then
               const {_debtInUsd: debtInUsdAfter} = await issuer.debtOfUsingLatestPrices(user.address)
               const {
                 _isHealthy: isHealthyAfter,
                 _depositInUsd: collateralInUsdAfter,
-                _deposit: collateralAfter,
-                _unlockedDeposit: unlockedCollateralAfter,
-                _lockedDeposit: lockedCollateralAfter,
+                _unlockedDepositInUsd: unlockedCollateralInUsdAfter,
+                _lockedDepositInUsd: lockedCollateralInUsdAfter,
               } = await issuer.debtPositionOfUsingLatestPrices(user.address)
+              const lockedCollateralAfter = await oracle.convertFromUsd(met.address, lockedCollateralInUsdAfter)
 
               const expectedLocked = debtInUsdAfter
                 .mul(mEthCR)
@@ -1238,13 +1316,15 @@ describe('MBox', function () {
 
               expect(currentCollateralizationRatio).to.gt(mEthCR)
               expect(isHealthyAfter).to.true
-              expect(collateralAfter).to.eq(collateralBefore.sub(depositSeized))
+              expect(collateralInUsdAfter).to.eq(collateralInUsdBefore.sub(depositSeizedInUsd))
               expect(lockedCollateralAfter).to.eq(expectedLocked)
-              expect(unlockedCollateralAfter).to.eq(collateralAfter.sub(lockedCollateralAfter))
-              expect(await depositToken.balanceOf(user.address)).to.eq(collateralBefore.sub(depositSeized))
+              expect(unlockedCollateralInUsdAfter).to.eq(collateralInUsdAfter.sub(lockedCollateralInUsdAfter))
+              expect(await metDepositToken.balanceOf(user.address)).to.eq(collateralBefore.sub(depositSeized))
               expect(await mEth.balanceOf(user.address)).to.eq(userMintAmount)
               expect(await mEthDebtToken.balanceOf(user.address)).to.eq(userMintAmount.sub(amountToRepay))
-              expect(await depositToken.balanceOf(liquidator.address)).to.eq(liquidatorDepositAmount.add(depositSeized))
+              expect(await metDepositToken.balanceOf(liquidator.address)).to.eq(
+                liquidatorDepositAmount.add(depositSeized)
+              )
               expect(await mEth.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount.sub(amountToRepay))
               expect(await mEthDebtToken.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount)
             })
@@ -1254,14 +1334,17 @@ describe('MBox', function () {
               const liquidateFee = parseEther('0.01') // 1%
               await mBOX.updateLiquidateFee(liquidateFee)
               const {_debtInUsd: debtInUsdBefore} = await issuer.debtOfUsingLatestPrices(user.address)
-              const {_deposit: collateralBefore} = await issuer.debtPositionOfUsingLatestPrices(user.address)
+              const {_depositInUsd: collateralInUsdBefore} = await issuer.debtPositionOfUsingLatestPrices(user.address)
               const minAmountToRepayInUsd = await getMinLiquidationAmountInUsd(mBOX, issuer, user.address, mEth)
+              const collateralBefore = await oracle.convertFromUsd(met.address, collateralInUsdBefore)
 
               // when
               const amountToRepayInUsd = minAmountToRepayInUsd.mul(parseEther('1.1')).div(parseEther('1')) // min + 10%
               expect(amountToRepayInUsd).to.lt(debtInUsdBefore) // ensure that isn't paying all debt
               const amountToRepay = amountToRepayInUsd.mul(parseEther('1')).div(ethRate)
-              const tx = await mBOX.connect(liquidator).liquidate(mEth.address, user.address, amountToRepay)
+              const tx = await mBOX
+                .connect(liquidator)
+                .liquidate(mEth.address, user.address, amountToRepay, metDepositToken.address)
               const [PositionLiquidated] = (await tx.wait()).events!.filter(({event}) => event === 'PositionLiquidated')
               const [, , , , depositSeized] = PositionLiquidated.args!
 
@@ -1276,10 +1359,11 @@ describe('MBox', function () {
               const {
                 _isHealthy: isHealthyAfter,
                 _depositInUsd: collateralInUsdAfter,
-                _deposit: collateralAfter,
-                _unlockedDeposit: unlockedCollateralAfter,
-                _lockedDeposit: lockedCollateralAfter,
+                _unlockedDepositInUsd: unlockedCollateralInUsdAfter,
+                _lockedDepositInUsd: lockedCollateralInUsdAfter,
               } = await issuer.debtPositionOfUsingLatestPrices(user.address)
+              const collateralAfter = await oracle.convertFromUsd(met.address, collateralInUsdAfter)
+              const lockedCollateralAfter = await oracle.convertFromUsd(met.address, lockedCollateralInUsdAfter)
 
               const expectedLocked = debtInUsdAfter.mul(mEthCR).div(newMetRate)
 
@@ -1289,11 +1373,11 @@ describe('MBox', function () {
               expect(isHealthyAfter).to.true
               expect(collateralAfter).to.eq(collateralBefore.sub(depositSeized))
               expect(lockedCollateralAfter).to.closeTo(expectedLocked, 1)
-              expect(unlockedCollateralAfter).to.eq(collateralAfter.sub(lockedCollateralAfter))
-              expect(await depositToken.balanceOf(user.address)).to.eq(collateralBefore.sub(depositSeized))
+              expect(unlockedCollateralInUsdAfter).to.eq(collateralInUsdAfter.sub(lockedCollateralInUsdAfter))
+              expect(await metDepositToken.balanceOf(user.address)).to.eq(collateralBefore.sub(depositSeized))
               expect(await mEth.balanceOf(user.address)).to.eq(userMintAmount)
               expect(await mEthDebtToken.balanceOf(user.address)).to.eq(userMintAmount.sub(amountToRepay))
-              expect(await depositToken.balanceOf(liquidator.address)).to.closeTo(
+              expect(await metDepositToken.balanceOf(liquidator.address)).to.closeTo(
                 liquidatorDepositAmount.add(expectedDepositToLiquidator),
                 1
               )
@@ -1304,13 +1388,16 @@ describe('MBox', function () {
             it('should liquidate by repaying < needed to make position healthy (liquidateFee == 0)', async function () {
               // given
               await mBOX.updateLiquidateFee(0)
-              const {_deposit: collateralBefore} = await issuer.debtPositionOfUsingLatestPrices(user.address)
+              const {_depositInUsd: collateralInUsdBefore} = await issuer.debtPositionOfUsingLatestPrices(user.address)
+              const collateralBefore = await oracle.convertFromUsd(met.address, collateralInUsdBefore)
 
               // when
               const minAmountToRepayInUsd = await getMinLiquidationAmountInUsd(mBOX, issuer, user.address, mEth)
               const minAmountToRepay = minAmountToRepayInUsd.mul(parseEther('1')).div(ethRate)
               const amountToRepay = minAmountToRepay.div('2')
-              const tx = await mBOX.connect(liquidator).liquidate(mEth.address, user.address, amountToRepay)
+              const tx = await mBOX
+                .connect(liquidator)
+                .liquidate(mEth.address, user.address, amountToRepay, metDepositToken.address)
               const [PositionLiquidated] = (await tx.wait()).events!.filter(({event}) => event === 'PositionLiquidated')
               const [, , , , depositSeized] = PositionLiquidated.args!
 
@@ -1319,22 +1406,24 @@ describe('MBox', function () {
               const {
                 _isHealthy: isHealthyAfter,
                 _depositInUsd: collateralInUsdAfter,
-                _deposit: collateralAfter,
-                _unlockedDeposit: unlockedCollateralAfter,
-                _lockedDeposit: lockedCollateralAfter,
+                _unlockedDepositInUsd: unlockedCollateraInUsdlAfter,
+                _lockedDepositInUsd: lockedCollateralInUsdAfter,
               } = await issuer.debtPositionOfUsingLatestPrices(user.address)
+              const collateralAfter = await oracle.convertFromUsd(met.address, collateralInUsdAfter)
 
               const currentCollateralizationRatio = collateralInUsdAfter.mul(parseEther('1')).div(debtInUsdAfter)
 
               expect(currentCollateralizationRatio).to.lt(mEthCR)
               expect(isHealthyAfter).to.false
               expect(collateralAfter).to.eq(collateralBefore.sub(depositSeized))
-              expect(lockedCollateralAfter).to.eq(collateralAfter)
-              expect(unlockedCollateralAfter).to.eq(0)
-              expect(await depositToken.balanceOf(user.address)).to.eq(collateralBefore.sub(depositSeized))
+              expect(lockedCollateralInUsdAfter).to.gte(collateralInUsdAfter)
+              expect(unlockedCollateraInUsdlAfter).to.eq(0)
+              expect(await metDepositToken.balanceOf(user.address)).to.eq(collateralBefore.sub(depositSeized))
               expect(await mEth.balanceOf(user.address)).to.eq(userMintAmount)
               expect(await mEthDebtToken.balanceOf(user.address)).to.eq(userMintAmount.sub(amountToRepay))
-              expect(await depositToken.balanceOf(liquidator.address)).to.eq(liquidatorDepositAmount.add(depositSeized))
+              expect(await metDepositToken.balanceOf(liquidator.address)).to.eq(
+                liquidatorDepositAmount.add(depositSeized)
+              )
               expect(await mEth.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount.sub(amountToRepay))
               expect(await mEthDebtToken.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount)
             })
@@ -1343,12 +1432,15 @@ describe('MBox', function () {
               // given
               const liquidateFee = parseEther('0.01') // 1%
               await mBOX.updateLiquidateFee(liquidateFee)
-              const {_deposit: collateralBefore} = await issuer.debtPositionOfUsingLatestPrices(user.address)
+              const {_depositInUsd: collateralInUsdBefore} = await issuer.debtPositionOfUsingLatestPrices(user.address)
+              const collateralBefore = await oracle.convertFromUsd(met.address, collateralInUsdBefore)
 
               // when
               const amountToRepayInUsd = (await getMinLiquidationAmountInUsd(mBOX, issuer, user.address, mEth)).div('2')
               const amountToRepay = amountToRepayInUsd.mul(parseEther('1')).div(ethRate)
-              const tx = await mBOX.connect(liquidator).liquidate(mEth.address, user.address, amountToRepay)
+              const tx = await mBOX
+                .connect(liquidator)
+                .liquidate(mEth.address, user.address, amountToRepay, metDepositToken.address)
               const [PositionLiquidated] = (await tx.wait()).events!.filter(({event}) => event === 'PositionLiquidated')
               const [, , , , depositSeized] = PositionLiquidated.args!
 
@@ -1357,10 +1449,10 @@ describe('MBox', function () {
               const {
                 _isHealthy: isHealthyAfter,
                 _depositInUsd: collateralInUsdAfter,
-                _deposit: collateralAfter,
-                _unlockedDeposit: unlockedCollateralAfter,
-                _lockedDeposit: lockedCollateralAfter,
+                _unlockedDepositInUsd: unlockedCollateralInUsdAfter,
+                _lockedDepositInUsd: lockedCollateralInUsdAfter,
               } = await issuer.debtPositionOfUsingLatestPrices(user.address)
+              const collateralAfter = await oracle.convertFromUsd(met.address, collateralInUsdAfter)
 
               const amountToRepayInMET = await oracle.convert(mEth.address, met.address, amountToRepay)
 
@@ -1373,12 +1465,12 @@ describe('MBox', function () {
               expect(currentCollateralizationRatio).to.lt(mEthCR)
               expect(isHealthyAfter).to.false
               expect(collateralAfter).to.eq(collateralBefore.sub(depositSeized))
-              expect(lockedCollateralAfter).to.eq(collateralAfter)
-              expect(unlockedCollateralAfter).to.eq(0)
-              expect(await depositToken.balanceOf(user.address)).to.eq(collateralBefore.sub(depositSeized))
+              expect(lockedCollateralInUsdAfter).gte(collateralInUsdAfter)
+              expect(unlockedCollateralInUsdAfter).to.eq(0)
+              expect(await metDepositToken.balanceOf(user.address)).to.eq(collateralBefore.sub(depositSeized))
               expect(await mEth.balanceOf(user.address)).to.eq(userMintAmount)
               expect(await mEthDebtToken.balanceOf(user.address)).to.eq(userMintAmount.sub(amountToRepay))
-              expect(await depositToken.balanceOf(liquidator.address)).to.eq(
+              expect(await metDepositToken.balanceOf(liquidator.address)).to.eq(
                 liquidatorDepositAmount.add(expectedDepositToLiquidator)
               )
               expect(await mEth.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount.sub(amountToRepay))
@@ -1388,12 +1480,15 @@ describe('MBox', function () {
             it('should liquidate by repaying the exact amount to make healthy (liquidateFee == 0)', async function () {
               // given
               await mBOX.updateLiquidateFee(0)
-              const {_deposit: depositBefore} = await issuer.debtPositionOfUsingLatestPrices(user.address)
+              const {_depositInUsd: depositInUsdBefore} = await issuer.debtPositionOfUsingLatestPrices(user.address)
+              const depositBefore = await oracle.convertFromUsd(met.address, depositInUsdBefore)
 
               // when
               const amountToRepayInUsd = await getMinLiquidationAmountInUsd(mBOX, issuer, user.address, mEth)
               const amountToRepay = amountToRepayInUsd.mul(parseEther('1')).div(ethRate)
-              const tx = await mBOX.connect(liquidator).liquidate(mEth.address, user.address, amountToRepay)
+              const tx = await mBOX
+                .connect(liquidator)
+                .liquidate(mEth.address, user.address, amountToRepay, metDepositToken.address)
               const [PositionLiquidated] = (await tx.wait()).events!.filter(({event}) => event === 'PositionLiquidated')
               const [, , , , depositSeized] = PositionLiquidated.args!
 
@@ -1402,10 +1497,11 @@ describe('MBox', function () {
               const {
                 _isHealthy: isHealthyAfter,
                 _depositInUsd: collateralInUsdAfter,
-                _deposit: depositAfter,
-                _unlockedDeposit: unlockedCollateralAfter,
-                _lockedDeposit: lockedDepositAfter,
+                _unlockedDepositInUsd: unlockedCollateralInUsdAfter,
+                _lockedDepositInUsd: lockedDepositInUsdAfter,
               } = await issuer.debtPositionOfUsingLatestPrices(user.address)
+              const depositAfter = await oracle.convertFromUsd(met.address, collateralInUsdAfter)
+              const lockedDepositAfter = await oracle.convertFromUsd(met.address, lockedDepositInUsdAfter)
 
               const expectedLocked = debtInUsdAfter.mul(mEthCR).div(newMetRate)
 
@@ -1415,11 +1511,13 @@ describe('MBox', function () {
               expect(isHealthyAfter).to.true
               expect(depositAfter).to.eq(depositBefore.sub(depositSeized))
               expect(lockedDepositAfter).to.closeTo(expectedLocked, 1)
-              expect(unlockedCollateralAfter).to.eq(depositAfter.sub(lockedDepositAfter))
-              expect(await depositToken.balanceOf(user.address)).to.eq(depositBefore.sub(depositSeized))
+              expect(unlockedCollateralInUsdAfter).to.eq(collateralInUsdAfter.sub(lockedDepositInUsdAfter))
+              expect(await metDepositToken.balanceOf(user.address)).to.eq(depositBefore.sub(depositSeized))
               expect(await mEth.balanceOf(user.address)).to.eq(userMintAmount)
               expect(await mEthDebtToken.balanceOf(user.address)).to.eq(userMintAmount.sub(amountToRepay))
-              expect(await depositToken.balanceOf(liquidator.address)).to.eq(liquidatorDepositAmount.add(depositSeized))
+              expect(await metDepositToken.balanceOf(liquidator.address)).to.eq(
+                liquidatorDepositAmount.add(depositSeized)
+              )
               expect(await mEth.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount.sub(amountToRepay))
               expect(await mEthDebtToken.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount)
             })
@@ -1428,13 +1526,16 @@ describe('MBox', function () {
               // given
               const liquidateFee = parseEther('0.01') // 1%
               await mBOX.updateLiquidateFee(liquidateFee)
-              const {_deposit: depositBefore} = await issuer.debtPositionOfUsingLatestPrices(user.address)
+              const {_depositInUsd: depositBeforeInUsd} = await issuer.debtPositionOfUsingLatestPrices(user.address)
+              const depositBefore = await oracle.convertFromUsd(met.address, depositBeforeInUsd)
 
               // when
               const amountToRepayInUsd = await getMinLiquidationAmountInUsd(mBOX, issuer, user.address, mEth)
               const amountToRepay = await oracle.convertFromUsd(mEth.address, amountToRepayInUsd)
 
-              const tx = await mBOX.connect(liquidator).liquidate(mEth.address, user.address, amountToRepay)
+              const tx = await mBOX
+                .connect(liquidator)
+                .liquidate(mEth.address, user.address, amountToRepay, metDepositToken.address)
               const [PositionLiquidated] = (await tx.wait()).events!.filter(({event}) => event === 'PositionLiquidated')
               const [, , , , depositSeized] = PositionLiquidated.args!
 
@@ -1443,10 +1544,11 @@ describe('MBox', function () {
               const {
                 _isHealthy: isHealthyAfter,
                 _depositInUsd: depositInUsdAfter,
-                _deposit: depositAfter,
-                _unlockedDeposit: unlockedDepositAfter,
-                _lockedDeposit: lockedDepositAfter,
+                _unlockedDepositInUsd: unlockedDepositInUsdAfter,
+                _lockedDepositInUsd: lockedDepositInUsdAfter,
               } = await issuer.debtPositionOfUsingLatestPrices(user.address)
+              const depositAfter = await oracle.convertFromUsd(met.address, depositInUsdAfter)
+              const lockedDepositAfter = await oracle.convertFromUsd(met.address, lockedDepositInUsdAfter)
 
               const expectedLocked = debtInUsdAfter.mul(mEthCR).div(newMetRate)
 
@@ -1462,11 +1564,11 @@ describe('MBox', function () {
               expect(isHealthyAfter).to.true
               expect(lockedDepositAfter).to.closeTo(expectedLocked, 1)
               expect(depositAfter).to.eq(depositBefore.sub(depositSeized))
-              expect(unlockedDepositAfter).to.eq(depositAfter.sub(lockedDepositAfter))
-              expect(await depositToken.balanceOf(user.address)).to.eq(depositBefore.sub(depositSeized))
+              expect(unlockedDepositInUsdAfter).to.eq(depositInUsdAfter.sub(lockedDepositInUsdAfter))
+              expect(await metDepositToken.balanceOf(user.address)).to.eq(depositBefore.sub(depositSeized))
               expect(await mEth.balanceOf(user.address)).to.eq(userMintAmount)
               expect(await mEthDebtToken.balanceOf(user.address)).to.eq(userMintAmount.sub(amountToRepay))
-              expect(await depositToken.balanceOf(liquidator.address)).to.closeTo(
+              expect(await metDepositToken.balanceOf(liquidator.address)).to.closeTo(
                 liquidatorDepositAmount.add(expectedDepositToLiquidator),
                 1
               )
@@ -1487,7 +1589,9 @@ describe('MBox', function () {
 
             it('should revert if paying more than needed to seize all deposit', async function () {
               const amountToRepay = await mEthDebtToken.balanceOf(user.address)
-              const tx = mBOX.connect(liquidator).liquidate(mEth.address, user.address, amountToRepay)
+              const tx = mBOX
+                .connect(liquidator)
+                .liquidate(mEth.address, user.address, amountToRepay, metDepositToken.address)
 
               // then
               await expect(tx).to.revertedWith('amount-to-repay-is-too-high')
@@ -1496,12 +1600,15 @@ describe('MBox', function () {
             it('should liquidate by repaying max possible amount (liquidafeFee == 0)', async function () {
               // given
               await mBOX.updateLiquidateFee(0)
-              const depositBefore = await depositToken.balanceOf(user.address)
+              const depositBefore = await metDepositToken.balanceOf(user.address)
 
               // when
               const amountToRepayInUsd = await getMaxLiquidationAmountInUsd(mBOX, issuer, user.address)
               const amountToRepay = amountToRepayInUsd.mul(parseEther('1')).div(ethRate)
-              const tx = await mBOX.connect(liquidator).liquidate(mEth.address, user.address, amountToRepay)
+
+              const tx = await mBOX
+                .connect(liquidator)
+                .liquidate(mEth.address, user.address, amountToRepay, metDepositToken.address)
 
               // then
               const [PositionLiquidated] = (await tx.wait()).events!.filter(({event}) => event === 'PositionLiquidated')
@@ -1513,10 +1620,12 @@ describe('MBox', function () {
 
               expect(_isHealthy).to.false
               expect(depositSeized).to.closeTo(depositBefore, remainder)
-              expect(await depositToken.balanceOf(user.address)).to.closeTo(BigNumber.from('0'), remainder)
+              expect(await metDepositToken.balanceOf(user.address)).to.closeTo(BigNumber.from('0'), remainder)
               expect(await mEth.balanceOf(user.address)).to.eq(userMintAmount)
               expect(await mEthDebtToken.balanceOf(user.address)).to.gt(0)
-              expect(await depositToken.balanceOf(liquidator.address)).to.eq(liquidatorDepositAmount.add(depositSeized))
+              expect(await metDepositToken.balanceOf(liquidator.address)).to.eq(
+                liquidatorDepositAmount.add(depositSeized)
+              )
               expect(await mEth.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount.sub(amountToRepay))
               expect(await mEthDebtToken.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount)
             })
@@ -1525,12 +1634,14 @@ describe('MBox', function () {
               // given
               const liquidateFee = parseEther('0.01') // 1%
               await mBOX.updateLiquidateFee(liquidateFee)
-              const depositBefore = await depositToken.balanceOf(user.address)
+              const depositBefore = await metDepositToken.balanceOf(user.address)
 
               // when
               const amountToRepayInUsd = await getMaxLiquidationAmountInUsd(mBOX, issuer, user.address)
               const amountToRepay = amountToRepayInUsd.mul(parseEther('1')).div(ethRate)
-              const tx = await mBOX.connect(liquidator).liquidate(mEth.address, user.address, amountToRepay)
+              const tx = await mBOX
+                .connect(liquidator)
+                .liquidate(mEth.address, user.address, amountToRepay, metDepositToken.address)
 
               // then
               const [PositionLiquidated] = (await tx.wait()).events!.filter(({event}) => event === 'PositionLiquidated')
@@ -1548,10 +1659,10 @@ describe('MBox', function () {
 
               expect(_isHealthy).to.false
               expect(depositSeized).to.closeTo(depositBefore, remainder)
-              expect(await depositToken.balanceOf(user.address)).to.closeTo(BigNumber.from('0'), remainder)
+              expect(await metDepositToken.balanceOf(user.address)).to.closeTo(BigNumber.from('0'), remainder)
               expect(await mEth.balanceOf(user.address)).to.eq(userMintAmount)
               expect(await mEthDebtToken.balanceOf(user.address)).to.gt(0)
-              expect(await depositToken.balanceOf(liquidator.address)).to.eq(
+              expect(await metDepositToken.balanceOf(liquidator.address)).to.eq(
                 liquidatorDepositAmount.add(expectedDepositToLiquidator)
               )
               expect(await mEth.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount.sub(amountToRepay))
@@ -1561,13 +1672,16 @@ describe('MBox', function () {
             it('should liquidate by not repaying all debt (liquidaFee == 0)', async function () {
               // given
               await mBOX.updateLiquidateFee(0)
-              const {_deposit: collateralBefore} = await issuer.debtPositionOfUsingLatestPrices(user.address)
+              const {_depositInUsd: collateralInUsdBefore} = await issuer.debtPositionOfUsingLatestPrices(user.address)
+              const collateralBefore = await oracle.convertFromUsd(met.address, collateralInUsdBefore)
 
               // when
               const amountToRepayInUsd = await getMaxLiquidationAmountInUsd(mBOX, issuer, user.address)
               const minAmountToRepay = amountToRepayInUsd.mul(parseEther('1')).div(ethRate)
               const amountToRepay = minAmountToRepay.div('2')
-              const tx = await mBOX.connect(liquidator).liquidate(mEth.address, user.address, amountToRepay)
+              const tx = await mBOX
+                .connect(liquidator)
+                .liquidate(mEth.address, user.address, amountToRepay, metDepositToken.address)
               const [PositionLiquidated] = (await tx.wait()).events!.filter(({event}) => event === 'PositionLiquidated')
               const [, , , , depositSeized] = PositionLiquidated.args!
 
@@ -1576,22 +1690,24 @@ describe('MBox', function () {
               const {
                 _isHealthy: isHealthyAfter,
                 _depositInUsd: collateralInUsdAfter,
-                _deposit: collateralAfter,
-                _unlockedDeposit: unlockedCollateralAfter,
-                _lockedDeposit: lockedCollateralAfter,
+                _unlockedDepositInUsd: unlockedCollateralInUsdAfter,
+                _lockedDepositInUsd: lockedCollateralInUsdAfter,
               } = await issuer.debtPositionOfUsingLatestPrices(user.address)
+              const collateralAfter = await oracle.convertFromUsd(met.address, collateralInUsdAfter)
 
               const currentCollateralizationRatio = collateralInUsdAfter.mul(parseEther('1')).div(debtInUsdAfter)
 
               expect(currentCollateralizationRatio).to.lt(mEthCR)
               expect(isHealthyAfter).to.false
               expect(collateralAfter).to.eq(collateralBefore.sub(depositSeized))
-              expect(lockedCollateralAfter).to.eq(collateralAfter)
-              expect(unlockedCollateralAfter).to.eq(0)
-              expect(await depositToken.balanceOf(user.address)).to.eq(collateralBefore.sub(depositSeized))
+              expect(lockedCollateralInUsdAfter).gte(collateralInUsdAfter)
+              expect(unlockedCollateralInUsdAfter).to.eq(0)
+              expect(await metDepositToken.balanceOf(user.address)).to.eq(collateralBefore.sub(depositSeized))
               expect(await mEth.balanceOf(user.address)).to.eq(userMintAmount)
               expect(await mEthDebtToken.balanceOf(user.address)).to.eq(userMintAmount.sub(amountToRepay))
-              expect(await depositToken.balanceOf(liquidator.address)).to.eq(liquidatorDepositAmount.add(depositSeized))
+              expect(await metDepositToken.balanceOf(liquidator.address)).to.eq(
+                liquidatorDepositAmount.add(depositSeized)
+              )
               expect(await mEth.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount.sub(amountToRepay))
               expect(await mEthDebtToken.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount)
             })
@@ -1600,12 +1716,15 @@ describe('MBox', function () {
               // given
               const liquidateFee = parseEther('0.01') // 1%
               await mBOX.updateLiquidateFee(liquidateFee)
-              const {_deposit: collateralBefore} = await issuer.debtPositionOfUsingLatestPrices(user.address)
+              const {_depositInUsd: collateralInUsdBefore} = await issuer.debtPositionOfUsingLatestPrices(user.address)
+              const collateralBefore = await oracle.convertFromUsd(met.address, collateralInUsdBefore)
 
               // when
               const amountToRepayInUsd = (await getMaxLiquidationAmountInUsd(mBOX, issuer, user.address)).div('2')
               const amountToRepay = amountToRepayInUsd.mul(parseEther('1')).div(ethRate)
-              const tx = await mBOX.connect(liquidator).liquidate(mEth.address, user.address, amountToRepay)
+              const tx = await mBOX
+                .connect(liquidator)
+                .liquidate(mEth.address, user.address, amountToRepay, metDepositToken.address)
               const [PositionLiquidated] = (await tx.wait()).events!.filter(({event}) => event === 'PositionLiquidated')
               const [, , , , depositSeized] = PositionLiquidated.args!
 
@@ -1614,10 +1733,10 @@ describe('MBox', function () {
               const {
                 _isHealthy: isHealthyAfter,
                 _depositInUsd: collateralInUsdAfter,
-                _deposit: collateralAfter,
-                _unlockedDeposit: unlockedCollateralAfter,
-                _lockedDeposit: lockedCollateralAfter,
+                _unlockedDepositInUsd: unlockedCollateralInUsdAfter,
+                _lockedDepositInUsd: lockedCollateralInUsdAfter,
               } = await issuer.debtPositionOfUsingLatestPrices(user.address)
+              const collateralAfter = await oracle.convertFromUsd(met.address, collateralInUsdAfter)
 
               const amountToRepayInMET = await oracle.convert(mEth.address, met.address, amountToRepay)
 
@@ -1630,12 +1749,12 @@ describe('MBox', function () {
               expect(currentCollateralizationRatio).to.lt(mEthCR)
               expect(isHealthyAfter).to.false
               expect(collateralAfter).to.eq(collateralBefore.sub(depositSeized))
-              expect(lockedCollateralAfter).to.eq(collateralAfter)
-              expect(unlockedCollateralAfter).to.eq(0)
-              expect(await depositToken.balanceOf(user.address)).to.eq(collateralBefore.sub(depositSeized))
+              expect(lockedCollateralInUsdAfter).gte(collateralInUsdAfter)
+              expect(unlockedCollateralInUsdAfter).to.eq(0)
+              expect(await metDepositToken.balanceOf(user.address)).to.eq(collateralBefore.sub(depositSeized))
               expect(await mEth.balanceOf(user.address)).to.eq(userMintAmount)
               expect(await mEthDebtToken.balanceOf(user.address)).to.eq(userMintAmount.sub(amountToRepay))
-              expect(await depositToken.balanceOf(liquidator.address)).to.eq(
+              expect(await metDepositToken.balanceOf(liquidator.address)).to.eq(
                 liquidatorDepositAmount.add(expectedDepositToLiquidator)
               )
               expect(await mEth.balanceOf(liquidator.address)).to.eq(liquidatorMintAmount.sub(amountToRepay))
@@ -1651,9 +1770,9 @@ describe('MBox', function () {
                 mDoge.address
               )
               await mBOX.connect(user).mint(mDoge.address, maxIssuableDoge)
-              const {_isHealthy, _unlockedDeposit} = await issuer.debtPositionOfUsingLatestPrices(user.address)
+              const {_isHealthy, _unlockedDepositInUsd} = await issuer.debtPositionOfUsingLatestPrices(user.address)
               expect(_isHealthy).to.true
-              expect(_unlockedDeposit).to.eq(0)
+              expect(_unlockedDepositInUsd).to.eq(0)
             })
 
             it('should liquidate a position that have minted more than one mAsset', async function () {
@@ -1667,7 +1786,9 @@ describe('MBox', function () {
               const minRepayAmountInUsd = await getMinLiquidationAmountInUsd(mBOX, issuer, user.address, mDoge)
               const minRepayAmountInDoge = minRepayAmountInUsd.div(newDogeRate).mul(parseEther('1'))
               await mBOX.connect(liquidator).mint(mDoge.address, minRepayAmountInDoge)
-              await mBOX.connect(liquidator).liquidate(mDoge.address, user.address, minRepayAmountInDoge)
+              await mBOX
+                .connect(liquidator)
+                .liquidate(mDoge.address, user.address, minRepayAmountInDoge, metDepositToken.address)
 
               // then
               const {
@@ -1720,7 +1841,7 @@ describe('MBox', function () {
       const treasuryFactory = new Treasury__factory(deployer)
       const newTreasury = await treasuryFactory.deploy()
       await newTreasury.deployed()
-      await newTreasury.initialize(met.address, mBOX.address)
+      await newTreasury.initialize(mBOX.address)
 
       // when
       const tx = () => mBOX.updateTreasury(newTreasury.address)

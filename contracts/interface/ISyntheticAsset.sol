@@ -23,5 +23,5 @@ interface ISyntheticAsset is IERC20, IERC20Metadata {
 
     function updateMaxTotalSupply(uint256 _newMaxTotalSupply) external;
 
-    function updateIsActive(bool _newActive) external;
+    function toggleIsActive() external;
 }

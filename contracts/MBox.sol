@@ -93,10 +93,10 @@ contract MBox is IMBox, ReentrancyGuard, Pausable, Governable, MBoxStorageV1 {
     string public constant VERSION = "1.0.0";
 
     /// @notice Emitted when collateral is deposited
-    event CollateralDeposited(address indexed account, uint256 amount);
+    event CollateralDeposited(IDepositToken indexed _collateral, address indexed account, uint256 amount);
 
     /// @notice Emitted when collateral is withdrawn
-    event CollateralWithdrawn(address indexed account, uint256 amount);
+    event CollateralWithdrawn(IDepositToken indexed _collateral, address indexed account, uint256 amount);
 
     /// @notice Emitted when synthetic asset is minted
     event SyntheticAssetMinted(address indexed account, ISyntheticAsset indexed syntheticAsset, uint256 amount);
@@ -165,7 +165,7 @@ contract MBox is IMBox, ReentrancyGuard, Pausable, Governable, MBoxStorageV1 {
     event OracleUpdated(IOracle indexed oldOracle, IOracle indexed newOracle);
 
     /**
-     * @dev Throws if synthetic asset isn't enabled
+     * @dev Throws if synthetic asset doesn't exist
      */
     modifier onlyIfSyntheticAssetExists(ISyntheticAsset _syntheticAsset) {
         require(issuer.isSyntheticAssetExists(_syntheticAsset), "synthetic-asset-does-not-exists");
@@ -177,6 +177,22 @@ contract MBox is IMBox, ReentrancyGuard, Pausable, Governable, MBoxStorageV1 {
      */
     modifier onlyIfSyntheticAssetIsActive(ISyntheticAsset _syntheticAsset) {
         require(_syntheticAsset.isActive(), "synthetic-asset-is-not-active");
+        _;
+    }
+
+    /**
+     * @dev Throws if deposit token doesn't exist
+     */
+    modifier onlyIfDepositTokenExists(IDepositToken _depositToken) {
+        require(issuer.isDepositTokenExists(_depositToken), "collateral-does-not-exists");
+        _;
+    }
+
+    /**
+     * @dev Throws if collateral asset isn't enabled
+     */
+    modifier onlyIfDepositTokenIsActive(IDepositToken _depositToken) {
+        require(_depositToken.isActive(), "collateral-is-not-active");
         _;
     }
 
@@ -209,36 +225,30 @@ contract MBox is IMBox, ReentrancyGuard, Pausable, Governable, MBoxStorageV1 {
     }
 
     /**
-     * @notice Get MET deposit token
+     * @notice Deposit colleteral and mint mBOX-Collateral (tokenized deposit position)
+     * @param _depositToken The collateral tokens to deposit
+     * @param _amount The amount of collateral tokens to deposit
      */
-    function depositToken() public view override returns (IDepositToken) {
-        return issuer.depositToken();
-    }
-
-    /**
-     * @notice Get MET
-     */
-    function met() public view override returns (IERC20) {
-        return issuer.met();
-    }
-
-    /**
-     * @notice Deposit MET as colleteral and mint mBOX-MET (tokenized deposit position)
-     * @param _amount The amount of MET tokens to deposit
-     */
-    function deposit(uint256 _amount) external override whenNotPaused nonReentrant {
+    function deposit(IDepositToken _depositToken, uint256 _amount)
+        external
+        override
+        whenNotPaused
+        nonReentrant
+        onlyIfDepositTokenExists(_depositToken)
+        onlyIfDepositTokenIsActive(_depositToken)
+    {
         require(_amount > 0, "zero-collateral-amount");
 
         address _account = _msgSender();
 
-        met().safeTransferFrom(_account, address(treasury), _amount);
+        _depositToken.underlying().safeTransferFrom(_account, address(treasury), _amount);
 
         uint256 _amountToMint = depositFee > 0 ? _amount.wadMul(1e18 - depositFee) : _amount;
 
-        // We are collecting fee here by minting less deposit tokens than the METs deposited
-        issuer.mintDepositToken(_account, _amountToMint);
+        // We are collecting fee here by minting less deposit tokens than the collateral deposited
+        issuer.mintDepositToken(_depositToken, _account, _amountToMint);
 
-        emit CollateralDeposited(_account, _amountToMint);
+        emit CollateralDeposited(_depositToken, _account, _amountToMint);
     }
 
     /**
@@ -264,7 +274,7 @@ contract MBox is IMBox, ReentrancyGuard, Pausable, Governable, MBoxStorageV1 {
 
         if (mintFee > 0) {
             _feeInSyntheticAsset = _amount.wadMul(mintFee);
-            issuer.collectFee(_account, oracle.convert(_syntheticAsset, met(), _feeInSyntheticAsset), true);
+            issuer.collectFee(_account, oracle.convertToUsd(_syntheticAsset, _feeInSyntheticAsset), true);
         }
 
         uint256 _amountToMint = _amount - _feeInSyntheticAsset;
@@ -275,30 +285,37 @@ contract MBox is IMBox, ReentrancyGuard, Pausable, Governable, MBoxStorageV1 {
     }
 
     /**
-     * @notice Burn mBOX-MET and withdraw MET
-     * @param _amount The amount of MET to withdraw
+     * @notice Burn mBOX-Collateral and withdraw collateral
+     * @param _amount The amount of collateral to withdraw
      */
-    function withdraw(uint256 _amount) external override whenNotShutdown nonReentrant {
+    function withdraw(IDepositToken _depositToken, uint256 _amount)
+        external
+        override
+        onlyIfDepositTokenExists(_depositToken)
+        whenNotShutdown
+        nonReentrant
+    {
         require(_amount > 0, "amount-to-withdraw-is-zero");
 
         address _account = _msgSender();
 
-        (, , , , uint256 _unlockedDeposit, ) = issuer.debtPositionOf(_account);
+        (, , , uint256 _unlockedDepositInUsd) = issuer.debtPositionOf(_account);
+        uint256 _unlockedDeposit = oracle.convertFromUsd(_depositToken.underlying(), _unlockedDepositInUsd);
 
         require(_amount <= _unlockedDeposit, "amount-to-withdraw-gt-unlocked");
 
-        issuer.burnWithdrawnDeposit(_account, _amount);
+        issuer.burnWithdrawnDeposit(_depositToken, _account, _amount);
 
         uint256 _amountToWithdraw = withdrawFee > 0 ? _amount.wadMul(1e18 - withdrawFee) : _amount;
 
-        treasury.pull(_account, _amountToWithdraw);
+        treasury.pull(_depositToken.underlying(), _account, _amountToWithdraw);
 
-        emit CollateralWithdrawn(_account, _amountToWithdraw);
+        emit CollateralWithdrawn(_depositToken, _account, _amountToWithdraw);
     }
 
     /**
      * @notice Send synthetic asset to decrease debt
-     * @dev Burn synthetic asset and equivalent debt token to unlock deposit token (mBOX-MET)
+     * @dev Burn synthetic asset and equivalent debt token to unlock collateral
      * @param _syntheticAsset The synthetic asset to burn
      * @param _beneficiary The account that will have debt decreased
      * @param _payer The account to burn synthetic asset from
@@ -330,8 +347,8 @@ contract MBox is IMBox, ReentrancyGuard, Pausable, Governable, MBoxStorageV1 {
         // Charging fee after repayment to have more unlocked deposit balance,
         // and reducing chances to have tx reverted due to low unlocked deposit
         if (repayFee > 0) {
-            uint256 _feeInMet = oracle.convert(_syntheticAsset, met(), _amount.wadMul(repayFee));
-            issuer.collectFee(_account, _feeInMet, true);
+            uint256 _feeInUsd = oracle.convertToUsd(_syntheticAsset, _amount.wadMul(repayFee));
+            issuer.collectFee(_account, _feeInUsd, true);
         }
     }
 
@@ -344,8 +361,9 @@ contract MBox is IMBox, ReentrancyGuard, Pausable, Governable, MBoxStorageV1 {
     function liquidate(
         ISyntheticAsset _syntheticAsset,
         address _account,
-        uint256 _amountToRepay
-    ) external override whenNotShutdown nonReentrant {
+        uint256 _amountToRepay,
+        IDepositToken _depositToken
+    ) external override whenNotShutdown nonReentrant onlyIfDepositTokenExists(_depositToken) {
         require(_amountToRepay > 0, "amount-to-repay-is-zero");
         address _liquidator = _msgSender();
         require(_liquidator != _account, "can-not-liquidate-own-position");
@@ -354,23 +372,29 @@ contract MBox is IMBox, ReentrancyGuard, Pausable, Governable, MBoxStorageV1 {
 
         require(_percentOfDebtToLiquidate <= maxLiquidable, "amount-gt-max-liquidable");
 
-        (bool _isHealthy, , , uint256 _deposit, , ) = issuer.debtPositionOf(_account);
+        (bool _isHealthy, , uint256 _depositInUsd, ) = issuer.debtPositionOf(_account);
+        uint256 _deposit = oracle.convertFromUsd(_depositToken.underlying(), _depositInUsd);
 
         require(!_isHealthy, "position-is-healthy");
 
-        uint256 _amountToRepayInMET = oracle.convert(_syntheticAsset, met(), _amountToRepay);
+        uint256 _amountToRepayInCollateral = oracle.convert(
+            _syntheticAsset,
+            _depositToken.underlying(),
+            _amountToRepay
+        );
 
-        uint256 _feeToCollect = liquidateFee > 0 ? _amountToRepayInMET.wadMul(liquidateFee) : 0;
-        uint256 _toLiquidator = _amountToRepayInMET + _amountToRepayInMET.wadMul(liquidatorFee);
+        uint256 _feeToCollect = liquidateFee > 0 ? _amountToRepayInCollateral.wadMul(liquidateFee) : 0;
+        uint256 _toLiquidator = _amountToRepayInCollateral + _amountToRepayInCollateral.wadMul(liquidatorFee);
         uint256 _totalToSeize = _feeToCollect + _toLiquidator;
         require(_totalToSeize <= _deposit, "amount-to-repay-is-too-high");
 
         _repay(_syntheticAsset, _account, _liquidator, _amountToRepay);
 
-        issuer.seizeDepositToken(_account, _liquidator, _toLiquidator);
+        issuer.seizeDepositToken(_depositToken, _account, _liquidator, _toLiquidator);
 
         if (_feeToCollect > 0) {
-            issuer.collectFee(_account, _feeToCollect, false);
+            uint256 _feeInUsd = oracle.convertToUsd(_depositToken.underlying(), _feeToCollect);
+            issuer.collectFee(_account, _feeInUsd, false);
         }
 
         emit PositionLiquidated(_liquidator, _account, _syntheticAsset, _amountToRepay, _totalToSeize);
@@ -408,11 +432,11 @@ contract MBox is IMBox, ReentrancyGuard, Pausable, Governable, MBoxStorageV1 {
         issuer.mintSyntheticAssetAndDebtToken(_syntheticAssetOut, _account, _amountOut);
 
         if (_feeInSyntheticAssetIn > 0) {
-            uint256 _feeInMet = oracle.convert(_syntheticAssetIn, met(), _feeInSyntheticAssetIn);
-            issuer.collectFee(_account, _feeInMet, true);
+            uint256 _feeInUsd = oracle.convertToUsd(_syntheticAssetIn, _feeInSyntheticAssetIn);
+            issuer.collectFee(_account, _feeInUsd, true);
         }
 
-        (bool _isHealthy, , , , , ) = issuer.debtPositionOf(_account);
+        (bool _isHealthy, , , ) = issuer.debtPositionOf(_account);
 
         require(_isHealthy, "debt-position-ended-up-unhealthy");
 
@@ -431,7 +455,7 @@ contract MBox is IMBox, ReentrancyGuard, Pausable, Governable, MBoxStorageV1 {
         uint256 _amountIn
     ) external override whenNotShutdown nonReentrant returns (uint256 _amountOut) {
         address _account = _msgSender();
-        (bool _isHealthy, , , , , ) = issuer.debtPositionOf(_account);
+        (bool _isHealthy, , , ) = issuer.debtPositionOf(_account);
         require(_isHealthy, "debt-position-is-unhealthy");
 
         return _swap(_account, _syntheticAssetIn, _syntheticAssetOut, _amountIn, swapFee);
@@ -454,7 +478,7 @@ contract MBox is IMBox, ReentrancyGuard, Pausable, Governable, MBoxStorageV1 {
             "in-cratio-is-lte-out-cratio"
         );
         address _account = _msgSender();
-        (bool _isHealthy, , , , , ) = issuer.debtPositionOf(_account);
+        (bool _isHealthy, , , ) = issuer.debtPositionOf(_account);
         require(!_isHealthy, "debt-position-is-healthy");
 
         _swap(_account, _syntheticAssetIn, _syntheticAssetOut, _amountToRefinance, refinanceFee);
@@ -469,10 +493,16 @@ contract MBox is IMBox, ReentrancyGuard, Pausable, Governable, MBoxStorageV1 {
         require(address(_newTreasury) != address(0), "treasury-address-is-null");
         require(_newTreasury != treasury, "new-treasury-is-same-as-current");
 
-        treasury.pull(address(_newTreasury), met().balanceOf(address(treasury)));
+        IDepositToken[] memory _depositTokens = issuer.getDepositTokens();
+        for (uint256 i = 0; i < _depositTokens.length; ++i) {
+            IERC20 _underlying = _depositTokens[i].underlying();
+            uint256 _balance = _underlying.balanceOf(address(treasury));
+            if (_balance > 0) {
+                treasury.pull(_underlying, address(_newTreasury), _balance);
+            }
+        }
 
         emit TreasuryUpdated(treasury, _newTreasury);
-
         treasury = _newTreasury;
     }
 

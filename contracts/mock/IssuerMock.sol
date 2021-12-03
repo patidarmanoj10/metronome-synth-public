@@ -11,14 +11,11 @@ import "../interface/IDepositToken.sol";
 
 contract IssuerMock is IIssuer {
     IDepositToken public depositToken;
-    uint256 public lockedCollateral;
+    IOracle public oracle;
 
-    constructor(IDepositToken _depositToken) {
+    constructor(IDepositToken _depositToken, IOracle _oracle) {
         depositToken = _depositToken;
-    }
-
-    function updateLockedCollateral(uint256 _lockedDeposit) external {
-        lockedCollateral = _lockedDeposit;
+        oracle = _oracle;
     }
 
     function mockCall(address _to, bytes memory _data) public {
@@ -39,6 +36,10 @@ contract IssuerMock is IIssuer {
         assembly {
             mstore(revertData, t) // Restore the content of the length slot
         }
+    }
+
+    function getDepositTokens() external pure returns (IDepositToken[] memory) {
+        revert("mock-does-not-implement");
     }
 
     function deposit(uint256) external pure {
@@ -65,11 +66,13 @@ contract IssuerMock is IIssuer {
             uint256,
             uint256,
             uint256,
-            uint256,
-            uint256,
             bool
         )
     {
+        revert("mock-does-not-implement");
+    }
+
+    function depositOfUsingLatestPrices(address) external pure returns (uint256, bool) {
         revert("mock-does-not-implement");
     }
 
@@ -81,17 +84,14 @@ contract IssuerMock is IIssuer {
             bool _isHealthy,
             uint256 _lockedDepositInUsd,
             uint256 _depositInUsd,
-            uint256 _deposit,
-            uint256 _unlockedDeposit,
-            uint256 _lockedDeposit
+            uint256 _unlockedDepositInUsd
         )
     {
         _isHealthy = true;
         _lockedDepositInUsd = 0;
-        _depositInUsd = 0;
-        _deposit = depositToken.balanceOf(_account);
-        _lockedDeposit = lockedCollateral;
-        _unlockedDeposit = _deposit - _lockedDeposit;
+        uint256 _deposit = depositToken.balanceOf(_account);
+        (_depositInUsd, ) = oracle.convertToUsdUsingLatestPrice(depositToken.underlying(), _deposit);
+        _unlockedDepositInUsd = _depositInUsd - _lockedDepositInUsd;
     }
 
     function syntheticAssetsMintedBy(address) external pure returns (ISyntheticAsset[] memory) {
@@ -102,15 +102,23 @@ contract IssuerMock is IIssuer {
         revert("mock-does-not-implement");
     }
 
+    function removeSyntheticAsset(ISyntheticAsset) external pure {
+        revert("mock-does-not-implement");
+    }
+
+    function addDepositToken(IDepositToken) external pure {
+        revert("mock-does-not-implement");
+    }
+
+    function removeDepositToken(IDepositToken) external pure {
+        revert("mock-does-not-implement");
+    }
+
     function maxIssuableFor(address, ISyntheticAsset) external pure returns (uint256) {
         revert("mock-does-not-implement");
     }
 
     function maxIssuableForUsingLatestPrices(address, ISyntheticAsset) external pure returns (uint256, bool) {
-        revert("mock-does-not-implement");
-    }
-
-    function removeSyntheticAsset(ISyntheticAsset) external pure {
         revert("mock-does-not-implement");
     }
 
@@ -143,7 +151,11 @@ contract IssuerMock is IIssuer {
         revert("mock-does-not-implement");
     }
 
-    function mintDepositToken(address, uint256) external pure {
+    function mintDepositToken(
+        IDepositToken,
+        address,
+        uint256
+    ) external pure {
         revert("mock-does-not-implement");
     }
 
@@ -155,11 +167,16 @@ contract IssuerMock is IIssuer {
         revert("mock-does-not-implement");
     }
 
-    function burnWithdrawnDeposit(address, uint256) external pure {
+    function burnWithdrawnDeposit(
+        IDepositToken,
+        address,
+        uint256
+    ) external pure {
         revert("mock-does-not-implement");
     }
 
     function seizeDepositToken(
+        IDepositToken,
         address,
         address,
         uint256
@@ -167,11 +184,11 @@ contract IssuerMock is IIssuer {
         revert("mock-does-not-implement");
     }
 
-    function updateDepositToken(IDepositToken) external pure {
+    function isSyntheticAssetExists(ISyntheticAsset) external pure returns (bool) {
         revert("mock-does-not-implement");
     }
 
-    function isSyntheticAssetExists(ISyntheticAsset) external pure returns (bool) {
+    function isDepositTokenExists(IDepositToken) external pure returns (bool) {
         revert("mock-does-not-implement");
     }
 }
