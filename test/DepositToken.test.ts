@@ -69,8 +69,23 @@ describe('DepositToken', function () {
 
       // then
       expect(await metDepositToken.balanceOf(user.address)).to.eq(amount)
-      const lastBlock = await await ethers.provider.getBlock('latest')
+      const lastBlock = await ethers.provider.getBlock('latest')
       expect(await metDepositToken.lastDepositOf(user.address)).to.eq(lastBlock.timestamp)
+    })
+
+    it('should revert if surpass max total supply', async function () {
+      // given
+      expect(await metDepositToken.totalSupply()).to.eq(0)
+      const maxInUsd = parseEther('400') // 100 MET
+      await metDepositToken.updateMaxTotalSupplyInUsd(maxInUsd)
+
+      // when
+      const amount = parseEther('101') // $404
+      const call = metDepositToken.interface.encodeFunctionData('mint', [user.address, amount])
+      const tx = issuerMock.mockCall(metDepositToken.address, call)
+
+      // then
+      await expect(tx).to.revertedWith('surpass-max-total-supply')
     })
 
     it('should revert if not issuer', async function () {
