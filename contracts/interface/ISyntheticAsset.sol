@@ -9,7 +9,7 @@ import "./IDebtToken.sol";
 interface ISyntheticAsset is IERC20, IERC20Metadata {
     function isActive() external view returns (bool);
 
-    function maxTotalSupply() external view returns (uint256);
+    function maxTotalSupplyInUsd() external view returns (uint256);
 
     function debtToken() external view returns (IDebtToken);
 
@@ -21,7 +21,7 @@ interface ISyntheticAsset is IERC20, IERC20Metadata {
 
     function updateCollateralizationRatio(uint128 _newCollateralizationRatio) external;
 
-    function updateMaxTotalSupply(uint256 _newMaxTotalSupply) external;
+    function updateMaxTotalSupplyInUsd(uint256 _newMaxTotalSupply) external;
 
     function toggleIsActive() external;
 }

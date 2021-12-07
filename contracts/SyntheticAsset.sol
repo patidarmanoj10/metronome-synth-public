@@ -15,7 +15,7 @@ contract SyntheticAssetStorageV1 {
     string internal _symbol;
 
     uint256 internal _totalSupply;
-    uint256 internal _maxTotalSupply;
+    uint256 internal _maxTotalSupplyInUsd;
 
     uint8 internal _decimals;
 
@@ -34,6 +34,11 @@ contract SyntheticAssetStorageV1 {
      * @notice If a mAsset isn't active, it disables minting new tokens
      */
     bool internal _active;
+
+    /**
+     * @notice Prices oracle
+     */
+    IOracle internal _oracle;
 }
 
 /**
@@ -48,7 +53,8 @@ contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 
         uint8 decimals_,
         IIssuer issuer_,
         IDebtToken debtToken_,
-        uint128 collateralizationRatio_
+        uint128 collateralizationRatio_,
+        IOracle oracle_
     ) public initializer {
         require(address(debtToken_) != address(0), "debt-token-is-null");
         require(decimals_ == debtToken_.decimals(), "debt-decimals-is-not-the-same");
@@ -61,8 +67,9 @@ contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 
         _symbol = symbol_;
         _decimals = decimals_;
         _debtToken = debtToken_;
-        _maxTotalSupply = type(uint256).max;
+        _maxTotalSupplyInUsd = type(uint256).max;
         _active = true;
+        _oracle = oracle_;
         updateCollateralizationRatio(collateralizationRatio_);
     }
 
@@ -77,6 +84,10 @@ contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 
 
     function debtToken() external view returns (IDebtToken) {
         return _debtToken;
+    }
+
+    function oracle() external view returns (IOracle) {
+        return _oracle;
     }
 
     function collateralizationRatio() public view returns (uint256) {
@@ -99,8 +110,8 @@ contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 
         return _totalSupply;
     }
 
-    function maxTotalSupply() public view virtual override returns (uint256) {
-        return _maxTotalSupply;
+    function maxTotalSupplyInUsd() public view virtual override returns (uint256) {
+        return _maxTotalSupplyInUsd;
     }
 
     function isActive() public view virtual override returns (bool) {
@@ -238,7 +249,8 @@ contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 
      */
     function mint(address _to, uint256 _amount) public override onlyIssuer {
         require(_active, "synthetic-asset-is-inactive");
-        require(_totalSupply + _amount <= _maxTotalSupply, "surpass-max-total-supply");
+        uint256 _newTotalSupplyInUsd = _oracle.convertToUsd(IERC20(address(this)), _totalSupply + _amount);
+        require(_newTotalSupplyInUsd <= _maxTotalSupplyInUsd, "surpass-max-total-supply");
         _mint(_to, _amount);
     }
 
@@ -262,12 +274,12 @@ contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 
     }
 
     /**
-     * @notice Update max total supply
-     * @param _newMaxTotalSupply The new max total supply
+     * @notice Update max total supply (in USD)
+     * @param _newMaxTotalSupplyInUsd The new max total supply (in USD)
      */
-    function updateMaxTotalSupply(uint256 _newMaxTotalSupply) public override onlyGovernor {
-        emit MaxTotalSupplyUpdated(_maxTotalSupply, _newMaxTotalSupply);
-        _maxTotalSupply = _newMaxTotalSupply;
+    function updateMaxTotalSupplyInUsd(uint256 _newMaxTotalSupplyInUsd) public override onlyGovernor {
+        emit MaxTotalSupplyUpdated(_maxTotalSupplyInUsd, _newMaxTotalSupplyInUsd);
+        _maxTotalSupplyInUsd = _newMaxTotalSupplyInUsd;
     }
 
     /**

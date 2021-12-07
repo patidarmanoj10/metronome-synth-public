@@ -36,7 +36,7 @@ contract DepositTokenStorageV1 {
     /**
      * @notice Prices oracle
      */
-    IOracle public _oracle;
+    IOracle internal _oracle;
 }
 
 /**
