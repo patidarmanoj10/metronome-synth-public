@@ -17,7 +17,11 @@ interface IMBox {
 
     function withdraw(IDepositToken _collateral, uint256 _amount) external;
 
-    function repay(ISyntheticAsset _syntheticAsset, uint256 _amount) external;
+    function repay(
+        ISyntheticAsset _syntheticAsset,
+        address _beneficiary,
+        uint256 _amount
+    ) external;
 
     function liquidate(
         ISyntheticAsset _syntheticAsset,

@@ -591,7 +591,7 @@ describe('MBox', function () {
             const debtAmount = await mEthDebtToken.balanceOf(user.address)
 
             // when
-            const tx = mBOX.connect(user).repay(mEth.address, debtAmount)
+            const tx = mBOX.connect(user).repay(mEth.address, user.address, debtAmount)
 
             // then
             await expect(tx).to.emit(mBOX, 'DebtRepayed')
@@ -603,7 +603,7 @@ describe('MBox', function () {
             const debtAmount = await mEthDebtToken.balanceOf(user.address)
 
             // when
-            const tx = mBOX.connect(user).repay(mEth.address, debtAmount)
+            const tx = mBOX.connect(user).repay(mEth.address, user.address, debtAmount)
 
             // then
             await expect(tx).to.revertedWith('shutdown')
@@ -611,7 +611,7 @@ describe('MBox', function () {
 
           it('should revert if amount is 0', async function () {
             // when
-            const tx = mBOX.connect(user).repay(mEth.address, 0)
+            const tx = mBOX.connect(user).repay(mEth.address, user.address, 0)
 
             // then
             await expect(tx).to.revertedWith('amount-to-repay-is-zero')
@@ -622,7 +622,7 @@ describe('MBox', function () {
             const debtAmount = await mEthDebtToken.balanceOf(user.address)
 
             // when
-            const tx = mBOX.connect(user).repay(mEth.address, debtAmount.add('1'))
+            const tx = mBOX.connect(user).repay(mEth.address, user.address, debtAmount.add('1'))
 
             // then
             await expect(tx).to.revertedWith('amount-gt-burnable-debt')
@@ -637,7 +637,7 @@ describe('MBox', function () {
             expect(lockedCollateralBefore).to.gt(0)
 
             // when
-            const tx = mBOX.connect(user).repay(mEth.address, debtAmount)
+            const tx = mBOX.connect(user).repay(mEth.address, user.address, debtAmount)
             await expect(tx).to.emit(mBOX, 'DebtRepayed').withArgs(user.address, mEth.address, debtAmount)
 
             // then
@@ -657,7 +657,7 @@ describe('MBox', function () {
             expect(lockedDepositBefore).to.gt(0)
 
             // when
-            const tx = mBOX.connect(user).repay(mEth.address, debtAmount)
+            const tx = mBOX.connect(user).repay(mEth.address, user.address, debtAmount)
             await expect(tx).to.emit(mBOX, 'DebtRepayed').withArgs(user.address, mEth.address, debtAmount)
 
             // then
@@ -680,7 +680,7 @@ describe('MBox', function () {
             )
 
             // when
-            const tx = mBOX.connect(user).repay(mEth.address, amountToRepay)
+            const tx = mBOX.connect(user).repay(mEth.address, user.address, amountToRepay)
             await expect(tx).to.emit(mBOX, 'DebtRepayed').withArgs(user.address, mEth.address, amountToRepay)
 
             // then
@@ -706,7 +706,7 @@ describe('MBox', function () {
             )
 
             // when
-            const tx = mBOX.connect(user).repay(mEth.address, amountToRepay)
+            const tx = mBOX.connect(user).repay(mEth.address, user.address, amountToRepay)
             await expect(tx).to.emit(mBOX, 'DebtRepayed').withArgs(user.address, mEth.address, amountToRepay)
 
             // then
@@ -1162,7 +1162,7 @@ describe('MBox', function () {
             it('should revert if liquidator has not enough mAsset to repay', async function () {
               // given
               const liquidatorMEthBalanceBefore = await mEth.balanceOf(liquidator.address)
-              await mBOX.connect(liquidator).repay(mEth.address, liquidatorMEthBalanceBefore)
+              await mBOX.connect(liquidator).repay(mEth.address, liquidator.address, liquidatorMEthBalanceBefore)
               const amountToRepayInUsd = await getMinLiquidationAmountInUsd(mBOX, issuer, user.address, mEth)
               const amountToRepayInMEth = amountToRepayInUsd.mul(parseEther('1')).div(ethRate)
               expect(await mEth.balanceOf(liquidator.address)).to.lt(amountToRepayInMEth)
