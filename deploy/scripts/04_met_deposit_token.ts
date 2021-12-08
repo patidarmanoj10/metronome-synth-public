@@ -19,7 +19,8 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   await deploy()
 
-  const symbol = 'vSynth-MET'
+  const symbol = 'vSynths-MET'
+  const decimals = 18 // Same as MET
 
   await execute(
     MetDepositToken,
@@ -28,7 +29,8 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     MET_ADDRESS,
     issuerAddress,
     oracle.address,
-    symbol
+    symbol,
+    decimals
   )
   await execute(MetDepositToken, {from: deployer, log: true}, 'transferGovernorship', governor)
 }

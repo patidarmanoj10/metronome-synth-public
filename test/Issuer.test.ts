@@ -72,7 +72,7 @@ describe('Issuer', function () {
     issuer = await issuerFactory.deploy()
     await issuer.deployed()
 
-    await metDepositToken.initialize(met.address, issuer.address, oracle.address, 'vSynth-MET')
+    await metDepositToken.initialize(met.address, issuer.address, oracle.address, 'vSynths-MET', 18)
     await metDepositToken.transferGovernorship(governor.address)
     await metDepositToken.connect(governor).acceptGovernorship()
 

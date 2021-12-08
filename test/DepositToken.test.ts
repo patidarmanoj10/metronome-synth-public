@@ -46,7 +46,7 @@ describe('DepositToken', function () {
     issuerMock = await issuerMockFactory.deploy(metDepositToken.address, oracle.address)
     await issuerMock.deployed()
 
-    await metDepositToken.initialize(met.address, issuerMock.address, oracle.address, 'vSynth-MET')
+    await metDepositToken.initialize(met.address, issuerMock.address, oracle.address, 'vSynths-MET', 18)
     await metDepositToken.transferGovernorship(governor.address)
     await metDepositToken.connect(governor).acceptGovernorship()
     metDepositToken = metDepositToken.connect(governor)

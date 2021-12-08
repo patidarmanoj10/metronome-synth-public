@@ -66,6 +66,19 @@ abstract contract UpgraderBase is ProxyAdmin {
         }
     }
 
+    function _checkUint8Results(
+        bytes[] memory _beforeResults,
+        bytes[] memory _afterResults,
+        uint8 _from,
+        uint8 _to
+    ) internal pure {
+        for (uint256 i = _from; i <= _to; ++i) {
+            uint256 _before = abi.decode(_beforeResults[i], (uint8));
+            uint256 _after = abi.decode(_afterResults[i], (uint8));
+            require(_before == _after, "an-uint8-simple-field-failed");
+        }
+    }
+
     function _checkUint256Results(
         bytes[] memory _beforeResults,
         bytes[] memory _afterResults,
