@@ -126,7 +126,7 @@ contract IssuerMock is IIssuer {
         revert("mock-does-not-implement");
     }
 
-    function mEth() external pure returns (ISyntheticAsset) {
+    function vsEth() external pure returns (ISyntheticAsset) {
         revert("mock-does-not-implement");
     }
 

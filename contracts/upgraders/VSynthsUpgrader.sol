@@ -4,7 +4,7 @@ pragma solidity 0.8.9;
 
 import "./UpgraderBase.sol";
 
-contract MBoxUpgrader is UpgraderBase {
+contract VSynthsUpgrader is UpgraderBase {
     constructor(address _owner) {
         transferOwnership(_owner);
     }

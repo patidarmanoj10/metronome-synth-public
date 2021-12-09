@@ -11,8 +11,8 @@ describe('DebtToken', function () {
   let user1: SignerWithAddress
   let user2: SignerWithAddress
   let debtToken: DebtToken
-  const name = 'mETH Debt'
-  const symbol = 'mEth-Debt'
+  const name = 'vsETH Debt'
+  const symbol = 'vsEth-Debt'
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi

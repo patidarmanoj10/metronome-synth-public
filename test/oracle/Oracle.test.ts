@@ -53,9 +53,9 @@ describe('Oracle', function () {
   let oracle: Oracle
   let mUSD: ERC20
   let depositToken: ERC20
-  let mDOGE: ERC20
-  let mETH: ERC20
-  let mBTC: ERC20
+  let vsDOGE: ERC20
+  let vsETH: ERC20
+  let vsBTC: ERC20
   let priceProviderMock: PriceProviderMock
 
   before(enableForking)
@@ -73,20 +73,20 @@ describe('Oracle', function () {
     await mUSD.deployed()
 
     // depositToken
-    depositToken = await erc20MockFactory.deploy('Tokenized deposit position', 'mBOX-MET', 18)
+    depositToken = await erc20MockFactory.deploy('Tokenized deposit position', 'vSynths-MET', 18)
     await depositToken.deployed()
 
-    // mDOGE
-    mDOGE = await erc20MockFactory.deploy('mDOGE', 'mDOGE', 18)
-    await mDOGE.deployed()
+    // vsDOGE
+    vsDOGE = await erc20MockFactory.deploy('vsDOGE', 'vsDOGE', 18)
+    await vsDOGE.deployed()
 
-    // mETH
-    mETH = await erc20MockFactory.deploy('mETH', 'mETH', 18)
-    await mETH.deployed()
+    // vsETH
+    vsETH = await erc20MockFactory.deploy('vsETH', 'vsETH', 18)
+    await vsETH.deployed()
 
-    // mETH
-    mBTC = await erc20MockFactory.deploy('mBTC', 'mBTC', 8)
-    await mBTC.deployed()
+    // vsETH
+    vsBTC = await erc20MockFactory.deploy('vsBTC', 'vsBTC', 8)
+    await vsBTC.deployed()
 
     // UniswapV3
     const uniswapV3PriceProviderFactory = new UniswapV3PriceProvider__factory(deployer)
@@ -126,10 +126,10 @@ describe('Oracle', function () {
     await oracle.setPriceProvider(Protocol.CHAINLINK, chainlinkPriceProvider.address)
 
     await oracle.addOrUpdateUsdAsset(mUSD.address)
-    await oracle.addOrUpdateAssetThatUsesUniswapV3(mETH.address, WETH_ADDRESS)
-    await oracle.addOrUpdateAssetThatUsesUniswapV3(mETH.address, WETH_ADDRESS)
+    await oracle.addOrUpdateAssetThatUsesUniswapV3(vsETH.address, WETH_ADDRESS)
+    await oracle.addOrUpdateAssetThatUsesUniswapV3(vsETH.address, WETH_ADDRESS)
     await oracle.addOrUpdateAssetThatUsesUniswapV2(depositToken.address, MET_ADDRESS)
-    await oracle.addOrUpdateAssetThatUsesChainlink(mDOGE.address, CHAINLINK_DOGE_AGGREGATOR_ADDRESS)
+    await oracle.addOrUpdateAssetThatUsesChainlink(vsDOGE.address, CHAINLINK_DOGE_AGGREGATOR_ADDRESS)
   })
 
   afterEach(async function () {
@@ -145,7 +145,7 @@ describe('Oracle', function () {
       })
 
       it('should convert to USD using UniswapV3 price provider', async function () {
-        const {_amountInUsd, _priceInvalid} = await oracle.convertToUsdUsingLatestPrice(mETH.address, parseEther('1'))
+        const {_amountInUsd, _priceInvalid} = await oracle.convertToUsdUsingLatestPrice(vsETH.address, parseEther('1'))
         expect(_amountInUsd).to.eq('344642503883')
         expect(_priceInvalid).to.eq(false)
       })
@@ -162,7 +162,7 @@ describe('Oracle', function () {
       })
 
       it('should convert to USD using Chainlink price provider', async function () {
-        const {_amountInUsd, _priceInvalid} = await oracle.convertToUsdUsingLatestPrice(mDOGE.address, parseEther('1'))
+        const {_amountInUsd, _priceInvalid} = await oracle.convertToUsdUsingLatestPrice(vsDOGE.address, parseEther('1'))
         expect(_amountInUsd).to.eq('24128635')
         expect(_priceInvalid).to.eq(false)
       })
@@ -190,7 +190,7 @@ describe('Oracle', function () {
       })
 
       it('should convert to USD using UniswapV3 price provider', async function () {
-        const {_amount, _priceInvalid} = await oracle.convertFromUsdUsingLatestPrice(mETH.address, '344642503883')
+        const {_amount, _priceInvalid} = await oracle.convertFromUsdUsingLatestPrice(vsETH.address, '344642503883')
         expect(_amount).to.closeTo(parseEther('1'), parseEther('0.000000000001').toNumber())
         expect(_priceInvalid).to.eq(false)
       })
@@ -204,7 +204,7 @@ describe('Oracle', function () {
       })
 
       it('should convert to USD using Chainlink price provider', async function () {
-        const {_amount, _priceInvalid} = await oracle.convertFromUsdUsingLatestPrice(mDOGE.address, '24128635')
+        const {_amount, _priceInvalid} = await oracle.convertFromUsdUsingLatestPrice(vsDOGE.address, '24128635')
         expect(_amount).to.eq(parseEther('1'))
         expect(_priceInvalid).to.eq(false)
       })
@@ -227,13 +227,13 @@ describe('Oracle', function () {
     describe('convertUsingLatestPrice', function () {
       it('should convert assets using distinct price providers', async function () {
         const amountInUsd = '344642503883'
-        const {_amount: amountInEther} = await oracle.convertFromUsdUsingLatestPrice(mETH.address, amountInUsd)
+        const {_amount: amountInEther} = await oracle.convertFromUsdUsingLatestPrice(vsETH.address, amountInUsd)
         const {_amountOut: amountInDoge} = await oracle.convertUsingLatestPrice(
-          mETH.address,
-          mDOGE.address,
+          vsETH.address,
+          vsDOGE.address,
           amountInEther
         )
-        const {_amountInUsd} = await oracle.convertToUsdUsingLatestPrice(mDOGE.address, amountInDoge)
+        const {_amountInUsd} = await oracle.convertToUsdUsingLatestPrice(vsDOGE.address, amountInDoge)
         expect(_amountInUsd).to.closeTo(amountInUsd, 2)
       })
     })
@@ -247,7 +247,7 @@ describe('Oracle', function () {
       })
 
       it('should convert to USD using UniswapV3 price provider', async function () {
-        const amountOutInUsd = await oracle.callStatic.convertToUsd(mETH.address, parseEther('1'))
+        const amountOutInUsd = await oracle.callStatic.convertToUsd(vsETH.address, parseEther('1'))
         expect(amountOutInUsd).to.eq('344642503883')
       })
 
@@ -258,7 +258,7 @@ describe('Oracle', function () {
       })
 
       it('should convert to USD using Chainlink price provider', async function () {
-        const amountOutInUsd = await oracle.callStatic.convertToUsd(mDOGE.address, parseEther('1'))
+        const amountOutInUsd = await oracle.callStatic.convertToUsd(vsDOGE.address, parseEther('1'))
         expect(amountOutInUsd).to.eq('24128635')
       })
 
@@ -298,7 +298,7 @@ describe('Oracle', function () {
       })
 
       it('should convert to USD using UniswapV3 price provider', async function () {
-        const amountOut = await oracle.callStatic.convertFromUsd(mETH.address, '344642503883')
+        const amountOut = await oracle.callStatic.convertFromUsd(vsETH.address, '344642503883')
         expect(amountOut).to.closeTo(parseEther('1'), parseEther('0.000000000001').toNumber())
       })
 
@@ -309,7 +309,7 @@ describe('Oracle', function () {
       })
 
       it('should convert to USD using Chainlink price provider', async function () {
-        const amountOut = await oracle.callStatic.convertFromUsd(mDOGE.address, '24128635')
+        const amountOut = await oracle.callStatic.convertFromUsd(vsDOGE.address, '24128635')
         expect(amountOut).to.eq(parseEther('1'))
       })
 
@@ -345,20 +345,20 @@ describe('Oracle', function () {
     describe('convert', function () {
       it('should convert assets using distinct price providers', async function () {
         const amountInUsd = '344642503883'
-        const amountInEther = await oracle.callStatic.convertFromUsd(mETH.address, amountInUsd)
-        const amountInDoge = await oracle.callStatic.convert(mETH.address, mDOGE.address, amountInEther)
-        expect(await oracle.callStatic.convertToUsd(mDOGE.address, amountInDoge)).to.closeTo(amountInUsd, 2)
+        const amountInEther = await oracle.callStatic.convertFromUsd(vsETH.address, amountInUsd)
+        const amountInDoge = await oracle.callStatic.convert(vsETH.address, vsDOGE.address, amountInEther)
+        expect(await oracle.callStatic.convertToUsd(vsDOGE.address, amountInDoge)).to.closeTo(amountInUsd, 2)
       })
 
       it('should convert assets using the same price provider (UniswapV2)', async function () {
         // given
-        await oracle.addOrUpdateAssetThatUsesUniswapV2(mBTC.address, WBTC_ADDRESS)
-        await oracle.addOrUpdateAssetThatUsesUniswapV2(mETH.address, WETH_ADDRESS)
+        await oracle.addOrUpdateAssetThatUsesUniswapV2(vsBTC.address, WBTC_ADDRESS)
+        await oracle.addOrUpdateAssetThatUsesUniswapV2(vsETH.address, WETH_ADDRESS)
         await increaseTime(DEFAULT_TWAP_PERIOD)
 
         // when
         const amountIn = parseUnits('1', 8) // 1 BTC
-        const amountOut = await oracle.callStatic.convert(mBTC.address, mETH.address, amountIn)
+        const amountOut = await oracle.callStatic.convert(vsBTC.address, vsETH.address, amountIn)
 
         // then
         // @ts-ignore
@@ -367,12 +367,12 @@ describe('Oracle', function () {
 
       it('should convert assets using the same price provider (UniswapV3)', async function () {
         // given
-        await oracle.addOrUpdateAssetThatUsesUniswapV3(mBTC.address, WBTC_ADDRESS)
-        await oracle.addOrUpdateAssetThatUsesUniswapV3(mETH.address, WETH_ADDRESS)
+        await oracle.addOrUpdateAssetThatUsesUniswapV3(vsBTC.address, WBTC_ADDRESS)
+        await oracle.addOrUpdateAssetThatUsesUniswapV3(vsETH.address, WETH_ADDRESS)
 
         // when
         const amountIn = parseUnits('1', 8) // 1 BTC
-        const amountOut = await oracle.callStatic.convert(mBTC.address, mETH.address, amountIn)
+        const amountOut = await oracle.callStatic.convert(vsBTC.address, vsETH.address, amountIn)
 
         // then
         // @ts-ignore
@@ -381,12 +381,12 @@ describe('Oracle', function () {
 
       it('should convert assets using the same price provider (Chainlink)', async function () {
         // given
-        await oracle.addOrUpdateAssetThatUsesChainlink(mBTC.address, CHAINLINK_BTC_AGGREGATOR_ADDRESS)
-        await oracle.addOrUpdateAssetThatUsesChainlink(mETH.address, CHAINLINK_ETH_AGGREGATOR_ADDRESS)
+        await oracle.addOrUpdateAssetThatUsesChainlink(vsBTC.address, CHAINLINK_BTC_AGGREGATOR_ADDRESS)
+        await oracle.addOrUpdateAssetThatUsesChainlink(vsETH.address, CHAINLINK_ETH_AGGREGATOR_ADDRESS)
 
         // when
         const amountIn = parseUnits('1', 8) // 1 BTC
-        const amountOut = await oracle.callStatic.convert(mBTC.address, mETH.address, amountIn)
+        const amountOut = await oracle.callStatic.convert(vsBTC.address, vsETH.address, amountIn)
 
         // then
         // @ts-ignore

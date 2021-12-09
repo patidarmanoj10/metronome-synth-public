@@ -7,7 +7,6 @@ import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./access/Manageable.sol";
 import "./interface/IIssuer.sol";
-import "./interface/IMBox.sol";
 import "./lib/WadRayMath.sol";
 import "./interface/ITreasury.sol";
 
@@ -18,14 +17,14 @@ contract IssuerStorageV1 {
     IOracle public oracle;
 
     /**
-     * @notice Represents collateral's deposits (e.g. mBOX-MET token)
+     * @notice Represents collateral's deposits (e.g. vSynths-MET token)
      */
     IDepositToken[] public depositTokens;
     mapping(address => IDepositToken) public depositTokenByAddress;
 
     /**
      * @notice Avaliable synthetic assets
-     * @dev The syntheticAssets[0] is mETH
+     * @dev The syntheticAssets[0] is vsETH
      */
     ISyntheticAsset[] public syntheticAssets;
     mapping(address => ISyntheticAsset) public syntheticAssetByAddress;
@@ -120,9 +119,9 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
 
     function initialize(
         IDepositToken depositToken_,
-        ISyntheticAsset mETH_,
+        ISyntheticAsset vsETH_,
         IOracle oracle_,
-        IMBox mBox_
+        IVSynths vSynths_
     ) public initializer {
         require(address(depositToken_) != address(0), "deposit-token-is-null");
         require(address(oracle_) != address(0), "oracle-is-null");
@@ -130,13 +129,13 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
         __ReentrancyGuard_init();
         __Manageable_init();
 
-        setMBox(mBox_);
+        setVSynths(vSynths_);
         oracle = oracle_;
 
-        // Ensuring that mETH is the syntheticAssets[0]
-        addSyntheticAsset(mETH_);
+        // Ensuring that vsETH is the syntheticAssets[0]
+        addSyntheticAsset(vsETH_);
 
-        // Ensuring that mBOX-MET is the depositTokens[0]
+        // Ensuring that vSynths-MET is the depositTokens[0]
         addDepositToken(depositToken_);
     }
 
@@ -155,9 +154,9 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
     }
 
     /**
-     * @notice Get the mETH synthetic asset (can't be removed)
+     * @notice Get the vsETH synthetic asset (can't be removed)
      */
-    function mEth() public view override returns (ISyntheticAsset) {
+    function vsEth() public view override returns (ISyntheticAsset) {
         return syntheticAssets[0];
     }
 
@@ -391,7 +390,7 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
         ISyntheticAsset _syntheticAsset,
         address _to,
         uint256 _amount
-    ) external nonReentrant onlyMBox {
+    ) external nonReentrant onlyVSynths {
         require(_amount > 0, "amount-to-mint-is-zero");
         _syntheticAsset.mint(_to, _amount);
         _syntheticAsset.debtToken().mint(_to, _amount);
@@ -410,7 +409,7 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
         address _syntheticAssetFrom,
         address _debtTokenFrom,
         uint256 _amount
-    ) external override nonReentrant onlyMBox {
+    ) external override nonReentrant onlyVSynths {
         require(_amount > 0, "amount-to-burn-is-zero");
         require(_amount <= _syntheticAsset.debtToken().balanceOf(_debtTokenFrom), "amount-gt-burnable-debt");
         require(_amount <= _syntheticAsset.balanceOf(_syntheticAssetFrom), "amount-gt-burnable-synthetic");
@@ -427,7 +426,7 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
         IDepositToken _depositToken,
         address _to,
         uint256 _amount
-    ) external override nonReentrant onlyMBox {
+    ) external override nonReentrant onlyVSynths {
         require(_amount > 0, "amount-to-mint-is-zero");
         _depositToken.mint(_to, _amount);
     }
@@ -444,7 +443,7 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
         address _account,
         uint256 _feeInUsd,
         bool _onlyFromUnlocked
-    ) external override nonReentrant onlyMBox {
+    ) external override nonReentrant onlyVSynths {
         require(_feeInUsd > 0, "fee-to-collect-is-zero");
         uint256 _fee = oracle.convertFromUsd(met(), _feeInUsd);
         if (_onlyFromUnlocked) {
@@ -465,7 +464,7 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
         IDepositToken _depositToken,
         address _account,
         uint256 _amount
-    ) external override nonReentrant onlyMBox {
+    ) external override nonReentrant onlyVSynths {
         require(_amount > 0, "amount-to-burn-is-zero");
         _depositToken.burnForWithdraw(_account, _amount);
     }
@@ -482,14 +481,14 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
         address _from,
         address _to,
         uint256 _amount
-    ) external override nonReentrant onlyMBox {
+    ) external override nonReentrant onlyVSynths {
         require(_from != _to, "seize-from-and-to-are-the-same");
         require(_amount > 0, "amount-to-seize-is-zero");
         _depositToken.seize(_from, _to, _amount);
     }
 
     /**
-     * @notice Add synthetic token to mBOX offerings
+     * @notice Add synthetic token to vSynths offerings
      */
     function addSyntheticAsset(ISyntheticAsset _syntheticAsset) public override onlyGovernor {
         address _address = address(_syntheticAsset);
@@ -504,7 +503,7 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
     }
 
     /**
-     * @notice Remove synthetic token from mBOX offerings
+     * @notice Remove synthetic token from vSynths offerings
      */
     function removeSyntheticAsset(ISyntheticAsset _syntheticAsset)
         external
@@ -512,7 +511,7 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
         onlyGovernor
         onlyIfSyntheticAssetExists(_syntheticAsset)
     {
-        require(_syntheticAsset != mEth(), "can-not-delete-meth");
+        require(_syntheticAsset != vsEth(), "can-not-delete-vseth");
         require(_syntheticAsset.totalSupply() == 0, "synthetic-asset-with-supply");
         require(_syntheticAsset.debtToken().totalSupply() == 0, "synthetic-asset-with-debt-supply");
 
@@ -534,7 +533,7 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
     }
 
     /**
-     * @notice Add deposit token (i.e. collateral) to mBOX
+     * @notice Add deposit token (i.e. collateral) to vSynths
      */
     function addDepositToken(IDepositToken _depositToken) public override onlyGovernor {
         address _address = address(_depositToken);
@@ -549,7 +548,7 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
     }
 
     /**
-     * @notice Remove deposit token (i.e. collateral) from mBOX
+     * @notice Remove deposit token (i.e. collateral) from vSynths
      */
     function removeDepositToken(IDepositToken _depositToken)
         external

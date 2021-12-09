@@ -7,7 +7,7 @@ on:
       - package*.json
 
 jobs:
-  mbox-test:
+  test:
     runs-on: ubuntu-latest
     strategy:
       matrix:

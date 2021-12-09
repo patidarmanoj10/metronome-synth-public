@@ -164,7 +164,7 @@ contract Oracle is IOracle, Governable {
     /**
      * @notice Store an asset that uses UniswapV2 source of price
      * @param _asset The asset to store
-     * @param _underlying The actual asset to get prices from (e.g. mETH uses WETH)
+     * @param _underlying The actual asset to get prices from (e.g. vsETH uses WETH)
      */
     function addOrUpdateAssetThatUsesUniswapV2(IERC20 _asset, IERC20 _underlying) external onlyGovernor {
         require(address(_underlying) != address(0), "underlying-address-is-null");
@@ -175,7 +175,7 @@ contract Oracle is IOracle, Governable {
      * @notice Store an asset that uses UniswapV3 source of price
      * @dev This function is also used for update a asset setup
      * @param _asset The asset to store
-     * @param _underlying The actual asset to get prices from (e.g. mETH uses WETH)
+     * @param _underlying The actual asset to get prices from (e.g. vsETH uses WETH)
      */
     function addOrUpdateAssetThatUsesUniswapV3(IERC20 _asset, IERC20 _underlying) external onlyGovernor {
         require(address(_underlying) != address(0), "underlying-address-is-null");

@@ -2,7 +2,7 @@ import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
 import {UpgradableContracts, deterministic} from '../helpers'
 
-const {alias: MBox} = UpgradableContracts.MBox
+const {alias: VSynths} = UpgradableContracts.VSynths
 const Oracle = 'Oracle'
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
@@ -16,11 +16,11 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {address: treasuryAddress} = await deterministic(hre, UpgradableContracts.Treasury)
   const {address: metDepositTokenAddress} = await deterministic(hre, UpgradableContracts.MetDepositToken)
 
-  const {deploy} = await deterministic(hre, UpgradableContracts.MBox)
+  const {deploy} = await deterministic(hre, UpgradableContracts.VSynths)
   await deploy()
 
   await execute(
-    MBox,
+    VSynths,
     {from: deployer, log: true},
     'initialize',
     treasuryAddress,
@@ -28,9 +28,9 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     oracle.address,
     issuerAddress
   )
-  await execute(MBox, {from: deployer, log: true}, 'transferGovernorship', governor)
+  await execute(VSynths, {from: deployer, log: true}, 'transferGovernorship', governor)
 }
 
 export default func
-func.tags = [MBox]
+func.tags = [VSynths]
 func.dependencies = [Oracle]

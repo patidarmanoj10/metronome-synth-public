@@ -23,13 +23,13 @@ contract UniswapV2PriceProvider is IPriceProvider, Governable {
 
     /**
      * @notice The Uniswap-like factory contract
-     * @dev The address isn't hardcoded because we may want to deploy mBOX to other chains
+     * @dev The address isn't hardcoded because we may want to deploy to other chains
      */
     address public immutable factory;
 
     /**
      * @notice The WETH-like contract
-     * @dev The address isn't hardcoded because we may want to deploy mBOX to other chains
+     * @dev The address isn't hardcoded because we may want to deploy to other chains
      */
     // solhint-disable-next-line var-name-mixedcase
     address public immutable WETH;

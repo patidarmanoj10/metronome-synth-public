@@ -8,8 +8,8 @@ import {
   DebtToken__factory,
   DepositToken,
   DepositToken__factory,
-  MBox,
-  MBox__factory,
+  VSynths,
+  VSynths__factory,
   OracleMock__factory,
   Oracle,
   Oracle__factory,
@@ -17,8 +17,8 @@ import {
   SyntheticAsset__factory,
   Treasury,
   Treasury__factory,
-  MBoxUpgrader,
-  MBoxUpgrader__factory,
+  VSynthsUpgrader,
+  VSynthsUpgrader__factory,
   TreasuryUpgrader,
   TreasuryUpgrader__factory,
   DepositTokenUpgrader,
@@ -53,15 +53,15 @@ describe('Deployments', function () {
   let oracle: Oracle
   let issuer: Issuer
   let issuerUpgrader: IssuerUpgrader
-  let mBox: MBox
-  let mBoxUpgrader: MBoxUpgrader
+  let vSynths: VSynths
+  let vSynthsUpgrader: VSynthsUpgrader
   let treasury: Treasury
   let treasuryUpgrader: TreasuryUpgrader
   let metDepositToken: DepositToken
   let depositTokenUpgrader: DepositTokenUpgrader
-  let mEth: SyntheticAsset
+  let vsEth: SyntheticAsset
   let syntheticAssetUpgrader: SyntheticAssetUpgrader
-  let mEthDebtToken: DebtToken
+  let vsEthDebtToken: DebtToken
   let debtTokenUpgrader: DebtTokenUpgrader
 
   // Note: Enabling fork to be able to use MultiCall contract
@@ -80,15 +80,15 @@ describe('Deployments', function () {
       Oracle: {address: oracleAddress},
       Issuer: {address: issuerAddress},
       IssuerUpgrader: {address: issuerUpgraderAddress},
-      MBox: {address: mboxAddress},
-      MBoxUpgrader: {address: mBoxUpgraderAddress},
+      VSynths: {address: vSynthsAddress},
+      VSynthsUpgrader: {address: vSynthsUpgraderAddress},
       Treasury: {address: treasuryAddress},
       TreasuryUpgrader: {address: treasuryUpgraderAddress},
       MetDepositToken: {address: metDepositTokenAddress},
       DepositTokenUpgrader: {address: depositTokenUpgraderAddress},
-      MEth: {address: mEthAddress},
+      VsEth: {address: vsEthAddress},
       SyntheticAssetUpgrader: {address: syntheticAssetUpgraderAddress},
-      MEthDebtToken: {address: mETHDebtTokenAddress},
+      VsEthDebtToken: {address: vsETHDebtTokenAddress},
       DebtTokenUpgrader: {address: debtTokenUpgraderAddress},
     } = await deployments.fixture()
 
@@ -100,8 +100,8 @@ describe('Deployments', function () {
     issuer = Issuer__factory.connect(issuerAddress, deployer)
     issuerUpgrader = IssuerUpgrader__factory.connect(issuerUpgraderAddress, deployer)
 
-    mBox = MBox__factory.connect(mboxAddress, deployer)
-    mBoxUpgrader = MBoxUpgrader__factory.connect(mBoxUpgraderAddress, deployer)
+    vSynths = VSynths__factory.connect(vSynthsAddress, deployer)
+    vSynthsUpgrader = VSynthsUpgrader__factory.connect(vSynthsUpgraderAddress, deployer)
 
     treasury = Treasury__factory.connect(treasuryAddress, deployer)
     treasuryUpgrader = TreasuryUpgrader__factory.connect(treasuryUpgraderAddress, deployer)
@@ -109,10 +109,10 @@ describe('Deployments', function () {
     metDepositToken = DepositToken__factory.connect(metDepositTokenAddress, deployer)
     depositTokenUpgrader = DepositTokenUpgrader__factory.connect(depositTokenUpgraderAddress, deployer)
 
-    mEth = SyntheticAsset__factory.connect(mEthAddress, deployer)
+    vsEth = SyntheticAsset__factory.connect(vsEthAddress, deployer)
     syntheticAssetUpgrader = SyntheticAssetUpgrader__factory.connect(syntheticAssetUpgraderAddress, deployer)
 
-    mEthDebtToken = DebtToken__factory.connect(mETHDebtTokenAddress, deployer)
+    vsEthDebtToken = DebtToken__factory.connect(vsETHDebtTokenAddress, deployer)
     debtTokenUpgrader = DebtTokenUpgrader__factory.connect(debtTokenUpgraderAddress, deployer)
   })
 
@@ -159,7 +159,7 @@ describe('Deployments', function () {
       expect(await oracle.providerByProtocol(Protocol.UNISWAP_V2)).to.eq(uniswapV2PriceProvider.address)
       expect(await oracle.providerByProtocol(Protocol.CHAINLINK)).to.eq(chainlinkPriceProvider.address)
 
-      expect(await mBox.governor()).to.eq(deployer.address)
+      expect(await vSynths.governor()).to.eq(deployer.address)
       await oracle.connect(governor).acceptGovernorship()
       expect(await oracle.governor()).to.eq(governor.address)
     })
@@ -167,10 +167,10 @@ describe('Deployments', function () {
 
   describe('Issuer', function () {
     it('should have correct params', async function () {
-      expect(await issuer.mBox()).to.eq(mBox.address)
+      expect(await issuer.vSynths()).to.eq(vSynths.address)
       expect(await issuer.met()).to.eq(await metDepositToken.underlying())
-      expect(await issuer.syntheticAssets(0)).to.eq(mEth.address)
-      expect(await issuer.mEth()).to.eq(mEth.address)
+      expect(await issuer.syntheticAssets(0)).to.eq(vsEth.address)
+      expect(await issuer.vsEth()).to.eq(vsEth.address)
       expect(await issuer.oracle()).to.eq(oracle.address)
       expect(await issuer.governor()).to.eq(deployer.address)
       await issuer.connect(governor).acceptGovernorship()
@@ -196,21 +196,21 @@ describe('Deployments', function () {
     })
   })
 
-  describe('MBox', function () {
+  describe('VSynths', function () {
     it('should have correct params', async function () {
-      expect(await mBox.treasury()).to.eq(treasury.address)
-      expect(await mBox.issuer()).to.eq(issuer.address)
-      expect(await mBox.oracle()).to.eq(oracle.address)
-      expect(await mBox.governor()).to.eq(deployer.address)
-      await mBox.connect(governor).acceptGovernorship()
-      expect(await mBox.governor()).to.eq(governor.address)
+      expect(await vSynths.treasury()).to.eq(treasury.address)
+      expect(await vSynths.issuer()).to.eq(issuer.address)
+      expect(await vSynths.oracle()).to.eq(oracle.address)
+      expect(await vSynths.governor()).to.eq(deployer.address)
+      await vSynths.connect(governor).acceptGovernorship()
+      expect(await vSynths.governor()).to.eq(governor.address)
     })
 
     it('should upgrade implementation', async function () {
       await upgradeTestcase({
-        newImplfactory: new MBox__factory(deployer),
-        proxy: mBox,
-        upgrader: mBoxUpgrader,
+        newImplfactory: new VSynths__factory(deployer),
+        proxy: vSynths,
+        upgrader: vSynthsUpgrader,
         expectToFail: false,
       })
     })
@@ -218,8 +218,8 @@ describe('Deployments', function () {
     it('should fail if implementation breaks storage', async function () {
       await upgradeTestcase({
         newImplfactory: new OracleMock__factory(deployer),
-        proxy: mBox,
-        upgrader: mBoxUpgrader,
+        proxy: vSynths,
+        upgrader: vSynthsUpgrader,
         expectToFail: true,
       })
     })
@@ -227,7 +227,7 @@ describe('Deployments', function () {
 
   describe('Treasury', function () {
     it('should have correct params', async function () {
-      expect(await treasury.mBox()).to.eq(mBox.address)
+      expect(await treasury.vSynths()).to.eq(vSynths.address)
       expect(await treasury.governor()).to.eq(deployer.address)
       await treasury.connect(governor).acceptGovernorship()
       expect(await treasury.governor()).to.eq(governor.address)
@@ -273,18 +273,18 @@ describe('Deployments', function () {
   })
 
   describe('SyntheticAsset', function () {
-    it('mETH token should have correct params', async function () {
-      expect(await mEth.issuer()).to.eq(issuer.address)
-      expect(await mEth.debtToken()).to.eq(mEthDebtToken.address)
-      expect(await mEth.governor()).to.eq(deployer.address)
-      await mEth.connect(governor).acceptGovernorship()
-      expect(await mEth.governor()).to.eq(governor.address)
+    it('vsETH token should have correct params', async function () {
+      expect(await vsEth.issuer()).to.eq(issuer.address)
+      expect(await vsEth.debtToken()).to.eq(vsEthDebtToken.address)
+      expect(await vsEth.governor()).to.eq(deployer.address)
+      await vsEth.connect(governor).acceptGovernorship()
+      expect(await vsEth.governor()).to.eq(governor.address)
     })
 
     it('should upgrade implementation', async function () {
       await upgradeTestcase({
         newImplfactory: new SyntheticAsset__factory(deployer),
-        proxy: mEth,
+        proxy: vsEth,
         upgrader: syntheticAssetUpgrader,
         expectToFail: false,
       })
@@ -293,7 +293,7 @@ describe('Deployments', function () {
     it('should fail if implementation breaks storage', async function () {
       await upgradeTestcase({
         newImplfactory: new OracleMock__factory(deployer),
-        proxy: mEth,
+        proxy: vsEth,
         upgrader: syntheticAssetUpgrader,
         expectToFail: true,
       })
@@ -301,17 +301,17 @@ describe('Deployments', function () {
   })
 
   describe('DebtToken', function () {
-    it('mETH debt token should have correct params', async function () {
-      expect(await mEthDebtToken.issuer()).to.eq(issuer.address)
-      expect(await mEthDebtToken.governor()).to.eq(deployer.address)
-      await mEthDebtToken.connect(governor).acceptGovernorship()
-      expect(await mEthDebtToken.governor()).to.eq(governor.address)
+    it('vsETH debt token should have correct params', async function () {
+      expect(await vsEthDebtToken.issuer()).to.eq(issuer.address)
+      expect(await vsEthDebtToken.governor()).to.eq(deployer.address)
+      await vsEthDebtToken.connect(governor).acceptGovernorship()
+      expect(await vsEthDebtToken.governor()).to.eq(governor.address)
     })
 
     it('should upgrade implementation', async function () {
       await upgradeTestcase({
         newImplfactory: new DebtToken__factory(deployer),
-        proxy: mEthDebtToken,
+        proxy: vsEthDebtToken,
         upgrader: debtTokenUpgrader,
         expectToFail: false,
       })
@@ -320,7 +320,7 @@ describe('Deployments', function () {
     it('should fail if implementation breaks storage', async function () {
       await upgradeTestcase({
         newImplfactory: new OracleMock__factory(deployer),
-        proxy: mEthDebtToken,
+        proxy: vsEthDebtToken,
         upgrader: debtTokenUpgrader,
         expectToFail: true,
       })

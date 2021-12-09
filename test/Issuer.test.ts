@@ -27,22 +27,22 @@ describe('Issuer', function () {
   let user: SignerWithAddress
   let user2: SignerWithAddress
   let liquidator: SignerWithAddress
-  let mBoxMock: SignerWithAddress
+  let vSynthsMock: SignerWithAddress
   let met: ERC20Mock
-  let mEthDebtToken: DebtToken
-  let mEth: SyntheticAsset
+  let vsEthDebtToken: DebtToken
+  let vsEth: SyntheticAsset
   let treasury: Treasury
   let metDepositToken: DepositToken
   let oracle: OracleMock
   let issuer: Issuer
 
-  const mEthCR = parseEther('1.5') // 150%
+  const vsEthCR = parseEther('1.5') // 150%
   const ethRate = parseEther('4000') // 1 ETH = $4000
   const metRate = parseEther('4') // 1 MET = $4
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
-    ;[deployer, governor, user, user2, liquidator, mBoxMock] = await ethers.getSigners()
+    ;[deployer, governor, user, user2, liquidator, vSynthsMock] = await ethers.getSigners()
 
     const oracleMock = new OracleMock__factory(deployer)
     oracle = <OracleMock>await oracleMock.deploy()
@@ -60,31 +60,39 @@ describe('Issuer', function () {
     metDepositToken = await depositTokenFactory.deploy()
     await metDepositToken.deployed()
 
-    const mEthDebtTokenFactory = new DebtToken__factory(deployer)
-    mEthDebtToken = await mEthDebtTokenFactory.deploy()
-    await mEthDebtToken.deployed()
+    const vsEthDebtTokenFactory = new DebtToken__factory(deployer)
+    vsEthDebtToken = await vsEthDebtTokenFactory.deploy()
+    await vsEthDebtToken.deployed()
 
-    const mEthFactory = new SyntheticAsset__factory(deployer)
-    mEth = await mEthFactory.deploy()
-    await mEth.deployed()
+    const vsEthFactory = new SyntheticAsset__factory(deployer)
+    vsEth = await vsEthFactory.deploy()
+    await vsEth.deployed()
 
     const issuerFactory = new Issuer__factory(deployer)
     issuer = await issuerFactory.deploy()
     await issuer.deployed()
 
-    await metDepositToken.initialize(met.address, issuer.address, oracle.address, 'mBOX-MET')
+    await metDepositToken.initialize(met.address, issuer.address, oracle.address, 'vSynths-MET')
     await metDepositToken.transferGovernorship(governor.address)
     await metDepositToken.connect(governor).acceptGovernorship()
 
-    await mEthDebtToken.initialize('mETH Debt', 'mETH-Debt', 18, issuer.address)
-    await mEthDebtToken.transferGovernorship(governor.address)
-    await mEthDebtToken.connect(governor).acceptGovernorship()
+    await vsEthDebtToken.initialize('vsETH Debt', 'vsETH-Debt', 18, issuer.address)
+    await vsEthDebtToken.transferGovernorship(governor.address)
+    await vsEthDebtToken.connect(governor).acceptGovernorship()
 
-    await mEth.initialize('Metronome ETH', 'mETH', 18, issuer.address, mEthDebtToken.address, mEthCR, oracle.address)
-    await mEth.transferGovernorship(governor.address)
-    await mEth.connect(governor).acceptGovernorship()
+    await vsEth.initialize(
+      'Vesper Synths ETH',
+      'vsETH',
+      18,
+      issuer.address,
+      vsEthDebtToken.address,
+      vsEthCR,
+      oracle.address
+    )
+    await vsEth.transferGovernorship(governor.address)
+    await vsEth.connect(governor).acceptGovernorship()
 
-    await issuer.initialize(metDepositToken.address, mEth.address, oracle.address, mBoxMock.address)
+    await issuer.initialize(metDepositToken.address, vsEth.address, oracle.address, vSynthsMock.address)
 
     // mint some MET to users
     await met.mint(user.address, parseEther(`${1e6}`))
@@ -92,13 +100,13 @@ describe('Issuer', function () {
 
     // initialize mocked oracle
     await oracle.updateRate(met.address, metRate)
-    await oracle.updateRate(mEth.address, ethRate)
+    await oracle.updateRate(vsEth.address, ethRate)
   })
 
   describe('whitelisting', function () {
     describe('addSyntheticAsset', function () {
       it('should revert if not governor', async function () {
-        const tx = issuer.connect(user).addSyntheticAsset(mEth.address)
+        const tx = issuer.connect(user).addSyntheticAsset(vsEth.address)
         await expect(tx).to.revertedWith('not-the-governor')
       })
 
@@ -115,13 +123,13 @@ describe('Issuer', function () {
         // given
         const DebtTokenFactory = new DebtToken__factory(deployer)
         const debtToken = await DebtTokenFactory.deploy()
-        await debtToken.initialize('Metronome BTC debt', 'mBTC-debt', 8, issuer.address)
+        await debtToken.initialize('Vesper Synths BTC debt', 'vsBTC-debt', 8, issuer.address)
 
         const SyntheticAssetFactory = new SyntheticAsset__factory(deployer)
-        const mAsset = await SyntheticAssetFactory.deploy()
-        await mAsset.initialize(
-          'Metronome BTC',
-          'mBTC',
+        const vsAsset = await SyntheticAssetFactory.deploy()
+        await vsAsset.initialize(
+          'Vesper Synths BTC',
+          'vsBTC',
           8,
           issuer.address,
           debtToken.address,
@@ -129,47 +137,47 @@ describe('Issuer', function () {
           oracle.address
         )
 
-        expect(await mAsset.totalSupply()).to.eq(0)
-        await issuer.addSyntheticAsset(mAsset.address)
-        expect(await issuer.syntheticAssetByAddress(mAsset.address)).to.not.eq(ethers.constants.AddressZero)
+        expect(await vsAsset.totalSupply()).to.eq(0)
+        await issuer.addSyntheticAsset(vsAsset.address)
+        expect(await issuer.syntheticAssetByAddress(vsAsset.address)).to.not.eq(ethers.constants.AddressZero)
 
         // when
-        await issuer.removeSyntheticAsset(mAsset.address)
+        await issuer.removeSyntheticAsset(vsAsset.address)
 
         // then
-        expect(await issuer.syntheticAssetByAddress(mAsset.address)).to.eq(ethers.constants.AddressZero)
+        expect(await issuer.syntheticAssetByAddress(vsAsset.address)).to.eq(ethers.constants.AddressZero)
       })
 
       it('should revert if not governor', async function () {
         // when
-        const tx = issuer.connect(user).removeSyntheticAsset(mEth.address)
+        const tx = issuer.connect(user).removeSyntheticAsset(vsEth.address)
 
         // then
         await expect(tx).to.revertedWith('not-the-governor')
       })
 
-      it('should revert if removing mETH (i.e. syntheticAssets[0])', async function () {
+      it('should revert if removing vsETH (i.e. syntheticAssets[0])', async function () {
         // given
-        expect(await issuer.syntheticAssets(0)).to.eq(mEth.address)
+        expect(await issuer.syntheticAssets(0)).to.eq(vsEth.address)
 
         // when
-        const tx = issuer.removeSyntheticAsset(mEth.address)
+        const tx = issuer.removeSyntheticAsset(vsEth.address)
 
         // then
-        await expect(tx).to.revertedWith('can-not-delete-meth')
+        await expect(tx).to.revertedWith('can-not-delete-vseth')
       })
 
-      it('should revert if mAsset has any supply', async function () {
+      it('should revert if vsAsset has any supply', async function () {
         // given
         const ERC20MockFactory = new ERC20Mock__factory(deployer)
-        const mAsset = await ERC20MockFactory.deploy('Metronome BTC', 'mBTC', 8)
-        await mAsset.deployed()
-        await issuer.addSyntheticAsset(mAsset.address)
-        await mAsset.mint(deployer.address, parseEther('100'))
-        expect(await mAsset.totalSupply()).to.gt(0)
+        const vsAsset = await ERC20MockFactory.deploy('Vesper Synths BTC', 'vsBTC', 8)
+        await vsAsset.deployed()
+        await issuer.addSyntheticAsset(vsAsset.address)
+        await vsAsset.mint(deployer.address, parseEther('100'))
+        expect(await vsAsset.totalSupply()).to.gt(0)
 
         // when
-        const tx = issuer.removeSyntheticAsset(mAsset.address)
+        const tx = issuer.removeSyntheticAsset(vsAsset.address)
 
         // then
         await expect(tx).to.revertedWith('synthetic-asset-with-supply')
@@ -178,67 +186,67 @@ describe('Issuer', function () {
   })
 
   describe('mintSyntheticAssetAndDebtToken', function () {
-    it('should revert if not mbox', async function () {
+    it('should revert if not vSynths', async function () {
       // when
       const tx = issuer
         .connect(user.address)
-        .mintSyntheticAssetAndDebtToken(mEth.address, ethers.constants.AddressZero, 0)
+        .mintSyntheticAssetAndDebtToken(vsEth.address, ethers.constants.AddressZero, 0)
 
       // then
-      await expect(tx).to.revertedWith('not-mbox')
+      await expect(tx).to.revertedWith('not-vsynths')
     })
 
-    it('should mint mAsset and its debt representation', async function () {
+    it('should mint vsAsset and its debt representation', async function () {
       // when
       const amount = parseEther('1')
-      const tx = () => issuer.connect(mBoxMock).mintSyntheticAssetAndDebtToken(mEth.address, user.address, amount)
+      const tx = () => issuer.connect(vSynthsMock).mintSyntheticAssetAndDebtToken(vsEth.address, user.address, amount)
 
       // then
-      await expect(tx).to.changeTokenBalance(mEth, user, amount)
-      await expect(tx).to.changeTokenBalance(mEthDebtToken, user, amount)
+      await expect(tx).to.changeTokenBalance(vsEth, user, amount)
+      await expect(tx).to.changeTokenBalance(vsEthDebtToken, user, amount)
     })
   })
 
   describe('burnSyntheticAssetAndDebtToken', function () {
-    it('should revert if not mbox', async function () {
+    it('should revert if not vSynths', async function () {
       // when
       const tx = issuer
         .connect(user.address)
-        .burnSyntheticAssetAndDebtToken(mEth.address, ethers.constants.AddressZero, ethers.constants.AddressZero, 0)
+        .burnSyntheticAssetAndDebtToken(vsEth.address, ethers.constants.AddressZero, ethers.constants.AddressZero, 0)
 
       // then
-      await expect(tx).to.revertedWith('not-mbox')
+      await expect(tx).to.revertedWith('not-vsynths')
     })
 
-    it('should burn mAsset and its debt representation', async function () {
+    it('should burn vsAsset and its debt representation', async function () {
       // given
       const amount = parseEther('1')
-      await issuer.connect(mBoxMock).mintSyntheticAssetAndDebtToken(mEth.address, user.address, amount.mul('10'))
-      await issuer.connect(mBoxMock).mintSyntheticAssetAndDebtToken(mEth.address, user2.address, amount.mul('10'))
+      await issuer.connect(vSynthsMock).mintSyntheticAssetAndDebtToken(vsEth.address, user.address, amount.mul('10'))
+      await issuer.connect(vSynthsMock).mintSyntheticAssetAndDebtToken(vsEth.address, user2.address, amount.mul('10'))
 
       // when
       const tx = () =>
-        issuer.connect(mBoxMock).burnSyntheticAssetAndDebtToken(mEth.address, user.address, user2.address, amount)
+        issuer.connect(vSynthsMock).burnSyntheticAssetAndDebtToken(vsEth.address, user.address, user2.address, amount)
 
       // then
-      await expect(tx).to.changeTokenBalance(mEth, user, amount.mul('-1'))
-      await expect(tx).to.changeTokenBalance(mEthDebtToken, user2, amount.mul('-1'))
+      await expect(tx).to.changeTokenBalance(vsEth, user, amount.mul('-1'))
+      await expect(tx).to.changeTokenBalance(vsEthDebtToken, user2, amount.mul('-1'))
     })
   })
 
   describe('mintDepositToken', function () {
-    it('should revert if not mbox', async function () {
+    it('should revert if not vSynths', async function () {
       // when
       const tx = issuer.connect(user.address).mintDepositToken(metDepositToken.address, ethers.constants.AddressZero, 0)
 
       // then
-      await expect(tx).to.revertedWith('not-mbox')
+      await expect(tx).to.revertedWith('not-vsynths')
     })
 
     it('should mint deposit token', async function () {
       // when
       const amount = parseEther('1')
-      const tx = () => issuer.connect(mBoxMock).mintDepositToken(metDepositToken.address, user.address, amount)
+      const tx = () => issuer.connect(vSynthsMock).mintDepositToken(metDepositToken.address, user.address, amount)
 
       // then
       await expect(tx).to.changeTokenBalance(metDepositToken, user, amount)
@@ -247,16 +255,16 @@ describe('Issuer', function () {
 
   describe('when have some deposit token', function () {
     beforeEach(async function () {
-      await issuer.connect(mBoxMock).mintDepositToken(metDepositToken.address, user.address, parseEther('1'))
+      await issuer.connect(vSynthsMock).mintDepositToken(metDepositToken.address, user.address, parseEther('1'))
     })
 
     describe('collectFee', function () {
-      it('should revert if not mbox', async function () {
+      it('should revert if not vSynths', async function () {
         // when
         const tx = issuer.connect(user.address).collectFee(ethers.constants.AddressZero, 0, true)
 
         // then
-        await expect(tx).to.revertedWith('not-mbox')
+        await expect(tx).to.revertedWith('not-vsynths')
       })
 
       it('should collect fee', async function () {
@@ -265,7 +273,7 @@ describe('Issuer', function () {
         const amountInUsd = await oracle.convertToUsd(await metDepositToken.underlying(), amount)
 
         // when
-        const tx = () => issuer.connect(mBoxMock).collectFee(user.address, amountInUsd, true)
+        const tx = () => issuer.connect(vSynthsMock).collectFee(user.address, amountInUsd, true)
 
         // then
         await expect(tx).to.changeTokenBalance(metDepositToken, user, amount.mul('-1'))
@@ -273,20 +281,20 @@ describe('Issuer', function () {
     })
 
     describe('burnWithdrawnDeposit', function () {
-      it('should revert if not mbox', async function () {
+      it('should revert if not vSynths', async function () {
         // when
         const tx = issuer
           .connect(user.address)
           .burnWithdrawnDeposit(metDepositToken.address, ethers.constants.AddressZero, 0)
 
         // then
-        await expect(tx).to.revertedWith('not-mbox')
+        await expect(tx).to.revertedWith('not-vsynths')
       })
 
       it('should burn deposit tokens', async function () {
         // when
         const amount = await metDepositToken.balanceOf(user.address)
-        const tx = () => issuer.connect(mBoxMock).burnWithdrawnDeposit(metDepositToken.address, user.address, amount)
+        const tx = () => issuer.connect(vSynthsMock).burnWithdrawnDeposit(metDepositToken.address, user.address, amount)
 
         // then
         await expect(tx).to.changeTokenBalance(metDepositToken, user, amount.mul('-1'))
@@ -294,21 +302,21 @@ describe('Issuer', function () {
     })
 
     describe('seizeDepositToken', function () {
-      it('should revert if not mbox', async function () {
+      it('should revert if not vSynths', async function () {
         // when
         const tx = issuer
           .connect(user.address)
           .seizeDepositToken(metDepositToken.address, ethers.constants.AddressZero, ethers.constants.AddressZero, 0)
 
         // then
-        await expect(tx).to.revertedWith('not-mbox')
+        await expect(tx).to.revertedWith('not-vsynths')
       })
 
       it('should seize deposit tokens', async function () {
         // when
         const amount = await metDepositToken.balanceOf(user.address)
         const tx = () =>
-          issuer.connect(mBoxMock).seizeDepositToken(metDepositToken.address, user.address, user2.address, amount)
+          issuer.connect(vSynthsMock).seizeDepositToken(metDepositToken.address, user.address, user2.address, amount)
 
         // then
         await expect(tx).to.changeTokenBalances(metDepositToken, [user, user2], [amount.mul('-1'), amount])
