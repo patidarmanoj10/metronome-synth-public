@@ -11,7 +11,7 @@ contract IssuerUpgrader is UpgraderBase {
 
     function _calls() internal pure override returns (bytes[] memory calls) {
         calls = new bytes[](3);
-        calls[0] = abi.encodeWithSignature("mEth()");
+        calls[0] = abi.encodeWithSignature("vsEth()");
         calls[1] = abi.encodeWithSignature("met()");
         calls[2] = abi.encodeWithSignature("oracle()");
     }

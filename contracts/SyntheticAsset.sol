@@ -31,7 +31,7 @@ contract SyntheticAssetStorageV1 {
     IDebtToken internal _debtToken;
 
     /**
-     * @notice If a mAsset isn't active, it disables minting new tokens
+     * @notice If a vsAsset isn't active, it disables minting new tokens
      */
     bool internal _active;
 

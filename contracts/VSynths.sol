@@ -6,13 +6,13 @@ import "./dependencies/openzeppelin/token/ERC20/IERC20.sol";
 import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./access/Governable.sol";
-import "./interface/IMBox.sol";
+import "./interface/IVSynths.sol";
 import "./lib/WadRayMath.sol";
 import "./interface/ITreasury.sol";
 import "./interface/IIssuer.sol";
 import "./Pausable.sol";
 
-contract MBoxStorageV1 {
+contract VSynthsStorageV1 {
     /**
      * @notice The fee charged when depositing collateral
      * @dev Use 18 decimals (e.g. 1e16 = 1%)
@@ -84,9 +84,9 @@ contract MBoxStorageV1 {
 }
 
 /**
- * @title mBOX main contract
+ * @title vSynths main contract
  */
-contract MBox is IMBox, ReentrancyGuard, Pausable, Governable, MBoxStorageV1 {
+contract VSynths is IVSynths, ReentrancyGuard, Pausable, Governable, VSynthsStorageV1 {
     using SafeERC20 for IERC20;
     using WadRayMath for uint256;
 
@@ -225,7 +225,7 @@ contract MBox is IMBox, ReentrancyGuard, Pausable, Governable, MBoxStorageV1 {
     }
 
     /**
-     * @notice Deposit colleteral and mint mBOX-Collateral (tokenized deposit position)
+     * @notice Deposit colleteral and mint vSynths-Collateral (tokenized deposit position)
      * @param _depositToken The collateral tokens to deposit
      * @param _amount The amount of collateral tokens to deposit
      */
@@ -285,7 +285,7 @@ contract MBox is IMBox, ReentrancyGuard, Pausable, Governable, MBoxStorageV1 {
     }
 
     /**
-     * @notice Burn mBOX-Collateral and withdraw collateral
+     * @notice Burn vSynths-Collateral and withdraw collateral
      * @param _amount The amount of collateral to withdraw
      */
     function withdraw(IDepositToken _depositToken, uint256 _amount)
@@ -359,7 +359,7 @@ contract MBox is IMBox, ReentrancyGuard, Pausable, Governable, MBoxStorageV1 {
 
     /**
      * @notice Burn synthetic asset, unlock deposit token and send liquidator fee
-     * @param _syntheticAsset The mAsset to use for repayment
+     * @param _syntheticAsset The vsAsset to use for repayment
      * @param _account The account with an unhealty position
      * @param _amountToRepay The amount to repay
      */
@@ -467,7 +467,7 @@ contract MBox is IMBox, ReentrancyGuard, Pausable, Governable, MBoxStorageV1 {
     }
 
     /**
-     * @notice Refinance debt by swaping for mETH (that has lower collateralization ratio)
+     * @notice Refinance debt by swaping for vsETH (that has lower collateralization ratio)
      * @param _syntheticAssetIn Synthetic asset to sell
      * @param _amountToRefinance Amount to refinance
      */
@@ -477,7 +477,7 @@ contract MBox is IMBox, ReentrancyGuard, Pausable, Governable, MBoxStorageV1 {
         whenNotShutdown
         nonReentrant
     {
-        ISyntheticAsset _syntheticAssetOut = issuer.mEth();
+        ISyntheticAsset _syntheticAssetOut = issuer.vsEth();
         require(
             _syntheticAssetIn.collateralizationRatio() > _syntheticAssetOut.collateralizationRatio(),
             "in-cratio-is-lte-out-cratio"

@@ -1,15 +1,13 @@
-# mBOX
+# Vesper Synths
 
-This repository contains set of smart contracts and test cases of mBOX - Metronome Syntetic Assets.
+This repository contains set of smart contracts and test cases of Vesper Synths
 
 ## Setup
 
 1. Install
 
    ```sh
-   git clone https://github.com/autonomoussoftware/mbox.git
-   cd mbox
-   npm install
+   npm i
    ```
 
 2. set NODE_URL in env
@@ -23,7 +21,7 @@ This repository contains set of smart contracts and test cases of mBOX - Metrono
 3. Test
 
 ```sh
-npm test
+npm t
 ```
 
 ## Run test with coverage

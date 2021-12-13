@@ -19,7 +19,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   await deploy()
 
-  const symbol = 'mBOX-MET'
+  const symbol = 'vSynths-MET'
 
   await execute(
     MetDepositToken,

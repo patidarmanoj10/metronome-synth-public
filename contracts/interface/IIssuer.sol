@@ -74,7 +74,7 @@ interface IIssuer {
 
     function updateOracle(IOracle _newOracle) external;
 
-    function mEth() external view returns (ISyntheticAsset);
+    function vsEth() external view returns (ISyntheticAsset);
 
     function mintSyntheticAssetAndDebtToken(
         ISyntheticAsset _syntheticAsset,

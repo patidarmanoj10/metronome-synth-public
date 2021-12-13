@@ -12,11 +12,11 @@ export interface ContractConfig {
 
 export const UpgradableContracts: {[key: string]: ContractConfig} = {
   Issuer: {alias: 'Issuer', contract: 'Issuer', adminContract: 'IssuerUpgrader'},
-  MBox: {alias: 'MBox', contract: 'MBox', adminContract: 'MBoxUpgrader'},
+  VSynths: {alias: 'VSynths', contract: 'VSynths', adminContract: 'VSynthsUpgrader'},
   Treasury: {alias: 'Treasury', contract: 'Treasury', adminContract: 'TreasuryUpgrader'},
   MetDepositToken: {alias: 'MetDepositToken', contract: 'DepositToken', adminContract: 'DepositTokenUpgrader'},
-  MEth: {alias: 'MEth', contract: 'SyntheticAsset', adminContract: 'SyntheticAssetUpgrader'},
-  MEthDebtToken: {alias: 'MEthDebtToken', contract: 'DebtToken', adminContract: 'DebtTokenUpgrader'},
+  VsEth: {alias: 'VsEth', contract: 'SyntheticAsset', adminContract: 'SyntheticAssetUpgrader'},
+  VsEthDebtToken: {alias: 'VsEthDebtToken', contract: 'DebtToken', adminContract: 'DebtTokenUpgrader'},
 }
 
 const updateMulticallIfNeeded = async (

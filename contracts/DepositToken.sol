@@ -4,7 +4,6 @@ pragma solidity 0.8.9;
 
 import "./access/Manageable.sol";
 import "./interface/IDepositToken.sol";
-import "./interface/IMBox.sol";
 
 contract DepositTokenStorageV1 {
     mapping(address => uint256) internal _balances;

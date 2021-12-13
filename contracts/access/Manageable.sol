@@ -4,7 +4,7 @@ pragma solidity 0.8.9;
 
 import "./Governable.sol";
 import "../interface/IDebtToken.sol";
-import "../interface/IMBox.sol";
+import "../interface/IVSynths.sol";
 import "../interface/IIssuer.sol";
 
 /**
@@ -12,12 +12,12 @@ import "../interface/IIssuer.sol";
  */
 abstract contract Manageable is Governable {
     /**
-     * @notice mBox contract
+     * @notice vSynths contract
      */
-    IMBox public mBox;
+    IVSynths public vSynths;
 
     /**
-     * @notice mBox contract
+     * @notice Issuer contract
      */
     IIssuer public issuer;
 
@@ -27,10 +27,10 @@ abstract contract Manageable is Governable {
     }
 
     /**
-     * @notice Requires that the caller is the mBox contract
+     * @notice Requires that the caller is the vSynths contract
      */
-    modifier onlyMBox() {
-        require(_msgSender() == address(mBox), "not-mbox");
+    modifier onlyVSynths() {
+        require(_msgSender() == address(vSynths), "not-vsynths");
         _;
     }
 
@@ -43,12 +43,12 @@ abstract contract Manageable is Governable {
     }
 
     /**
-     * @notice Update mBox contract
-     * @param _mBox The new mBox contract
+     * @notice Update vSynths contract
+     * @param _vSynths The new vSynths contract
      */
-    function setMBox(IMBox _mBox) public onlyGovernor {
-        require(address(_mBox) != address(0), "new-mbox-address-is-zero");
-        mBox = _mBox;
+    function setVSynths(IVSynths _vSynths) public onlyGovernor {
+        require(address(_vSynths) != address(0), "new-vsynths-address-is-zero");
+        vSynths = _vSynths;
     }
 
     function setIssuer(IIssuer _issuer) public onlyGovernor {

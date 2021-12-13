@@ -8,9 +8,9 @@ import "./IDepositToken.sol";
 import "./ITreasury.sol";
 
 /**
- * @notice MBox interface
+ * @notice VSynths interface
  */
-interface IMBox {
+interface IVSynths {
     function deposit(IDepositToken _collateral, uint256 _amount) external;
 
     function mint(ISyntheticAsset _syntheticAsset, uint256 _amount) external;

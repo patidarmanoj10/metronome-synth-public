@@ -3,8 +3,8 @@ import {DeployFunction} from 'hardhat-deploy/types'
 import {parseEther} from 'ethers/lib/utils'
 import {UpgradableContracts, deterministic} from '../helpers'
 
-const {alias: MEth} = UpgradableContracts.MEth
-const {alias: MEthDebtToken} = UpgradableContracts.MEthDebtToken
+const {alias: VsEth} = UpgradableContracts.VsEth
+const {alias: VsEthDebtToken} = UpgradableContracts.VsEthDebtToken
 const Oracle = 'Oracle'
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
@@ -15,27 +15,27 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const oracle = await get(Oracle)
 
   const {address: issuerAddress} = await deterministic(hre, UpgradableContracts.Issuer)
-  const {address: mEthDebtTokenAddress} = await deterministic(hre, UpgradableContracts.MEthDebtToken)
-  const {deploy} = await deterministic(hre, UpgradableContracts.MEth)
+  const {address: vsEthDebtTokenAddress} = await deterministic(hre, UpgradableContracts.VsEthDebtToken)
+  const {deploy} = await deterministic(hre, UpgradableContracts.VsEth)
 
   await deploy()
 
   await execute(
-    MEth,
+    VsEth,
     {from: deployer, log: true},
     'initialize',
-    'Metronome ETH',
-    'mETH',
+    'Vesper Synths ETH',
+    'vsETH',
     18,
     issuerAddress,
-    mEthDebtTokenAddress,
+    vsEthDebtTokenAddress,
     parseEther('1.5'), // CR = 150%
     oracle.address
   )
 
-  await execute(MEth, {from: deployer, log: true}, 'transferGovernorship', governor)
+  await execute(VsEth, {from: deployer, log: true}, 'transferGovernorship', governor)
 }
 
 export default func
-func.tags = [MEth]
-func.dependencies = [MEthDebtToken]
+func.tags = [VsEth]
+func.dependencies = [VsEthDebtToken]

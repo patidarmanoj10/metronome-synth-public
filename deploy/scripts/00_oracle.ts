@@ -54,8 +54,8 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   await execute(Oracle, {from: deployer, log: true}, 'addOrUpdateUsdAsset', DAI_ADDRESS)
 
-  const {address: mEthAddress} = await deterministic(hre, UpgradableContracts.MEth)
-  await execute(Oracle, {from: deployer, log: true}, 'addOrUpdateAssetThatUsesUniswapV2', mEthAddress, WETH_ADDRESS)
+  const {address: vsEthAddress} = await deterministic(hre, UpgradableContracts.VsEth)
+  await execute(Oracle, {from: deployer, log: true}, 'addOrUpdateAssetThatUsesUniswapV2', vsEthAddress, WETH_ADDRESS)
 
   // For `depositToken` we use its underlying asset on querying
   await execute(Oracle, {from: deployer, log: true}, 'addOrUpdateAssetThatUsesUniswapV3', MET_ADDRESS, MET_ADDRESS)

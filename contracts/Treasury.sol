@@ -17,11 +17,11 @@ contract Treasury is ITreasury, ReentrancyGuard, Manageable, TreasuryStorageV1 {
 
     string public constant VERSION = "1.0.0";
 
-    function initialize(IMBox _mBox) public initializer {
+    function initialize(IVSynths _vSynths) public initializer {
         __ReentrancyGuard_init();
         __Manageable_init();
 
-        setMBox(_mBox);
+        setVSynths(_vSynths);
     }
 
     /**
@@ -31,7 +31,7 @@ contract Treasury is ITreasury, ReentrancyGuard, Manageable, TreasuryStorageV1 {
         IERC20 _token,
         address _to,
         uint256 _amount
-    ) external override nonReentrant onlyMBox {
+    ) external override nonReentrant onlyVSynths {
         require(_amount > 0, "amount-is-zero");
         _token.safeTransfer(_to, _amount);
     }

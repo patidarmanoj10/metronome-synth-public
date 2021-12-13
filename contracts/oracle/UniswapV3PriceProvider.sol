@@ -16,7 +16,7 @@ contract UniswapV3PriceProvider is IPriceProvider, Governable {
     /**
      * @notice The UniswapV3CrossPoolOracle contract address
      * @dev This is 3rd-party non-upgradable contract
-     * @dev The address isn't hardcoded because we may want to deploy mBOX to other chains
+     * @dev The address isn't hardcoded because we may want to deploy to other chains
      * See more: https://etherscan.io/address/0x0f1f5a87f99f0918e6c81f16e59f3518698221ff#code
      */
     IUniswapV3CrossPoolOracle public crossPoolOracle;
