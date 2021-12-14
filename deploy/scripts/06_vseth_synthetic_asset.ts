@@ -24,7 +24,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     VsEth,
     {from: deployer, log: true},
     'initialize',
-    'Vesper Synths ETH',
+    'Vesper Synth ETH',
     'vsETH',
     18,
     issuerAddress,

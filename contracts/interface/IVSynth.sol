@@ -8,9 +8,9 @@ import "./IDepositToken.sol";
 import "./ITreasury.sol";
 
 /**
- * @notice VSynths interface
+ * @notice VSynth interface
  */
-interface IVSynths {
+interface IVSynth {
     function deposit(IDepositToken _collateral, uint256 _amount) external;
 
     function mint(ISyntheticAsset _syntheticAsset, uint256 _amount) external;

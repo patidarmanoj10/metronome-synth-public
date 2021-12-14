@@ -27,7 +27,7 @@ describe('Issuer', function () {
   let user: SignerWithAddress
   let user2: SignerWithAddress
   let liquidator: SignerWithAddress
-  let vSynthsMock: SignerWithAddress
+  let vSynthMock: SignerWithAddress
   let met: ERC20Mock
   let vsEthDebtToken: DebtToken
   let vsEth: SyntheticAsset
@@ -42,7 +42,7 @@ describe('Issuer', function () {
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
-    ;[deployer, governor, user, user2, liquidator, vSynthsMock] = await ethers.getSigners()
+    ;[deployer, governor, user, user2, liquidator, vSynthMock] = await ethers.getSigners()
 
     const oracleMock = new OracleMock__factory(deployer)
     oracle = <OracleMock>await oracleMock.deploy()
@@ -72,7 +72,7 @@ describe('Issuer', function () {
     issuer = await issuerFactory.deploy()
     await issuer.deployed()
 
-    await metDepositToken.initialize(met.address, issuer.address, oracle.address, 'vSynths-MET')
+    await metDepositToken.initialize(met.address, issuer.address, oracle.address, 'vSynth-MET')
     await metDepositToken.transferGovernorship(governor.address)
     await metDepositToken.connect(governor).acceptGovernorship()
 
@@ -81,7 +81,7 @@ describe('Issuer', function () {
     await vsEthDebtToken.connect(governor).acceptGovernorship()
 
     await vsEth.initialize(
-      'Vesper Synths ETH',
+      'Vesper Synth ETH',
       'vsETH',
       18,
       issuer.address,
@@ -92,7 +92,7 @@ describe('Issuer', function () {
     await vsEth.transferGovernorship(governor.address)
     await vsEth.connect(governor).acceptGovernorship()
 
-    await issuer.initialize(metDepositToken.address, vsEth.address, oracle.address, vSynthsMock.address)
+    await issuer.initialize(metDepositToken.address, vsEth.address, oracle.address, vSynthMock.address)
 
     // mint some MET to users
     await met.mint(user.address, parseEther(`${1e6}`))
@@ -123,12 +123,12 @@ describe('Issuer', function () {
         // given
         const DebtTokenFactory = new DebtToken__factory(deployer)
         const debtToken = await DebtTokenFactory.deploy()
-        await debtToken.initialize('Vesper Synths BTC debt', 'vsBTC-debt', 8, issuer.address)
+        await debtToken.initialize('Vesper Synth BTC debt', 'vsBTC-debt', 8, issuer.address)
 
         const SyntheticAssetFactory = new SyntheticAsset__factory(deployer)
         const vsAsset = await SyntheticAssetFactory.deploy()
         await vsAsset.initialize(
-          'Vesper Synths BTC',
+          'Vesper Synth BTC',
           'vsBTC',
           8,
           issuer.address,
@@ -170,7 +170,7 @@ describe('Issuer', function () {
       it('should revert if vsAsset has any supply', async function () {
         // given
         const ERC20MockFactory = new ERC20Mock__factory(deployer)
-        const vsAsset = await ERC20MockFactory.deploy('Vesper Synths BTC', 'vsBTC', 8)
+        const vsAsset = await ERC20MockFactory.deploy('Vesper Synth BTC', 'vsBTC', 8)
         await vsAsset.deployed()
         await issuer.addSyntheticAsset(vsAsset.address)
         await vsAsset.mint(deployer.address, parseEther('100'))
@@ -186,20 +186,20 @@ describe('Issuer', function () {
   })
 
   describe('mintSyntheticAssetAndDebtToken', function () {
-    it('should revert if not vSynths', async function () {
+    it('should revert if not vSynth', async function () {
       // when
       const tx = issuer
         .connect(user.address)
         .mintSyntheticAssetAndDebtToken(vsEth.address, ethers.constants.AddressZero, 0)
 
       // then
-      await expect(tx).to.revertedWith('not-vsynths')
+      await expect(tx).to.revertedWith('not-vsynth')
     })
 
     it('should mint vsAsset and its debt representation', async function () {
       // when
       const amount = parseEther('1')
-      const tx = () => issuer.connect(vSynthsMock).mintSyntheticAssetAndDebtToken(vsEth.address, user.address, amount)
+      const tx = () => issuer.connect(vSynthMock).mintSyntheticAssetAndDebtToken(vsEth.address, user.address, amount)
 
       // then
       await expect(tx).to.changeTokenBalance(vsEth, user, amount)
@@ -208,25 +208,25 @@ describe('Issuer', function () {
   })
 
   describe('burnSyntheticAssetAndDebtToken', function () {
-    it('should revert if not vSynths', async function () {
+    it('should revert if not vSynth', async function () {
       // when
       const tx = issuer
         .connect(user.address)
         .burnSyntheticAssetAndDebtToken(vsEth.address, ethers.constants.AddressZero, ethers.constants.AddressZero, 0)
 
       // then
-      await expect(tx).to.revertedWith('not-vsynths')
+      await expect(tx).to.revertedWith('not-vsynth')
     })
 
     it('should burn vsAsset and its debt representation', async function () {
       // given
       const amount = parseEther('1')
-      await issuer.connect(vSynthsMock).mintSyntheticAssetAndDebtToken(vsEth.address, user.address, amount.mul('10'))
-      await issuer.connect(vSynthsMock).mintSyntheticAssetAndDebtToken(vsEth.address, user2.address, amount.mul('10'))
+      await issuer.connect(vSynthMock).mintSyntheticAssetAndDebtToken(vsEth.address, user.address, amount.mul('10'))
+      await issuer.connect(vSynthMock).mintSyntheticAssetAndDebtToken(vsEth.address, user2.address, amount.mul('10'))
 
       // when
       const tx = () =>
-        issuer.connect(vSynthsMock).burnSyntheticAssetAndDebtToken(vsEth.address, user.address, user2.address, amount)
+        issuer.connect(vSynthMock).burnSyntheticAssetAndDebtToken(vsEth.address, user.address, user2.address, amount)
 
       // then
       await expect(tx).to.changeTokenBalance(vsEth, user, amount.mul('-1'))
@@ -235,18 +235,18 @@ describe('Issuer', function () {
   })
 
   describe('mintDepositToken', function () {
-    it('should revert if not vSynths', async function () {
+    it('should revert if not vSynth', async function () {
       // when
       const tx = issuer.connect(user.address).mintDepositToken(metDepositToken.address, ethers.constants.AddressZero, 0)
 
       // then
-      await expect(tx).to.revertedWith('not-vsynths')
+      await expect(tx).to.revertedWith('not-vsynth')
     })
 
     it('should mint deposit token', async function () {
       // when
       const amount = parseEther('1')
-      const tx = () => issuer.connect(vSynthsMock).mintDepositToken(metDepositToken.address, user.address, amount)
+      const tx = () => issuer.connect(vSynthMock).mintDepositToken(metDepositToken.address, user.address, amount)
 
       // then
       await expect(tx).to.changeTokenBalance(metDepositToken, user, amount)
@@ -255,16 +255,16 @@ describe('Issuer', function () {
 
   describe('when have some deposit token', function () {
     beforeEach(async function () {
-      await issuer.connect(vSynthsMock).mintDepositToken(metDepositToken.address, user.address, parseEther('1'))
+      await issuer.connect(vSynthMock).mintDepositToken(metDepositToken.address, user.address, parseEther('1'))
     })
 
     describe('collectFee', function () {
-      it('should revert if not vSynths', async function () {
+      it('should revert if not vSynth', async function () {
         // when
         const tx = issuer.connect(user.address).collectFee(ethers.constants.AddressZero, 0, true)
 
         // then
-        await expect(tx).to.revertedWith('not-vsynths')
+        await expect(tx).to.revertedWith('not-vsynth')
       })
 
       it('should collect fee', async function () {
@@ -273,7 +273,7 @@ describe('Issuer', function () {
         const amountInUsd = await oracle.convertToUsd(await metDepositToken.underlying(), amount)
 
         // when
-        const tx = () => issuer.connect(vSynthsMock).collectFee(user.address, amountInUsd, true)
+        const tx = () => issuer.connect(vSynthMock).collectFee(user.address, amountInUsd, true)
 
         // then
         await expect(tx).to.changeTokenBalance(metDepositToken, user, amount.mul('-1'))
@@ -281,20 +281,20 @@ describe('Issuer', function () {
     })
 
     describe('burnWithdrawnDeposit', function () {
-      it('should revert if not vSynths', async function () {
+      it('should revert if not vSynth', async function () {
         // when
         const tx = issuer
           .connect(user.address)
           .burnWithdrawnDeposit(metDepositToken.address, ethers.constants.AddressZero, 0)
 
         // then
-        await expect(tx).to.revertedWith('not-vsynths')
+        await expect(tx).to.revertedWith('not-vsynth')
       })
 
       it('should burn deposit tokens', async function () {
         // when
         const amount = await metDepositToken.balanceOf(user.address)
-        const tx = () => issuer.connect(vSynthsMock).burnWithdrawnDeposit(metDepositToken.address, user.address, amount)
+        const tx = () => issuer.connect(vSynthMock).burnWithdrawnDeposit(metDepositToken.address, user.address, amount)
 
         // then
         await expect(tx).to.changeTokenBalance(metDepositToken, user, amount.mul('-1'))
@@ -302,21 +302,21 @@ describe('Issuer', function () {
     })
 
     describe('seizeDepositToken', function () {
-      it('should revert if not vSynths', async function () {
+      it('should revert if not vSynth', async function () {
         // when
         const tx = issuer
           .connect(user.address)
           .seizeDepositToken(metDepositToken.address, ethers.constants.AddressZero, ethers.constants.AddressZero, 0)
 
         // then
-        await expect(tx).to.revertedWith('not-vsynths')
+        await expect(tx).to.revertedWith('not-vsynth')
       })
 
       it('should seize deposit tokens', async function () {
         // when
         const amount = await metDepositToken.balanceOf(user.address)
         const tx = () =>
-          issuer.connect(vSynthsMock).seizeDepositToken(metDepositToken.address, user.address, user2.address, amount)
+          issuer.connect(vSynthMock).seizeDepositToken(metDepositToken.address, user.address, user2.address, amount)
 
         // then
         await expect(tx).to.changeTokenBalances(metDepositToken, [user, user2], [amount.mul('-1'), amount])

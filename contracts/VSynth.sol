@@ -6,13 +6,13 @@ import "./dependencies/openzeppelin/token/ERC20/IERC20.sol";
 import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./access/Governable.sol";
-import "./interface/IVSynths.sol";
+import "./interface/IVSynth.sol";
 import "./lib/WadRayMath.sol";
 import "./interface/ITreasury.sol";
 import "./interface/IIssuer.sol";
 import "./Pausable.sol";
 
-contract VSynthsStorageV1 {
+contract VSynthStorageV1 {
     /**
      * @notice The fee charged when depositing collateral
      * @dev Use 18 decimals (e.g. 1e16 = 1%)
@@ -84,9 +84,9 @@ contract VSynthsStorageV1 {
 }
 
 /**
- * @title vSynths main contract
+ * @title vSynth main contract
  */
-contract VSynths is IVSynths, ReentrancyGuard, Pausable, Governable, VSynthsStorageV1 {
+contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorageV1 {
     using SafeERC20 for IERC20;
     using WadRayMath for uint256;
 
@@ -225,7 +225,7 @@ contract VSynths is IVSynths, ReentrancyGuard, Pausable, Governable, VSynthsStor
     }
 
     /**
-     * @notice Deposit colleteral and mint vSynths-Collateral (tokenized deposit position)
+     * @notice Deposit colleteral and mint vSynth-Collateral (tokenized deposit position)
      * @param _depositToken The collateral tokens to deposit
      * @param _amount The amount of collateral tokens to deposit
      */
@@ -285,7 +285,7 @@ contract VSynths is IVSynths, ReentrancyGuard, Pausable, Governable, VSynthsStor
     }
 
     /**
-     * @notice Burn vSynths-Collateral and withdraw collateral
+     * @notice Burn vSynth-Collateral and withdraw collateral
      * @param _amount The amount of collateral to withdraw
      */
     function withdraw(IDepositToken _depositToken, uint256 _amount)
