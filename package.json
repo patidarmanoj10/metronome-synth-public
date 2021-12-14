@@ -1,7 +1,7 @@
 {
-  "name": "vesper-synths",
+  "name": "vesper-synth",
   "version": "0.0.1",
-  "description": "Vesper Synths",
+  "description": "Vesper Synth",
   "license": "MIT",
   "directories": {
     "test": "test"

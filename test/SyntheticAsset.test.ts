@@ -21,7 +21,7 @@ describe('SyntheticAsset', function () {
   let debtToken: DebtToken
   let oracle: OracleMock
 
-  const name = 'Vesper Synths ETH'
+  const name = 'Vesper Synth ETH'
   const symbol = 'vsEth'
   const collateralizationRatio = parseEther('1.5')
 

@@ -12,7 +12,7 @@ export interface ContractConfig {
 
 export const UpgradableContracts: {[key: string]: ContractConfig} = {
   Issuer: {alias: 'Issuer', contract: 'Issuer', adminContract: 'IssuerUpgrader'},
-  VSynths: {alias: 'VSynths', contract: 'VSynths', adminContract: 'VSynthsUpgrader'},
+  VSynth: {alias: 'VSynth', contract: 'VSynth', adminContract: 'VSynthUpgrader'},
   Treasury: {alias: 'Treasury', contract: 'Treasury', adminContract: 'TreasuryUpgrader'},
   MetDepositToken: {alias: 'MetDepositToken', contract: 'DepositToken', adminContract: 'DepositTokenUpgrader'},
   VsEth: {alias: 'VsEth', contract: 'SyntheticAsset', adminContract: 'SyntheticAssetUpgrader'},

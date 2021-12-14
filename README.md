@@ -1,6 +1,6 @@
-# Vesper Synths
+# Vesper Synth
 
-This repository contains set of smart contracts and test cases of Vesper Synths
+This repository contains set of smart contracts and test cases of Vesper Synth
 
 ## Setup
 

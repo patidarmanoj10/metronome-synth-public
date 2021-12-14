@@ -4,7 +4,7 @@ pragma solidity 0.8.9;
 
 import "./Governable.sol";
 import "../interface/IDebtToken.sol";
-import "../interface/IVSynths.sol";
+import "../interface/IVSynth.sol";
 import "../interface/IIssuer.sol";
 
 /**
@@ -12,9 +12,9 @@ import "../interface/IIssuer.sol";
  */
 abstract contract Manageable is Governable {
     /**
-     * @notice vSynths contract
+     * @notice vSynth contract
      */
-    IVSynths public vSynths;
+    IVSynth public vSynth;
 
     /**
      * @notice Issuer contract
@@ -27,10 +27,10 @@ abstract contract Manageable is Governable {
     }
 
     /**
-     * @notice Requires that the caller is the vSynths contract
+     * @notice Requires that the caller is the vSynth contract
      */
-    modifier onlyVSynths() {
-        require(_msgSender() == address(vSynths), "not-vsynths");
+    modifier onlyVSynth() {
+        require(_msgSender() == address(vSynth), "not-vsynth");
         _;
     }
 
@@ -43,12 +43,12 @@ abstract contract Manageable is Governable {
     }
 
     /**
-     * @notice Update vSynths contract
-     * @param _vSynths The new vSynths contract
+     * @notice Update vSynth contract
+     * @param _vSynth The new vSynth contract
      */
-    function setVSynths(IVSynths _vSynths) public onlyGovernor {
-        require(address(_vSynths) != address(0), "new-vsynths-address-is-zero");
-        vSynths = _vSynths;
+    function setVSynth(IVSynth _vSynth) public onlyGovernor {
+        require(address(_vSynth) != address(0), "new-vsynth-address-is-zero");
+        vSynth = _vSynth;
     }
 
     function setIssuer(IIssuer _issuer) public onlyGovernor {
