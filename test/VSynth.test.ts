@@ -50,6 +50,7 @@ describe('VSynth', function () {
   const metRate = parseEther('4') // 1 MET = $4
   const daiRate = parseEther('1') // 1 DAI = $1
   const dogeRate = parseEther('0.4') // 1 DOGE = $0.4
+  const interestRate = parseEther('0')
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
@@ -126,7 +127,8 @@ describe('VSynth', function () {
       issuer.address,
       vsEthDebtToken.address,
       vsEthCR,
-      oracle.address
+      oracle.address,
+      interestRate
     )
     await vsEth.transferGovernorship(governor.address)
     await vsEth.connect(governor).acceptGovernorship()
@@ -142,7 +144,8 @@ describe('VSynth', function () {
       issuer.address,
       vsDogeDebtToken.address,
       vsDogeCR,
-      oracle.address
+      oracle.address,
+      interestRate
     )
     await vsDoge.transferGovernorship(governor.address)
     await vsDoge.connect(governor).acceptGovernorship()

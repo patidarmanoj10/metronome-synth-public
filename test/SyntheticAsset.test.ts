@@ -24,6 +24,7 @@ describe('SyntheticAsset', function () {
   const name = 'Vesper Synth ETH'
   const symbol = 'vsEth'
   const collateralizationRatio = parseEther('1.5')
+  const interestRate = parseEther('0')
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
@@ -48,7 +49,8 @@ describe('SyntheticAsset', function () {
       issuerMock.address,
       debtToken.address,
       collateralizationRatio,
-      oracle.address
+      oracle.address,
+      interestRate
     )
 
     await vsAsset.transferGovernorship(governor.address)
@@ -154,6 +156,21 @@ describe('SyntheticAsset', function () {
 
     it('should revert if not governor', async function () {
       const tx = vsAsset.connect(user).updateMaxTotalSupplyInUsd(parseEther('10'))
+      await expect(tx).to.revertedWith('not-the-governor')
+    })
+  })
+
+  describe('updateInterestRate', function () {
+    it('should update interest rate', async function () {
+      const before = await vsAsset.interestRate()
+      const after = parseEther('0.5')
+      const tx = vsAsset.updateInterestRate(after)
+      await expect(tx).to.emit(vsAsset, 'InterestRateUpdated').withArgs(before, after)
+      expect(await vsAsset.interestRate()).to.eq(after)
+    })
+
+    it('should revert if not governor', async function () {
+      const tx = vsAsset.connect(user).updateInterestRate(parseEther('0.12'))
       await expect(tx).to.revertedWith('not-the-governor')
     })
   })

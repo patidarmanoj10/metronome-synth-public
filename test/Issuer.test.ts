@@ -40,6 +40,8 @@ describe('Issuer', function () {
   const ethRate = parseEther('4000') // 1 ETH = $4000
   const metRate = parseEther('4') // 1 MET = $4
 
+  const interestRate = parseEther('0')
+
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[deployer, governor, user, user2, liquidator, vSynthMock] = await ethers.getSigners()
@@ -87,7 +89,8 @@ describe('Issuer', function () {
       issuer.address,
       vsEthDebtToken.address,
       vsEthCR,
-      oracle.address
+      oracle.address,
+      interestRate
     )
     await vsEth.transferGovernorship(governor.address)
     await vsEth.connect(governor).acceptGovernorship()
@@ -134,7 +137,8 @@ describe('Issuer', function () {
           issuer.address,
           debtToken.address,
           parseEther('1.5'),
-          oracle.address
+          oracle.address,
+          interestRate
         )
 
         expect(await vsAsset.totalSupply()).to.eq(0)

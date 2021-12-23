@@ -41,6 +41,7 @@ import {
 } from '../typechain'
 import {disableForking, enableForking} from './helpers'
 import Address from '../helpers/address'
+import {parseEther} from 'ethers/lib/utils'
 
 const {MET_ADDRESS} = Address
 
@@ -277,6 +278,7 @@ describe('Deployments', function () {
       expect(await vsEth.issuer()).to.eq(issuer.address)
       expect(await vsEth.debtToken()).to.eq(vsEthDebtToken.address)
       expect(await vsEth.governor()).to.eq(deployer.address)
+      expect(await vsEth.interestRate()).to.eq(parseEther('0'))
       await vsEth.connect(governor).acceptGovernorship()
       expect(await vsEth.governor()).to.eq(governor.address)
     })
