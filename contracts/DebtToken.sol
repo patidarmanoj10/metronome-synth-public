@@ -6,12 +6,25 @@ import "./access/Manageable.sol";
 import "./interface/IDebtToken.sol";
 
 contract DebtTokenStorageV1 {
-    mapping(address => uint256) internal _balances;
+    mapping(address => uint256) internal _principalOf;
+    mapping(address => uint256) internal _interestRateOf;
 
     uint256 internal _totalSupply;
     uint8 internal _decimals;
     string internal _name;
     string internal _symbol;
+
+    ISyntheticAsset internal _syntheticAsset;
+
+    /**
+     * @notice The block when interest accrual was calculated for the last time
+     */
+    uint256 public _lastBlockAccrued;
+
+    /**
+     * @notice Accumulator of the total earned interest rate since the beginning
+     */
+    uint256 public _debtIndex;
 }
 
 /**
@@ -24,7 +37,8 @@ contract DebtToken is IDebtToken, Manageable, DebtTokenStorageV1 {
         string memory name_,
         string memory symbol_,
         uint8 decimals_,
-        IIssuer issuer_
+        IIssuer issuer_,
+        ISyntheticAsset syntheticAsset_
     ) public initializer {
         __Manageable_init();
 
@@ -33,6 +47,9 @@ contract DebtToken is IDebtToken, Manageable, DebtTokenStorageV1 {
         _name = name_;
         _symbol = symbol_;
         _decimals = decimals_;
+        _syntheticAsset = syntheticAsset_;
+        _lastBlockAccrued = block.number;
+        _debtIndex = 1e18;
     }
 
     function name() public view virtual override returns (string memory) {
@@ -51,8 +68,19 @@ contract DebtToken is IDebtToken, Manageable, DebtTokenStorageV1 {
         return _totalSupply;
     }
 
+    /**
+     * @notice Get the updated (principal + interest) user's debt
+     */
     function balanceOf(address account) public view virtual override returns (uint256) {
-        return _balances[account];
+        if (_principalOf[account] == 0) {
+            return 0;
+        }
+        uint256 principalTimesIndex = _principalOf[account] * _debtIndex;
+        return principalTimesIndex / _interestRateOf[account];
+    }
+
+    function syntheticAsset() public view virtual override returns (ISyntheticAsset) {
+        return _syntheticAsset;
     }
 
     function transfer(
@@ -105,7 +133,8 @@ contract DebtToken is IDebtToken, Manageable, DebtTokenStorageV1 {
         require(account != address(0), "mint-to-the-zero-address");
 
         _totalSupply += amount;
-        _balances[account] += amount;
+        _principalOf[account] += amount;
+        _interestRateOf[account] = _debtIndex;
         emit Transfer(address(0), account, amount);
     }
 
@@ -115,11 +144,12 @@ contract DebtToken is IDebtToken, Manageable, DebtTokenStorageV1 {
     function _burn(address account, uint256 amount) internal virtual {
         require(account != address(0), "burn-from-the-zero-address");
 
-        uint256 accountBalance = _balances[account];
+        uint256 accountBalance = balanceOf(account);
         require(accountBalance >= amount, "burn-amount-exceeds-balance");
-        unchecked {
-            _balances[account] = accountBalance - amount;
-        }
+
+        _principalOf[account] = accountBalance - amount;
+        _interestRateOf[account] = _debtIndex;
+
         _totalSupply -= amount;
 
         emit Transfer(account, address(0), amount);
@@ -141,5 +171,34 @@ contract DebtToken is IDebtToken, Manageable, DebtTokenStorageV1 {
      */
     function burn(address _from, uint256 _amount) public override onlyIssuer {
         _burn(_from, _amount);
+    }
+
+    /**
+     * @notice Get current block number
+     * @dev Having this temporarilty as virtual for make test easier since for now hardhat doesn't support mine several blocks
+     * See more: https://github.com/nomiclabs/hardhat/issues/1112
+     */
+    function getBlockNumber() public view virtual returns (uint256 _blockNumber) {
+        _blockNumber = block.number;
+    }
+
+    // TODO: Comment
+    function accrueInterest() external override onlyIssuer returns (uint256 _interestAccumulated) {
+        uint256 _currentBlockNumber = getBlockNumber();
+
+        if (_lastBlockAccrued == _currentBlockNumber) {
+            return 0;
+        }
+
+        uint256 _blockDelta = _currentBlockNumber - _lastBlockAccrued;
+
+        uint256 _interestRateToAccrue = _syntheticAsset.interestRatePerBlock() * _blockDelta;
+
+        _interestAccumulated = (_interestRateToAccrue * totalSupply()) / 1e18;
+
+        // TODO: Inconsistency with balances, is this a problem?
+        _totalSupply += _interestAccumulated;
+
+        _debtIndex += ((_interestRateToAccrue * _debtIndex) / 1e18);
     }
 }

@@ -191,4 +191,24 @@ contract IssuerMock is IIssuer {
     function isDepositTokenExists(IDepositToken) external pure returns (bool) {
         revert("mock-does-not-implement");
     }
+
+    function getTreasury() external pure returns (ITreasury) {
+        revert("mock-does-not-implement");
+    }
+
+    function updateTreasury(ITreasury) external pure {
+        revert("mock-does-not-implement");
+    }
+
+    function withdrawFromTreasury(
+        IDepositToken,
+        address,
+        uint256
+    ) external pure {
+        revert("mock-does-not-implement");
+    }
+
+    function accrueInterest(ISyntheticAsset) external pure {
+        revert("mock-does-not-implement");
+    }
 }

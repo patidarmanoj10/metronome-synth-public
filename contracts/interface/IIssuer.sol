@@ -5,6 +5,7 @@ pragma solidity 0.8.9;
 import "./oracle/IOracle.sol";
 import "./ISyntheticAsset.sol";
 import "./IDepositToken.sol";
+import "./ITreasury.sol";
 
 /**
  * @notice IIssuer interface
@@ -113,4 +114,16 @@ interface IIssuer {
         address _to,
         uint256 _amount
     ) external;
+
+    function updateTreasury(ITreasury _newTreasury) external;
+
+    function getTreasury() external view returns (ITreasury);
+
+    function withdrawFromTreasury(
+        IDepositToken _token,
+        address _to,
+        uint256 _amount
+    ) external;
+
+    function accrueInterest(ISyntheticAsset _syntheticAsset) external;
 }

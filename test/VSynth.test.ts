@@ -112,11 +112,11 @@ describe('VSynth', function () {
     await daiDepositToken.transferGovernorship(governor.address)
     await daiDepositToken.connect(governor).acceptGovernorship()
 
-    await treasury.initialize(vSynth.address)
+    await treasury.initialize(issuer.address)
     await treasury.transferGovernorship(governor.address)
     await treasury.connect(governor).acceptGovernorship()
 
-    await vsEthDebtToken.initialize('vsETH Debt', 'vsETH-Debt', 18, issuer.address)
+    await vsEthDebtToken.initialize('vsETH Debt', 'vsETH-Debt', 18, issuer.address, vsEth.address)
     await vsEthDebtToken.transferGovernorship(governor.address)
     await vsEthDebtToken.connect(governor).acceptGovernorship()
 
@@ -133,7 +133,7 @@ describe('VSynth', function () {
     await vsEth.transferGovernorship(governor.address)
     await vsEth.connect(governor).acceptGovernorship()
 
-    await vsDogeDebtToken.initialize('vsDOGE Debt', 'vsDOGE-Debt', 18, issuer.address)
+    await vsDogeDebtToken.initialize('vsDOGE Debt', 'vsDOGE-Debt', 18, issuer.address, vsDoge.address)
     await vsDogeDebtToken.transferGovernorship(governor.address)
     await vsDogeDebtToken.connect(governor).acceptGovernorship()
 
@@ -150,10 +150,10 @@ describe('VSynth', function () {
     await vsDoge.transferGovernorship(governor.address)
     await vsDoge.connect(governor).acceptGovernorship()
 
-    await vSynth.initialize(treasury.address, metDepositToken.address, oracle.address, issuer.address)
+    await vSynth.initialize(metDepositToken.address, oracle.address, issuer.address)
     await vSynth.updateLiquidatorFee(liquidatorFee)
 
-    await issuer.initialize(metDepositToken.address, vsEth.address, oracle.address, vSynth.address)
+    await issuer.initialize(metDepositToken.address, vsEth.address, oracle.address, treasury.address, vSynth.address)
     await issuer.addDepositToken(daiDepositToken.address)
     await issuer.addSyntheticAsset(vsDoge.address)
 
@@ -1823,52 +1823,6 @@ describe('VSynth', function () {
           })
         })
       })
-    })
-  })
-
-  describe('updateTreasury', function () {
-    it('should revert if using the same address', async function () {
-      // given
-      expect(await vSynth.treasury()).to.eq(treasury.address)
-
-      // when
-      const tx = vSynth.updateTreasury(treasury.address)
-
-      // then
-      await expect(tx).to.revertedWith('new-treasury-is-same-as-current')
-    })
-
-    it('should revert if caller is not governor', async function () {
-      // when
-      const tx = vSynth.connect(user.address).updateTreasury(treasury.address)
-
-      // then
-      await expect(tx).to.revertedWith('not-the-governor')
-    })
-
-    it('should revert if address is zero', async function () {
-      // when
-      const tx = vSynth.updateTreasury(ethers.constants.AddressZero)
-
-      // then
-      await expect(tx).to.revertedWith('treasury-address-is-null')
-    })
-
-    it('should migrate funds to the new treasury', async function () {
-      // given
-      const balance = parseEther('100')
-      await met.mint(treasury.address, balance)
-
-      const treasuryFactory = new Treasury__factory(deployer)
-      const newTreasury = await treasuryFactory.deploy()
-      await newTreasury.deployed()
-      await newTreasury.initialize(vSynth.address)
-
-      // when
-      const tx = () => vSynth.updateTreasury(newTreasury.address)
-
-      // then
-      await expect(tx).changeTokenBalances(met, [treasury, newTreasury], [balance.mul('-1'), balance])
     })
   })
 

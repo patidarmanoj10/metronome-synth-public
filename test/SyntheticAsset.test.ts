@@ -37,11 +37,12 @@ describe('SyntheticAsset', function () {
     const debtTokenFactory = new DebtToken__factory(deployer)
     debtToken = await debtTokenFactory.deploy()
     await debtToken.deployed()
-    await debtToken.initialize('vsETH Debt', 'vsEth-Debt', 18, issuerMock.address)
 
-    const vsETHFactory = new SyntheticAsset__factory(deployer)
-    vsAsset = await vsETHFactory.deploy()
+    const syntheticAssetFactory = new SyntheticAsset__factory(deployer)
+    vsAsset = await syntheticAssetFactory.deploy()
     await vsAsset.deployed()
+
+    await debtToken.initialize('vsETH Debt', 'vsEth-Debt', 18, issuerMock.address, vsAsset.address)
     await vsAsset.initialize(
       name,
       symbol,

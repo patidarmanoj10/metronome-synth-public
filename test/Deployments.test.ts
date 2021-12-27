@@ -173,6 +173,7 @@ describe('Deployments', function () {
       expect(await issuer.syntheticAssets(0)).to.eq(vsEth.address)
       expect(await issuer.vsEth()).to.eq(vsEth.address)
       expect(await issuer.oracle()).to.eq(oracle.address)
+      expect(await issuer.treasury()).to.eq(treasury.address)
       expect(await issuer.governor()).to.eq(deployer.address)
       await issuer.connect(governor).acceptGovernorship()
       expect(await issuer.governor()).to.eq(governor.address)
@@ -199,7 +200,6 @@ describe('Deployments', function () {
 
   describe('VSynth', function () {
     it('should have correct params', async function () {
-      expect(await vSynth.treasury()).to.eq(treasury.address)
       expect(await vSynth.issuer()).to.eq(issuer.address)
       expect(await vSynth.oracle()).to.eq(oracle.address)
       expect(await vSynth.governor()).to.eq(deployer.address)
@@ -228,7 +228,7 @@ describe('Deployments', function () {
 
   describe('Treasury', function () {
     it('should have correct params', async function () {
-      expect(await treasury.vSynth()).to.eq(vSynth.address)
+      expect(await treasury.issuer()).to.eq(issuer.address)
       expect(await treasury.governor()).to.eq(deployer.address)
       await treasury.connect(governor).acceptGovernorship()
       expect(await treasury.governor()).to.eq(governor.address)

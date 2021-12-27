@@ -131,6 +131,11 @@ contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 
         return _interestRate;
     }
 
+    // TODO: Move to DebtToken?
+    function interestRatePerBlock() public view virtual override returns (uint256) {
+        return _interestRate / BLOCKS_PER_YEAR;
+    }
+
     function isActive() public view virtual override returns (bool) {
         return _active;
     }

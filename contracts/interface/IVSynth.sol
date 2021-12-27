@@ -5,7 +5,6 @@ pragma solidity 0.8.9;
 import "./oracle/IOracle.sol";
 import "./ISyntheticAsset.sol";
 import "./IDepositToken.sol";
-import "./ITreasury.sol";
 
 /**
  * @notice VSynth interface
@@ -37,8 +36,6 @@ interface IVSynth {
     ) external returns (uint256 _amountOut);
 
     function refinance(ISyntheticAsset _syntheticAssetIn, uint256 _amountToRefinance) external;
-
-    function updateTreasury(ITreasury _newTreasury) external;
 
     function updateOracle(IOracle _newOracle) external;
 
