@@ -191,6 +191,15 @@ contract IssuerMock is IIssuer {
         revert("mock-does-not-implement");
     }
 
+    function seizeSyntheticAsset(
+        ISyntheticAsset,
+        address,
+        address,
+        uint256
+    ) external pure {
+        revert("mock-does-not-implement");
+    }
+
     function isSyntheticAssetExists(ISyntheticAsset) external pure returns (bool) {
         revert("mock-does-not-implement");
     }

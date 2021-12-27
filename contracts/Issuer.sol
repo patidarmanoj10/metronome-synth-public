@@ -538,6 +538,24 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
     }
 
     /**
+     * @notice Seize synthetic asset
+     * @param _syntheticAsset The synthetic asset to seize from
+     * @param _from The account to seize from
+     * @param _to The account to transfer to
+     * @param _amount The amount to seize
+     */
+    function seizeSyntheticAsset(
+        ISyntheticAsset _syntheticAsset,
+        address _from,
+        address _to,
+        uint256 _amount
+    ) external override nonReentrant onlyVSynth {
+        require(_from != _to, "seize-from-and-to-are-the-same");
+        require(_amount > 0, "amount-to-seize-is-zero");
+        _syntheticAsset.seize(_from, _to, _amount);
+    }
+
+    /**
      * @notice Add synthetic token to vSynth offerings
      */
     function addSyntheticAsset(ISyntheticAsset _syntheticAsset) public override onlyGovernor {

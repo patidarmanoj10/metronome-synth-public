@@ -306,11 +306,11 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
 
         if (withdrawFee > 0) {
             uint256 _feeAmount = _amount.wadMul(withdrawFee);
-            // TODO: Use seize-like function?
-            issuer.mintDepositToken(_depositToken, address(issuer.getTreasury()), _feeAmount);
+            issuer.seizeDepositToken(_depositToken, _account, address(issuer.getTreasury()), _feeAmount);
             _amountToWithdraw -= _feeAmount;
         }
 
+        issuer.burnWithdrawnDeposit(_depositToken, _account, _amountToWithdraw);
         issuer.withdrawFromTreasury(_depositToken, _account, _amountToWithdraw);
 
         emit CollateralWithdrawn(_depositToken, _account, _amountToWithdraw);
@@ -332,17 +332,16 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
 
         issuer.accrueInterest(_syntheticAsset);
 
+        address _payer = _msgSender();
+
         uint256 _amountToRepay = _amount;
         if (repayFee > 0) {
             uint256 _feeAmount = _amount.wadMul(repayFee);
-            // TODO: Use seize-like function?
-            issuer.mintSyntheticAsset(_syntheticAsset, address(issuer.getTreasury()), _feeAmount);
+            issuer.seizeSyntheticAsset(_syntheticAsset, _payer, address(issuer.getTreasury()), _feeAmount);
             _amountToRepay -= _feeAmount;
         }
 
-        address _payer = _msgSender();
-
-        issuer.burnSyntheticAsset(_syntheticAsset, _payer, _amount);
+        issuer.burnSyntheticAsset(_syntheticAsset, _payer, _amountToRepay);
         issuer.burnDebtToken(_syntheticAsset.debtToken(), _beneficiary, _amountToRepay);
 
         emit DebtRepayed(_beneficiary, _syntheticAsset, _amount);
@@ -426,17 +425,20 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
         _amountOut = oracle.convert(_syntheticAssetIn, _syntheticAssetOut, _amountIn);
 
         uint256 _feeInSyntheticAssetOut = _fee > 0 ? _amountOut.wadMul(_fee) : 0;
-        uint256 _amountOutAfterFee = _amountOut - _feeInSyntheticAssetOut;
 
         issuer.burnSyntheticAsset(_syntheticAssetIn, _account, _amountIn);
         issuer.burnDebtToken(_syntheticAssetIn.debtToken(), _account, _amountIn);
 
-        issuer.mintSyntheticAsset(_syntheticAssetOut, _account, _amountOutAfterFee);
+        issuer.mintSyntheticAsset(_syntheticAssetOut, _account, _amountOut);
         issuer.mintDebtToken(_syntheticAssetOut.debtToken(), _account, _amountOut);
 
         if (_feeInSyntheticAssetOut > 0) {
-            // TODO: Use seize-like function?
-            issuer.mintSyntheticAsset(_syntheticAssetOut, address(issuer.getTreasury()), _feeInSyntheticAssetOut);
+            issuer.seizeSyntheticAsset(
+                _syntheticAssetOut,
+                _account,
+                address(issuer.getTreasury()),
+                _feeInSyntheticAssetOut
+            );
         }
 
         (bool _isHealthy, , , ) = issuer.debtPositionOf(_account);
