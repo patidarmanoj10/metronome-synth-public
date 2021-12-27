@@ -247,7 +247,7 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
             _amountToMint -= _feeAmount;
         }
 
-        issuer.mintDepositToken(_depositToken, _account, _amountToMint);
+        issuer.mintDepositToken(_depositToken, _account, _amount - _feeAmount);
 
         emit CollateralDeposited(_depositToken, _account, _amount, _feeAmount);
     }
