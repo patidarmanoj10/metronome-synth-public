@@ -134,7 +134,7 @@ contract IssuerMock is IIssuer {
         revert("mock-does-not-implement");
     }
 
-    function mintSyntheticAssetAndDebtToken(
+    function mintSyntheticAsset(
         ISyntheticAsset,
         address,
         uint256
@@ -142,9 +142,24 @@ contract IssuerMock is IIssuer {
         revert("mock-does-not-implement");
     }
 
-    function burnSyntheticAssetAndDebtToken(
+    function mintDebtToken(
+        IDebtToken,
+        address,
+        uint256
+    ) external pure {
+        revert("mock-does-not-implement");
+    }
+
+    function burnSyntheticAsset(
         ISyntheticAsset,
         address,
+        uint256
+    ) external pure {
+        revert("mock-does-not-implement");
+    }
+
+    function burnDebtToken(
+        IDebtToken,
         address,
         uint256
     ) external pure {
@@ -155,14 +170,6 @@ contract IssuerMock is IIssuer {
         IDepositToken,
         address,
         uint256
-    ) external pure {
-        revert("mock-does-not-implement");
-    }
-
-    function collectFee(
-        address,
-        uint256,
-        bool
     ) external pure {
         revert("mock-does-not-implement");
     }

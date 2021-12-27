@@ -414,41 +414,65 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
     }
 
     /**
-     * @notice Mint synthetic asset and it's debt representation
-     * @dev All use cases mint both tokens for the same account
+     * @notice Mint synthetic asset
      * @param _syntheticAsset The synthetic asset to mint
      * @param _to The destination account
      * @param _amount The amount to mint
      */
-    function mintSyntheticAssetAndDebtToken(
+    function mintSyntheticAsset(
         ISyntheticAsset _syntheticAsset,
         address _to,
         uint256 _amount
     ) external nonReentrant onlyVSynth {
         require(_amount > 0, "amount-to-mint-is-zero");
         _syntheticAsset.mint(_to, _amount);
-        _syntheticAsset.debtToken().mint(_to, _amount);
     }
 
     /**
-     * @notice Burn synthetic asset and it's debt representation
-     * @dev The liquidate feature needs accounts differentiation
-     * @param _syntheticAsset The synthetic asset to mint
-     * @param _syntheticAssetFrom The account to burn synthetic assets from
-     * @param _debtTokenFrom The account to burn debt tokens from
+     * @notice Mint synthetic asset's debt
+     * @param _debtToken The debt token to mint
+     * @param _to The destination account
      * @param _amount The amount to mint
      */
-    function burnSyntheticAssetAndDebtToken(
+    function mintDebtToken(
+        IDebtToken _debtToken,
+        address _to,
+        uint256 _amount
+    ) external nonReentrant onlyVSynth {
+        require(_amount > 0, "amount-to-mint-is-zero");
+        _debtToken.mint(_to, _amount);
+    }
+
+    /**
+     * @notice Burn synthetic asset
+     * @param _syntheticAsset The synthetic asset to mint
+     * @param _from The account to burn synthetic assets from
+     * @param _amount The amount to mint
+     */
+    function burnSyntheticAsset(
         ISyntheticAsset _syntheticAsset,
-        address _syntheticAssetFrom,
-        address _debtTokenFrom,
+        address _from,
         uint256 _amount
     ) external override nonReentrant onlyVSynth {
         require(_amount > 0, "amount-to-burn-is-zero");
-        require(_amount <= _syntheticAsset.debtToken().balanceOf(_debtTokenFrom), "amount-gt-burnable-debt");
-        require(_amount <= _syntheticAsset.balanceOf(_syntheticAssetFrom), "amount-gt-burnable-synthetic");
-        _syntheticAsset.burn(_syntheticAssetFrom, _amount);
-        _syntheticAsset.debtToken().burn(_debtTokenFrom, _amount);
+        require(_amount <= _syntheticAsset.balanceOf(_from), "amount-gt-burnable-synthetic");
+        _syntheticAsset.burn(_from, _amount);
+    }
+
+    /**
+     * @notice Burn synthetic asset's debt
+     * @param _debtToken The debt token to burn
+     * @param _from The account to burn debt tokens from
+     * @param _amount The amount to mint
+     */
+    function burnDebtToken(
+        IDebtToken _debtToken,
+        address _from,
+        uint256 _amount
+    ) external override nonReentrant onlyVSynth {
+        require(_amount > 0, "amount-to-burn-is-zero");
+        require(_amount <= _debtToken.balanceOf(_from), "amount-gt-burnable-debt");
+        _debtToken.burn(_from, _amount);
     }
 
     /**
@@ -478,29 +502,6 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
     ) external override nonReentrant onlyVSynth {
         require(_amount > 0, "amount-to-withdraw-is-zero");
         treasury.pull(_depositToken.underlying(), _to, _amount);
-    }
-
-    /**
-     * @notice Collect fee from user
-     * @dev Our approach is to burning deposit tokens (that represent real MET),
-     * that way, `totalFeesCollected = MET.supply() - depositToken.supply()`
-     * @param _account The account to charge from
-     * @param _feeInUsd The amount to collect
-     * @param _onlyFromUnlocked If true, we only collect from unlocked balance
-     */
-    function collectFee(
-        address _account,
-        uint256 _feeInUsd,
-        bool _onlyFromUnlocked
-    ) external override nonReentrant onlyVSynth {
-        require(_feeInUsd > 0, "fee-to-collect-is-zero");
-        uint256 _fee = oracle.convertFromUsd(met(), _feeInUsd);
-        if (_onlyFromUnlocked) {
-            depositTokens[0].burnFromUnlocked(_account, _fee);
-        } else {
-            // Liquidate feature requires burn even from locked balance
-            depositTokens[0].burn(_account, _fee);
-        }
     }
 
     /**

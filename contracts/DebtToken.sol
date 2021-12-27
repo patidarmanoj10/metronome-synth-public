@@ -4,6 +4,7 @@ pragma solidity 0.8.9;
 
 import "./access/Manageable.sol";
 import "./interface/IDebtToken.sol";
+import "./lib/WadRayMath.sol";
 
 contract DebtTokenStorageV1 {
     mapping(address => uint256) internal _principalOf;
@@ -31,6 +32,8 @@ contract DebtTokenStorageV1 {
  * @title Non-transferable token that represents users' debts
  */
 contract DebtToken is IDebtToken, Manageable, DebtTokenStorageV1 {
+    using WadRayMath for uint256;
+
     string public constant VERSION = "1.0.0";
 
     function initialize(
@@ -182,7 +185,10 @@ contract DebtToken is IDebtToken, Manageable, DebtTokenStorageV1 {
         _blockNumber = block.number;
     }
 
-    // TODO: Comment
+    /**
+     * @notice Accrue interest over debt supply
+     * @return _interestAccumulated The total amount of debt tokens accrued
+     */
     function accrueInterest() external override onlyIssuer returns (uint256 _interestAccumulated) {
         uint256 _currentBlockNumber = getBlockNumber();
 
@@ -194,11 +200,10 @@ contract DebtToken is IDebtToken, Manageable, DebtTokenStorageV1 {
 
         uint256 _interestRateToAccrue = _syntheticAsset.interestRatePerBlock() * _blockDelta;
 
-        _interestAccumulated = (_interestRateToAccrue * totalSupply()) / 1e18;
+        _interestAccumulated = _interestRateToAccrue.wadMul(totalSupply());
 
-        // TODO: Inconsistency with balances, is this a problem?
         _totalSupply += _interestAccumulated;
 
-        _debtIndex += ((_interestRateToAccrue * _debtIndex) / 1e18);
+        _debtIndex += _interestRateToAccrue.wadMul(_debtIndex);
     }
 }
