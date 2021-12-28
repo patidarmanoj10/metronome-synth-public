@@ -40,26 +40,26 @@ contract DepositToken is Manageable, DepositTokenStorageV1 {
     }
 
     function initialize(
-        IERC20 underlying_,
-        IIssuer issuer_,
-        IOracle oracle_,
-        string memory symbol_,
-        uint8 decimals_
+        IERC20 _underlying,
+        IIssuer _issuer,
+        IOracle _oracle,
+        string memory _symbol,
+        uint8 _decimals
     ) public initializer {
-        require(address(underlying_) != address(0), "underlying-is-null");
+        require(address(_underlying) != address(0), "underlying-is-null");
 
         __Manageable_init();
 
-        setIssuer(issuer_);
+        setIssuer(_issuer);
 
         name = "Tokenized deposit position";
-        symbol = symbol_;
-        underlying = underlying_;
+        symbol = _symbol;
+        underlying = _underlying;
         minDepositTime = 0;
         maxTotalSupplyInUsd = type(uint256).max;
         isActive = true;
-        oracle = oracle_;
-        decimals = decimals_;
+        oracle = _oracle;
+        decimals = _decimals;
     }
 
     function approve(address spender, uint256 _amount) public virtual override returns (bool) {
