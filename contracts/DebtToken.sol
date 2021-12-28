@@ -3,87 +3,45 @@
 pragma solidity 0.8.9;
 
 import "./access/Manageable.sol";
-import "./interface/IDebtToken.sol";
+import "./storage/DebtTokenStorage.sol";
 import "./lib/WadRayMath.sol";
-
-contract DebtTokenStorageV1 {
-    mapping(address => uint256) internal _principalOf;
-    mapping(address => uint256) internal _interestRateOf;
-
-    uint256 internal _totalSupply;
-    uint8 internal _decimals;
-    string internal _name;
-    string internal _symbol;
-
-    ISyntheticAsset internal _syntheticAsset;
-
-    /**
-     * @notice The block when interest accrual was calculated for the last time
-     */
-    uint256 public _lastBlockAccrued;
-
-    /**
-     * @notice Accumulator of the total earned interest rate since the beginning
-     */
-    uint256 public _debtIndex;
-}
 
 /**
  * @title Non-transferable token that represents users' debts
  */
-contract DebtToken is IDebtToken, Manageable, DebtTokenStorageV1 {
+contract DebtToken is Manageable, DebtTokenStorageV1 {
     using WadRayMath for uint256;
 
     string public constant VERSION = "1.0.0";
 
     function initialize(
-        string memory name_,
-        string memory symbol_,
-        uint8 decimals_,
-        IIssuer issuer_,
-        ISyntheticAsset syntheticAsset_
+        string memory _name,
+        string memory _symbol,
+        uint8 _decimals,
+        IIssuer _issuer,
+        ISyntheticAsset _syntheticAsset
     ) public initializer {
         __Manageable_init();
 
-        setIssuer(issuer_);
+        setIssuer(_issuer);
 
-        _name = name_;
-        _symbol = symbol_;
-        _decimals = decimals_;
-        _syntheticAsset = syntheticAsset_;
-        _lastBlockAccrued = block.number;
-        _debtIndex = 1e18;
-    }
-
-    function name() public view virtual override returns (string memory) {
-        return _name;
-    }
-
-    function symbol() public view virtual override returns (string memory) {
-        return _symbol;
-    }
-
-    function decimals() public view virtual override returns (uint8) {
-        return _decimals;
-    }
-
-    function totalSupply() public view virtual override returns (uint256) {
-        return _totalSupply;
+        name = _name;
+        symbol = _symbol;
+        decimals = _decimals;
+        syntheticAsset = _syntheticAsset;
+        lastBlockAccrued = block.number;
+        debtIndex = 1e18;
     }
 
     /**
      * @notice Get the updated (principal + interest) user's debt
      */
-    function balanceOf(address account) public view virtual override returns (uint256) {
-        if (_principalOf[account] == 0) {
+    function balanceOf(address _account) public view virtual override returns (uint256) {
+        if (principalOf[_account] == 0) {
             return 0;
         }
-        uint256 principalTimesIndex = _principalOf[account] * _debtIndex;
-        return principalTimesIndex / _interestRateOf[account];
-    }
-
-    function syntheticAsset() public view virtual override returns (ISyntheticAsset) {
-        return _syntheticAsset;
+        uint256 principalTimesIndex = principalOf[_account] * debtIndex;
+        return principalTimesIndex / interestRateOf[_account];
     }
 
     function transfer(
@@ -132,30 +90,30 @@ contract DebtToken is IDebtToken, Manageable, DebtTokenStorageV1 {
     /**
      * @dev Changes from the OZ original code: hooks removal
      */
-    function _mint(address account, uint256 amount) internal virtual {
-        require(account != address(0), "mint-to-the-zero-address");
+    function _mint(address _account, uint256 _amount) internal virtual {
+        require(_account != address(0), "mint-to-the-zero-address");
 
-        _totalSupply += amount;
-        _principalOf[account] += amount;
-        _interestRateOf[account] = _debtIndex;
-        emit Transfer(address(0), account, amount);
+        totalSupply += _amount;
+        principalOf[_account] += _amount;
+        interestRateOf[_account] = debtIndex;
+        emit Transfer(address(0), _account, _amount);
     }
 
     /**
      * @dev Changes from the OZ original code: hooks removal
      */
-    function _burn(address account, uint256 amount) internal virtual {
-        require(account != address(0), "burn-from-the-zero-address");
+    function _burn(address _account, uint256 _amount) internal virtual {
+        require(_account != address(0), "burn-from-the-zero-address");
 
-        uint256 accountBalance = balanceOf(account);
-        require(accountBalance >= amount, "burn-amount-exceeds-balance");
+        uint256 accountBalance = balanceOf(_account);
+        require(accountBalance >= _amount, "burn-amount-exceeds-balance");
 
-        _principalOf[account] = accountBalance - amount;
-        _interestRateOf[account] = _debtIndex;
+        principalOf[_account] = accountBalance - _amount;
+        interestRateOf[_account] = debtIndex;
 
-        _totalSupply -= amount;
+        totalSupply -= _amount;
 
-        emit Transfer(account, address(0), amount);
+        emit Transfer(_account, address(0), _amount);
     }
 
     /**
@@ -192,18 +150,18 @@ contract DebtToken is IDebtToken, Manageable, DebtTokenStorageV1 {
     function accrueInterest() external override onlyIssuer returns (uint256 _interestAccumulated) {
         uint256 _currentBlockNumber = getBlockNumber();
 
-        if (_lastBlockAccrued == _currentBlockNumber) {
+        if (lastBlockAccrued == _currentBlockNumber) {
             return 0;
         }
 
-        uint256 _blockDelta = _currentBlockNumber - _lastBlockAccrued;
+        uint256 _blockDelta = _currentBlockNumber - lastBlockAccrued;
 
-        uint256 _interestRateToAccrue = _syntheticAsset.interestRatePerBlock() * _blockDelta;
+        uint256 _interestRateToAccrue = syntheticAsset.interestRatePerBlock() * _blockDelta;
 
-        _interestAccumulated = _interestRateToAccrue.wadMul(totalSupply());
+        _interestAccumulated = _interestRateToAccrue.wadMul(totalSupply);
 
-        _totalSupply += _interestAccumulated;
+        totalSupply += _interestAccumulated;
 
-        _debtIndex += _interestRateToAccrue.wadMul(_debtIndex);
+        debtIndex += _interestRateToAccrue.wadMul(debtIndex);
     }
 }

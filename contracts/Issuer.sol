@@ -6,39 +6,14 @@ import "./dependencies/openzeppelin/token/ERC20/IERC20.sol";
 import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./access/Manageable.sol";
-import "./interface/IIssuer.sol";
+import "./storage/IssuerStorage.sol";
 import "./lib/WadRayMath.sol";
 import "./interface/ITreasury.sol";
-
-contract IssuerStorageV1 {
-    /**
-     * @notice Prices oracle
-     */
-    IOracle public oracle;
-
-    /**
-     * @notice Treasury contract
-     */
-    ITreasury public treasury;
-
-    /**
-     * @notice Represents collateral's deposits (e.g. vSynth-MET token)
-     */
-    IDepositToken[] public depositTokens;
-    mapping(address => IDepositToken) public depositTokenByAddress;
-
-    /**
-     * @notice Avaliable synthetic assets
-     * @dev The syntheticAssets[0] is vsETH
-     */
-    ISyntheticAsset[] public syntheticAssets;
-    mapping(address => ISyntheticAsset) public syntheticAssetByAddress;
-}
 
 /**
  * @title Issuer main contract
  */
-contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
+contract Issuer is ReentrancyGuard, Manageable, IssuerStorageV1 {
     using SafeERC20 for IERC20;
     using WadRayMath for uint256;
 
@@ -151,20 +126,6 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
 
         // Ensuring that vSynth-MET is the depositTokens[0]
         addDepositToken(depositToken_);
-    }
-
-    /**
-     * @notice Get deposit tokens
-     */
-    function getDepositTokens() public view override returns (IDepositToken[] memory) {
-        return depositTokens;
-    }
-
-    /**
-     * @notice Get treasury
-     */
-    function getTreasury() public view override returns (ITreasury) {
-        return treasury;
     }
 
     /**
@@ -662,9 +623,8 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
         require(address(_newTreasury) != address(0), "treasury-address-is-null");
         require(_newTreasury != treasury, "new-treasury-is-same-as-current");
 
-        IDepositToken[] memory _depositTokens = getDepositTokens();
-        for (uint256 i = 0; i < _depositTokens.length; ++i) {
-            IERC20 _underlying = _depositTokens[i].underlying();
+        for (uint256 i = 0; i < depositTokens.length; ++i) {
+            IERC20 _underlying = depositTokens[i].underlying();
             uint256 _balance = _underlying.balanceOf(address(treasury));
             if (_balance > 0) {
                 treasury.pull(_underlying, address(_newTreasury), _balance);

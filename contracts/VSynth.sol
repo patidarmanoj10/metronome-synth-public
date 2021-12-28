@@ -6,82 +6,14 @@ import "./dependencies/openzeppelin/token/ERC20/IERC20.sol";
 import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./access/Governable.sol";
-import "./interface/IVSynth.sol";
+import "./storage/VSynthStorage.sol";
 import "./lib/WadRayMath.sol";
-import "./interface/ITreasury.sol";
-import "./interface/IIssuer.sol";
 import "./Pausable.sol";
-
-contract VSynthStorageV1 {
-    /**
-     * @notice The fee charged when depositing collateral
-     * @dev Use 18 decimals (e.g. 1e16 = 1%)
-     */
-    uint256 public depositFee;
-
-    /**
-     * @notice The fee charged when minting a synthetic asset
-     * @dev Use 18 decimals (e.g. 1e16 = 1%)
-     */
-    uint256 public mintFee;
-
-    /**
-     * @notice The fee charged when withdrawing collateral
-     * @dev Use 18 decimals (e.g. 1e16 = 1%)
-     */
-    uint256 public withdrawFee;
-
-    /**
-     * @notice The fee charged when repaying debt
-     * @dev Use 18 decimals (e.g. 1e16 = 1%)
-     */
-    uint256 public repayFee;
-
-    /**
-     * @notice The fee charged when swapping synthetic assets
-     * @dev Use 18 decimals (e.g. 1e16 = 1%)
-     */
-    uint256 public swapFee;
-
-    /**
-     * @notice The fee charged when refinancing a debt
-     * @dev Use 18 decimals (e.g. 1e16 = 1%)
-     */
-    uint256 public refinanceFee;
-
-    /**
-     * @notice The fee charged from liquidated deposit that goes to the liquidator
-     * @dev Use 18 decimals (e.g. 1e16 = 1%)
-     */
-    uint256 public liquidatorFee;
-
-    /**
-     * @notice The fee charged when liquidating a position
-     * @dev Use 18 decimals (e.g. 1e16 = 1%)
-     */
-    uint256 public liquidateFee;
-
-    /**
-     * @notice The max percent of the debt allowed to liquidate
-     * @dev Use 18 decimals (e.g. 1e16 = 1%)
-     */
-    uint256 public maxLiquidable;
-
-    /**
-     * @notice Prices oracle
-     */
-    IOracle public oracle;
-
-    /**
-     * @notice Issuer contract
-     */
-    IIssuer public issuer;
-}
 
 /**
  * @title vSynth main contract
  */
-contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorageV1 {
+contract VSynth is ReentrancyGuard, Pausable, Governable, VSynthStorageV1 {
     using SafeERC20 for IERC20;
     using WadRayMath for uint256;
 
@@ -237,13 +169,13 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
 
         address _account = _msgSender();
 
-        _depositToken.underlying().safeTransferFrom(_account, address(issuer.getTreasury()), _amount);
+        _depositToken.underlying().safeTransferFrom(_account, address(issuer.treasury()), _amount);
 
         uint256 _amountToMint = _amount;
         uint256 _feeAmount;
         if (depositFee > 0) {
             _feeAmount = _amount.wadMul(depositFee);
-            issuer.mintDepositToken(_depositToken, address(issuer.getTreasury()), _feeAmount);
+            issuer.mintDepositToken(_depositToken, address(issuer.treasury()), _feeAmount);
             _amountToMint -= _feeAmount;
         }
 
@@ -277,7 +209,7 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
         uint256 _feeAmount;
         if (mintFee > 0) {
             _feeAmount = _amount.wadMul(mintFee);
-            issuer.mintSyntheticAsset(_syntheticAsset, address(issuer.getTreasury()), _feeAmount);
+            issuer.mintSyntheticAsset(_syntheticAsset, address(issuer.treasury()), _feeAmount);
             _amountToMint -= _feeAmount;
         }
 
@@ -312,7 +244,7 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
         uint256 _feeAmount;
         if (withdrawFee > 0) {
             _feeAmount = _amount.wadMul(withdrawFee);
-            issuer.seizeDepositToken(_depositToken, _account, address(issuer.getTreasury()), _feeAmount);
+            issuer.seizeDepositToken(_depositToken, _account, address(issuer.treasury()), _feeAmount);
             _amountToWithdraw -= _feeAmount;
         }
 
@@ -344,7 +276,7 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
         uint256 _feeAmount;
         if (repayFee > 0) {
             _feeAmount = _amount.wadMul(repayFee);
-            issuer.seizeSyntheticAsset(_syntheticAsset, _payer, address(issuer.getTreasury()), _feeAmount);
+            issuer.seizeSyntheticAsset(_syntheticAsset, _payer, address(issuer.treasury()), _feeAmount);
             _amountToRepay -= _feeAmount;
         }
 
@@ -399,7 +331,7 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
         issuer.seizeDepositToken(_depositToken, _account, _liquidator, _toLiquidator);
 
         if (_toProtocol > 0) {
-            issuer.seizeDepositToken(_depositToken, _account, address(issuer.getTreasury()), _toProtocol);
+            issuer.seizeDepositToken(_depositToken, _account, address(issuer.treasury()), _toProtocol);
         }
 
         emit PositionLiquidated(_liquidator, _account, _syntheticAsset, _amountToRepay, _depositToSeize, _toProtocol);
@@ -441,7 +373,7 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
         _amountOutAfterFee = _amountOut - _feeAmount;
 
         if (_feeAmount > 0) {
-            issuer.seizeSyntheticAsset(_syntheticAssetOut, _account, address(issuer.getTreasury()), _feeAmount);
+            issuer.seizeSyntheticAsset(_syntheticAssetOut, _account, address(issuer.treasury()), _feeAmount);
         }
 
         (bool _isHealthyAfter, , , ) = issuer.debtPositionOf(_account);

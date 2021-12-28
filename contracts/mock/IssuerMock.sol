@@ -208,7 +208,7 @@ contract IssuerMock is IIssuer {
         revert("mock-does-not-implement");
     }
 
-    function getTreasury() external pure returns (ITreasury) {
+    function treasury() external pure returns (ITreasury) {
         revert("mock-does-not-implement");
     }
 

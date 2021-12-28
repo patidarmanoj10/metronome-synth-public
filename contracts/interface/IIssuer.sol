@@ -15,8 +15,6 @@ interface IIssuer {
 
     function isDepositTokenExists(IDepositToken _depositToken) external view returns (bool);
 
-    function getDepositTokens() external view returns (IDepositToken[] memory);
-
     function met() external view returns (IERC20);
 
     function syntheticAssetsMintedBy(address _account)
@@ -129,7 +127,7 @@ interface IIssuer {
 
     function updateTreasury(ITreasury _newTreasury) external;
 
-    function getTreasury() external view returns (ITreasury);
+    function treasury() external view returns (ITreasury);
 
     function pullFromTreasury(
         IDepositToken _token,
