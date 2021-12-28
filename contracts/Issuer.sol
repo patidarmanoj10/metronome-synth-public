@@ -16,6 +16,7 @@ import "./interface/ITreasury.sol";
 contract Issuer is ReentrancyGuard, Manageable, IssuerStorageV1 {
     using SafeERC20 for IERC20;
     using WadRayMath for uint256;
+    using EnumerableSet for EnumerableSet.AddressSet;
 
     string public constant VERSION = "1.0.0";
 
@@ -73,17 +74,17 @@ contract Issuer is ReentrancyGuard, Manageable, IssuerStorageV1 {
      * @dev Update prices of assets that are used by the account (checks synthetic assets and deposit tokens)
      */
     modifier updatePricesOfAssetsUsedBy(address _account) {
-        for (uint256 i = 0; i < syntheticAssets.length; ++i) {
-            ISyntheticAsset _syntheticAsset = syntheticAssets[i];
+        for (uint256 i = 0; i < syntheticAssets.length(); ++i) {
+            ISyntheticAsset _syntheticAsset = ISyntheticAsset(syntheticAssets.at(i));
             accrueInterest(_syntheticAsset);
             if (_syntheticAsset.debtToken().balanceOf(_account) > 0) {
                 oracle.update(_syntheticAsset);
             }
         }
 
-        for (uint256 i = 0; i < depositTokens.length; ++i) {
-            if (depositTokens[i].balanceOf(_account) > 0) {
-                oracle.update(depositTokens[i].underlying());
+        for (uint256 i = 0; i < depositTokens.length(); ++i) {
+            if (IDepositToken(depositTokens.at(i)).balanceOf(_account) > 0) {
+                oracle.update(IDepositToken(depositTokens.at(i)).underlying());
             }
         }
 
@@ -97,8 +98,8 @@ contract Issuer is ReentrancyGuard, Manageable, IssuerStorageV1 {
         _syntheticAsset.debtToken().accrueInterest();
         oracle.update(_syntheticAsset);
 
-        for (uint256 i = 0; i < depositTokens.length; ++i) {
-            oracle.update(depositTokens[i].underlying());
+        for (uint256 i = 0; i < depositTokens.length(); ++i) {
+            oracle.update(IDepositToken(depositTokens.at(i)).underlying());
         }
         _;
     }
@@ -129,17 +130,35 @@ contract Issuer is ReentrancyGuard, Manageable, IssuerStorageV1 {
     }
 
     /**
+     * @notice Get all synthetic assets
+     * @dev WARNING: This operation will copy the entire storage to memory, which can be quite expensive. This is designed
+     * to mostly be used by view accessors that are queried without any gas fees.
+     */
+    function getSyntheticAssets() external view returns (address[] memory) {
+        return syntheticAssets.values();
+    }
+
+    /**
+     * @notice Get all deposit tokens
+     * @dev WARNING: This operation will copy the entire storage to memory, which can be quite expensive. This is designed
+     * to mostly be used by view accessors that are queried without any gas fees.
+     */
+    function getDepositTokens() external view returns (address[] memory) {
+        return depositTokens.values();
+    }
+
+    /**
      * @notice Get MET
      */
     function met() public view override returns (IERC20) {
-        return depositTokens[0].underlying();
+        return IDepositToken(depositTokens.at(0)).underlying();
     }
 
     /**
      * @notice Get the vsETH synthetic asset (can't be removed)
      */
     function vsEth() public view override returns (ISyntheticAsset) {
-        return syntheticAssets[0];
+        return ISyntheticAsset(syntheticAssets.at(0));
     }
 
     /**
@@ -148,7 +167,7 @@ contract Issuer is ReentrancyGuard, Manageable, IssuerStorageV1 {
      * @return true if exist
      */
     function isSyntheticAssetExists(ISyntheticAsset _syntheticAsset) public view returns (bool) {
-        return syntheticAssetByAddress[address(_syntheticAsset)] != ISyntheticAsset(address(0));
+        return syntheticAssets.contains(address(_syntheticAsset));
     }
 
     /**
@@ -157,7 +176,7 @@ contract Issuer is ReentrancyGuard, Manageable, IssuerStorageV1 {
      * @return true if exist
      */
     function isDepositTokenExists(IDepositToken _depositToken) public view returns (bool) {
-        return depositTokenByAddress[address(_depositToken)] != IDepositToken(address(0));
+        return depositTokens.contains(address(_depositToken));
     }
 
     /**
@@ -175,17 +194,17 @@ contract Issuer is ReentrancyGuard, Manageable, IssuerStorageV1 {
     {
         uint256 _length = 0;
 
-        for (uint256 i = 0; i < syntheticAssets.length; ++i) {
-            if (syntheticAssets[i].debtToken().balanceOf(_account) > 0) {
+        for (uint256 i = 0; i < syntheticAssets.length(); ++i) {
+            if (ISyntheticAsset(syntheticAssets.at(i)).debtToken().balanceOf(_account) > 0) {
                 _length++;
             }
         }
 
         _syntheticAssets = new ISyntheticAsset[](_length);
 
-        for (uint256 i = 0; i < syntheticAssets.length; ++i) {
-            if (syntheticAssets[i].debtToken().balanceOf(_account) > 0) {
-                _syntheticAssets[--_length] = syntheticAssets[i];
+        for (uint256 i = 0; i < syntheticAssets.length(); ++i) {
+            if (ISyntheticAsset(syntheticAssets.at(i)).debtToken().balanceOf(_account) > 0) {
+                _syntheticAssets[--_length] = ISyntheticAsset(syntheticAssets.at(i));
             }
         }
     }
@@ -208,18 +227,19 @@ contract Issuer is ReentrancyGuard, Manageable, IssuerStorageV1 {
             bool _anyPriceInvalid
         )
     {
-        for (uint256 i = 0; i < syntheticAssets.length; ++i) {
-            uint256 _amount = syntheticAssets[i].debtToken().balanceOf(_account);
+        for (uint256 i = 0; i < syntheticAssets.length(); ++i) {
+            ISyntheticAsset _syntheticAsset = ISyntheticAsset(syntheticAssets.at(i));
+            uint256 _amount = _syntheticAsset.debtToken().balanceOf(_account);
             if (_amount > 0) {
                 (uint256 _amountInUsd, bool _priceInvalid) = oracle.convertToUsdUsingLatestPrice(
-                    syntheticAssets[i],
+                    _syntheticAsset,
                     _amount
                 );
 
                 if (_priceInvalid) _anyPriceInvalid = true;
 
                 _debtInUsd += _amountInUsd;
-                _lockedDepositInUsd += _amountInUsd.wadMul(syntheticAssets[i].collateralizationRatio());
+                _lockedDepositInUsd += _amountInUsd.wadMul(_syntheticAsset.collateralizationRatio());
             }
         }
     }
@@ -237,11 +257,11 @@ contract Issuer is ReentrancyGuard, Manageable, IssuerStorageV1 {
         override
         returns (uint256 _depositInUsd, bool _anyPriceInvalid)
     {
-        for (uint256 i = 0; i < depositTokens.length; ++i) {
-            uint256 _amount = depositTokens[i].balanceOf(_account);
+        for (uint256 i = 0; i < depositTokens.length(); ++i) {
+            uint256 _amount = IDepositToken(depositTokens.at(i)).balanceOf(_account);
             if (_amount > 0) {
                 (uint256 _amountInUsd, bool _priceInvalid) = oracle.convertToUsdUsingLatestPrice(
-                    depositTokens[i].underlying(),
+                    IDepositToken(depositTokens.at(i)).underlying(),
                     _amount
                 );
 
@@ -523,10 +543,9 @@ contract Issuer is ReentrancyGuard, Manageable, IssuerStorageV1 {
         address _address = address(_syntheticAsset);
 
         require(_address != address(0), "address-is-null");
-        require(address(syntheticAssetByAddress[_address]) == address(0), "synthetic-asset-exists");
+        require(!syntheticAssets.contains(_address), "synthetic-asset-exists");
 
-        syntheticAssets.push(_syntheticAsset);
-        syntheticAssetByAddress[_address] = _syntheticAsset;
+        syntheticAssets.add(_address);
 
         emit SyntheticAssetAdded(_syntheticAsset);
     }
@@ -544,19 +563,7 @@ contract Issuer is ReentrancyGuard, Manageable, IssuerStorageV1 {
         require(_syntheticAsset.totalSupply() == 0, "synthetic-asset-with-supply");
         require(_syntheticAsset.debtToken().totalSupply() == 0, "synthetic-asset-with-debt-supply");
 
-        for (uint256 i = 0; i < syntheticAssets.length; i++) {
-            if (syntheticAssets[i] == _syntheticAsset) {
-                // Using the last to overwrite the synthetic asset to remove
-                syntheticAssets[i] = syntheticAssets[syntheticAssets.length - 1];
-
-                // Removing the last (and duplicated) synthetic asset
-                syntheticAssets.pop();
-
-                break;
-            }
-        }
-
-        delete syntheticAssetByAddress[address(_syntheticAsset)];
+        syntheticAssets.remove(address(_syntheticAsset));
 
         emit SyntheticAssetRemoved(_syntheticAsset);
     }
@@ -568,10 +575,9 @@ contract Issuer is ReentrancyGuard, Manageable, IssuerStorageV1 {
         address _address = address(_depositToken);
 
         require(_address != address(0), "address-is-null");
-        require(address(depositTokenByAddress[_address]) == address(0), "deposit-token-exists");
+        require(!depositTokens.contains(_address), "deposit-token-exists");
 
-        depositTokens.push(_depositToken);
-        depositTokenByAddress[_address] = _depositToken;
+        depositTokens.add(_address);
 
         emit DepositTokenAdded(_depositToken);
     }
@@ -588,19 +594,7 @@ contract Issuer is ReentrancyGuard, Manageable, IssuerStorageV1 {
         require(_depositToken.underlying() != met(), "can-not-delete-met");
         require(_depositToken.totalSupply() == 0, "deposit-token-with-supply");
 
-        for (uint256 i = 0; i < depositTokens.length; i++) {
-            if (depositTokens[i] == _depositToken) {
-                // Using the last to overwrite the deposit token to remove
-                depositTokens[i] = depositTokens[depositTokens.length - 1];
-
-                // Removing the last (and duplicated) deposit token
-                depositTokens.pop();
-
-                break;
-            }
-        }
-
-        delete depositTokenByAddress[address(_depositToken)];
+        depositTokens.remove(address(_depositToken));
 
         emit DepositTokenRemoved(_depositToken);
     }
@@ -623,8 +617,8 @@ contract Issuer is ReentrancyGuard, Manageable, IssuerStorageV1 {
         require(address(_newTreasury) != address(0), "treasury-address-is-null");
         require(_newTreasury != treasury, "new-treasury-is-same-as-current");
 
-        for (uint256 i = 0; i < depositTokens.length; ++i) {
-            IERC20 _underlying = depositTokens[i].underlying();
+        for (uint256 i = 0; i < depositTokens.length(); ++i) {
+            IERC20 _underlying = IDepositToken(depositTokens.at(i)).underlying();
             uint256 _balance = _underlying.balanceOf(address(treasury));
             if (_balance > 0) {
                 treasury.pull(_underlying, address(_newTreasury), _balance);

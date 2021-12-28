@@ -170,7 +170,8 @@ describe('Deployments', function () {
     it('should have correct params', async function () {
       expect(await issuer.vSynth()).to.eq(vSynth.address)
       expect(await issuer.met()).to.eq(await metDepositToken.underlying())
-      expect(await issuer.syntheticAssets(0)).to.eq(vsEth.address)
+      const [firstSyntheticAsset] = await issuer.getSyntheticAssets()
+      expect(firstSyntheticAsset).to.eq(vsEth.address)
       expect(await issuer.vsEth()).to.eq(vsEth.address)
       expect(await issuer.oracle()).to.eq(oracle.address)
       expect(await issuer.treasury()).to.eq(treasury.address)

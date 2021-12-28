@@ -3,6 +3,7 @@
 pragma solidity 0.8.9;
 
 import "../interface/IIssuer.sol";
+import "../dependencies/openzeppelin/utils/structs/EnumerableSet.sol";
 
 abstract contract IssuerStorageV1 is IIssuer {
     /**
@@ -18,13 +19,11 @@ abstract contract IssuerStorageV1 is IIssuer {
     /**
      * @notice Represents collateral's deposits (e.g. vSynth-MET token)
      */
-    IDepositToken[] public depositTokens;
-    mapping(address => IDepositToken) public depositTokenByAddress;
+    EnumerableSet.AddressSet internal depositTokens;
 
     /**
      * @notice Avaliable synthetic assets
      * @dev The syntheticAssets[0] is vsETH
      */
-    ISyntheticAsset[] public syntheticAssets;
-    mapping(address => ISyntheticAsset) public syntheticAssetByAddress;
+    EnumerableSet.AddressSet internal syntheticAssets;
 }

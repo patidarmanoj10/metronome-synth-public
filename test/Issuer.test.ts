@@ -126,9 +126,10 @@ describe('Issuer', function () {
 
       it('should add synthetic asset', async function () {
         const someTokenAddress = met.address
-        expect(await issuer.syntheticAssetByAddress(someTokenAddress)).to.eq(ethers.constants.AddressZero)
+        const syntheticAssetsBefore = await issuer.getSyntheticAssets()
         await issuer.addSyntheticAsset(someTokenAddress)
-        expect(await issuer.syntheticAssetByAddress(someTokenAddress)).to.not.eq(ethers.constants.AddressZero)
+        const syntheticAssetsAfter = await issuer.getSyntheticAssets()
+        expect(syntheticAssetsAfter.length).eq(syntheticAssetsBefore.length + 1)
       })
     })
 
@@ -155,13 +156,14 @@ describe('Issuer', function () {
 
         expect(await vsAsset.totalSupply()).to.eq(0)
         await issuer.addSyntheticAsset(vsAsset.address)
-        expect(await issuer.syntheticAssetByAddress(vsAsset.address)).to.not.eq(ethers.constants.AddressZero)
+        const syntheticAssetsBefore = await issuer.getSyntheticAssets()
 
         // when
         await issuer.removeSyntheticAsset(vsAsset.address)
 
         // then
-        expect(await issuer.syntheticAssetByAddress(vsAsset.address)).to.eq(ethers.constants.AddressZero)
+        const syntheticAssetsAfter = await issuer.getSyntheticAssets()
+        expect(syntheticAssetsAfter.length).eq(syntheticAssetsBefore.length - 1)
       })
 
       it('should revert if not governor', async function () {
@@ -174,7 +176,8 @@ describe('Issuer', function () {
 
       it('should revert if removing vsETH (i.e. syntheticAssets[0])', async function () {
         // given
-        expect(await issuer.syntheticAssets(0)).to.eq(vsEth.address)
+        const [firstSyntheticAsset] = await issuer.getSyntheticAssets()
+        expect(firstSyntheticAsset).to.eq(vsEth.address)
 
         // when
         const tx = issuer.removeSyntheticAsset(vsEth.address)
