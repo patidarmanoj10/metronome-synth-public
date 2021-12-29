@@ -15,6 +15,8 @@ interface IIssuer {
 
     function isDepositTokenExists(IDepositToken _depositToken) external view returns (bool);
 
+    function depositTokenOf(IERC20 _underlying) external view returns (IDepositToken);
+
     function met() external view returns (IERC20);
 
     function syntheticAssetsMintedBy(address _account)

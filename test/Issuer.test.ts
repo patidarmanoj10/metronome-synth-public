@@ -100,13 +100,9 @@ describe('Issuer', function () {
 
     await treasury.initialize(issuer.address)
 
-    await issuer.initialize(
-      metDepositToken.address,
-      vsEth.address,
-      oracle.address,
-      treasury.address,
-      vSynthMock.address
-    )
+    await issuer.initialize(oracle.address, treasury.address, vSynthMock.address)
+    await issuer.addDepositToken(metDepositToken.address)
+    await issuer.addSyntheticAsset(vsEth.address)
 
     // mint some MET to users
     await met.mint(user.address, parseEther(`${1e6}`))

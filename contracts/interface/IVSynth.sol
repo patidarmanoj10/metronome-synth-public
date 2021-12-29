@@ -5,16 +5,19 @@ pragma solidity 0.8.9;
 import "./oracle/IOracle.sol";
 import "./ISyntheticAsset.sol";
 import "./IDepositToken.sol";
+import "../interface/IIssuer.sol";
 
 /**
  * @notice VSynth interface
  */
 interface IVSynth {
-    function deposit(IDepositToken _collateral, uint256 _amount) external;
+    function issuer() external view returns (IIssuer);
+
+    function deposit(IDepositToken _depositToken, uint256 _amount) external returns (uint256 _depositedAmount);
 
     function mint(ISyntheticAsset _syntheticAsset, uint256 _amount) external;
 
-    function withdraw(IDepositToken _collateral, uint256 _amount) external;
+    function withdraw(IDepositToken _depositToken, uint256 _amount) external returns (uint256 _withdrawnAmount);
 
     function repay(
         ISyntheticAsset _syntheticAsset,
@@ -26,7 +29,7 @@ interface IVSynth {
         ISyntheticAsset _syntheticAsset,
         address _account,
         uint256 _amountToRepay,
-        IDepositToken _collateral
+        IDepositToken _depositToken
     ) external;
 
     function swap(

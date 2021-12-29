@@ -164,6 +164,7 @@ contract VSynth is ReentrancyGuard, Pausable, Governable, VSynthStorageV1 {
         nonReentrant
         onlyIfDepositTokenExists(_depositToken)
         onlyIfDepositTokenIsActive(_depositToken)
+        returns (uint256 _depositedAmount)
     {
         require(_amount > 0, "zero-collateral-amount");
 
@@ -179,7 +180,9 @@ contract VSynth is ReentrancyGuard, Pausable, Governable, VSynthStorageV1 {
             _amountToMint -= _feeAmount;
         }
 
-        issuer.mintDepositToken(_depositToken, _account, _amount - _feeAmount);
+        _depositedAmount = _amount - _feeAmount;
+
+        issuer.mintDepositToken(_depositToken, _account, _depositedAmount);
 
         emit CollateralDeposited(_depositToken, _account, _amount, _feeAmount);
     }
@@ -229,6 +232,7 @@ contract VSynth is ReentrancyGuard, Pausable, Governable, VSynthStorageV1 {
         onlyIfDepositTokenExists(_depositToken)
         whenNotShutdown
         nonReentrant
+        returns (uint256 _withdrawnAmount)
     {
         require(_amount > 0, "amount-to-withdraw-is-zero");
 
@@ -291,6 +295,7 @@ contract VSynth is ReentrancyGuard, Pausable, Governable, VSynthStorageV1 {
      * @param _syntheticAsset The vsAsset to use for repayment
      * @param _account The account with an unhealty position
      * @param _amountToRepay The amount to repay in synthetic asset
+     * @param _depositToken The collateral to seize from
      */
     function liquidate(
         ISyntheticAsset _syntheticAsset,

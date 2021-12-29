@@ -59,7 +59,6 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   // For `depositToken` we use its underlying asset on querying
   await execute(Oracle, {from: deployer, log: true}, 'addOrUpdateAssetThatUsesUniswapV3', MET_ADDRESS, MET_ADDRESS)
-  await execute(Oracle, {from: deployer, log: true}, 'transferGovernorship', governor)
 }
 
 export default func

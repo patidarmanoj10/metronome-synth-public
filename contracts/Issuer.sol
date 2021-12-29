@@ -105,14 +105,11 @@ contract Issuer is ReentrancyGuard, Manageable, IssuerStorageV1 {
     }
 
     function initialize(
-        IDepositToken depositToken_,
-        ISyntheticAsset vsETH_,
         IOracle oracle_,
         ITreasury treasury_,
         IVSynth vSynth_
     ) public initializer {
         require(address(treasury_) != address(0), "treasury-address-is-null");
-        require(address(depositToken_) != address(0), "deposit-token-is-null");
         require(address(oracle_) != address(0), "oracle-is-null");
 
         __ReentrancyGuard_init();
@@ -121,12 +118,6 @@ contract Issuer is ReentrancyGuard, Manageable, IssuerStorageV1 {
         setVSynth(vSynth_);
         oracle = oracle_;
         treasury = treasury_;
-
-        // Ensuring that vsETH is the syntheticAssets[0]
-        addSyntheticAsset(vsETH_);
-
-        // Ensuring that vSynth-MET is the depositTokens[0]
-        addDepositToken(depositToken_);
     }
 
     /**
@@ -578,6 +569,7 @@ contract Issuer is ReentrancyGuard, Manageable, IssuerStorageV1 {
         require(!depositTokens.contains(_address), "deposit-token-exists");
 
         depositTokens.add(_address);
+        depositTokenOf[_depositToken.underlying()] = _depositToken;
 
         emit DepositTokenAdded(_depositToken);
     }
@@ -594,6 +586,7 @@ contract Issuer is ReentrancyGuard, Manageable, IssuerStorageV1 {
         require(_depositToken.underlying() != met(), "can-not-delete-met");
         require(_depositToken.totalSupply() == 0, "deposit-token-with-supply");
 
+        delete depositTokenOf[_depositToken.underlying()];
         depositTokens.remove(address(_depositToken));
 
         emit DepositTokenRemoved(_depositToken);

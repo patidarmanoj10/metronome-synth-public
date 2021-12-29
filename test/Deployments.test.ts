@@ -38,12 +38,14 @@ import {
   IssuerUpgrader,
   IssuerUpgrader__factory,
   Issuer__factory,
+  WETHGateway,
+  WETHGateway__factory,
 } from '../typechain'
 import {disableForking, enableForking} from './helpers'
 import Address from '../helpers/address'
 import {parseEther} from 'ethers/lib/utils'
 
-const {MET_ADDRESS} = Address
+const {MET_ADDRESS, WETH_ADDRESS} = Address
 
 describe('Deployments', function () {
   let deployer: SignerWithAddress
@@ -64,6 +66,7 @@ describe('Deployments', function () {
   let syntheticAssetUpgrader: SyntheticAssetUpgrader
   let vsEthDebtToken: DebtToken
   let debtTokenUpgrader: DebtTokenUpgrader
+  let wethGateway: WETHGateway
 
   // Note: Enabling fork to be able to use MultiCall contract
   before(enableForking)
@@ -91,6 +94,7 @@ describe('Deployments', function () {
       SyntheticAssetUpgrader: {address: syntheticAssetUpgraderAddress},
       VsEthDebtToken: {address: vsETHDebtTokenAddress},
       DebtTokenUpgrader: {address: debtTokenUpgraderAddress},
+      WETHGateway: {address: wethGatewayAddress},
     } = await deployments.fixture()
 
     uniswapV3PriceProvider = UniswapV3PriceProvider__factory.connect(uniswapV3PriceProviderAddress, deployer)
@@ -106,6 +110,8 @@ describe('Deployments', function () {
 
     treasury = Treasury__factory.connect(treasuryAddress, deployer)
     treasuryUpgrader = TreasuryUpgrader__factory.connect(treasuryUpgraderAddress, deployer)
+
+    wethGateway = WETHGateway__factory.connect(wethGatewayAddress, deployer)
 
     metDepositToken = DepositToken__factory.connect(metDepositTokenAddress, deployer)
     depositTokenUpgrader = DepositTokenUpgrader__factory.connect(depositTokenUpgraderAddress, deployer)
@@ -242,6 +248,16 @@ describe('Deployments', function () {
         upgrader: treasuryUpgrader,
         expectToFail: false,
       })
+    })
+  })
+
+  describe('WETHGateway', function () {
+    it('should have correct params', async function () {
+      expect(await wethGateway.weth()).to.eq(WETH_ADDRESS)
+
+      expect(await vSynth.governor()).to.eq(deployer.address)
+      await oracle.connect(governor).acceptGovernorship()
+      expect(await oracle.governor()).to.eq(governor.address)
     })
   })
 

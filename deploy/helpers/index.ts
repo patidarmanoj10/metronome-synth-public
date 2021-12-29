@@ -4,13 +4,22 @@ import Address from '../../helpers/address'
 
 const {MULTICALL_ADDRESS} = Address
 
-export interface ContractConfig {
+interface ContractConfig {
   alias: string
   contract: string
   adminContract: string
 }
 
-export const UpgradableContracts: {[key: string]: ContractConfig} = {
+interface UpgradableContractsConfig {
+  Issuer: ContractConfig
+  VSynth: ContractConfig
+  Treasury: ContractConfig
+  MetDepositToken: ContractConfig
+  VsEth: ContractConfig
+  VsEthDebtToken: ContractConfig
+}
+
+export const UpgradableContracts: UpgradableContractsConfig = {
   Issuer: {alias: 'Issuer', contract: 'Issuer', adminContract: 'IssuerUpgrader'},
   VSynth: {alias: 'VSynth', contract: 'VSynth', adminContract: 'VSynthUpgrader'},
   Treasury: {alias: 'Treasury', contract: 'Treasury', adminContract: 'TreasuryUpgrader'},

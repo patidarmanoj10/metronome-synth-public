@@ -3,7 +3,6 @@
 pragma solidity 0.8.9;
 
 import "../interface/IVSynth.sol";
-import "../interface/IIssuer.sol";
 
 abstract contract VSynthStorageV1 is IVSynth {
     /**

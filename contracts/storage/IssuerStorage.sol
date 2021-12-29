@@ -22,6 +22,11 @@ abstract contract IssuerStorageV1 is IIssuer {
     EnumerableSet.AddressSet internal depositTokens;
 
     /**
+     * @notice Get the deposit token's address from given underlying asset
+     */
+    mapping(IERC20 => IDepositToken) public depositTokenOf;
+
+    /**
      * @notice Avaliable synthetic assets
      * @dev The syntheticAssets[0] is vsETH
      */

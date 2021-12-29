@@ -153,7 +153,9 @@ describe('VSynth', function () {
     await vSynth.initialize(metDepositToken.address, oracle.address, issuer.address)
     await vSynth.updateLiquidatorFee(liquidatorFee)
 
-    await issuer.initialize(metDepositToken.address, vsEth.address, oracle.address, treasury.address, vSynth.address)
+    await issuer.initialize(oracle.address, treasury.address, vSynth.address)
+    await issuer.addDepositToken(metDepositToken.address)
+    await issuer.addSyntheticAsset(vsEth.address)
     await issuer.addDepositToken(daiDepositToken.address)
     await issuer.addSyntheticAsset(vsDoge.address)
 

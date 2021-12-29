@@ -4,7 +4,7 @@ pragma solidity 0.8.9;
 
 import "../dependencies/openzeppelin/proxy/transparent/ProxyAdmin.sol";
 import "../dependencies/openzeppelin//proxy/transparent/TransparentUpgradeableProxy.sol";
-import "../interface/multicall/IMulticall.sol";
+import "../interface/external/IMulticall.sol";
 
 abstract contract UpgraderBase is ProxyAdmin {
     address public multicall = 0xeefBa1e63905eF1D7ACbA5a8513c70307C1cE441;
