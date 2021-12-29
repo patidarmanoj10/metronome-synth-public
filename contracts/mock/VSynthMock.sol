@@ -15,9 +15,13 @@ contract VSynthMock is IVSynth {
         issuer = _issuer;
     }
 
-    function deposit(IDepositToken _depositToken, uint256 _amount) external returns (uint256 _depositedAmount) {
+    function deposit(
+        IDepositToken _depositToken,
+        uint256 _amount,
+        address _onBehalfOf
+    ) external returns (uint256 _depositedAmount) {
         _depositToken.underlying().transferFrom(msg.sender, address(this), _amount);
-        issuer.mintDepositToken(_depositToken, msg.sender, _amount);
+        issuer.mintDepositToken(_depositToken, _onBehalfOf, _amount);
         return _amount;
     }
 
@@ -25,9 +29,13 @@ contract VSynthMock is IVSynth {
         revert("mock-does-not-implement");
     }
 
-    function withdraw(IDepositToken _depositToken, uint256 _amount) external returns (uint256 _withdrawnAmount) {
-        _depositToken.underlying().transfer(msg.sender, _amount);
+    function withdraw(
+        IDepositToken _depositToken,
+        uint256 _amount,
+        address _to
+    ) external returns (uint256 _withdrawnAmount) {
         issuer.burnDepositToken(_depositToken, msg.sender, _amount);
+        _depositToken.underlying().transfer(_to, _amount);
         return _amount;
     }
 

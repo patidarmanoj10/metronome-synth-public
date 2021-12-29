@@ -34,8 +34,7 @@ contract WETHGateway is Governable, IWETHGateway {
     function depositETH(IVSynth _vSynth) external payable override {
         weth.deposit{value: msg.value}();
         IDepositToken _depositToken = _vSynth.issuer().depositTokenOf(weth);
-        uint256 _depositedAmount = _vSynth.deposit(_depositToken, msg.value);
-        _depositToken.safeTransfer(msg.sender, _depositedAmount);
+        _vSynth.deposit(_depositToken, msg.value, msg.sender);
     }
 
     /**
@@ -46,7 +45,7 @@ contract WETHGateway is Governable, IWETHGateway {
     function withdrawETH(IVSynth _vSynth, uint256 _amount) external override {
         IDepositToken _depositToken = _vSynth.issuer().depositTokenOf(weth);
         _depositToken.safeTransferFrom(msg.sender, address(this), _amount);
-        _vSynth.withdraw(_depositToken, _amount);
+        _vSynth.withdraw(_depositToken, _amount, address(this));
         weth.withdraw(_amount);
         Address.sendValue(payable(msg.sender), _amount);
     }

@@ -13,15 +13,23 @@ import "../interface/IIssuer.sol";
 interface IVSynth {
     function issuer() external view returns (IIssuer);
 
-    function deposit(IDepositToken _depositToken, uint256 _amount) external returns (uint256 _depositedAmount);
+    function deposit(
+        IDepositToken _depositToken,
+        uint256 _amount,
+        address _onBehalfOf
+    ) external returns (uint256 _depositedAmount);
 
     function mint(ISyntheticAsset _syntheticAsset, uint256 _amount) external;
 
-    function withdraw(IDepositToken _depositToken, uint256 _amount) external returns (uint256 _withdrawnAmount);
+    function withdraw(
+        IDepositToken _depositToken,
+        uint256 _amount,
+        address _to
+    ) external returns (uint256 _withdrawnAmount);
 
     function repay(
         ISyntheticAsset _syntheticAsset,
-        address _beneficiary,
+        address _onBehalfOf,
         uint256 _amount
     ) external;
 

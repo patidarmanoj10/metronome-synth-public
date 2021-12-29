@@ -20,10 +20,22 @@ contract VSynth is ReentrancyGuard, Pausable, Governable, VSynthStorageV1 {
     string public constant VERSION = "1.0.0";
 
     /// @notice Emitted when collateral is deposited
-    event CollateralDeposited(IDepositToken indexed _collateral, address indexed account, uint256 amount, uint256 fee);
+    event CollateralDeposited(
+        IDepositToken indexed _collateral,
+        address indexed from,
+        address indexed account,
+        uint256 amount,
+        uint256 fee
+    );
 
     /// @notice Emitted when collateral is withdrawn
-    event CollateralWithdrawn(IDepositToken indexed _collateral, address indexed account, uint256 amount, uint256 fee);
+    event CollateralWithdrawn(
+        IDepositToken indexed _collateral,
+        address indexed account,
+        address indexed to,
+        uint256 amount,
+        uint256 fee
+    );
 
     /// @notice Emitted when synthetic asset is minted
     event SyntheticAssetMinted(
@@ -156,8 +168,13 @@ contract VSynth is ReentrancyGuard, Pausable, Governable, VSynthStorageV1 {
      * @notice Deposit colleteral and mint vSynth-Collateral (tokenized deposit position)
      * @param _depositToken The collateral tokens to deposit
      * @param _amount The amount of collateral tokens to deposit
+     * @param _onBehalfOf The account to deposit to
      */
-    function deposit(IDepositToken _depositToken, uint256 _amount)
+    function deposit(
+        IDepositToken _depositToken,
+        uint256 _amount,
+        address _onBehalfOf
+    )
         external
         override
         whenNotPaused
@@ -168,9 +185,9 @@ contract VSynth is ReentrancyGuard, Pausable, Governable, VSynthStorageV1 {
     {
         require(_amount > 0, "zero-collateral-amount");
 
-        address _account = _msgSender();
+        address _sender = _msgSender();
 
-        _depositToken.underlying().safeTransferFrom(_account, address(issuer.treasury()), _amount);
+        _depositToken.underlying().safeTransferFrom(_sender, address(issuer.treasury()), _amount);
 
         uint256 _amountToMint = _amount;
         uint256 _feeAmount;
@@ -182,9 +199,50 @@ contract VSynth is ReentrancyGuard, Pausable, Governable, VSynthStorageV1 {
 
         _depositedAmount = _amount - _feeAmount;
 
-        issuer.mintDepositToken(_depositToken, _account, _depositedAmount);
+        issuer.mintDepositToken(_depositToken, _onBehalfOf, _depositedAmount);
 
-        emit CollateralDeposited(_depositToken, _account, _amount, _feeAmount);
+        emit CollateralDeposited(_depositToken, _sender, _onBehalfOf, _amount, _feeAmount);
+    }
+
+    /**
+     * @notice Burn vSynth-Collateral and withdraw collateral
+     * @param _amount The amount of collateral to withdraw
+     * @param _to The account that will receive withdrawn collateral
+     */
+    function withdraw(
+        IDepositToken _depositToken,
+        uint256 _amount,
+        address _to
+    )
+        external
+        override
+        onlyIfDepositTokenExists(_depositToken)
+        whenNotShutdown
+        nonReentrant
+        returns (uint256 _withdrawnAmount)
+    {
+        require(_amount > 0, "amount-to-withdraw-is-zero");
+
+        address _account = _msgSender();
+
+        (, , , uint256 _unlockedDepositInUsd) = issuer.debtPositionOf(_account);
+        uint256 _unlockedDeposit = oracle.convertFromUsd(_depositToken.underlying(), _unlockedDepositInUsd);
+
+        require(_amount <= _unlockedDeposit, "amount-to-withdraw-gt-unlocked");
+        require(_amount <= _depositToken.balanceOf(_account), "amount-to-withdraw-gt-deposited");
+
+        _withdrawnAmount = _amount;
+        uint256 _feeAmount;
+        if (withdrawFee > 0) {
+            _feeAmount = _amount.wadMul(withdrawFee);
+            issuer.seizeDepositToken(_depositToken, _account, address(issuer.treasury()), _feeAmount);
+            _withdrawnAmount -= _feeAmount;
+        }
+
+        issuer.burnDepositToken(_depositToken, _account, _withdrawnAmount);
+        issuer.pullFromTreasury(_depositToken, _to, _withdrawnAmount);
+
+        emit CollateralWithdrawn(_depositToken, _account, _to, _amount, _feeAmount);
     }
 
     /**
@@ -223,51 +281,15 @@ contract VSynth is ReentrancyGuard, Pausable, Governable, VSynthStorageV1 {
     }
 
     /**
-     * @notice Burn vSynth-Collateral and withdraw collateral
-     * @param _amount The amount of collateral to withdraw
-     */
-    function withdraw(IDepositToken _depositToken, uint256 _amount)
-        external
-        override
-        onlyIfDepositTokenExists(_depositToken)
-        whenNotShutdown
-        nonReentrant
-        returns (uint256 _withdrawnAmount)
-    {
-        require(_amount > 0, "amount-to-withdraw-is-zero");
-
-        address _account = _msgSender();
-
-        (, , , uint256 _unlockedDepositInUsd) = issuer.debtPositionOf(_account);
-        uint256 _unlockedDeposit = oracle.convertFromUsd(_depositToken.underlying(), _unlockedDepositInUsd);
-
-        require(_amount <= _unlockedDeposit, "amount-to-withdraw-gt-unlocked");
-        require(_amount <= _depositToken.balanceOf(_account), "amount-to-withdraw-gt-deposited");
-
-        uint256 _amountToWithdraw = _amount;
-        uint256 _feeAmount;
-        if (withdrawFee > 0) {
-            _feeAmount = _amount.wadMul(withdrawFee);
-            issuer.seizeDepositToken(_depositToken, _account, address(issuer.treasury()), _feeAmount);
-            _amountToWithdraw -= _feeAmount;
-        }
-
-        issuer.burnDepositToken(_depositToken, _account, _amountToWithdraw);
-        issuer.pullFromTreasury(_depositToken, _account, _amountToWithdraw);
-
-        emit CollateralWithdrawn(_depositToken, _account, _amount, _feeAmount);
-    }
-
-    /**
      * @notice Send synthetic asset to decrease debt
      * @dev The msg.sender is the payer and the account beneficied
      * @param _syntheticAsset The synthetic asset to burn
-     * @param _beneficiary The account that will have debt decreased
+     * @param _onBehalfOf The account that will have debt decreased
      * @param _amount The amount of synthetic asset to burn
      */
     function repay(
         ISyntheticAsset _syntheticAsset,
-        address _beneficiary,
+        address _onBehalfOf,
         uint256 _amount
     ) external override whenNotShutdown nonReentrant {
         require(_amount > 0, "amount-to-repay-is-zero");
@@ -285,9 +307,9 @@ contract VSynth is ReentrancyGuard, Pausable, Governable, VSynthStorageV1 {
         }
 
         issuer.burnSyntheticAsset(_syntheticAsset, _payer, _amountToRepay);
-        issuer.burnDebtToken(_syntheticAsset.debtToken(), _beneficiary, _amountToRepay);
+        issuer.burnDebtToken(_syntheticAsset.debtToken(), _onBehalfOf, _amountToRepay);
 
-        emit DebtRepayed(_beneficiary, _syntheticAsset, _amount, _feeAmount);
+        emit DebtRepayed(_onBehalfOf, _syntheticAsset, _amount, _feeAmount);
     }
 
     /**
