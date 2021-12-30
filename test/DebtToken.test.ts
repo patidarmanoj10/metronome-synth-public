@@ -35,23 +35,23 @@ describe('DebtToken', function () {
   })
 
   it('default values', async function () {
-    expect(await debtToken.totalSupply()).to.eq(0)
-    expect(await debtToken.name()).to.eq(name)
-    expect(await debtToken.symbol()).to.eq(symbol)
-    expect(await debtToken.decimals()).to.eq(18)
+    expect(await debtToken.totalSupply()).eq(0)
+    expect(await debtToken.name()).eq(name)
+    expect(await debtToken.symbol()).eq(symbol)
+    expect(await debtToken.decimals()).eq(18)
   })
 
   describe('mint', function () {
     it('should mint', async function () {
-      expect(await debtToken.balanceOf(user1.address)).to.eq(0)
+      expect(await debtToken.balanceOf(user1.address)).eq(0)
       const amount = parseEther('100')
       await debtToken.mint(user1.address, amount)
-      expect(await debtToken.balanceOf(user1.address)).to.eq(amount)
+      expect(await debtToken.balanceOf(user1.address)).eq(amount)
     })
 
     it('should revert if not issuer', async function () {
       const tx = debtToken.connect(user1).mint(user1.address, parseEther('10'))
-      await expect(tx).to.revertedWith('not-issuer')
+      await expect(tx).revertedWith('not-issuer')
     })
   })
 
@@ -64,28 +64,28 @@ describe('DebtToken', function () {
 
     describe('burn', function () {
       it('should burn', async function () {
-        expect(await debtToken.balanceOf(user1.address)).to.eq(amount)
+        expect(await debtToken.balanceOf(user1.address)).eq(amount)
         await debtToken.burn(user1.address, amount)
-        expect(await debtToken.balanceOf(user1.address)).to.eq(0)
+        expect(await debtToken.balanceOf(user1.address)).eq(0)
       })
 
       it('should revert if not issuer', async function () {
         const tx = debtToken.connect(user1).mint(user1.address, parseEther('10'))
-        await expect(tx).to.revertedWith('not-issuer')
+        await expect(tx).revertedWith('not-issuer')
       })
     })
 
     describe('transfer', function () {
       it('should revert when transfering', async function () {
         const tx = debtToken.transfer(user2.address, parseEther('1'))
-        await expect(tx).to.revertedWith('transfer-not-supported')
+        await expect(tx).revertedWith('transfer-not-supported')
       })
     })
 
     describe('transferFrom', function () {
       it('should revert when transfering', async function () {
         const tx = debtToken.connect(user2).transferFrom(user1.address, user2.address, parseEther('1'))
-        await expect(tx).to.revertedWith('transfer-not-supported')
+        await expect(tx).revertedWith('transfer-not-supported')
       })
     })
   })

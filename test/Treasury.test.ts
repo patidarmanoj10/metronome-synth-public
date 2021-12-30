@@ -36,22 +36,22 @@ describe('Treasury', function () {
 
     it('should revert if not issuer', async function () {
       const tx = treasury.connect(user).pull(met.address, user.address, 0)
-      await expect(tx).to.revertedWith('not-issuer')
+      await expect(tx).revertedWith('not-issuer')
     })
 
     it('should revert if amount == 0', async function () {
       const tx = treasury.connect(issuerMock).pull(met.address, user.address, 0)
-      await expect(tx).to.revertedWith('amount-is-zero')
+      await expect(tx).revertedWith('amount-is-zero')
     })
 
     it('should pull MET tokens ', async function () {
       // when
       const amount = parseEther('10')
-      expect(amount).to.lte(await met.balanceOf(treasury.address))
+      expect(amount).lte(await met.balanceOf(treasury.address))
       const tx = () => treasury.connect(issuerMock).pull(met.address, user.address, amount)
 
       // then
-      await expect(tx).to.changeTokenBalances(met, [treasury, user], [amount.mul('-1'), amount])
+      await expect(tx).changeTokenBalances(met, [treasury, user], [amount.mul('-1'), amount])
     })
   })
 })

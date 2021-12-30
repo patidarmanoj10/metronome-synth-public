@@ -47,47 +47,47 @@ describe('UniswapV2PriceProvider', function () {
   describe('convertToUsd', function () {
     it('should convert MET to USD', async function () {
       const {_amountInUsd} = await priceProvider.convertToUsd(encodedMetAddress, parseEther('1'))
-      expect(_amountInUsd).to.eq('480514770')
+      expect(_amountInUsd).eq('480514770')
     })
 
     it('should convert WBTC to USD', async function () {
       const {_amountInUsd} = await priceProvider.convertToUsd(encodedWbtcAddress, parseUnits('1', 8))
-      expect(_amountInUsd).to.eq('5018624222484')
+      expect(_amountInUsd).eq('5018624222484')
     })
 
     it('should convert ETH to USD', async function () {
       const {_amountInUsd} = await priceProvider.convertToUsd(encodedWethAddress, parseEther('1'))
-      expect(_amountInUsd).to.eq('344975562440')
+      expect(_amountInUsd).eq('344975562440')
     })
   })
 
   describe('convertFromUsd', function () {
     it('should convert USD to MET', async function () {
       const {_amount} = await priceProvider.convertFromUsd(encodedMetAddress, '480514770')
-      expect(_amount).to.closeTo(parseEther('1'), parseEther('0.000000001').toNumber())
+      expect(_amount).closeTo(parseEther('1'), parseEther('0.000000001').toNumber())
     })
 
     it('should convert USD to WBTC', async function () {
       const {_amount} = await priceProvider.convertFromUsd(encodedWbtcAddress, '5018624222484')
-      expect(_amount).to.closeTo(parseUnits('1', 8), 1)
+      expect(_amount).closeTo(parseUnits('1', 8), 1)
     })
 
     it('should convert USD to ETH', async function () {
       const {_amount} = await priceProvider.convertFromUsd(encodedWethAddress, '344975562440')
-      expect(_amount).to.closeTo(parseEther('1'), parseEther('0.00000000001').toNumber())
+      expect(_amount).closeTo(parseEther('1'), parseEther('0.00000000001').toNumber())
     })
   })
 
   describe('updateTwapPeriod', function () {
     it('should revert if not governor', async function () {
       const tx = priceProvider.connect(user).updateTwapPeriod(1)
-      await expect(tx).to.be.revertedWith('not-the-governor')
+      await expect(tx).revertedWith('not-the-governor')
     })
 
     it('should update twap period', async function () {
       const newTwapPeriod = DEFAULT_TWAP_PERIOD.mul('2')
       const tx = priceProvider.updateTwapPeriod(newTwapPeriod)
-      await expect(tx).to.emit(priceProvider, 'TwapPeriodUpdated').withArgs(DEFAULT_TWAP_PERIOD, newTwapPeriod)
+      await expect(tx).emit(priceProvider, 'TwapPeriodUpdated').withArgs(DEFAULT_TWAP_PERIOD, newTwapPeriod)
     })
   })
 
@@ -97,20 +97,20 @@ describe('UniswapV2PriceProvider', function () {
         const {blockTimestampLast} = await priceProvider.oracleDataOf(DAI_ADDRESS)
         const {timestamp} = await ethers.provider.getBlock('latest')
         const isUpdated = timestamp - blockTimestampLast < DEFAULT_TWAP_PERIOD.toNumber()
-        expect(isUpdated).to.be.true
+        expect(isUpdated).true
       })
 
       it('should add oracle data if token does not exist', async function () {
         // given
         const VSP_TOKEN_ADDRESS = '0x1b40183EFB4Dd766f11bDa7A7c3AD8982e998421'
-        expect((await priceProvider.oracleDataOf(VSP_TOKEN_ADDRESS)).blockTimestampLast).to.eq(0)
+        expect((await priceProvider.oracleDataOf(VSP_TOKEN_ADDRESS)).blockTimestampLast).eq(0)
 
         // when
         const encodedTokenAddress = abi.encode(['address'], [VSP_TOKEN_ADDRESS])
         await priceProvider.update(encodedTokenAddress)
 
         // then
-        expect((await priceProvider.oracleDataOf(VSP_TOKEN_ADDRESS)).blockTimestampLast).to.not.eq(0)
+        expect((await priceProvider.oracleDataOf(VSP_TOKEN_ADDRESS)).blockTimestampLast).not.eq(0)
       })
 
       it('should update token price', async function () {
@@ -123,11 +123,11 @@ describe('UniswapV2PriceProvider', function () {
 
         // then
         const {blockTimestampLast: blockTimestampLastAfter} = await priceProvider.oracleDataOf(WBTC_ADDRESS)
-        expect(blockTimestampLastAfter).to.gt(blockTimestampLastBefore)
+        expect(blockTimestampLastAfter).gt(blockTimestampLastBefore)
         const {timestamp} = await ethers.provider.getBlock('latest')
-        expect(blockTimestampLastAfter).to.eq(timestamp)
+        expect(blockTimestampLastAfter).eq(timestamp)
         // should update usd token oracle data too
-        expect((await priceProvider.oracleDataOf(DAI_ADDRESS)).blockTimestampLast).to.eq(timestamp)
+        expect((await priceProvider.oracleDataOf(DAI_ADDRESS)).blockTimestampLast).eq(timestamp)
       })
     })
 
@@ -137,24 +137,24 @@ describe('UniswapV2PriceProvider', function () {
         const {blockTimestampLast} = await priceProvider.oracleDataOf(DAI_ADDRESS)
         const {timestamp} = await ethers.provider.getBlock('latest')
         const isUpdated = timestamp - blockTimestampLast < DEFAULT_TWAP_PERIOD.toNumber()
-        expect(isUpdated).to.be.false
+        expect(isUpdated).false
       })
 
       it('should add oracle data if token does not exist', async function () {
         // given
         await increaseTime(DEFAULT_TWAP_PERIOD)
         const VSP_TOKEN_ADDRESS = '0x1b40183EFB4Dd766f11bDa7A7c3AD8982e998421'
-        expect((await priceProvider.oracleDataOf(VSP_TOKEN_ADDRESS)).blockTimestampLast).to.eq(0)
+        expect((await priceProvider.oracleDataOf(VSP_TOKEN_ADDRESS)).blockTimestampLast).eq(0)
 
         // when
         const encodedTokenAddress = abi.encode(['address'], [VSP_TOKEN_ADDRESS])
         await priceProvider.update(encodedTokenAddress)
 
         // then
-        expect((await priceProvider.oracleDataOf(VSP_TOKEN_ADDRESS)).blockTimestampLast).to.not.eq(0)
+        expect((await priceProvider.oracleDataOf(VSP_TOKEN_ADDRESS)).blockTimestampLast).not.eq(0)
         // should update usd token oracle data too
         const {timestamp} = await ethers.provider.getBlock('latest')
-        expect((await priceProvider.oracleDataOf(DAI_ADDRESS)).blockTimestampLast).to.eq(timestamp)
+        expect((await priceProvider.oracleDataOf(DAI_ADDRESS)).blockTimestampLast).eq(timestamp)
       })
 
       it('should update token price', async function () {
@@ -167,11 +167,11 @@ describe('UniswapV2PriceProvider', function () {
 
         // then
         const {blockTimestampLast: blockTimestampLastAfter} = await priceProvider.oracleDataOf(WBTC_ADDRESS)
-        expect(blockTimestampLastAfter).to.gt(blockTimestampLastBefore)
+        expect(blockTimestampLastAfter).gt(blockTimestampLastBefore)
         const {timestamp} = await ethers.provider.getBlock('latest')
-        expect(blockTimestampLastAfter).to.eq(timestamp)
+        expect(blockTimestampLastAfter).eq(timestamp)
         // should update usd token oracle data too
-        expect((await priceProvider.oracleDataOf(DAI_ADDRESS)).blockTimestampLast).to.eq(timestamp)
+        expect((await priceProvider.oracleDataOf(DAI_ADDRESS)).blockTimestampLast).eq(timestamp)
       })
     })
   })
@@ -189,34 +189,34 @@ describe('UniswapV2PriceProvider', function () {
     describe('convertToUsd', function () {
       it('should convert MET to USD', async function () {
         const {_amountInUsd} = await priceProvider.convertToUsd(encodedMetAddress, parseEther('1'))
-        expect(_amountInUsd).to.eq('482300500')
+        expect(_amountInUsd).eq('482300500')
       })
 
       it('should convert WBTC to USD', async function () {
         const {_amountInUsd} = await priceProvider.convertToUsd(encodedWbtcAddress, parseUnits('1', 8))
-        expect(_amountInUsd).to.eq('5037275432900')
+        expect(_amountInUsd).eq('5037275432900')
       })
 
       it('should convert ETH to USD', async function () {
         const {_amountInUsd} = await priceProvider.convertToUsd(encodedWethAddress, parseEther('1'))
-        expect(_amountInUsd).to.eq('346257629300')
+        expect(_amountInUsd).eq('346257629300')
       })
     })
 
     describe('convertFromUsd', function () {
       it('should convert USD to MET', async function () {
         const {_amount} = await priceProvider.convertFromUsd(encodedMetAddress, '482300500')
-        expect(_amount).to.closeTo(parseEther('1'), parseEther('0.000001').toNumber())
+        expect(_amount).closeTo(parseEther('1'), parseEther('0.000001').toNumber())
       })
 
       it('should convert USD to WBTC', async function () {
         const {_amount} = await priceProvider.convertFromUsd(encodedWbtcAddress, '5037275432900')
-        expect(_amount).to.closeTo(parseUnits('1', 8), 1)
+        expect(_amount).closeTo(parseUnits('1', 8), 1)
       })
 
       it('should convert USD to ETH', async function () {
         const {_amount} = await priceProvider.convertFromUsd(encodedWethAddress, '346257629300')
-        expect(_amount).to.closeTo(parseEther('1'), parseEther('0.00000000001').toNumber())
+        expect(_amount).closeTo(parseEther('1'), parseEther('0.00000000001').toNumber())
       })
     })
   })
@@ -229,7 +229,7 @@ describe('UniswapV2PriceProvider', function () {
       const {_amountOut} = await priceProvider.convert(tokenIn, tokenOut, amountIn)
 
       // @ts-ignore
-      expect(_amountOut).to.closeTo(parseEther('718'), parseEther('0.1'))
+      expect(_amountOut).closeTo(parseEther('718'), parseEther('0.1'))
     })
 
     it('should get Token->ETH price', async function () {
@@ -238,7 +238,7 @@ describe('UniswapV2PriceProvider', function () {
       const amountIn = parseUnits('1', 8) // 1 BTC
       const {_amountOut} = await priceProvider.convert(tokenIn, tokenOut, amountIn)
       // @ts-ignore
-      expect(_amountOut).to.closeTo(parseEther('14.5'), parseEther('0.05'))
+      expect(_amountOut).closeTo(parseEther('14.5'), parseEther('0.05'))
     })
 
     it('should get Token->Token price', async function () {
@@ -247,7 +247,7 @@ describe('UniswapV2PriceProvider', function () {
       const amountIn = parseUnits('1', 8) // 1 BTC
       const {_amountOut} = await priceProvider.convert(tokenIn, tokenOut, amountIn)
       // @ts-ignore
-      expect(_amountOut).to.closeTo(parseEther('10444'), parseEther('0.3'))
+      expect(_amountOut).closeTo(parseEther('10444'), parseEther('0.3'))
     })
   })
 })
