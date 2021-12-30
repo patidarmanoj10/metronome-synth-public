@@ -125,7 +125,7 @@ contract Issuer is ReentrancyGuard, Manageable, IssuerStorageV1 {
      * @dev WARNING: This operation will copy the entire storage to memory, which can be quite expensive. This is designed
      * to mostly be used by view accessors that are queried without any gas fees.
      */
-    function getSyntheticAssets() external view returns (address[] memory) {
+    function getSyntheticAssets() external view override returns (address[] memory) {
         return syntheticAssets.values();
     }
 
@@ -134,22 +134,8 @@ contract Issuer is ReentrancyGuard, Manageable, IssuerStorageV1 {
      * @dev WARNING: This operation will copy the entire storage to memory, which can be quite expensive. This is designed
      * to mostly be used by view accessors that are queried without any gas fees.
      */
-    function getDepositTokens() external view returns (address[] memory) {
+    function getDepositTokens() external view override returns (address[] memory) {
         return depositTokens.values();
-    }
-
-    /**
-     * @notice Get MET
-     */
-    function met() public view override returns (IERC20) {
-        return IDepositToken(depositTokens.at(0)).underlying();
-    }
-
-    /**
-     * @notice Get the vsETH synthetic asset (can't be removed)
-     */
-    function vsEth() public view override returns (ISyntheticAsset) {
-        return ISyntheticAsset(syntheticAssets.at(0));
     }
 
     /**
@@ -157,7 +143,7 @@ contract Issuer is ReentrancyGuard, Manageable, IssuerStorageV1 {
      * @param _syntheticAsset Asset to check
      * @return true if exist
      */
-    function isSyntheticAssetExists(ISyntheticAsset _syntheticAsset) public view returns (bool) {
+    function isSyntheticAssetExists(ISyntheticAsset _syntheticAsset) public view override returns (bool) {
         return syntheticAssets.contains(address(_syntheticAsset));
     }
 
@@ -166,7 +152,7 @@ contract Issuer is ReentrancyGuard, Manageable, IssuerStorageV1 {
      * @param _depositToken Asset to check
      * @return true if exist
      */
-    function isDepositTokenExists(IDepositToken _depositToken) public view returns (bool) {
+    function isDepositTokenExists(IDepositToken _depositToken) public view override returns (bool) {
         return depositTokens.contains(address(_depositToken));
     }
 
@@ -550,7 +536,6 @@ contract Issuer is ReentrancyGuard, Manageable, IssuerStorageV1 {
         onlyGovernor
         onlyIfSyntheticAssetExists(_syntheticAsset)
     {
-        require(_syntheticAsset != vsEth(), "can-not-delete-vseth");
         require(_syntheticAsset.totalSupply() == 0, "synthetic-asset-with-supply");
         require(_syntheticAsset.debtToken().totalSupply() == 0, "synthetic-asset-with-debt-supply");
 
@@ -583,7 +568,6 @@ contract Issuer is ReentrancyGuard, Manageable, IssuerStorageV1 {
         onlyGovernor
         onlyIfDepositTokenExists(_depositToken)
     {
-        require(_depositToken.underlying() != met(), "can-not-delete-met");
         require(_depositToken.totalSupply() == 0, "deposit-token-with-supply");
 
         delete depositTokenOf[_depositToken.underlying()];

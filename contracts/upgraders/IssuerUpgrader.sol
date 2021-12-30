@@ -10,14 +10,12 @@ contract IssuerUpgrader is UpgraderBase {
     }
 
     function _calls() internal pure override returns (bytes[] memory calls) {
-        calls = new bytes[](4);
-        calls[0] = abi.encodeWithSignature("vsEth()");
-        calls[1] = abi.encodeWithSignature("met()");
-        calls[2] = abi.encodeWithSignature("oracle()");
-        calls[3] = abi.encodeWithSignature("treasury()");
+        calls = new bytes[](2);
+        calls[0] = abi.encodeWithSignature("oracle()");
+        calls[1] = abi.encodeWithSignature("treasury()");
     }
 
     function _checkResults(bytes[] memory _beforeResults, bytes[] memory _afterResults) internal pure override {
-        _checkAddressResults(_beforeResults, _afterResults, 0, 3);
+        _checkAddressResults(_beforeResults, _afterResults, 0, 1);
     }
 }

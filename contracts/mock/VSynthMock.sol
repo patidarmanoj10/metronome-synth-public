@@ -64,10 +64,6 @@ contract VSynthMock is IVSynth {
         revert("mock-does-not-implement");
     }
 
-    function refinance(ISyntheticAsset, uint256) external pure {
-        revert("mock-does-not-implement");
-    }
-
     function updateOracle(IOracle) external pure {
         revert("mock-does-not-implement");
     }

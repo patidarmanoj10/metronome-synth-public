@@ -28,7 +28,6 @@ abstract contract IssuerStorageV1 is IIssuer {
 
     /**
      * @notice Avaliable synthetic assets
-     * @dev The syntheticAssets[0] is vsETH
      */
     EnumerableSet.AddressSet internal syntheticAssets;
 }

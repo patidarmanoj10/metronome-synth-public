@@ -175,10 +175,8 @@ describe('Deployments', function () {
   describe('Issuer', function () {
     it('should have correct params', async function () {
       expect(await issuer.vSynth()).eq(vSynth.address)
-      expect(await issuer.met()).eq(await metDepositToken.underlying())
       const [firstSyntheticAsset] = await issuer.getSyntheticAssets()
       expect(firstSyntheticAsset).eq(vsEth.address)
-      expect(await issuer.vsEth()).eq(vsEth.address)
       expect(await issuer.oracle()).eq(oracle.address)
       expect(await issuer.treasury()).eq(treasury.address)
       expect(await issuer.governor()).eq(deployer.address)

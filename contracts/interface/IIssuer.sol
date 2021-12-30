@@ -17,7 +17,9 @@ interface IIssuer {
 
     function depositTokenOf(IERC20 _underlying) external view returns (IDepositToken);
 
-    function met() external view returns (IERC20);
+    function getDepositTokens() external view returns (address[] memory);
+
+    function getSyntheticAssets() external view returns (address[] memory);
 
     function syntheticAssetsMintedBy(address _account)
         external
@@ -74,8 +76,6 @@ interface IIssuer {
     function removeDepositToken(IDepositToken _depositToken) external;
 
     function updateOracle(IOracle _newOracle) external;
-
-    function vsEth() external view returns (ISyntheticAsset);
 
     function mintSyntheticAsset(
         ISyntheticAsset _syntheticAsset,

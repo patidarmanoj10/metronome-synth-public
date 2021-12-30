@@ -38,11 +38,11 @@ contract IssuerMock is IIssuer {
         }
     }
 
-    function getDepositTokens() external pure returns (IDepositToken[] memory) {
+    function getDepositTokens() external pure override returns (address[] memory) {
         revert("mock-does-not-implement");
     }
 
-    function deposit(uint256) external pure {
+    function getSyntheticAssets() external pure override returns (address[] memory) {
         revert("mock-does-not-implement");
     }
 
@@ -72,7 +72,7 @@ contract IssuerMock is IIssuer {
         revert("mock-does-not-implement");
     }
 
-    function depositOfUsingLatestPrices(address) external pure returns (uint256, bool) {
+    function depositOfUsingLatestPrices(address) external pure override returns (uint256, bool) {
         revert("mock-does-not-implement");
     }
 
@@ -94,43 +94,35 @@ contract IssuerMock is IIssuer {
         _unlockedDepositInUsd = _depositInUsd - _lockedDepositInUsd;
     }
 
-    function syntheticAssetsMintedBy(address) external pure returns (ISyntheticAsset[] memory) {
+    function syntheticAssetsMintedBy(address) external pure override returns (ISyntheticAsset[] memory) {
         revert("mock-does-not-implement");
     }
 
-    function addSyntheticAsset(ISyntheticAsset) external pure {
+    function addSyntheticAsset(ISyntheticAsset) external pure override {
         revert("mock-does-not-implement");
     }
 
-    function removeSyntheticAsset(ISyntheticAsset) external pure {
+    function removeSyntheticAsset(ISyntheticAsset) external pure override {
         revert("mock-does-not-implement");
     }
 
-    function addDepositToken(IDepositToken) external pure {
+    function addDepositToken(IDepositToken) external pure override {
         revert("mock-does-not-implement");
     }
 
-    function removeDepositToken(IDepositToken) external pure {
+    function removeDepositToken(IDepositToken) external pure override {
         revert("mock-does-not-implement");
     }
 
-    function maxIssuableFor(address, ISyntheticAsset) external pure returns (uint256) {
+    function maxIssuableFor(address, ISyntheticAsset) external pure override returns (uint256) {
         revert("mock-does-not-implement");
     }
 
-    function maxIssuableForUsingLatestPrices(address, ISyntheticAsset) external pure returns (uint256, bool) {
+    function maxIssuableForUsingLatestPrices(address, ISyntheticAsset) external pure override returns (uint256, bool) {
         revert("mock-does-not-implement");
     }
 
-    function updateOracle(IOracle) external pure {
-        revert("mock-does-not-implement");
-    }
-
-    function vsEth() external pure returns (ISyntheticAsset) {
-        revert("mock-does-not-implement");
-    }
-
-    function met() external pure returns (IERC20) {
+    function updateOracle(IOracle) external pure override {
         revert("mock-does-not-implement");
     }
 
@@ -138,7 +130,7 @@ contract IssuerMock is IIssuer {
         ISyntheticAsset,
         address,
         uint256
-    ) external pure {
+    ) external pure override {
         revert("mock-does-not-implement");
     }
 
@@ -146,7 +138,7 @@ contract IssuerMock is IIssuer {
         IDebtToken,
         address,
         uint256
-    ) external pure {
+    ) external pure override {
         revert("mock-does-not-implement");
     }
 
@@ -154,7 +146,7 @@ contract IssuerMock is IIssuer {
         ISyntheticAsset,
         address,
         uint256
-    ) external pure {
+    ) external pure override {
         revert("mock-does-not-implement");
     }
 
@@ -162,7 +154,7 @@ contract IssuerMock is IIssuer {
         IDebtToken,
         address,
         uint256
-    ) external pure {
+    ) external pure override {
         revert("mock-does-not-implement");
     }
 
@@ -170,7 +162,7 @@ contract IssuerMock is IIssuer {
         IDepositToken _depositToken,
         address _to,
         uint256 _amount
-    ) external {
+    ) external override {
         _depositToken.mint(_to, _amount);
     }
 
@@ -178,7 +170,7 @@ contract IssuerMock is IIssuer {
         IDepositToken _depositToken,
         address _from,
         uint256 _amount
-    ) external {
+    ) external override {
         _depositToken.mint(_from, _amount);
     }
 
@@ -187,7 +179,7 @@ contract IssuerMock is IIssuer {
         address,
         address,
         uint256
-    ) external pure {
+    ) external pure override {
         revert("mock-does-not-implement");
     }
 
@@ -196,23 +188,23 @@ contract IssuerMock is IIssuer {
         address,
         address,
         uint256
-    ) external pure {
+    ) external pure override {
         revert("mock-does-not-implement");
     }
 
-    function isSyntheticAssetExists(ISyntheticAsset) external pure returns (bool) {
+    function isSyntheticAssetExists(ISyntheticAsset) external pure override returns (bool) {
         revert("mock-does-not-implement");
     }
 
-    function isDepositTokenExists(IDepositToken) external pure returns (bool) {
+    function isDepositTokenExists(IDepositToken) external pure override returns (bool) {
         revert("mock-does-not-implement");
     }
 
-    function treasury() external pure returns (ITreasury) {
+    function treasury() external pure override returns (ITreasury) {
         revert("mock-does-not-implement");
     }
 
-    function updateTreasury(ITreasury) external pure {
+    function updateTreasury(ITreasury) external pure override {
         revert("mock-does-not-implement");
     }
 
@@ -220,15 +212,15 @@ contract IssuerMock is IIssuer {
         IDepositToken,
         address,
         uint256
-    ) external pure {
+    ) external pure override {
         revert("mock-does-not-implement");
     }
 
-    function accrueInterest(ISyntheticAsset) external pure {
+    function accrueInterest(ISyntheticAsset) external pure override {
         revert("mock-does-not-implement");
     }
 
-    function depositTokenOf(IERC20) external view returns (IDepositToken) {
+    function depositTokenOf(IERC20) external view override returns (IDepositToken) {
         return depositToken;
     }
 }
