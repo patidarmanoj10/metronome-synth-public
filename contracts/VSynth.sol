@@ -68,11 +68,6 @@ contract VSynthStorageV1 {
     uint256 public maxLiquidable;
 
     /**
-     * @notice Treasury contract
-     */
-    ITreasury public treasury;
-
-    /**
      * @notice Prices oracle
      */
     IOracle public oracle;
@@ -158,9 +153,6 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
     /// @notice Emitted when liquidate fee is updated
     event LiquidateFeeUpdated(uint256 oldLiquidateFee, uint256 newLiquidateFee);
 
-    /// @notice Emitted when treasury contract is updated
-    event TreasuryUpdated(ITreasury indexed oldTreasury, ITreasury indexed newTreasury);
-
     /// @notice Emitted when oracle contract is updated
     event OracleUpdated(IOracle indexed oldOracle, IOracle indexed newOracle);
 
@@ -197,19 +189,16 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
     }
 
     function initialize(
-        ITreasury treasury_,
         IDepositToken depositToken_,
         IOracle oracle_,
         IIssuer issuer_
     ) public initializer {
-        require(address(treasury_) != address(0), "treasury-address-is-null");
         require(address(depositToken_) != address(0), "deposit-token-is-null");
         require(address(oracle_) != address(0), "oracle-is-null");
 
         __ReentrancyGuard_init();
         __Governable_init();
 
-        treasury = treasury_;
         oracle = oracle_;
         issuer = issuer_;
 
@@ -241,11 +230,16 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
 
         address _account = _msgSender();
 
-        _depositToken.underlying().safeTransferFrom(_account, address(treasury), _amount);
+        _depositToken.underlying().safeTransferFrom(_account, address(issuer.getTreasury()), _amount);
 
-        uint256 _amountToMint = depositFee > 0 ? _amount.wadMul(1e18 - depositFee) : _amount;
+        uint256 _amountToMint = _amount;
 
-        // We are collecting fee here by minting less deposit tokens than the collateral deposited
+        if (depositFee > 0) {
+            uint256 _feeAmount = _amount.wadMul(depositFee);
+            issuer.mintDepositToken(_depositToken, address(issuer.getTreasury()), _feeAmount);
+            _amountToMint -= _feeAmount;
+        }
+
         issuer.mintDepositToken(_depositToken, _account, _amountToMint);
 
         emit CollateralDeposited(_depositToken, _account, _amountToMint);
@@ -268,18 +262,20 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
 
         address _account = _msgSender();
 
+        issuer.accrueInterest(_syntheticAsset);
+
         require(_amount <= issuer.maxIssuableFor(_account, _syntheticAsset), "not-enough-collateral");
 
-        uint256 _feeInSyntheticAsset;
+        uint256 _amountToMint = _amount;
 
         if (mintFee > 0) {
-            _feeInSyntheticAsset = _amount.wadMul(mintFee);
-            issuer.collectFee(_account, oracle.convertToUsd(_syntheticAsset, _feeInSyntheticAsset), true);
+            uint256 _feeAmount = _amount.wadMul(mintFee);
+            issuer.mintSyntheticAsset(_syntheticAsset, address(issuer.getTreasury()), _feeAmount);
+            _amountToMint -= _feeAmount;
         }
 
-        uint256 _amountToMint = _amount - _feeInSyntheticAsset;
-
-        issuer.mintSyntheticAssetAndDebtToken(_syntheticAsset, _account, _amountToMint);
+        issuer.mintSyntheticAsset(_syntheticAsset, _account, _amountToMint);
+        issuer.mintDebtToken(_syntheticAsset.debtToken(), _account, _amount);
 
         emit SyntheticAssetMinted(_account, _syntheticAsset, _amountToMint);
     }
@@ -306,32 +302,18 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
 
         issuer.burnWithdrawnDeposit(_depositToken, _account, _amount);
 
-        uint256 _amountToWithdraw = withdrawFee > 0 ? _amount.wadMul(1e18 - withdrawFee) : _amount;
+        uint256 _amountToWithdraw = _amount;
 
-        treasury.pull(_depositToken.underlying(), _account, _amountToWithdraw);
+        if (withdrawFee > 0) {
+            uint256 _feeAmount = _amount.wadMul(withdrawFee);
+            // TODO: Use seize-like function?
+            issuer.mintDepositToken(_depositToken, address(issuer.getTreasury()), _feeAmount);
+            _amountToWithdraw -= _feeAmount;
+        }
+
+        issuer.withdrawFromTreasury(_depositToken, _account, _amountToWithdraw);
 
         emit CollateralWithdrawn(_depositToken, _account, _amountToWithdraw);
-    }
-
-    /**
-     * @notice Send synthetic asset to decrease debt
-     * @dev Burn synthetic asset and equivalent debt token to unlock collateral
-     * @param _syntheticAsset The synthetic asset to burn
-     * @param _beneficiary The account that will have debt decreased
-     * @param _payer The account to burn synthetic asset from
-     * @param _amount The amount of synthetic asset to burn
-     */
-    function _repay(
-        ISyntheticAsset _syntheticAsset,
-        address _beneficiary,
-        address _payer,
-        uint256 _amount
-    ) private onlyIfSyntheticAssetExists(_syntheticAsset) {
-        require(_amount > 0, "amount-to-repay-is-zero");
-
-        issuer.burnSyntheticAssetAndDebtToken(_syntheticAsset, _payer, _beneficiary, _amount);
-
-        emit DebtRepayed(_beneficiary, _syntheticAsset, _amount);
     }
 
     /**
@@ -346,15 +328,24 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
         address _beneficiary,
         uint256 _amount
     ) external override whenNotShutdown nonReentrant {
-        address _payer = _msgSender();
-        _repay(_syntheticAsset, _beneficiary, _payer, _amount);
+        require(_amount > 0, "amount-to-repay-is-zero");
 
-        // Charging fee after repayment to have more unlocked deposit balance,
-        // and reducing chances to have tx reverted due to low unlocked deposit
+        issuer.accrueInterest(_syntheticAsset);
+
+        uint256 _amountToRepay = _amount;
         if (repayFee > 0) {
-            uint256 _feeInUsd = oracle.convertToUsd(_syntheticAsset, _amount.wadMul(repayFee));
-            issuer.collectFee(_beneficiary, _feeInUsd, true);
+            uint256 _feeAmount = _amount.wadMul(repayFee);
+            // TODO: Use seize-like function?
+            issuer.mintSyntheticAsset(_syntheticAsset, address(issuer.getTreasury()), _feeAmount);
+            _amountToRepay -= _feeAmount;
         }
+
+        address _payer = _msgSender();
+
+        issuer.burnSyntheticAsset(_syntheticAsset, _payer, _amount);
+        issuer.burnDebtToken(_syntheticAsset.debtToken(), _beneficiary, _amountToRepay);
+
+        emit DebtRepayed(_beneficiary, _syntheticAsset, _amount);
     }
 
     /**
@@ -370,8 +361,11 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
         IDepositToken _depositToken
     ) external override whenNotShutdown nonReentrant onlyIfDepositTokenExists(_depositToken) {
         require(_amountToRepay > 0, "amount-to-repay-is-zero");
+
         address _liquidator = _msgSender();
         require(_liquidator != _account, "can-not-liquidate-own-position");
+
+        issuer.accrueInterest(_syntheticAsset);
 
         uint256 _percentOfDebtToLiquidate = _amountToRepay.wadDiv(_syntheticAsset.debtToken().balanceOf(_account));
 
@@ -393,13 +387,13 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
         uint256 _totalToSeize = _feeToCollect + _toLiquidator;
         require(_totalToSeize <= _deposit, "amount-to-repay-is-too-high");
 
-        _repay(_syntheticAsset, _account, _liquidator, _amountToRepay);
+        issuer.burnSyntheticAsset(_syntheticAsset, _liquidator, _amountToRepay);
+        issuer.burnDebtToken(_syntheticAsset.debtToken(), _account, _amountToRepay);
 
         issuer.seizeDepositToken(_depositToken, _account, _liquidator, _toLiquidator);
 
         if (_feeToCollect > 0) {
-            uint256 _feeInUsd = oracle.convertToUsd(_depositToken.underlying(), _feeToCollect);
-            issuer.collectFee(_account, _feeInUsd, false);
+            issuer.seizeDepositToken(_depositToken, _account, address(issuer.getTreasury()), _feeToCollect);
         }
 
         emit PositionLiquidated(_liquidator, _account, _syntheticAsset, _amountToRepay, _totalToSeize);
@@ -429,16 +423,20 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
         require(_amountIn > 0, "amount-in-is-zero");
         require(_amountIn <= _syntheticAssetIn.balanceOf(_account), "amount-in-gt-synthetic-balance");
 
-        uint256 _feeInSyntheticAssetIn = _fee > 0 ? _amountIn.wadMul(_fee) : 0;
-        uint256 _amountInAfterFee = _amountIn - _feeInSyntheticAssetIn;
-        _amountOut = oracle.convert(_syntheticAssetIn, _syntheticAssetOut, _amountInAfterFee);
+        _amountOut = oracle.convert(_syntheticAssetIn, _syntheticAssetOut, _amountIn);
 
-        issuer.burnSyntheticAssetAndDebtToken(_syntheticAssetIn, _account, _account, _amountIn);
-        issuer.mintSyntheticAssetAndDebtToken(_syntheticAssetOut, _account, _amountOut);
+        uint256 _feeInSyntheticAssetOut = _fee > 0 ? _amountOut.wadMul(_fee) : 0;
+        uint256 _amountOutAfterFee = _amountOut - _feeInSyntheticAssetOut;
 
-        if (_feeInSyntheticAssetIn > 0) {
-            uint256 _feeInUsd = oracle.convertToUsd(_syntheticAssetIn, _feeInSyntheticAssetIn);
-            issuer.collectFee(_account, _feeInUsd, true);
+        issuer.burnSyntheticAsset(_syntheticAssetIn, _account, _amountIn);
+        issuer.burnDebtToken(_syntheticAssetIn.debtToken(), _account, _amountIn);
+
+        issuer.mintSyntheticAsset(_syntheticAssetOut, _account, _amountOutAfterFee);
+        issuer.mintDebtToken(_syntheticAssetOut.debtToken(), _account, _amountOut);
+
+        if (_feeInSyntheticAssetOut > 0) {
+            // TODO: Use seize-like function?
+            issuer.mintSyntheticAsset(_syntheticAssetOut, address(issuer.getTreasury()), _feeInSyntheticAssetOut);
         }
 
         (bool _isHealthy, , , ) = issuer.debtPositionOf(_account);
@@ -459,6 +457,9 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
         ISyntheticAsset _syntheticAssetOut,
         uint256 _amountIn
     ) external override whenNotShutdown nonReentrant returns (uint256 _amountOut) {
+        issuer.accrueInterest(_syntheticAssetIn);
+        issuer.accrueInterest(_syntheticAssetOut);
+
         address _account = _msgSender();
         (bool _isHealthy, , , ) = issuer.debtPositionOf(_account);
         require(_isHealthy, "debt-position-is-unhealthy");
@@ -482,6 +483,10 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
             _syntheticAssetIn.collateralizationRatio() > _syntheticAssetOut.collateralizationRatio(),
             "in-cratio-is-lte-out-cratio"
         );
+
+        issuer.accrueInterest(_syntheticAssetIn);
+        issuer.accrueInterest(_syntheticAssetOut);
+
         address _account = _msgSender();
         (bool _isHealthy, , , ) = issuer.debtPositionOf(_account);
         require(!_isHealthy, "debt-position-is-healthy");
@@ -489,26 +494,6 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
         _swap(_account, _syntheticAssetIn, _syntheticAssetOut, _amountToRefinance, refinanceFee);
 
         emit DebtRefinancied(_account, _syntheticAssetIn, _amountToRefinance);
-    }
-
-    /**
-     * @notice Update treasury contract - will migrate funds to the new contract
-     */
-    function updateTreasury(ITreasury _newTreasury) external override onlyGovernor {
-        require(address(_newTreasury) != address(0), "treasury-address-is-null");
-        require(_newTreasury != treasury, "new-treasury-is-same-as-current");
-
-        IDepositToken[] memory _depositTokens = issuer.getDepositTokens();
-        for (uint256 i = 0; i < _depositTokens.length; ++i) {
-            IERC20 _underlying = _depositTokens[i].underlying();
-            uint256 _balance = _underlying.balanceOf(address(treasury));
-            if (_balance > 0) {
-                treasury.pull(_underlying, address(_newTreasury), _balance);
-            }
-        }
-
-        emit TreasuryUpdated(treasury, _newTreasury);
-        treasury = _newTreasury;
     }
 
     /**

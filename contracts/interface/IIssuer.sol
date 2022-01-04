@@ -5,6 +5,7 @@ pragma solidity 0.8.9;
 import "./oracle/IOracle.sol";
 import "./ISyntheticAsset.sol";
 import "./IDepositToken.sol";
+import "./ITreasury.sol";
 
 /**
  * @notice IIssuer interface
@@ -76,16 +77,27 @@ interface IIssuer {
 
     function vsEth() external view returns (ISyntheticAsset);
 
-    function mintSyntheticAssetAndDebtToken(
+    function mintSyntheticAsset(
         ISyntheticAsset _syntheticAsset,
         address _to,
         uint256 _amount
     ) external;
 
-    function burnSyntheticAssetAndDebtToken(
+    function mintDebtToken(
+        IDebtToken _debtToken,
+        address _to,
+        uint256 _amount
+    ) external;
+
+    function burnSyntheticAsset(
         ISyntheticAsset _syntheticAsset,
-        address _syntheticAssetFrom,
-        address _debtTokenFrom,
+        address _from,
+        uint256 _amount
+    ) external;
+
+    function burnDebtToken(
+        IDebtToken _debtToken,
+        address _from,
         uint256 _amount
     ) external;
 
@@ -93,12 +105,6 @@ interface IIssuer {
         IDepositToken _depositToken,
         address _to,
         uint256 _amount
-    ) external;
-
-    function collectFee(
-        address _account,
-        uint256 _fee,
-        bool _onlyFromUnlocked
     ) external;
 
     function burnWithdrawnDeposit(
@@ -113,4 +119,16 @@ interface IIssuer {
         address _to,
         uint256 _amount
     ) external;
+
+    function updateTreasury(ITreasury _newTreasury) external;
+
+    function getTreasury() external view returns (ITreasury);
+
+    function withdrawFromTreasury(
+        IDepositToken _token,
+        address _to,
+        uint256 _amount
+    ) external;
+
+    function accrueInterest(ISyntheticAsset _syntheticAsset) external;
 }

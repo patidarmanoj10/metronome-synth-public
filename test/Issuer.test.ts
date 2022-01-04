@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 /* eslint-disable camelcase */
 import {parseEther} from '@ethersproject/units'
@@ -13,13 +14,15 @@ import {
   OracleMock__factory,
   SyntheticAsset,
   SyntheticAsset__factory,
-  DebtToken,
   DebtToken__factory,
   Treasury,
   Treasury__factory,
   Issuer__factory,
   Issuer,
+  DebtTokenMock__factory,
+  DebtTokenMock,
 } from '../typechain'
+import {BLOCKS_PER_YEAR} from './helpers'
 
 describe('Issuer', function () {
   let deployer: SignerWithAddress
@@ -29,7 +32,7 @@ describe('Issuer', function () {
   let liquidator: SignerWithAddress
   let vSynthMock: SignerWithAddress
   let met: ERC20Mock
-  let vsEthDebtToken: DebtToken
+  let vsEthDebtToken: DebtTokenMock
   let vsEth: SyntheticAsset
   let treasury: Treasury
   let metDepositToken: DepositToken
@@ -39,6 +42,8 @@ describe('Issuer', function () {
   const vsEthCR = parseEther('1.5') // 150%
   const ethRate = parseEther('4000') // 1 ETH = $4000
   const metRate = parseEther('4') // 1 MET = $4
+
+  const interestRate = parseEther('0')
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
@@ -60,7 +65,7 @@ describe('Issuer', function () {
     metDepositToken = await depositTokenFactory.deploy()
     await metDepositToken.deployed()
 
-    const vsEthDebtTokenFactory = new DebtToken__factory(deployer)
+    const vsEthDebtTokenFactory = new DebtTokenMock__factory(deployer)
     vsEthDebtToken = await vsEthDebtTokenFactory.deploy()
     await vsEthDebtToken.deployed()
 
@@ -76,7 +81,7 @@ describe('Issuer', function () {
     await metDepositToken.transferGovernorship(governor.address)
     await metDepositToken.connect(governor).acceptGovernorship()
 
-    await vsEthDebtToken.initialize('vsETH Debt', 'vsETH-Debt', 18, issuer.address)
+    await vsEthDebtToken.initialize('vsETH Debt', 'vsETH-Debt', 18, issuer.address, vsEth.address)
     await vsEthDebtToken.transferGovernorship(governor.address)
     await vsEthDebtToken.connect(governor).acceptGovernorship()
 
@@ -87,12 +92,21 @@ describe('Issuer', function () {
       issuer.address,
       vsEthDebtToken.address,
       vsEthCR,
-      oracle.address
+      oracle.address,
+      interestRate
     )
     await vsEth.transferGovernorship(governor.address)
     await vsEth.connect(governor).acceptGovernorship()
 
-    await issuer.initialize(metDepositToken.address, vsEth.address, oracle.address, vSynthMock.address)
+    await treasury.initialize(issuer.address)
+
+    await issuer.initialize(
+      metDepositToken.address,
+      vsEth.address,
+      oracle.address,
+      treasury.address,
+      vSynthMock.address
+    )
 
     // mint some MET to users
     await met.mint(user.address, parseEther(`${1e6}`))
@@ -123,10 +137,11 @@ describe('Issuer', function () {
         // given
         const DebtTokenFactory = new DebtToken__factory(deployer)
         const debtToken = await DebtTokenFactory.deploy()
-        await debtToken.initialize('Vesper Synth BTC debt', 'vsBTC-debt', 8, issuer.address)
 
         const SyntheticAssetFactory = new SyntheticAsset__factory(deployer)
         const vsAsset = await SyntheticAssetFactory.deploy()
+
+        await debtToken.initialize('Vesper Synth BTC debt', 'vsBTC-debt', 8, issuer.address, vsAsset.address)
         await vsAsset.initialize(
           'Vesper Synth BTC',
           'vsBTC',
@@ -134,7 +149,8 @@ describe('Issuer', function () {
           issuer.address,
           debtToken.address,
           parseEther('1.5'),
-          oracle.address
+          oracle.address,
+          interestRate
         )
 
         expect(await vsAsset.totalSupply()).to.eq(0)
@@ -185,34 +201,70 @@ describe('Issuer', function () {
     })
   })
 
-  describe('mintSyntheticAssetAndDebtToken', function () {
+  describe('mintSyntheticAsset', function () {
     it('should revert if not vSynth', async function () {
       // when
-      const tx = issuer
-        .connect(user.address)
-        .mintSyntheticAssetAndDebtToken(vsEth.address, ethers.constants.AddressZero, 0)
+      const tx = issuer.connect(user.address).mintSyntheticAsset(vsEth.address, ethers.constants.AddressZero, 0)
 
       // then
       await expect(tx).to.revertedWith('not-vsynth')
     })
 
-    it('should mint vsAsset and its debt representation', async function () {
+    it('should mint vsAsset', async function () {
       // when
       const amount = parseEther('1')
-      const tx = () => issuer.connect(vSynthMock).mintSyntheticAssetAndDebtToken(vsEth.address, user.address, amount)
+      const tx = () => issuer.connect(vSynthMock).mintSyntheticAsset(vsEth.address, user.address, amount)
 
       // then
       await expect(tx).to.changeTokenBalance(vsEth, user, amount)
-      await expect(tx).to.changeTokenBalance(vsEthDebtToken, user, amount)
     })
   })
 
-  describe('burnSyntheticAssetAndDebtToken', function () {
+  describe('burnSyntheticAsset', function () {
     it('should revert if not vSynth', async function () {
       // when
-      const tx = issuer
-        .connect(user.address)
-        .burnSyntheticAssetAndDebtToken(vsEth.address, ethers.constants.AddressZero, ethers.constants.AddressZero, 0)
+      const tx = issuer.connect(user.address).burnSyntheticAsset(vsEth.address, ethers.constants.AddressZero, 0)
+
+      // then
+      await expect(tx).to.revertedWith('not-vsynth')
+    })
+
+    it('should burn vsAsset', async function () {
+      // given
+      const amount = parseEther('1')
+      await issuer.connect(vSynthMock).mintSyntheticAsset(vsEth.address, user.address, amount.mul('10'))
+
+      // when
+      const tx = () => issuer.connect(vSynthMock).burnSyntheticAsset(vsEth.address, user.address, amount)
+
+      // then
+      await expect(tx).to.changeTokenBalance(vsEth, user, amount.mul('-1'))
+    })
+  })
+
+  describe('mintDebtToken', function () {
+    it('should revert if not vSynth', async function () {
+      // when
+      const tx = issuer.connect(user.address).mintDebtToken(vsEth.address, ethers.constants.AddressZero, 0)
+
+      // then
+      await expect(tx).to.revertedWith('not-vsynth')
+    })
+
+    it('should mint vsAsset', async function () {
+      // when
+      const amount = parseEther('1')
+      const tx = () => issuer.connect(vSynthMock).mintDebtToken(vsEth.address, user.address, amount)
+
+      // then
+      await expect(tx).to.changeTokenBalance(vsEth, user, amount)
+    })
+  })
+
+  describe('burnDebtToken', function () {
+    it('should revert if not vSynth', async function () {
+      // when
+      const tx = issuer.connect(user.address).burnDebtToken(vsEth.address, ethers.constants.AddressZero, 0)
 
       // then
       await expect(tx).to.revertedWith('not-vsynth')
@@ -221,16 +273,13 @@ describe('Issuer', function () {
     it('should burn vsAsset and its debt representation', async function () {
       // given
       const amount = parseEther('1')
-      await issuer.connect(vSynthMock).mintSyntheticAssetAndDebtToken(vsEth.address, user.address, amount.mul('10'))
-      await issuer.connect(vSynthMock).mintSyntheticAssetAndDebtToken(vsEth.address, user2.address, amount.mul('10'))
+      await issuer.connect(vSynthMock).mintDebtToken(vsEth.address, user.address, amount.mul('10'))
 
       // when
-      const tx = () =>
-        issuer.connect(vSynthMock).burnSyntheticAssetAndDebtToken(vsEth.address, user.address, user2.address, amount)
+      const tx = () => issuer.connect(vSynthMock).burnDebtToken(vsEth.address, user.address, amount)
 
       // then
       await expect(tx).to.changeTokenBalance(vsEth, user, amount.mul('-1'))
-      await expect(tx).to.changeTokenBalance(vsEthDebtToken, user2, amount.mul('-1'))
     })
   })
 
@@ -256,28 +305,6 @@ describe('Issuer', function () {
   describe('when have some deposit token', function () {
     beforeEach(async function () {
       await issuer.connect(vSynthMock).mintDepositToken(metDepositToken.address, user.address, parseEther('1'))
-    })
-
-    describe('collectFee', function () {
-      it('should revert if not vSynth', async function () {
-        // when
-        const tx = issuer.connect(user.address).collectFee(ethers.constants.AddressZero, 0, true)
-
-        // then
-        await expect(tx).to.revertedWith('not-vsynth')
-      })
-
-      it('should collect fee', async function () {
-        // given
-        const amount = await metDepositToken.balanceOf(user.address)
-        const amountInUsd = await oracle.convertToUsd(await metDepositToken.underlying(), amount)
-
-        // when
-        const tx = () => issuer.connect(vSynthMock).collectFee(user.address, amountInUsd, true)
-
-        // then
-        await expect(tx).to.changeTokenBalance(metDepositToken, user, amount.mul('-1'))
-      })
     })
 
     describe('burnWithdrawnDeposit', function () {
@@ -364,6 +391,81 @@ describe('Issuer', function () {
       // then
       await expect(tx).to.emit(issuer, 'OracleUpdated').withArgs(oldOracle, newOracle)
       expect(await issuer.oracle()).to.eq(newOracle)
+    })
+  })
+
+  describe('updateTreasury', function () {
+    it('should revert if using the same address', async function () {
+      // given
+      expect(await issuer.treasury()).to.eq(treasury.address)
+
+      // when
+      const tx = issuer.updateTreasury(treasury.address)
+
+      // then
+      await expect(tx).to.revertedWith('new-treasury-is-same-as-current')
+    })
+
+    it('should revert if caller is not governor', async function () {
+      // when
+      const tx = issuer.connect(user.address).updateTreasury(treasury.address)
+
+      // then
+      await expect(tx).to.revertedWith('not-the-governor')
+    })
+
+    it('should revert if address is zero', async function () {
+      // when
+      const tx = issuer.updateTreasury(ethers.constants.AddressZero)
+
+      // then
+      await expect(tx).to.revertedWith('treasury-address-is-null')
+    })
+
+    it('should migrate funds to the new treasury', async function () {
+      // given
+      const balance = parseEther('100')
+      await met.mint(treasury.address, balance)
+
+      const treasuryFactory = new Treasury__factory(deployer)
+      const newTreasury = await treasuryFactory.deploy()
+      await newTreasury.deployed()
+      await newTreasury.initialize(issuer.address)
+
+      // when
+      const tx = () => issuer.updateTreasury(newTreasury.address)
+
+      // then
+      await expect(tx).changeTokenBalances(met, [treasury, newTreasury], [balance.mul('-1'), balance])
+    })
+  })
+
+  describe('acrueInterest', function () {
+    const newInterestRate = parseEther('0.1')
+
+    it('should mint accrued fee to treasury', async function () {
+      const pricipal = parseEther('100')
+
+      // given
+      await vsEth.connect(governor).updateInterestRate(newInterestRate)
+      await issuer.connect(vSynthMock).mintSyntheticAsset(vsEth.address, user.address, pricipal)
+      await issuer.connect(vSynthMock).mintDebtToken(vsEthDebtToken.address, user.address, pricipal)
+      await vsEthDebtToken.setBlockNumber(BLOCKS_PER_YEAR)
+
+      // when
+      await issuer.connect(vSynthMock).accrueInterest(vsEth.address)
+
+      // then
+      const totalCredit = await vsEth.totalSupply()
+      const totalDebt = await vsEthDebtToken.totalSupply()
+      const debtOfUser = await vsEthDebtToken.balanceOf(user.address)
+      const creditOfUser = await vsEth.balanceOf(user.address)
+      const creditOfTreasury = await vsEth.balanceOf(treasury.address)
+      // @ts-ignore
+      expect(totalDebt).closeTo(parseEther('110'), parseEther('0.01'))
+      expect(totalCredit).eq(totalDebt).eq(debtOfUser)
+      expect(creditOfUser).eq(pricipal)
+      expect(totalCredit).eq(creditOfUser.add(creditOfTreasury))
     })
   })
 })

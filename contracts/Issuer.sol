@@ -17,6 +17,11 @@ contract IssuerStorageV1 {
     IOracle public oracle;
 
     /**
+     * @notice Treasury contract
+     */
+    ITreasury public treasury;
+
+    /**
      * @notice Represents collateral's deposits (e.g. vSynth-MET token)
      */
     IDepositToken[] public depositTokens;
@@ -53,6 +58,9 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
 
     /// @notice Emitted when oracle contract is updated
     event OracleUpdated(IOracle indexed oldOracle, IOracle indexed newOracle);
+
+    /// @notice Emitted when treasury contract is updated
+    event TreasuryUpdated(ITreasury indexed oldTreasury, ITreasury indexed newTreasury);
 
     /**
      * @dev Throws if synthetic asset isn't enabled
@@ -91,8 +99,10 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
      */
     modifier updatePricesOfAssetsUsedBy(address _account) {
         for (uint256 i = 0; i < syntheticAssets.length; ++i) {
-            if (syntheticAssets[i].debtToken().balanceOf(_account) > 0) {
-                oracle.update(syntheticAssets[i]);
+            ISyntheticAsset _syntheticAsset = syntheticAssets[i];
+            accrueInterest(_syntheticAsset);
+            if (_syntheticAsset.debtToken().balanceOf(_account) > 0) {
+                oracle.update(_syntheticAsset);
             }
         }
 
@@ -109,6 +119,7 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
      * @dev Update a specific asset's price (also updates the deposit tokens prices)
      */
     modifier updatePriceOfAsset(ISyntheticAsset _syntheticAsset) {
+        _syntheticAsset.debtToken().accrueInterest();
         oracle.update(_syntheticAsset);
 
         for (uint256 i = 0; i < depositTokens.length; ++i) {
@@ -121,8 +132,10 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
         IDepositToken depositToken_,
         ISyntheticAsset vsETH_,
         IOracle oracle_,
+        ITreasury treasury_,
         IVSynth vSynth_
     ) public initializer {
+        require(address(treasury_) != address(0), "treasury-address-is-null");
         require(address(depositToken_) != address(0), "deposit-token-is-null");
         require(address(oracle_) != address(0), "oracle-is-null");
 
@@ -131,6 +144,7 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
 
         setVSynth(vSynth_);
         oracle = oracle_;
+        treasury = treasury_;
 
         // Ensuring that vsETH is the syntheticAssets[0]
         addSyntheticAsset(vsETH_);
@@ -144,6 +158,13 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
      */
     function getDepositTokens() public view override returns (IDepositToken[] memory) {
         return depositTokens;
+    }
+
+    /**
+     * @notice Get treasury
+     */
+    function getTreasury() public view override returns (ITreasury) {
+        return treasury;
     }
 
     /**
@@ -380,41 +401,78 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
     }
 
     /**
-     * @notice Mint synthetic asset and it's debt representation
-     * @dev All use cases mint both tokens for the same account
+     * @notice Accrue interest for a given synthetic asset's debts
+     * @param _syntheticAsset The synthetic asset's to accrue interest from
+     */
+    function accrueInterest(ISyntheticAsset _syntheticAsset) public {
+        uint256 _interestAccumulated = _syntheticAsset.debtToken().accrueInterest();
+
+        if (_interestAccumulated > 0) {
+            // Note: We can save some gas by incrementing only and mint all accrue amount later
+            _syntheticAsset.mint(address(treasury), _interestAccumulated);
+        }
+    }
+
+    /**
+     * @notice Mint synthetic asset
      * @param _syntheticAsset The synthetic asset to mint
      * @param _to The destination account
      * @param _amount The amount to mint
      */
-    function mintSyntheticAssetAndDebtToken(
+    function mintSyntheticAsset(
         ISyntheticAsset _syntheticAsset,
         address _to,
         uint256 _amount
     ) external nonReentrant onlyVSynth {
         require(_amount > 0, "amount-to-mint-is-zero");
         _syntheticAsset.mint(_to, _amount);
-        _syntheticAsset.debtToken().mint(_to, _amount);
     }
 
     /**
-     * @notice Burn synthetic asset and it's debt representation
-     * @dev The liquidate feature needs accounts differentiation
-     * @param _syntheticAsset The synthetic asset to mint
-     * @param _syntheticAssetFrom The account to burn synthetic assets from
-     * @param _debtTokenFrom The account to burn debt tokens from
+     * @notice Mint synthetic asset's debt
+     * @param _debtToken The debt token to mint
+     * @param _to The destination account
      * @param _amount The amount to mint
      */
-    function burnSyntheticAssetAndDebtToken(
+    function mintDebtToken(
+        IDebtToken _debtToken,
+        address _to,
+        uint256 _amount
+    ) external nonReentrant onlyVSynth {
+        require(_amount > 0, "amount-to-mint-is-zero");
+        _debtToken.mint(_to, _amount);
+    }
+
+    /**
+     * @notice Burn synthetic asset
+     * @param _syntheticAsset The synthetic asset to mint
+     * @param _from The account to burn synthetic assets from
+     * @param _amount The amount to mint
+     */
+    function burnSyntheticAsset(
         ISyntheticAsset _syntheticAsset,
-        address _syntheticAssetFrom,
-        address _debtTokenFrom,
+        address _from,
         uint256 _amount
     ) external override nonReentrant onlyVSynth {
         require(_amount > 0, "amount-to-burn-is-zero");
-        require(_amount <= _syntheticAsset.debtToken().balanceOf(_debtTokenFrom), "amount-gt-burnable-debt");
-        require(_amount <= _syntheticAsset.balanceOf(_syntheticAssetFrom), "amount-gt-burnable-synthetic");
-        _syntheticAsset.burn(_syntheticAssetFrom, _amount);
-        _syntheticAsset.debtToken().burn(_debtTokenFrom, _amount);
+        require(_amount <= _syntheticAsset.balanceOf(_from), "amount-gt-burnable-synthetic");
+        _syntheticAsset.burn(_from, _amount);
+    }
+
+    /**
+     * @notice Burn synthetic asset's debt
+     * @param _debtToken The debt token to burn
+     * @param _from The account to burn debt tokens from
+     * @param _amount The amount to mint
+     */
+    function burnDebtToken(
+        IDebtToken _debtToken,
+        address _from,
+        uint256 _amount
+    ) external override nonReentrant onlyVSynth {
+        require(_amount > 0, "amount-to-burn-is-zero");
+        require(_amount <= _debtToken.balanceOf(_from), "amount-gt-burnable-debt");
+        _debtToken.burn(_from, _amount);
     }
 
     /**
@@ -432,26 +490,18 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
     }
 
     /**
-     * @notice Collect fee from user
-     * @dev Our approach is to burning deposit tokens (that represent real MET),
-     * that way, `totalFeesCollected = MET.supply() - depositToken.supply()`
-     * @param _account The account to charge from
-     * @param _feeInUsd The amount to collect
-     * @param _onlyFromUnlocked If true, we only collect from unlocked balance
+     * @notice Pull collateral from treasury
+     * @param _depositToken The collateral receipt token
+     * @param _to The beneficiary account
+     * @param _amount The account to pull
      */
-    function collectFee(
-        address _account,
-        uint256 _feeInUsd,
-        bool _onlyFromUnlocked
+    function withdrawFromTreasury(
+        IDepositToken _depositToken,
+        address _to,
+        uint256 _amount
     ) external override nonReentrant onlyVSynth {
-        require(_feeInUsd > 0, "fee-to-collect-is-zero");
-        uint256 _fee = oracle.convertFromUsd(met(), _feeInUsd);
-        if (_onlyFromUnlocked) {
-            depositTokens[0].burnFromUnlocked(_account, _fee);
-        } else {
-            // Liquidate feature requires burn even from locked balance
-            depositTokens[0].burn(_account, _fee);
-        }
+        require(_amount > 0, "amount-to-withdraw-is-zero");
+        treasury.pull(_depositToken.underlying(), _to, _amount);
     }
 
     /**
@@ -585,5 +635,25 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
 
         emit OracleUpdated(oracle, _newOracle);
         oracle = _newOracle;
+    }
+
+    /**
+     * @notice Update treasury contract - will migrate funds to the new contract
+     */
+    function updateTreasury(ITreasury _newTreasury) external override onlyGovernor {
+        require(address(_newTreasury) != address(0), "treasury-address-is-null");
+        require(_newTreasury != treasury, "new-treasury-is-same-as-current");
+
+        IDepositToken[] memory _depositTokens = getDepositTokens();
+        for (uint256 i = 0; i < _depositTokens.length; ++i) {
+            IERC20 _underlying = _depositTokens[i].underlying();
+            uint256 _balance = _underlying.balanceOf(address(treasury));
+            if (_balance > 0) {
+                treasury.pull(_underlying, address(_newTreasury), _balance);
+            }
+        }
+
+        emit TreasuryUpdated(treasury, _newTreasury);
+        treasury = _newTreasury;
     }
 }

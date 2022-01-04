@@ -15,6 +15,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {address: vSynthAddress} = await deterministic(hre, UpgradableContracts.VSynth)
   const {address: metDepositTokenAddress} = await deterministic(hre, UpgradableContracts.MetDepositToken)
   const {address: vsEthAddress} = await deterministic(hre, UpgradableContracts.VsEth)
+  const {address: treasuryAddress} = await deterministic(hre, UpgradableContracts.Treasury)
 
   const {deploy} = await deterministic(hre, UpgradableContracts.Issuer)
   await deploy()
@@ -26,6 +27,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     metDepositTokenAddress,
     vsEthAddress,
     oracle.address,
+    treasuryAddress,
     vSynthAddress
   )
   await execute(Issuer, {from: deployer, log: true}, 'transferGovernorship', governor)

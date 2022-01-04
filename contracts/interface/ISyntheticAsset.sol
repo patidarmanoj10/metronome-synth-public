@@ -11,6 +11,10 @@ interface ISyntheticAsset is IERC20, IERC20Metadata {
 
     function maxTotalSupplyInUsd() external view returns (uint256);
 
+    function interestRate() external view returns (uint256);
+
+    function interestRatePerBlock() external view returns (uint256);
+
     function debtToken() external view returns (IDebtToken);
 
     function collateralizationRatio() external view returns (uint256);
@@ -24,4 +28,6 @@ interface ISyntheticAsset is IERC20, IERC20Metadata {
     function updateMaxTotalSupplyInUsd(uint256 _newMaxTotalSupply) external;
 
     function toggleIsActive() external;
+
+    function updateInterestRate(uint256 _newInterestRate) external;
 }

@@ -30,7 +30,8 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     issuerAddress,
     vsEthDebtTokenAddress,
     parseEther('1.5'), // CR = 150%
-    oracle.address
+    oracle.address,
+    parseEther('0') // Interest Rate = 0%
   )
 
   await execute(VsEth, {from: deployer, log: true}, 'transferGovernorship', governor)

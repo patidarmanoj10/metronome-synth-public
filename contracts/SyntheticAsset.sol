@@ -39,6 +39,12 @@ contract SyntheticAssetStorageV1 {
      * @notice Prices oracle
      */
     IOracle internal _oracle;
+
+    /**
+     * @notice Interest rate
+     * @dev Use 0.1e18 for 10% APR
+     */
+    uint256 internal _interestRate;
 }
 
 /**
@@ -47,6 +53,8 @@ contract SyntheticAssetStorageV1 {
 contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 {
     string public constant VERSION = "1.0.0";
 
+    uint256 public constant BLOCKS_PER_YEAR = 2102400;
+
     function initialize(
         string memory name_,
         string memory symbol_,
@@ -54,7 +62,8 @@ contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 
         IIssuer issuer_,
         IDebtToken debtToken_,
         uint128 collateralizationRatio_,
-        IOracle oracle_
+        IOracle oracle_,
+        uint256 interestRate_
     ) public initializer {
         require(address(debtToken_) != address(0), "debt-token-is-null");
         require(decimals_ == debtToken_.decimals(), "debt-decimals-is-not-the-same");
@@ -70,6 +79,7 @@ contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 
         _maxTotalSupplyInUsd = type(uint256).max;
         _active = true;
         _oracle = oracle_;
+        _interestRate = interestRate_;
         updateCollateralizationRatio(collateralizationRatio_);
     }
 
@@ -81,6 +91,9 @@ contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 
 
     /// @notice Emitted when active flag is updated
     event SyntheticAssetActiveUpdated(bool oldActive, bool newActive);
+
+    /// @notice Emitted when interest rate is updated
+    event InterestRateUpdated(uint256 oldInterestRate, uint256 newInterestRate);
 
     function debtToken() external view returns (IDebtToken) {
         return _debtToken;
@@ -112,6 +125,14 @@ contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 
 
     function maxTotalSupplyInUsd() public view virtual override returns (uint256) {
         return _maxTotalSupplyInUsd;
+    }
+
+    function interestRate() public view virtual override returns (uint256) {
+        return _interestRate;
+    }
+
+    function interestRatePerBlock() public view virtual override returns (uint256) {
+        return _interestRate / BLOCKS_PER_YEAR;
     }
 
     function isActive() public view virtual override returns (bool) {
@@ -288,5 +309,13 @@ contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 
     function toggleIsActive() public override onlyGovernor {
         emit SyntheticAssetActiveUpdated(_active, !_active);
         _active = !_active;
+    }
+
+    /**
+     * @notice Update interest rate (APR)
+     */
+    function updateInterestRate(uint256 _newInterestRate) public override onlyGovernor {
+        emit InterestRateUpdated(_interestRate, _newInterestRate);
+        _interestRate = _newInterestRate;
     }
 }
