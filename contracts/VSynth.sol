@@ -232,12 +232,13 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
 
         _depositToken.underlying().safeTransferFrom(_account, address(issuer.getTreasury()), _amount);
 
-        uint256 _feeAmount;
+        uint256 _amountToMint = _amount;
+
         if (depositFee > 0) {
-            _feeAmount = _amount.wadMul(depositFee);
+            uint256 _feeAmount = _amount.wadMul(depositFee);
             issuer.mintDepositToken(_depositToken, address(issuer.getTreasury()), _feeAmount);
+            _amountToMint -= _feeAmount;
         }
-        uint256 _amountToMint = _amount - _feeAmount;
 
         issuer.mintDepositToken(_depositToken, _account, _amountToMint);
 
@@ -265,14 +266,13 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
 
         require(_amount <= issuer.maxIssuableFor(_account, _syntheticAsset), "not-enough-collateral");
 
-        uint256 _feeAmount;
+        uint256 _amountToMint = _amount;
 
         if (mintFee > 0) {
-            _feeAmount = _amount.wadMul(mintFee);
+            uint256 _feeAmount = _amount.wadMul(mintFee);
             issuer.mintSyntheticAsset(_syntheticAsset, address(issuer.getTreasury()), _feeAmount);
+            _amountToMint -= _feeAmount;
         }
-
-        uint256 _amountToMint = _amount - _feeAmount;
 
         issuer.mintSyntheticAsset(_syntheticAsset, _account, _amountToMint);
         issuer.mintDebtToken(_syntheticAsset.debtToken(), _account, _amount);
@@ -302,14 +302,14 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
 
         issuer.burnWithdrawnDeposit(_depositToken, _account, _amount);
 
-        uint256 _feeAmount;
+        uint256 _amountToWithdraw = _amount;
+
         if (withdrawFee > 0) {
-            _feeAmount = _amount.wadMul(withdrawFee);
+            uint256 _feeAmount = _amount.wadMul(withdrawFee);
             // TODO: Use seize-like function?
             issuer.mintDepositToken(_depositToken, address(issuer.getTreasury()), _feeAmount);
+            _amountToWithdraw -= _feeAmount;
         }
-
-        uint256 _amountToWithdraw = _amount - _feeAmount;
 
         issuer.withdrawFromTreasury(_depositToken, _account, _amountToWithdraw);
 
@@ -332,15 +332,15 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
 
         issuer.accrueInterest(_syntheticAsset);
 
-        uint256 _feeAmount;
+        uint256 _amountToRepay = _amount;
         if (repayFee > 0) {
-            _feeAmount = _amount.wadMul(repayFee);
+            uint256 _feeAmount = _amount.wadMul(repayFee);
             // TODO: Use seize-like function?
             issuer.mintSyntheticAsset(_syntheticAsset, address(issuer.getTreasury()), _feeAmount);
+            _amountToRepay -= _feeAmount;
         }
 
         address _payer = _msgSender();
-        uint256 _amountToRepay = _amount - _feeAmount;
 
         issuer.burnSyntheticAsset(_syntheticAsset, _payer, _amount);
         issuer.burnDebtToken(_syntheticAsset.debtToken(), _beneficiary, _amountToRepay);
