@@ -22,7 +22,8 @@ contract SyntheticAssetUpgrader is UpgraderBase {
 
     function _checkResults(bytes[] memory _beforeResults, bytes[] memory _afterResults) internal pure override {
         _checkStringResults(_beforeResults, _afterResults, 0, 1);
-        _checkUint256Results(_beforeResults, _afterResults, 2, 4);
+        _checkUint8Results(_beforeResults, _afterResults, 2, 2);
+        _checkUint256Results(_beforeResults, _afterResults, 3, 4);
         _checkAddressResults(_beforeResults, _afterResults, 5, 6);
     }
 }

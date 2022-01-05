@@ -16,6 +16,8 @@ contract DepositTokenStorageV1 {
     uint256 internal _totalSupply;
     uint256 internal _maxTotalSupplyInUsd;
 
+    uint8 internal _decimals;
+
     /**
      * @notice Deposit underlying asset (e.g. MET)
      */
@@ -78,7 +80,8 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
         IERC20 underlying_,
         IIssuer issuer_,
         IOracle oracle_,
-        string memory symbol_
+        string memory symbol_,
+        uint8 decimals_
     ) public initializer {
         require(address(underlying_) != address(0), "underlying-is-null");
 
@@ -88,6 +91,7 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
 
         _name = "Tokenized deposit position";
         _symbol = symbol_;
+        _decimals = decimals_;
         _underlying = underlying_;
         _minDepositTime = 0;
         _maxTotalSupplyInUsd = type(uint256).max;
@@ -104,7 +108,7 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
     }
 
     function decimals() public view virtual override returns (uint8) {
-        return 18;
+        return _decimals;
     }
 
     function totalSupply() public view virtual override returns (uint256) {

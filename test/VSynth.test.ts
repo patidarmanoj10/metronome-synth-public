@@ -104,11 +104,11 @@ describe('VSynth', function () {
     await vSynth.deployed()
 
     // Deployment tasks
-    await metDepositToken.initialize(met.address, issuer.address, oracle.address, 'vSynth-MET')
+    await metDepositToken.initialize(met.address, issuer.address, oracle.address, 'vSynths-MET', 18)
     await metDepositToken.transferGovernorship(governor.address)
     await metDepositToken.connect(governor).acceptGovernorship()
 
-    await daiDepositToken.initialize(dai.address, issuer.address, oracle.address, 'vSynth-WBTC')
+    await daiDepositToken.initialize(dai.address, issuer.address, oracle.address, 'vSynths-WBTC', 8)
     await daiDepositToken.transferGovernorship(governor.address)
     await daiDepositToken.connect(governor).acceptGovernorship()
 
