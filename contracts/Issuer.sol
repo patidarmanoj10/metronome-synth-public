@@ -495,7 +495,7 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
      * @param _to The beneficiary account
      * @param _amount The account to pull
      */
-    function withdrawFromTreasury(
+    function pullFromTreasury(
         IDepositToken _depositToken,
         address _to,
         uint256 _amount
@@ -510,7 +510,7 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
      * @param _account The account to burn from
      * @param _amount The amount to burn
      */
-    function burnWithdrawnDeposit(
+    function burnDepositToken(
         IDepositToken _depositToken,
         address _account,
         uint256 _amount

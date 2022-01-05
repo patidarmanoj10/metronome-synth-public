@@ -88,24 +88,30 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
     string public constant VERSION = "1.0.0";
 
     /// @notice Emitted when collateral is deposited
-    event CollateralDeposited(IDepositToken indexed _collateral, address indexed account, uint256 amount);
+    event CollateralDeposited(IDepositToken indexed _collateral, address indexed account, uint256 amount, uint256 fee);
 
     /// @notice Emitted when collateral is withdrawn
-    event CollateralWithdrawn(IDepositToken indexed _collateral, address indexed account, uint256 amount);
+    event CollateralWithdrawn(IDepositToken indexed _collateral, address indexed account, uint256 amount, uint256 fee);
 
     /// @notice Emitted when synthetic asset is minted
-    event SyntheticAssetMinted(address indexed account, ISyntheticAsset indexed syntheticAsset, uint256 amount);
+    event SyntheticAssetMinted(
+        address indexed account,
+        ISyntheticAsset indexed syntheticAsset,
+        uint256 amount,
+        uint256 fee
+    );
 
     /// @notice Emitted when synthetic's debt is repayed
-    event DebtRepayed(address indexed account, ISyntheticAsset indexed syntheticAsset, uint256 amount);
+    event DebtRepayed(address indexed account, ISyntheticAsset indexed syntheticAsset, uint256 amount, uint256 fee);
 
     /// @notice Emitted when a position is liquidated
     event PositionLiquidated(
         address indexed liquidator,
         address indexed account,
         ISyntheticAsset indexed syntheticAsset,
-        uint256 debtRepayed,
-        uint256 depositSeized
+        uint256 amountRepayed,
+        uint256 depositSeized,
+        uint256 fee
     );
 
     /// @notice Emitted when synthetic asset is swapped
@@ -114,17 +120,18 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
         ISyntheticAsset indexed syntheticAssetIn,
         ISyntheticAsset indexed syntheticAssetOut,
         uint256 amountIn,
-        uint256 amountOut
+        uint256 amountOut,
+        uint256 fee
     );
 
     /// @notice Emitted when debt is refinancied
-    event DebtRefinancied(address indexed account, ISyntheticAsset syntheticAsset, uint256 amount);
-
-    /// @notice Emitted when synthetic asset is enabled
-    event SyntheticAssetAdded(ISyntheticAsset indexed syntheticAsset);
-
-    /// @notice Emitted when synthetic asset is disabled
-    event SyntheticAssetRemoved(ISyntheticAsset indexed syntheticAsset);
+    event DebtRefinancied(
+        address indexed account,
+        ISyntheticAsset syntheticAsset,
+        uint256 amountIn,
+        uint256 amountOut,
+        uint256 fee
+    );
 
     /// @notice Emitted when deposit fee is updated
     event DepositFeeUpdated(uint256 oldDepositFee, uint256 newDepositFee);
@@ -233,16 +240,16 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
         _depositToken.underlying().safeTransferFrom(_account, address(issuer.getTreasury()), _amount);
 
         uint256 _amountToMint = _amount;
-
+        uint256 _feeAmount;
         if (depositFee > 0) {
-            uint256 _feeAmount = _amount.wadMul(depositFee);
+            _feeAmount = _amount.wadMul(depositFee);
             issuer.mintDepositToken(_depositToken, address(issuer.getTreasury()), _feeAmount);
             _amountToMint -= _feeAmount;
         }
 
         issuer.mintDepositToken(_depositToken, _account, _amountToMint);
 
-        emit CollateralDeposited(_depositToken, _account, _amountToMint);
+        emit CollateralDeposited(_depositToken, _account, _amount, _feeAmount);
     }
 
     /**
@@ -267,9 +274,9 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
         require(_amount <= issuer.maxIssuableFor(_account, _syntheticAsset), "not-enough-collateral");
 
         uint256 _amountToMint = _amount;
-
+        uint256 _feeAmount;
         if (mintFee > 0) {
-            uint256 _feeAmount = _amount.wadMul(mintFee);
+            _feeAmount = _amount.wadMul(mintFee);
             issuer.mintSyntheticAsset(_syntheticAsset, address(issuer.getTreasury()), _feeAmount);
             _amountToMint -= _feeAmount;
         }
@@ -277,7 +284,7 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
         issuer.mintSyntheticAsset(_syntheticAsset, _account, _amountToMint);
         issuer.mintDebtToken(_syntheticAsset.debtToken(), _account, _amount);
 
-        emit SyntheticAssetMinted(_account, _syntheticAsset, _amountToMint);
+        emit SyntheticAssetMinted(_account, _syntheticAsset, _amount, _feeAmount);
     }
 
     /**
@@ -299,21 +306,20 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
         uint256 _unlockedDeposit = oracle.convertFromUsd(_depositToken.underlying(), _unlockedDepositInUsd);
 
         require(_amount <= _unlockedDeposit, "amount-to-withdraw-gt-unlocked");
-
-        issuer.burnWithdrawnDeposit(_depositToken, _account, _amount);
+        require(_amount <= _depositToken.balanceOf(_account), "amount-to-withdraw-gt-deposited");
 
         uint256 _amountToWithdraw = _amount;
-
+        uint256 _feeAmount;
         if (withdrawFee > 0) {
-            uint256 _feeAmount = _amount.wadMul(withdrawFee);
+            _feeAmount = _amount.wadMul(withdrawFee);
             issuer.seizeDepositToken(_depositToken, _account, address(issuer.getTreasury()), _feeAmount);
             _amountToWithdraw -= _feeAmount;
         }
 
-        issuer.burnWithdrawnDeposit(_depositToken, _account, _amountToWithdraw);
-        issuer.withdrawFromTreasury(_depositToken, _account, _amountToWithdraw);
+        issuer.burnDepositToken(_depositToken, _account, _amountToWithdraw);
+        issuer.pullFromTreasury(_depositToken, _account, _amountToWithdraw);
 
-        emit CollateralWithdrawn(_depositToken, _account, _amountToWithdraw);
+        emit CollateralWithdrawn(_depositToken, _account, _amount, _feeAmount);
     }
 
     /**
@@ -335,8 +341,9 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
         address _payer = _msgSender();
 
         uint256 _amountToRepay = _amount;
+        uint256 _feeAmount;
         if (repayFee > 0) {
-            uint256 _feeAmount = _amount.wadMul(repayFee);
+            _feeAmount = _amount.wadMul(repayFee);
             issuer.seizeSyntheticAsset(_syntheticAsset, _payer, address(issuer.getTreasury()), _feeAmount);
             _amountToRepay -= _feeAmount;
         }
@@ -344,14 +351,14 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
         issuer.burnSyntheticAsset(_syntheticAsset, _payer, _amountToRepay);
         issuer.burnDebtToken(_syntheticAsset.debtToken(), _beneficiary, _amountToRepay);
 
-        emit DebtRepayed(_beneficiary, _syntheticAsset, _amount);
+        emit DebtRepayed(_beneficiary, _syntheticAsset, _amount, _feeAmount);
     }
 
     /**
      * @notice Burn synthetic asset, unlock deposit token and send liquidator fee
      * @param _syntheticAsset The vsAsset to use for repayment
      * @param _account The account with an unhealty position
-     * @param _amountToRepay The amount to repay
+     * @param _amountToRepay The amount to repay in synthetic asset
      */
     function liquidate(
         ISyntheticAsset _syntheticAsset,
@@ -371,7 +378,6 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
         require(_percentOfDebtToLiquidate <= maxLiquidable, "amount-gt-max-liquidable");
 
         (bool _isHealthy, , uint256 _depositInUsd, ) = issuer.debtPositionOf(_account);
-        uint256 _deposit = oracle.convertFromUsd(_depositToken.underlying(), _depositInUsd);
 
         require(!_isHealthy, "position-is-healthy");
 
@@ -381,21 +387,22 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
             _amountToRepay
         );
 
-        uint256 _feeToCollect = liquidateFee > 0 ? _amountToRepayInCollateral.wadMul(liquidateFee) : 0;
+        uint256 _toProtocol = liquidateFee > 0 ? _amountToRepayInCollateral.wadMul(liquidateFee) : 0;
         uint256 _toLiquidator = _amountToRepayInCollateral + _amountToRepayInCollateral.wadMul(liquidatorFee);
-        uint256 _totalToSeize = _feeToCollect + _toLiquidator;
-        require(_totalToSeize <= _deposit, "amount-to-repay-is-too-high");
+        uint256 _depositToSeize = _toProtocol + _toLiquidator;
+        uint256 _depositBalance = oracle.convertFromUsd(_depositToken.underlying(), _depositInUsd);
+
+        require(_depositToSeize <= _depositBalance, "amount-to-repay-is-too-high");
 
         issuer.burnSyntheticAsset(_syntheticAsset, _liquidator, _amountToRepay);
         issuer.burnDebtToken(_syntheticAsset.debtToken(), _account, _amountToRepay);
-
         issuer.seizeDepositToken(_depositToken, _account, _liquidator, _toLiquidator);
 
-        if (_feeToCollect > 0) {
-            issuer.seizeDepositToken(_depositToken, _account, address(issuer.getTreasury()), _feeToCollect);
+        if (_toProtocol > 0) {
+            issuer.seizeDepositToken(_depositToken, _account, address(issuer.getTreasury()), _toProtocol);
         }
 
-        emit PositionLiquidated(_liquidator, _account, _syntheticAsset, _amountToRepay, _totalToSeize);
+        emit PositionLiquidated(_liquidator, _account, _syntheticAsset, _amountToRepay, _depositToSeize, _toProtocol);
     }
 
     /**
@@ -417,14 +424,12 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
         onlyIfSyntheticAssetExists(_syntheticAssetIn)
         onlyIfSyntheticAssetExists(_syntheticAssetOut)
         onlyIfSyntheticAssetIsActive(_syntheticAssetOut)
-        returns (uint256 _amountOut)
+        returns (uint256 _amountOutAfterFee, uint256 _feeAmount)
     {
         require(_amountIn > 0, "amount-in-is-zero");
         require(_amountIn <= _syntheticAssetIn.balanceOf(_account), "amount-in-gt-synthetic-balance");
 
-        _amountOut = oracle.convert(_syntheticAssetIn, _syntheticAssetOut, _amountIn);
-
-        uint256 _feeInSyntheticAssetOut = _fee > 0 ? _amountOut.wadMul(_fee) : 0;
+        uint256 _amountOut = oracle.convert(_syntheticAssetIn, _syntheticAssetOut, _amountIn);
 
         issuer.burnSyntheticAsset(_syntheticAssetIn, _account, _amountIn);
         issuer.burnDebtToken(_syntheticAssetIn.debtToken(), _account, _amountIn);
@@ -432,20 +437,24 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
         issuer.mintSyntheticAsset(_syntheticAssetOut, _account, _amountOut);
         issuer.mintDebtToken(_syntheticAssetOut.debtToken(), _account, _amountOut);
 
-        if (_feeInSyntheticAssetOut > 0) {
-            issuer.seizeSyntheticAsset(
-                _syntheticAssetOut,
-                _account,
-                address(issuer.getTreasury()),
-                _feeInSyntheticAssetOut
-            );
+        _feeAmount = _fee > 0 ? _amountOut.wadMul(_fee) : 0;
+        _amountOutAfterFee = _amountOut - _feeAmount;
+
+        if (_feeAmount > 0) {
+            issuer.seizeSyntheticAsset(_syntheticAssetOut, _account, address(issuer.getTreasury()), _feeAmount);
         }
 
-        (bool _isHealthy, , , ) = issuer.debtPositionOf(_account);
+        (bool _isHealthyAfter, , , ) = issuer.debtPositionOf(_account);
+        require(_isHealthyAfter, "debt-position-ended-up-unhealthy");
 
-        require(_isHealthy, "debt-position-ended-up-unhealthy");
-
-        emit SyntheticAssetSwapped(_account, _syntheticAssetIn, _syntheticAssetOut, _amountIn, _amountOut);
+        emit SyntheticAssetSwapped(
+            _account,
+            _syntheticAssetIn,
+            _syntheticAssetOut,
+            _amountIn,
+            _amountOutAfterFee,
+            _feeAmount
+        );
     }
 
     /**
@@ -466,7 +475,7 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
         (bool _isHealthy, , , ) = issuer.debtPositionOf(_account);
         require(_isHealthy, "debt-position-is-unhealthy");
 
-        return _swap(_account, _syntheticAssetIn, _syntheticAssetOut, _amountIn, swapFee);
+        (_amountOut, ) = _swap(_account, _syntheticAssetIn, _syntheticAssetOut, _amountIn, swapFee);
     }
 
     /**
@@ -493,9 +502,15 @@ contract VSynth is IVSynth, ReentrancyGuard, Pausable, Governable, VSynthStorage
         (bool _isHealthy, , , ) = issuer.debtPositionOf(_account);
         require(!_isHealthy, "debt-position-is-healthy");
 
-        _swap(_account, _syntheticAssetIn, _syntheticAssetOut, _amountToRefinance, refinanceFee);
+        (uint256 _amountOut, uint256 _fee) = _swap(
+            _account,
+            _syntheticAssetIn,
+            _syntheticAssetOut,
+            _amountToRefinance,
+            refinanceFee
+        );
 
-        emit DebtRefinancied(_account, _syntheticAssetIn, _amountToRefinance);
+        emit DebtRefinancied(_account, _syntheticAssetIn, _amountToRefinance, _amountOut, _fee);
     }
 
     /**

@@ -174,7 +174,7 @@ contract IssuerMock is IIssuer {
         revert("mock-does-not-implement");
     }
 
-    function burnWithdrawnDeposit(
+    function burnDepositToken(
         IDepositToken,
         address,
         uint256
@@ -216,7 +216,7 @@ contract IssuerMock is IIssuer {
         revert("mock-does-not-implement");
     }
 
-    function withdrawFromTreasury(
+    function pullFromTreasury(
         IDepositToken,
         address,
         uint256

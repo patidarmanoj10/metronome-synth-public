@@ -107,7 +107,7 @@ interface IIssuer {
         uint256 _amount
     ) external;
 
-    function burnWithdrawnDeposit(
+    function burnDepositToken(
         IDepositToken _depositToken,
         address _account,
         uint256 _amount
@@ -131,7 +131,7 @@ interface IIssuer {
 
     function getTreasury() external view returns (ITreasury);
 
-    function withdrawFromTreasury(
+    function pullFromTreasury(
         IDepositToken _token,
         address _to,
         uint256 _amount

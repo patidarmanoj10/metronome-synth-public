@@ -219,7 +219,9 @@ describe('VSynth', function () {
       // then
       await expect(tx).changeTokenBalances(met, [user, treasury], [amount.mul('-1'), amount])
       await expect(tx).changeTokenBalances(metDepositToken, [user, vSynth], [amount, 0])
-      await expect(tx()).to.emit(vSynth, 'CollateralDeposited').withArgs(metDepositToken.address, user.address, amount)
+      await expect(tx())
+        .to.emit(vSynth, 'CollateralDeposited')
+        .withArgs(metDepositToken.address, user.address, amount, 0)
     })
 
     it('should deposit MET and mint vSynth-MET (depositFee > 0)', async function () {
@@ -230,19 +232,19 @@ describe('VSynth', function () {
       // when
       const amount = parseEther('100')
       const tx = () => vSynth.connect(user).deposit(metDepositToken.address, amount)
-      const expectedAmountToUser = parseEther('99') // -1% fee
-      const expectedAmountToTreasury = parseEther('1')
+      const expectedFeeAmount = parseEther('1')
+      const expectedAmounAfterFee = parseEther('99') // -1% fee
 
       // then
       await expect(tx).changeTokenBalances(met, [user, treasury], [amount.mul('-1'), amount])
       await expect(tx).changeTokenBalances(
         metDepositToken,
         [user, vSynth, treasury],
-        [expectedAmountToUser, 0, expectedAmountToTreasury]
+        [expectedAmounAfterFee, 0, expectedFeeAmount]
       )
       await expect(tx())
         .to.emit(vSynth, 'CollateralDeposited')
-        .withArgs(metDepositToken.address, user.address, expectedAmountToUser)
+        .withArgs(metDepositToken.address, user.address, amount, expectedFeeAmount)
     })
 
     describe('when user deposited multi-collateral', function () {
@@ -420,7 +422,9 @@ describe('VSynth', function () {
           // Note: the calls below will make additional transfers
           await expect(tx).changeTokenBalances(vsEthDebtToken, [user], [amountToMint])
           await expect(tx).changeTokenBalances(met, [vSynth], [0])
-          await expect(tx()).to.emit(vSynth, 'SyntheticAssetMinted').withArgs(user.address, vsEth.address, amountToMint)
+          await expect(tx())
+            .to.emit(vSynth, 'SyntheticAssetMinted')
+            .withArgs(user.address, vsEth.address, amountToMint, 0)
         })
 
         it('should mint vsEth (mintFee > 0)', async function () {
@@ -431,9 +435,9 @@ describe('VSynth', function () {
           // when
           const amount = parseEther('1')
           const expectedFee = amount.mul(mintFee).div(parseEther('1'))
-          const expectedAmountToUser = amount.sub(expectedFee)
+          const expectedAmountAfterFee = amount.sub(expectedFee)
           const tx = () => vSynth.connect(user).mint(vsEth.address, amount)
-          await expect(tx).changeTokenBalances(vsEth, [user, treasury], [expectedAmountToUser, expectedFee])
+          await expect(tx).changeTokenBalances(vsEth, [user, treasury], [expectedAmountAfterFee, expectedFee])
 
           // then
           // Note: the calls below will make additional transfers
@@ -441,13 +445,13 @@ describe('VSynth', function () {
           await expect(tx).changeTokenBalances(vsEthDebtToken, [user], [amount])
           await expect(tx())
             .to.emit(vSynth, 'SyntheticAssetMinted')
-            .withArgs(user.address, vsEth.address, expectedAmountToUser)
+            .withArgs(user.address, vsEth.address, amount, expectedFee)
         })
 
         it('should mint max issuable amount (mintFee == 0)', async function () {
           const amount = maxIssuableInEth
           const tx = vSynth.connect(user).mint(vsEth.address, amount)
-          await expect(tx).to.emit(vSynth, 'SyntheticAssetMinted').withArgs(user.address, vsEth.address, amount)
+          await expect(tx).to.emit(vSynth, 'SyntheticAssetMinted').withArgs(user.address, vsEth.address, amount, 0)
         })
 
         it('should mint max issuable amount (mintFee > 0)', async function () {
@@ -455,13 +459,12 @@ describe('VSynth', function () {
           const mintFee = parseEther('0.1') // 10%
           await vSynth.updateMintFee(mintFee)
 
-          const amountToMint = maxIssuableInEth
-          const expectedFeeInSynthetic = amountToMint.mul(mintFee).div(parseEther('1'))
-          const expectedAmountToMint = amountToMint.sub(expectedFeeInSynthetic)
-          const tx = vSynth.connect(user).mint(vsEth.address, amountToMint)
+          const amount = maxIssuableInEth
+          const expectedFee = amount.mul(mintFee).div(parseEther('1'))
+          const tx = vSynth.connect(user).mint(vsEth.address, amount)
           await expect(tx)
             .to.emit(vSynth, 'SyntheticAssetMinted')
-            .withArgs(user.address, vsEth.address, expectedAmountToMint)
+            .withArgs(user.address, vsEth.address, amount, expectedFee)
         })
       })
 
@@ -557,7 +560,7 @@ describe('VSynth', function () {
               const tx = vSynth.connect(user).withdraw(metDepositToken.address, amountToWithdraw)
               await expect(tx)
                 .to.emit(vSynth, 'CollateralWithdrawn')
-                .withArgs(metDepositToken.address, user.address, amountToWithdraw)
+                .withArgs(metDepositToken.address, user.address, amountToWithdraw, 0)
 
               // then
               expect(await met.balanceOf(user.address)).to.eq(metBalanceBefore.add(amountToWithdraw))
@@ -577,20 +580,19 @@ describe('VSynth', function () {
               const {_unlockedDepositInUsd: amountToWithdrawInUsd} = await issuer.debtPositionOfUsingLatestPrices(
                 user.address
               )
-              const amountToWithdraw = await oracle.convertFromUsd(met.address, amountToWithdrawInUsd)
-              const expectedWithdrawnAmount = amountToWithdraw
-                .mul(parseEther('1').sub(withdrawFee))
-                .div(parseEther('1'))
+              const amount = await oracle.convertFromUsd(met.address, amountToWithdrawInUsd)
+              const expectedFee = amount.mul(withdrawFee).div(parseEther('1'))
+              const expectedAmountAfterFee = amount.sub(expectedFee)
 
               // when
-              const tx = vSynth.connect(user).withdraw(metDepositToken.address, amountToWithdraw)
+              const tx = vSynth.connect(user).withdraw(metDepositToken.address, amount)
               await expect(tx)
                 .to.emit(vSynth, 'CollateralWithdrawn')
-                .withArgs(metDepositToken.address, user.address, expectedWithdrawnAmount)
+                .withArgs(metDepositToken.address, user.address, amount, expectedFee)
 
               // then
-              expect(await met.balanceOf(user.address)).to.eq(metBalanceBefore.add(expectedWithdrawnAmount))
-              expect(await metDepositToken.balanceOf(user.address)).to.eq(depositBefore.sub(amountToWithdraw))
+              expect(await met.balanceOf(user.address)).to.eq(metBalanceBefore.add(expectedAmountAfterFee))
+              expect(await metDepositToken.balanceOf(user.address)).to.eq(depositBefore.sub(amount))
               const {_unlockedDepositInUsd: unlockedCollateralAfter} = await issuer.debtPositionOfUsingLatestPrices(
                 user.address
               )
@@ -654,7 +656,7 @@ describe('VSynth', function () {
             // when
             const amount = await vsEth.balanceOf(user.address)
             const tx = vSynth.connect(user).repay(vsEth.address, user.address, amount)
-            await expect(tx).to.emit(vSynth, 'DebtRepayed').withArgs(user.address, vsEth.address, amount)
+            await expect(tx).to.emit(vSynth, 'DebtRepayed').withArgs(user.address, vsEth.address, amount, 0)
 
             // then
             expect(await vsEth.balanceOf(user.address)).to.eq(0)
@@ -675,7 +677,7 @@ describe('VSynth', function () {
             // when
             const amount = (await vsEth.balanceOf(user.address)).div('2')
             const tx = vSynth.connect(user).repay(vsEth.address, user.address, amount)
-            await expect(tx).to.emit(vSynth, 'DebtRepayed').withArgs(user.address, vsEth.address, amount)
+            await expect(tx).to.emit(vSynth, 'DebtRepayed').withArgs(user.address, vsEth.address, amount, 0)
 
             // then
             expect(await vsEth.balanceOf(user.address)).eq(amount)
@@ -693,8 +695,9 @@ describe('VSynth', function () {
 
             // when
             const amount = await vsEth.balanceOf(user.address)
+            const expectedFee = amount.mul(repayFee).div(parseEther('1'))
             const tx = vSynth.connect(user).repay(vsEth.address, user.address, amount)
-            await expect(tx).to.emit(vSynth, 'DebtRepayed').withArgs(user.address, vsEth.address, amount)
+            await expect(tx).to.emit(vSynth, 'DebtRepayed').withArgs(user.address, vsEth.address, amount, expectedFee)
 
             // then
             expect(await vsEth.balanceOf(user.address)).to.eq(0)
@@ -716,8 +719,9 @@ describe('VSynth', function () {
 
             // when
             const amount = (await vsEth.balanceOf(user.address)).div('2')
+            const expectedFee = amount.mul(repayFee).div(parseEther('1'))
             const tx = vSynth.connect(user).repay(vsEth.address, user.address, amount)
-            await expect(tx).to.emit(vSynth, 'DebtRepayed').withArgs(user.address, vsEth.address, amount)
+            await expect(tx).to.emit(vSynth, 'DebtRepayed').withArgs(user.address, vsEth.address, amount, expectedFee)
 
             // then
             expect(await vsEth.balanceOf(user.address)).to.eq(amount)
@@ -844,7 +848,7 @@ describe('VSynth', function () {
 
             await expect(tx)
               .to.emit(vSynth, 'SyntheticAssetSwapped')
-              .withArgs(user.address, vsAssetIn, vsAssetOut, amountIn, expectedAmountOut)
+              .withArgs(user.address, vsAssetIn, vsAssetOut, amountIn, expectedAmountOut, 0)
 
             const vsAssetInBalanceAfter = await vsEth.balanceOf(user.address)
             const vsAssetInDebtBalanceAfter = await vsEthDebtToken.balanceOf(user.address)
@@ -880,11 +884,12 @@ describe('VSynth', function () {
 
             // then
             const expectedAmountOut = amountInUsd.mul(parseEther('1')).div(dogeRate)
-            const expectedAmountOutAfterFee = expectedAmountOut.mul(parseEther('1').sub(swapFee)).div(parseEther('1'))
+            const expectedFee = expectedAmountOut.mul(swapFee).div(parseEther('1'))
+            const expectedAmountOutAfterFee = expectedAmountOut.sub(expectedFee)
 
             await expect(tx)
               .to.emit(vSynth, 'SyntheticAssetSwapped')
-              .withArgs(user.address, vsAssetIn, vsAssetOut, amountIn, expectedAmountOut)
+              .withArgs(user.address, vsAssetIn, vsAssetOut, amountIn, expectedAmountOutAfterFee, expectedFee)
 
             const vsAssetInBalanceAfter = await vsEth.balanceOf(user.address)
             const vsAssetInDebtBalanceAfter = await vsEthDebtToken.balanceOf(user.address)
@@ -1002,16 +1007,16 @@ describe('VSynth', function () {
               const vsAssetIn = vsDoge.address
               const amountToRefinance = vsAssetInBalanceBefore
               const amountInUsd = amountToRefinance.mul(dogeRate).div(parseEther('1'))
-              const tx = await vSynth.connect(user).refinance(vsAssetIn, amountToRefinance)
+              const tx = vSynth.connect(user).refinance(vsAssetIn, amountToRefinance)
 
               // then
               const expectedAmountOut = amountInUsd.mul(parseEther('1')).div(ethRate)
 
               await expect(tx)
                 .to.emit(vSynth, 'DebtRefinancied')
-                .withArgs(user.address, vsAssetIn, amountToRefinance)
+                .withArgs(user.address, vsAssetIn, amountToRefinance, expectedAmountOut, 0)
                 .and.to.emit(vSynth, 'SyntheticAssetSwapped')
-                .withArgs(user.address, vsAssetIn, vsEth.address, amountToRefinance, expectedAmountOut)
+                .withArgs(user.address, vsAssetIn, vsEth.address, amountToRefinance, expectedAmountOut, 0)
 
               const vsAssetInBalanceAfter = await vsDoge.balanceOf(user.address)
               const vsAssetInDebtBalanceAfter = await vsDogeDebtToken.balanceOf(user.address)
@@ -1049,19 +1054,25 @@ describe('VSynth', function () {
               const vsAssetIn = vsDoge.address
               const amountToRefinance = vsAssetInBalanceBefore
               const amountInUsd = amountToRefinance.mul(dogeRate).div(parseEther('1'))
-              const tx = await vSynth.connect(user).refinance(vsAssetIn, amountToRefinance)
+              const tx = vSynth.connect(user).refinance(vsAssetIn, amountToRefinance)
 
               // then
               const expectedAmountOut = amountInUsd.mul(parseEther('1')).div(ethRate)
-              const expectedAmountOutAfterFee = expectedAmountOut
-                .mul(parseEther('1').sub(refinanceFee))
-                .div(parseEther('1'))
+              const expectedFee = expectedAmountOut.mul(refinanceFee).div(parseEther('1'))
+              const expectedAmountOutAfterFee = expectedAmountOut.sub(expectedFee)
 
               await expect(tx)
                 .to.emit(vSynth, 'DebtRefinancied')
-                .withArgs(user.address, vsAssetIn, amountToRefinance)
+                .withArgs(user.address, vsAssetIn, amountToRefinance, expectedAmountOutAfterFee, expectedFee)
                 .and.to.emit(vSynth, 'SyntheticAssetSwapped')
-                .withArgs(user.address, vsAssetIn, vsEth.address, amountToRefinance, expectedAmountOut)
+                .withArgs(
+                  user.address,
+                  vsAssetIn,
+                  vsEth.address,
+                  amountToRefinance,
+                  expectedAmountOutAfterFee,
+                  expectedFee
+                )
 
               const vsAssetInBalanceAfter = await vsDoge.balanceOf(user.address)
               const vsAssetInDebtBalanceAfter = await vsDogeDebtToken.balanceOf(user.address)
