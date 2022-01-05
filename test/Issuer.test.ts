@@ -170,18 +170,6 @@ describe('Issuer', function () {
         await expect(tx).revertedWith('not-the-governor')
       })
 
-      it('should revert if removing vsETH (i.e. syntheticAssets[0])', async function () {
-        // given
-        const [firstSyntheticAsset] = await issuer.getSyntheticAssets()
-        expect(firstSyntheticAsset).eq(vsEth.address)
-
-        // when
-        const tx = issuer.removeSyntheticAsset(vsEth.address)
-
-        // then
-        await expect(tx).revertedWith('can-not-delete-vseth')
-      })
-
       it('should revert if vsAsset has any supply', async function () {
         // given
         const ERC20MockFactory = new ERC20Mock__factory(deployer)

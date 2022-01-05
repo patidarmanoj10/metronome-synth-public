@@ -46,8 +46,6 @@ interface IVSynth {
         uint256 _amountIn
     ) external returns (uint256 _amountOut);
 
-    function refinance(ISyntheticAsset _syntheticAssetIn, uint256 _amountToRefinance) external;
-
     function updateOracle(IOracle _newOracle) external;
 
     function updateDepositFee(uint256 _newDepositFee) external;

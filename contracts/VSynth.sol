@@ -438,41 +438,6 @@ contract VSynth is ReentrancyGuard, Pausable, Governable, VSynthStorageV1 {
     }
 
     /**
-     * @notice Refinance debt by swaping for vsETH (that has lower collateralization ratio)
-     * @param _syntheticAssetIn Synthetic asset to sell
-     * @param _amountToRefinance Amount to refinance
-     */
-    function refinance(ISyntheticAsset _syntheticAssetIn, uint256 _amountToRefinance)
-        external
-        override
-        whenNotShutdown
-        nonReentrant
-    {
-        ISyntheticAsset _syntheticAssetOut = issuer.vsEth();
-        require(
-            _syntheticAssetIn.collateralizationRatio() > _syntheticAssetOut.collateralizationRatio(),
-            "in-cratio-is-lte-out-cratio"
-        );
-
-        issuer.accrueInterest(_syntheticAssetIn);
-        issuer.accrueInterest(_syntheticAssetOut);
-
-        address _account = _msgSender();
-        (bool _isHealthy, , , ) = issuer.debtPositionOf(_account);
-        require(!_isHealthy, "debt-position-is-healthy");
-
-        (uint256 _amountOut, uint256 _fee) = _swap(
-            _account,
-            _syntheticAssetIn,
-            _syntheticAssetOut,
-            _amountToRefinance,
-            refinanceFee
-        );
-
-        emit DebtRefinancied(_account, _syntheticAssetIn, _amountToRefinance, _amountOut, _fee);
-    }
-
-    /**
      * @notice Update price oracle contract
      */
     function updateOracle(IOracle _newOracle) external override onlyGovernor {
