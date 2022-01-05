@@ -45,12 +45,12 @@ describe('ChainlinkPriceProvider', function () {
 
     it('convertToUsd', async function () {
       const {_amountInUsd} = await priceProvider.convertToUsd(assetData, parseEther('1'))
-      expect(_amountInUsd).to.eq('24128635')
+      expect(_amountInUsd).eq('24128635')
     })
 
     it('convertFromUsd', async function () {
       const {_amount} = await priceProvider.convertFromUsd(assetData, '24128635')
-      expect(_amount).to.eq(parseEther('1'))
+      expect(_amount).eq(parseEther('1'))
     })
   })
 
@@ -61,12 +61,12 @@ describe('ChainlinkPriceProvider', function () {
 
     it('convertToUsd', async function () {
       const {_amountInUsd} = await priceProvider.convertToUsd(assetData, parseUnits('1', 8))
-      expect(_amountInUsd).to.eq('5024100000000')
+      expect(_amountInUsd).eq('5024100000000')
     })
 
     it('convertFromUsd', async function () {
       const {_amount} = await priceProvider.convertFromUsd(assetData, '5024100000000')
-      expect(_amount).to.eq(parseUnits('1', 8))
+      expect(_amount).eq(parseUnits('1', 8))
     })
   })
 
@@ -77,12 +77,12 @@ describe('ChainlinkPriceProvider', function () {
 
     it('convertToUsd', async function () {
       const {_amountInUsd} = await priceProvider.convertToUsd(assetData, parseEther('1'))
-      expect(_amountInUsd).to.eq('346104760640')
+      expect(_amountInUsd).eq('346104760640')
     })
 
     it('convertFromUsd', async function () {
       const {_amount} = await priceProvider.convertFromUsd(assetData, '346104760640')
-      expect(_amount).to.eq(parseEther('1'))
+      expect(_amount).eq(parseEther('1'))
     })
   })
 
@@ -94,7 +94,7 @@ describe('ChainlinkPriceProvider', function () {
       const {_amountOut} = await priceProvider.convert(tokenIn, tokenOut, amountIn)
 
       // @ts-ignore
-      expect(_amountOut).to.closeTo(parseEther('14.5'), parseEther('0.05'))
+      expect(_amountOut).closeTo(parseEther('14.5'), parseEther('0.05'))
     })
   })
 })

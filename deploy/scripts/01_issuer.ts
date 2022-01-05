@@ -8,29 +8,17 @@ const Oracle = 'Oracle'
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {getNamedAccounts, deployments} = hre
   const {execute, get} = deployments
-  const {deployer, governor} = await getNamedAccounts()
+  const {deployer} = await getNamedAccounts()
 
   const oracle = await get(Oracle)
 
   const {address: vSynthAddress} = await deterministic(hre, UpgradableContracts.VSynth)
-  const {address: metDepositTokenAddress} = await deterministic(hre, UpgradableContracts.MetDepositToken)
-  const {address: vsEthAddress} = await deterministic(hre, UpgradableContracts.VsEth)
   const {address: treasuryAddress} = await deterministic(hre, UpgradableContracts.Treasury)
 
   const {deploy} = await deterministic(hre, UpgradableContracts.Issuer)
   await deploy()
 
-  await execute(
-    Issuer,
-    {from: deployer, log: true},
-    'initialize',
-    metDepositTokenAddress,
-    vsEthAddress,
-    oracle.address,
-    treasuryAddress,
-    vSynthAddress
-  )
-  await execute(Issuer, {from: deployer, log: true}, 'transferGovernorship', governor)
+  await execute(Issuer, {from: deployer, log: true}, 'initialize', oracle.address, treasuryAddress, vSynthAddress)
 }
 
 export default func

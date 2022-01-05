@@ -38,12 +38,14 @@ import {
   IssuerUpgrader,
   IssuerUpgrader__factory,
   Issuer__factory,
+  WETHGateway,
+  WETHGateway__factory,
 } from '../typechain'
 import {disableForking, enableForking} from './helpers'
 import Address from '../helpers/address'
 import {parseEther} from 'ethers/lib/utils'
 
-const {MET_ADDRESS} = Address
+const {MET_ADDRESS, WETH_ADDRESS} = Address
 
 describe('Deployments', function () {
   let deployer: SignerWithAddress
@@ -64,6 +66,7 @@ describe('Deployments', function () {
   let syntheticAssetUpgrader: SyntheticAssetUpgrader
   let vsEthDebtToken: DebtToken
   let debtTokenUpgrader: DebtTokenUpgrader
+  let wethGateway: WETHGateway
 
   // Note: Enabling fork to be able to use MultiCall contract
   before(enableForking)
@@ -91,6 +94,7 @@ describe('Deployments', function () {
       SyntheticAssetUpgrader: {address: syntheticAssetUpgraderAddress},
       VsEthDebtToken: {address: vsETHDebtTokenAddress},
       DebtTokenUpgrader: {address: debtTokenUpgraderAddress},
+      WETHGateway: {address: wethGatewayAddress},
     } = await deployments.fixture()
 
     uniswapV3PriceProvider = UniswapV3PriceProvider__factory.connect(uniswapV3PriceProviderAddress, deployer)
@@ -106,6 +110,8 @@ describe('Deployments', function () {
 
     treasury = Treasury__factory.connect(treasuryAddress, deployer)
     treasuryUpgrader = TreasuryUpgrader__factory.connect(treasuryUpgraderAddress, deployer)
+
+    wethGateway = WETHGateway__factory.connect(wethGatewayAddress, deployer)
 
     metDepositToken = DepositToken__factory.connect(metDepositTokenAddress, deployer)
     depositTokenUpgrader = DepositTokenUpgrader__factory.connect(depositTokenUpgraderAddress, deployer)
@@ -133,17 +139,17 @@ describe('Deployments', function () {
     await newImpl.deployed()
 
     const oldImpl = await upgrader.getProxyImplementation(proxy.address)
-    expect(oldImpl).to.not.eq(newImpl.address)
+    expect(oldImpl).not.eq(newImpl.address)
 
     // when
     const tx = upgrader.upgrade(proxy.address, newImpl.address)
 
     // then
     if (expectToFail) {
-      await expect(tx).to.reverted
+      await expect(tx).reverted
     } else {
       await tx
-      expect(await upgrader.getProxyImplementation(proxy.address)).to.eq(newImpl.address)
+      expect(await upgrader.getProxyImplementation(proxy.address)).eq(newImpl.address)
     }
   }
 
@@ -156,27 +162,28 @@ describe('Deployments', function () {
         CHAINLINK: 3,
       }
 
-      expect(await oracle.providerByProtocol(Protocol.UNISWAP_V3)).to.eq(uniswapV3PriceProvider.address)
-      expect(await oracle.providerByProtocol(Protocol.UNISWAP_V2)).to.eq(uniswapV2PriceProvider.address)
-      expect(await oracle.providerByProtocol(Protocol.CHAINLINK)).to.eq(chainlinkPriceProvider.address)
+      expect(await oracle.providerByProtocol(Protocol.UNISWAP_V3)).eq(uniswapV3PriceProvider.address)
+      expect(await oracle.providerByProtocol(Protocol.UNISWAP_V2)).eq(uniswapV2PriceProvider.address)
+      expect(await oracle.providerByProtocol(Protocol.CHAINLINK)).eq(chainlinkPriceProvider.address)
 
-      expect(await vSynth.governor()).to.eq(deployer.address)
+      expect(await vSynth.governor()).eq(deployer.address)
       await oracle.connect(governor).acceptGovernorship()
-      expect(await oracle.governor()).to.eq(governor.address)
+      expect(await oracle.governor()).eq(governor.address)
     })
   })
 
   describe('Issuer', function () {
     it('should have correct params', async function () {
-      expect(await issuer.vSynth()).to.eq(vSynth.address)
-      expect(await issuer.met()).to.eq(await metDepositToken.underlying())
-      expect(await issuer.syntheticAssets(0)).to.eq(vsEth.address)
-      expect(await issuer.vsEth()).to.eq(vsEth.address)
-      expect(await issuer.oracle()).to.eq(oracle.address)
-      expect(await issuer.treasury()).to.eq(treasury.address)
-      expect(await issuer.governor()).to.eq(deployer.address)
+      expect(await issuer.vSynth()).eq(vSynth.address)
+      expect(await issuer.met()).eq(await metDepositToken.underlying())
+      const [firstSyntheticAsset] = await issuer.getSyntheticAssets()
+      expect(firstSyntheticAsset).eq(vsEth.address)
+      expect(await issuer.vsEth()).eq(vsEth.address)
+      expect(await issuer.oracle()).eq(oracle.address)
+      expect(await issuer.treasury()).eq(treasury.address)
+      expect(await issuer.governor()).eq(deployer.address)
       await issuer.connect(governor).acceptGovernorship()
-      expect(await issuer.governor()).to.eq(governor.address)
+      expect(await issuer.governor()).eq(governor.address)
     })
 
     it('should upgrade implementation', async function () {
@@ -200,11 +207,11 @@ describe('Deployments', function () {
 
   describe('VSynth', function () {
     it('should have correct params', async function () {
-      expect(await vSynth.issuer()).to.eq(issuer.address)
-      expect(await vSynth.oracle()).to.eq(oracle.address)
-      expect(await vSynth.governor()).to.eq(deployer.address)
+      expect(await vSynth.issuer()).eq(issuer.address)
+      expect(await vSynth.oracle()).eq(oracle.address)
+      expect(await vSynth.governor()).eq(deployer.address)
       await vSynth.connect(governor).acceptGovernorship()
-      expect(await vSynth.governor()).to.eq(governor.address)
+      expect(await vSynth.governor()).eq(governor.address)
     })
 
     it('should upgrade implementation', async function () {
@@ -228,10 +235,10 @@ describe('Deployments', function () {
 
   describe('Treasury', function () {
     it('should have correct params', async function () {
-      expect(await treasury.issuer()).to.eq(issuer.address)
-      expect(await treasury.governor()).to.eq(deployer.address)
+      expect(await treasury.issuer()).eq(issuer.address)
+      expect(await treasury.governor()).eq(deployer.address)
       await treasury.connect(governor).acceptGovernorship()
-      expect(await treasury.governor()).to.eq(governor.address)
+      expect(await treasury.governor()).eq(governor.address)
     })
 
     it('should upgrade implementation', async function () {
@@ -244,14 +251,24 @@ describe('Deployments', function () {
     })
   })
 
+  describe('WETHGateway', function () {
+    it('should have correct params', async function () {
+      expect(await wethGateway.weth()).eq(WETH_ADDRESS)
+
+      expect(await vSynth.governor()).eq(deployer.address)
+      await oracle.connect(governor).acceptGovernorship()
+      expect(await oracle.governor()).eq(governor.address)
+    })
+  })
+
   describe('DepositToken', function () {
     it('deposit token should have correct params', async function () {
-      expect(await metDepositToken.issuer()).to.eq(issuer.address)
-      expect(await metDepositToken.oracle()).to.eq(oracle.address)
-      expect(await metDepositToken.underlying()).to.eq(MET_ADDRESS)
-      expect(await metDepositToken.governor()).to.eq(deployer.address)
+      expect(await metDepositToken.issuer()).eq(issuer.address)
+      expect(await metDepositToken.oracle()).eq(oracle.address)
+      expect(await metDepositToken.underlying()).eq(MET_ADDRESS)
+      expect(await metDepositToken.governor()).eq(deployer.address)
       await metDepositToken.connect(governor).acceptGovernorship()
-      expect(await metDepositToken.governor()).to.eq(governor.address)
+      expect(await metDepositToken.governor()).eq(governor.address)
     })
 
     it('should upgrade implementation', async function () {
@@ -275,12 +292,12 @@ describe('Deployments', function () {
 
   describe('SyntheticAsset', function () {
     it('vsETH token should have correct params', async function () {
-      expect(await vsEth.issuer()).to.eq(issuer.address)
-      expect(await vsEth.debtToken()).to.eq(vsEthDebtToken.address)
-      expect(await vsEth.governor()).to.eq(deployer.address)
-      expect(await vsEth.interestRate()).to.eq(parseEther('0'))
+      expect(await vsEth.issuer()).eq(issuer.address)
+      expect(await vsEth.debtToken()).eq(vsEthDebtToken.address)
+      expect(await vsEth.governor()).eq(deployer.address)
+      expect(await vsEth.interestRate()).eq(parseEther('0'))
       await vsEth.connect(governor).acceptGovernorship()
-      expect(await vsEth.governor()).to.eq(governor.address)
+      expect(await vsEth.governor()).eq(governor.address)
     })
 
     it('should upgrade implementation', async function () {
@@ -304,10 +321,10 @@ describe('Deployments', function () {
 
   describe('DebtToken', function () {
     it('vsETH debt token should have correct params', async function () {
-      expect(await vsEthDebtToken.issuer()).to.eq(issuer.address)
-      expect(await vsEthDebtToken.governor()).to.eq(deployer.address)
+      expect(await vsEthDebtToken.issuer()).eq(issuer.address)
+      expect(await vsEthDebtToken.governor()).eq(deployer.address)
       await vsEthDebtToken.connect(governor).acceptGovernorship()
-      expect(await vsEthDebtToken.governor()).to.eq(governor.address)
+      expect(await vsEthDebtToken.governor()).eq(governor.address)
     })
 
     it('should upgrade implementation', async function () {

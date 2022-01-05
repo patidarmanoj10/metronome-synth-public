@@ -167,19 +167,19 @@ contract IssuerMock is IIssuer {
     }
 
     function mintDepositToken(
-        IDepositToken,
-        address,
-        uint256
-    ) external pure {
-        revert("mock-does-not-implement");
+        IDepositToken _depositToken,
+        address _to,
+        uint256 _amount
+    ) external {
+        _depositToken.mint(_to, _amount);
     }
 
     function burnDepositToken(
-        IDepositToken,
-        address,
-        uint256
-    ) external pure {
-        revert("mock-does-not-implement");
+        IDepositToken _depositToken,
+        address _from,
+        uint256 _amount
+    ) external {
+        _depositToken.mint(_from, _amount);
     }
 
     function seizeDepositToken(
@@ -208,7 +208,7 @@ contract IssuerMock is IIssuer {
         revert("mock-does-not-implement");
     }
 
-    function getTreasury() external pure returns (ITreasury) {
+    function treasury() external pure returns (ITreasury) {
         revert("mock-does-not-implement");
     }
 
@@ -226,5 +226,9 @@ contract IssuerMock is IIssuer {
 
     function accrueInterest(ISyntheticAsset) external pure {
         revert("mock-does-not-implement");
+    }
+
+    function depositTokenOf(IERC20) external view returns (IDepositToken) {
+        return depositToken;
     }
 }

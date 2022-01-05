@@ -3,58 +3,21 @@
 pragma solidity 0.8.9;
 
 import "./access/Manageable.sol";
-import "./interface/IDepositToken.sol";
-
-contract DepositTokenStorageV1 {
-    mapping(address => uint256) internal _balances;
-
-    mapping(address => mapping(address => uint256)) internal _allowances;
-
-    string internal _name;
-    string internal _symbol;
-
-    uint256 internal _totalSupply;
-    uint256 internal _maxTotalSupplyInUsd;
-
-    uint8 internal _decimals;
-
-    /**
-     * @notice Deposit underlying asset (e.g. MET)
-     */
-    IERC20 internal _underlying;
-
-    /**
-     * @notice The min amount of time that an account should wait after deposit collateral before be able to withdraw
-     */
-    uint256 internal _minDepositTime;
-
-    /**
-     * @notice Stores de timestamp of last deposit event of each account. It's used combined with `minDepositTime`.
-     */
-    mapping(address => uint256) internal _lastDepositOf;
-
-    /**
-     * @notice If a collateral isn't active, it disables minting new tokens
-     */
-    bool internal _active;
-
-    /**
-     * @notice Prices oracle
-     */
-    IOracle internal _oracle;
-}
+import "./storage/DepositTokenStorage.sol";
 
 /**
  * @title Represents the users' deposits
  */
 
-contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
+contract DepositToken is Manageable, DepositTokenStorageV1 {
     string public constant VERSION = "1.0.0";
 
     /// @notice Emitted when minimum deposit time is updated
     event MinDepositTimeUpdated(uint256 oldMinDepositTime, uint256 newMinDepositTime);
+
     /// @notice Emitted when active flag is updated
     event DepositTokenActiveUpdated(bool oldActive, bool newActive);
+
     /// @notice Emitted when max total supply is updated
     event MaxTotalSupplyUpdated(uint256 oldMaxTotalSupplyInUsd, uint256 newMaxTotalSupplyInUsd);
 
@@ -62,7 +25,7 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
      * @dev Throws if minimum deposit time haven't passed
      */
     modifier onlyIfMinDepositTimePassed(address _account, uint256 _amount) {
-        require(block.timestamp >= _lastDepositOf[_account] + _minDepositTime, "min-deposit-time-have-not-passed");
+        require(block.timestamp >= lastDepositOf[_account] + minDepositTime, "min-deposit-time-have-not-passed");
         _;
     }
 
@@ -71,94 +34,46 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
      */
     modifier onlyIfNotLocked(address _account, uint256 _amount) {
         (, , , uint256 _unlockedDepositInUsd) = issuer.debtPositionOf(_account);
-        uint256 _unlockedDeposit = _oracle.convertFromUsd(underlying(), _unlockedDepositInUsd);
+        uint256 _unlockedDeposit = oracle.convertFromUsd(underlying, _unlockedDepositInUsd);
         require(_unlockedDeposit >= _amount, "not-enough-free-balance");
         _;
     }
 
     function initialize(
-        IERC20 underlying_,
-        IIssuer issuer_,
-        IOracle oracle_,
-        string memory symbol_,
-        uint8 decimals_
+        IERC20 _underlying,
+        IIssuer _issuer,
+        IOracle _oracle,
+        string memory _symbol,
+        uint8 _decimals
     ) public initializer {
-        require(address(underlying_) != address(0), "underlying-is-null");
+        require(address(_underlying) != address(0), "underlying-is-null");
 
         __Manageable_init();
 
-        setIssuer(issuer_);
+        setIssuer(_issuer);
 
-        _name = "Tokenized deposit position";
-        _symbol = symbol_;
-        _decimals = decimals_;
-        _underlying = underlying_;
-        _minDepositTime = 0;
-        _maxTotalSupplyInUsd = type(uint256).max;
-        _active = true;
-        _oracle = oracle_;
+        name = "Tokenized deposit position";
+        symbol = _symbol;
+        underlying = _underlying;
+        minDepositTime = 0;
+        maxTotalSupplyInUsd = type(uint256).max;
+        isActive = true;
+        oracle = _oracle;
+        decimals = _decimals;
     }
 
-    function name() public view virtual override returns (string memory) {
-        return _name;
-    }
-
-    function symbol() public view virtual override returns (string memory) {
-        return _symbol;
-    }
-
-    function decimals() public view virtual override returns (uint8) {
-        return _decimals;
-    }
-
-    function totalSupply() public view virtual override returns (uint256) {
-        return _totalSupply;
-    }
-
-    function balanceOf(address account) public view virtual override returns (uint256) {
-        return _balances[account];
-    }
-
-    function isActive() public view virtual override returns (bool) {
-        return _active;
-    }
-
-    function underlying() public view override returns (IERC20) {
-        return _underlying;
-    }
-
-    function minDepositTime() public view override returns (uint256) {
-        return _minDepositTime;
-    }
-
-    function oracle() public view override returns (IOracle) {
-        return _oracle;
-    }
-
-    function maxTotalSupplyInUsd() public view virtual override returns (uint256) {
-        return _maxTotalSupplyInUsd;
-    }
-
-    function lastDepositOf(address _account) public view override returns (uint256) {
-        return _lastDepositOf[_account];
-    }
-
-    function allowance(address owner, address spender) public view virtual override returns (uint256) {
-        return _allowances[owner][spender];
-    }
-
-    function approve(address spender, uint256 amount) public virtual override returns (bool) {
-        _approve(_msgSender(), spender, amount);
+    function approve(address spender, uint256 _amount) public virtual override returns (bool) {
+        _approve(_msgSender(), spender, _amount);
         return true;
     }
 
     function increaseAllowance(address spender, uint256 addedValue) public virtual returns (bool) {
-        _approve(_msgSender(), spender, _allowances[_msgSender()][spender] + addedValue);
+        _approve(_msgSender(), spender, allowance[_msgSender()][spender] + addedValue);
         return true;
     }
 
     function decreaseAllowance(address spender, uint256 subtractedValue) public virtual returns (bool) {
-        uint256 currentAllowance = _allowances[_msgSender()][spender];
+        uint256 currentAllowance = allowance[_msgSender()][spender];
         require(currentAllowance >= subtractedValue, "decreased-allowance-below-zero");
         unchecked {
             _approve(_msgSender(), spender, currentAllowance - subtractedValue);
@@ -170,76 +85,76 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
     function _transfer(
         address sender,
         address recipient,
-        uint256 amount
+        uint256 _amount
     ) internal virtual {
         require(sender != address(0), "transfer-from-the-zero-address");
         require(recipient != address(0), "transfer-to-the-zero-address");
 
-        _beforeTokenTransfer(sender, recipient, amount);
+        _beforeTokenTransfer(sender, recipient, _amount);
 
-        uint256 senderBalance = _balances[sender];
-        require(senderBalance >= amount, "transfer-amount-exceeds-balance");
+        uint256 senderBalance = balanceOf[sender];
+        require(senderBalance >= _amount, "transfer-amount-exceeds-balance");
         unchecked {
-            _balances[sender] = senderBalance - amount;
+            balanceOf[sender] = senderBalance - _amount;
         }
-        _balances[recipient] += amount;
+        balanceOf[recipient] += _amount;
 
-        emit Transfer(sender, recipient, amount);
+        emit Transfer(sender, recipient, _amount);
 
-        _afterTokenTransfer(sender, recipient, amount);
+        _afterTokenTransfer(sender, recipient, _amount);
     }
 
-    function _mint(address account, uint256 amount) internal virtual {
-        require(account != address(0), "mint-to-the-zero-address");
+    function _mint(address _account, uint256 _amount) internal virtual {
+        require(_account != address(0), "mint-to-the-zero-address");
 
-        _beforeTokenTransfer(address(0), account, amount);
+        _beforeTokenTransfer(address(0), _account, _amount);
 
-        _totalSupply += amount;
-        _balances[account] += amount;
-        emit Transfer(address(0), account, amount);
+        totalSupply += _amount;
+        balanceOf[_account] += _amount;
+        emit Transfer(address(0), _account, _amount);
 
-        _afterTokenTransfer(address(0), account, amount);
+        _afterTokenTransfer(address(0), _account, _amount);
     }
 
-    function _burn(address account, uint256 amount) internal virtual {
-        require(account != address(0), "burn-from-the-zero-address");
+    function _burn(address _account, uint256 _amount) internal virtual {
+        require(_account != address(0), "burn-from-the-zero-address");
 
-        _beforeTokenTransfer(account, address(0), amount);
+        _beforeTokenTransfer(_account, address(0), _amount);
 
-        uint256 accountBalance = _balances[account];
-        require(accountBalance >= amount, "burn-amount-exceeds-balance");
+        uint256 accountBalance = balanceOf[_account];
+        require(accountBalance >= _amount, "burn-amount-exceeds-balance");
         unchecked {
-            _balances[account] = accountBalance - amount;
+            balanceOf[_account] = accountBalance - _amount;
         }
-        _totalSupply -= amount;
+        totalSupply -= _amount;
 
-        emit Transfer(account, address(0), amount);
+        emit Transfer(_account, address(0), _amount);
 
-        _afterTokenTransfer(account, address(0), amount);
+        _afterTokenTransfer(_account, address(0), _amount);
     }
 
     function _approve(
-        address owner,
-        address spender,
-        uint256 amount
+        address _owner,
+        address _spender,
+        uint256 _amount
     ) internal virtual {
-        require(owner != address(0), "approve-from-the-zero-address");
-        require(spender != address(0), "approve-to-the-zero-address");
+        require(_owner != address(0), "approve-from-the-zero-address");
+        require(_spender != address(0), "approve-to-the-zero-address");
 
-        _allowances[owner][spender] = amount;
-        emit Approval(owner, spender, amount);
+        allowance[_owner][_spender] = _amount;
+        emit Approval(_owner, _spender, _amount);
     }
 
     function _beforeTokenTransfer(
-        address from,
-        address to,
-        uint256 amount // solhint-disable-next-line no-empty-blocks
+        address _from,
+        address _to,
+        uint256 _amount // solhint-disable-next-line no-empty-blocks
     ) internal virtual {}
 
     function _afterTokenTransfer(
-        address from,
-        address to,
-        uint256 amount // solhint-disable-next-line no-empty-blocks
+        address _from,
+        address _to,
+        uint256 _amount // solhint-disable-next-line no-empty-blocks
     ) internal virtual {}
 
     /**
@@ -248,11 +163,11 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
      * @param _amount The amount to mint
      */
     function mint(address _to, uint256 _amount) public override onlyIssuer {
-        require(_active, "deposit-token-is-inactive");
-        uint256 _newTotalSupplyInUsd = _oracle.convertToUsd(_underlying, _totalSupply + _amount);
-        require(_newTotalSupplyInUsd <= _maxTotalSupplyInUsd, "surpass-max-total-supply");
+        require(isActive, "deposit-token-is-inactive");
+        uint256 _newTotalSupplyInUsd = oracle.convertToUsd(underlying, totalSupply + _amount);
+        require(_newTotalSupplyInUsd <= maxTotalSupplyInUsd, "surpass-max-total-supply");
         _mint(_to, _amount);
-        _lastDepositOf[_to] = block.timestamp;
+        lastDepositOf[_to] = block.timestamp;
     }
 
     /**
@@ -339,9 +254,9 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
      * @notice Update minimum deposit time
      */
     function updateMinDepositTime(uint256 _newMinDepositTime) public onlyGovernor {
-        require(_newMinDepositTime != _minDepositTime, "new-value-is-same-as-current");
-        emit MinDepositTimeUpdated(_minDepositTime, _newMinDepositTime);
-        _minDepositTime = _newMinDepositTime;
+        require(_newMinDepositTime != minDepositTime, "new-value-is-same-as-current");
+        emit MinDepositTimeUpdated(minDepositTime, _newMinDepositTime);
+        minDepositTime = _newMinDepositTime;
     }
 
     /**
@@ -349,15 +264,15 @@ contract DepositToken is IDepositToken, Manageable, DepositTokenStorageV1 {
      * @param _newMaxTotalSupplyInUsd The new max total supply
      */
     function updateMaxTotalSupplyInUsd(uint256 _newMaxTotalSupplyInUsd) public override onlyGovernor {
-        emit MaxTotalSupplyUpdated(_maxTotalSupplyInUsd, _newMaxTotalSupplyInUsd);
-        _maxTotalSupplyInUsd = _newMaxTotalSupplyInUsd;
+        emit MaxTotalSupplyUpdated(maxTotalSupplyInUsd, _newMaxTotalSupplyInUsd);
+        maxTotalSupplyInUsd = _newMaxTotalSupplyInUsd;
     }
 
     /**
      * @notice Enable/Disable the Deposit Token
      */
     function toggleIsActive() public override onlyGovernor {
-        emit DepositTokenActiveUpdated(_active, !_active);
-        _active = !_active;
+        emit DepositTokenActiveUpdated(isActive, !isActive);
+        isActive = !isActive;
     }
 }

@@ -3,14 +3,18 @@ import {DeployFunction} from 'hardhat-deploy/types'
 import {parseEther} from 'ethers/lib/utils'
 import {UpgradableContracts, deterministic} from '../helpers'
 
-const {alias: VsEth} = UpgradableContracts.VsEth
-const {alias: VsEthDebtToken} = UpgradableContracts.VsEthDebtToken
+const {
+  Issuer: {alias: Issuer},
+  VsEthDebtToken: {alias: VsEthDebtToken},
+  VsEth: {alias: VsEth},
+} = UpgradableContracts
+
 const Oracle = 'Oracle'
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {getNamedAccounts, deployments} = hre
   const {get, execute} = deployments
-  const {deployer, governor} = await getNamedAccounts()
+  const {deployer} = await getNamedAccounts()
 
   const oracle = await get(Oracle)
 
@@ -18,7 +22,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {address: vsEthDebtTokenAddress} = await deterministic(hre, UpgradableContracts.VsEthDebtToken)
   const {deploy} = await deterministic(hre, UpgradableContracts.VsEth)
 
-  await deploy()
+  const {address: syntheticAssetAddress} = await deploy()
 
   await execute(
     VsEth,
@@ -34,7 +38,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     parseEther('0') // Interest Rate = 0%
   )
 
-  await execute(VsEth, {from: deployer, log: true}, 'transferGovernorship', governor)
+  await execute(Issuer, {from: deployer, log: true}, 'addSyntheticAsset', syntheticAssetAddress)
 }
 
 export default func

@@ -8,7 +8,7 @@ const Oracle = 'Oracle'
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {getNamedAccounts, deployments} = hre
   const {execute, get} = deployments
-  const {deployer, governor} = await getNamedAccounts()
+  const {deployer} = await getNamedAccounts()
 
   const oracle = await get(Oracle)
 
@@ -26,7 +26,6 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     oracle.address,
     issuerAddress
   )
-  await execute(VSynth, {from: deployer, log: true}, 'transferGovernorship', governor)
 }
 
 export default func

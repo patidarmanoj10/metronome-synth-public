@@ -62,29 +62,29 @@ describe('SyntheticAsset', function () {
   })
 
   it('default values', async function () {
-    expect(await vsAsset.totalSupply()).to.eq(0)
-    expect(await vsAsset.name()).to.eq(name)
-    expect(await vsAsset.symbol()).to.eq(symbol)
-    expect(await vsAsset.collateralizationRatio()).to.eq(collateralizationRatio)
-    expect(await vsAsset.decimals()).to.eq(18)
+    expect(await vsAsset.totalSupply()).eq(0)
+    expect(await vsAsset.name()).eq(name)
+    expect(await vsAsset.symbol()).eq(symbol)
+    expect(await vsAsset.collateralizationRatio()).eq(collateralizationRatio)
+    expect(await vsAsset.decimals()).eq(18)
   })
 
   describe('mint', function () {
     it('should mint', async function () {
-      expect(await vsAsset.balanceOf(user.address)).to.eq(0)
+      expect(await vsAsset.balanceOf(user.address)).eq(0)
       const amount = parseEther('100')
       await vsAsset.connect(issuerMock).mint(user.address, amount)
-      expect(await vsAsset.balanceOf(user.address)).to.eq(amount)
+      expect(await vsAsset.balanceOf(user.address)).eq(amount)
     })
 
     it('should revert if not issuer', async function () {
       const tx = vsAsset.connect(user).mint(user.address, parseEther('10'))
-      await expect(tx).to.revertedWith('not-issuer')
+      await expect(tx).revertedWith('not-issuer')
     })
 
     it('should revert if surpass max total supply', async function () {
       // given
-      expect(await vsAsset.totalSupply()).to.eq(0)
+      expect(await vsAsset.totalSupply()).eq(0)
       const max = parseEther('100')
       await vsAsset.updateMaxTotalSupplyInUsd(max)
 
@@ -92,7 +92,7 @@ describe('SyntheticAsset', function () {
       const tx = vsAsset.connect(issuerMock).mint(deployer.address, max.add('1'))
 
       // then
-      await expect(tx).to.revertedWith('surpass-max-total-supply')
+      await expect(tx).revertedWith('surpass-max-total-supply')
     })
 
     it('should revert if vsAsset is inactive', async function () {
@@ -103,7 +103,7 @@ describe('SyntheticAsset', function () {
       const tx = vsAsset.connect(issuerMock).mint(deployer.address, '1')
 
       // then
-      await expect(tx).to.revertedWith('synthetic-asset-is-inactive')
+      await expect(tx).revertedWith('synthetic-asset-is-inactive')
     })
   })
 
@@ -115,14 +115,14 @@ describe('SyntheticAsset', function () {
     })
 
     it('should burn', async function () {
-      expect(await vsAsset.balanceOf(user.address)).to.eq(amount)
+      expect(await vsAsset.balanceOf(user.address)).eq(amount)
       await vsAsset.connect(issuerMock).burn(user.address, amount)
-      expect(await vsAsset.balanceOf(user.address)).to.eq(0)
+      expect(await vsAsset.balanceOf(user.address)).eq(0)
     })
 
     it('should revert if not issuer', async function () {
       const tx = vsAsset.connect(user).burn(user.address, parseEther('10'))
-      await expect(tx).to.revertedWith('not-issuer')
+      await expect(tx).revertedWith('not-issuer')
     })
   })
 
@@ -131,18 +131,18 @@ describe('SyntheticAsset', function () {
       const before = await vsAsset.collateralizationRatio()
       const after = before.mul('2')
       const tx = vsAsset.updateCollateralizationRatio(after)
-      await expect(tx).to.emit(vsAsset, 'CollateralizationRatioUpdated').withArgs(before, after)
-      expect(await vsAsset.collateralizationRatio()).to.eq(after)
+      await expect(tx).emit(vsAsset, 'CollateralizationRatioUpdated').withArgs(before, after)
+      expect(await vsAsset.collateralizationRatio()).eq(after)
     })
 
     it('should revert if not governor', async function () {
       const tx = vsAsset.connect(user).updateCollateralizationRatio(parseEther('10'))
-      await expect(tx).to.revertedWith('not-the-governor')
+      await expect(tx).revertedWith('not-the-governor')
     })
 
     it('should revert if < 100%', async function () {
       const tx = vsAsset.updateCollateralizationRatio(parseEther('1').sub('1'))
-      await expect(tx).to.revertedWith('collaterization-ratio-lt-100%')
+      await expect(tx).revertedWith('collaterization-ratio-lt-100%')
     })
   })
 
@@ -151,13 +151,13 @@ describe('SyntheticAsset', function () {
       const before = await vsAsset.maxTotalSupplyInUsd()
       const after = before.div('2')
       const tx = vsAsset.updateMaxTotalSupplyInUsd(after)
-      await expect(tx).to.emit(vsAsset, 'MaxTotalSupplyUpdated').withArgs(before, after)
-      expect(await vsAsset.maxTotalSupplyInUsd()).to.eq(after)
+      await expect(tx).emit(vsAsset, 'MaxTotalSupplyUpdated').withArgs(before, after)
+      expect(await vsAsset.maxTotalSupplyInUsd()).eq(after)
     })
 
     it('should revert if not governor', async function () {
       const tx = vsAsset.connect(user).updateMaxTotalSupplyInUsd(parseEther('10'))
-      await expect(tx).to.revertedWith('not-the-governor')
+      await expect(tx).revertedWith('not-the-governor')
     })
   })
 
@@ -166,27 +166,27 @@ describe('SyntheticAsset', function () {
       const before = await vsAsset.interestRate()
       const after = parseEther('0.5')
       const tx = vsAsset.updateInterestRate(after)
-      await expect(tx).to.emit(vsAsset, 'InterestRateUpdated').withArgs(before, after)
-      expect(await vsAsset.interestRate()).to.eq(after)
+      await expect(tx).emit(vsAsset, 'InterestRateUpdated').withArgs(before, after)
+      expect(await vsAsset.interestRate()).eq(after)
     })
 
     it('should revert if not governor', async function () {
       const tx = vsAsset.connect(user).updateInterestRate(parseEther('0.12'))
-      await expect(tx).to.revertedWith('not-the-governor')
+      await expect(tx).revertedWith('not-the-governor')
     })
   })
 
   describe('toggleIsActive', function () {
     it('should update active flag', async function () {
-      expect(await vsAsset.isActive()).to.eq(true)
+      expect(await vsAsset.isActive()).eq(true)
       const tx = vsAsset.toggleIsActive()
-      await expect(tx).to.emit(vsAsset, 'SyntheticAssetActiveUpdated').withArgs(true, false)
-      expect(await vsAsset.isActive()).to.eq(false)
+      await expect(tx).emit(vsAsset, 'SyntheticAssetActiveUpdated').withArgs(true, false)
+      expect(await vsAsset.isActive()).eq(false)
     })
 
     it('should revert if not governor', async function () {
       const tx = vsAsset.connect(user).toggleIsActive()
-      await expect(tx).to.revertedWith('not-the-governor')
+      await expect(tx).revertedWith('not-the-governor')
     })
   })
 })

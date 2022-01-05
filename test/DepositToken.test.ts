@@ -57,8 +57,8 @@ describe('DepositToken', function () {
   describe('mint', function () {
     it('should mint', async function () {
       // given
-      expect(await metDepositToken.balanceOf(user.address)).to.eq(0)
-      expect(await metDepositToken.lastDepositOf(user.address)).to.eq(0)
+      expect(await metDepositToken.balanceOf(user.address)).eq(0)
+      expect(await metDepositToken.lastDepositOf(user.address)).eq(0)
 
       // when
       const amount = parseEther('100')
@@ -68,14 +68,14 @@ describe('DepositToken', function () {
       await issuerMock.mockCall(metDepositToken.address, call)
 
       // then
-      expect(await metDepositToken.balanceOf(user.address)).to.eq(amount)
+      expect(await metDepositToken.balanceOf(user.address)).eq(amount)
       const lastBlock = await ethers.provider.getBlock('latest')
-      expect(await metDepositToken.lastDepositOf(user.address)).to.eq(lastBlock.timestamp)
+      expect(await metDepositToken.lastDepositOf(user.address)).eq(lastBlock.timestamp)
     })
 
     it('should revert if surpass max total supply', async function () {
       // given
-      expect(await metDepositToken.totalSupply()).to.eq(0)
+      expect(await metDepositToken.totalSupply()).eq(0)
       const maxInUsd = parseEther('400') // 100 MET
       await metDepositToken.updateMaxTotalSupplyInUsd(maxInUsd)
 
@@ -85,12 +85,12 @@ describe('DepositToken', function () {
       const tx = issuerMock.mockCall(metDepositToken.address, call)
 
       // then
-      await expect(tx).to.revertedWith('surpass-max-total-supply')
+      await expect(tx).revertedWith('surpass-max-total-supply')
     })
 
     it('should revert if not issuer', async function () {
       const tx = metDepositToken.connect(user).mint(user.address, parseEther('10'))
-      await expect(tx).to.revertedWith('not-issuer')
+      await expect(tx).revertedWith('not-issuer')
     })
   })
 
@@ -100,13 +100,13 @@ describe('DepositToken', function () {
     beforeEach(async function () {
       const call = metDepositToken.interface.encodeFunctionData('mint', [user.address, amount])
       await issuerMock.mockCall(metDepositToken.address, call)
-      expect(await metDepositToken.balanceOf(user.address)).to.eq(amount)
+      expect(await metDepositToken.balanceOf(user.address)).eq(amount)
     })
 
     describe('burnFromUnlocked', function () {
       it('should revert if not issuer', async function () {
         const tx = metDepositToken.connect(user).burnFromUnlocked(user.address, parseEther('10'))
-        await expect(tx).to.revertedWith('not-issuer')
+        await expect(tx).revertedWith('not-issuer')
       })
 
       it('should revert if amount > free amount', async function () {
@@ -122,28 +122,28 @@ describe('DepositToken', function () {
         const tx = issuerMock.mockCall(metDepositToken.address, call)
 
         // then
-        await expect(tx).to.revertedWith('not-enough-free-balance')
+        await expect(tx).revertedWith('not-enough-free-balance')
       })
 
       it('should burn if amount <= free amount', async function () {
         // given
         const {_unlockedDepositInUsd} = await issuerMock.debtPositionOf(user.address)
         const _unlockedDeposit = await oracle.convertFromUsd(met.address, _unlockedDepositInUsd)
-        expect(await metDepositToken.balanceOf(user.address)).to.eq(amount)
+        expect(await metDepositToken.balanceOf(user.address)).eq(amount)
 
         // when
         const call = metDepositToken.interface.encodeFunctionData('burnFromUnlocked', [user.address, _unlockedDeposit])
         await issuerMock.mockCall(metDepositToken.address, call)
 
         // then
-        expect(await metDepositToken.balanceOf(user.address)).to.eq(amount.sub(_unlockedDeposit))
+        expect(await metDepositToken.balanceOf(user.address)).eq(amount.sub(_unlockedDeposit))
       })
     })
 
     describe('burnForWithdraw', function () {
       it('should revert if not issuer', async function () {
         const tx = metDepositToken.connect(user).burnForWithdraw(user.address, parseEther('10'))
-        await expect(tx).to.revertedWith('not-issuer')
+        await expect(tx).revertedWith('not-issuer')
       })
 
       it('should revert if minimum deposit time have not passed', async function () {
@@ -155,7 +155,7 @@ describe('DepositToken', function () {
         const tx = issuerMock.mockCall(metDepositToken.address, call)
 
         // then
-        await expect(tx).to.revertedWith('min-deposit-time-have-not-passed')
+        await expect(tx).revertedWith('min-deposit-time-have-not-passed')
       })
 
       it('should revert if amount > free amount', async function () {
@@ -171,21 +171,21 @@ describe('DepositToken', function () {
         const tx = issuerMock.mockCall(metDepositToken.address, call)
 
         // then
-        await expect(tx).to.revertedWith('not-enough-free-balance')
+        await expect(tx).revertedWith('not-enough-free-balance')
       })
 
       it('should burn if amount <= free amount', async function () {
         // given
         const {_unlockedDepositInUsd} = await issuerMock.debtPositionOf(user.address)
         const _unlockedDeposit = await oracle.convertFromUsd(met.address, _unlockedDepositInUsd)
-        expect(await metDepositToken.balanceOf(user.address)).to.eq(amount)
+        expect(await metDepositToken.balanceOf(user.address)).eq(amount)
 
         // when
         const call = metDepositToken.interface.encodeFunctionData('burnForWithdraw', [user.address, _unlockedDeposit])
         await issuerMock.mockCall(metDepositToken.address, call)
 
         // then
-        expect(await metDepositToken.balanceOf(user.address)).to.eq(amount.sub(_unlockedDeposit))
+        expect(await metDepositToken.balanceOf(user.address)).eq(amount.sub(_unlockedDeposit))
       })
     })
 
@@ -193,12 +193,12 @@ describe('DepositToken', function () {
       it('should burn', async function () {
         const call = metDepositToken.interface.encodeFunctionData('burn', [user.address, amount])
         await issuerMock.mockCall(metDepositToken.address, call)
-        expect(await metDepositToken.balanceOf(user.address)).to.eq(0)
+        expect(await metDepositToken.balanceOf(user.address)).eq(0)
       })
 
       it('should revert if not issuer', async function () {
         const tx = metDepositToken.connect(user).burn(user.address, parseEther('10'))
-        await expect(tx).to.revertedWith('not-issuer')
+        await expect(tx).revertedWith('not-issuer')
       })
     })
 
@@ -206,9 +206,9 @@ describe('DepositToken', function () {
       it('should transfer if amount <= free amount', async function () {
         const {_unlockedDepositInUsd} = await issuerMock.debtPositionOf(user.address)
         const _unlockedDeposit = await oracle.convertFromUsd(met.address, _unlockedDepositInUsd)
-        expect(await metDepositToken.balanceOf(user.address)).to.eq(amount)
+        expect(await metDepositToken.balanceOf(user.address)).eq(amount)
         await metDepositToken.connect(user).transfer(deployer.address, _unlockedDeposit)
-        expect(await metDepositToken.balanceOf(user.address)).to.eq(amount.sub(_unlockedDeposit))
+        expect(await metDepositToken.balanceOf(user.address)).eq(amount.sub(_unlockedDeposit))
       })
 
       it('should revert if minimum deposit time have not passed', async function () {
@@ -221,14 +221,14 @@ describe('DepositToken', function () {
         const tx = metDepositToken.connect(user).transfer(deployer.address, _unlockedDeposit)
 
         // then
-        await expect(tx).to.revertedWith('min-deposit-time-have-not-passed')
+        await expect(tx).revertedWith('min-deposit-time-have-not-passed')
       })
 
       it('should revert if amount > free amount', async function () {
         const {_unlockedDepositInUsd} = await issuerMock.debtPositionOf(user.address)
         const _unlockedDeposit = await oracle.convertFromUsd(met.address, _unlockedDepositInUsd)
         const tx = metDepositToken.connect(user).transfer(deployer.address, _unlockedDeposit.add('1'))
-        await expect(tx).to.revertedWith('not-enough-free-balance')
+        await expect(tx).revertedWith('not-enough-free-balance')
       })
     })
 
@@ -240,9 +240,9 @@ describe('DepositToken', function () {
       it('should transfer if amount <= free amount', async function () {
         const {_unlockedDepositInUsd} = await issuerMock.debtPositionOf(user.address)
         const _unlockedDeposit = await oracle.convertFromUsd(met.address, _unlockedDepositInUsd)
-        expect(await metDepositToken.balanceOf(user.address)).to.eq(amount)
+        expect(await metDepositToken.balanceOf(user.address)).eq(amount)
         await metDepositToken.connect(deployer).transferFrom(user.address, deployer.address, _unlockedDeposit)
-        expect(await metDepositToken.balanceOf(user.address)).to.eq(amount.sub(_unlockedDeposit))
+        expect(await metDepositToken.balanceOf(user.address)).eq(amount.sub(_unlockedDeposit))
       })
 
       it('should revert if minimum deposit time have not passed', async function () {
@@ -255,7 +255,7 @@ describe('DepositToken', function () {
         const tx = metDepositToken.connect(deployer).transferFrom(user.address, deployer.address, _unlockedDeposit)
 
         // then
-        await expect(tx).to.revertedWith('min-deposit-time-have-not-passed')
+        await expect(tx).revertedWith('min-deposit-time-have-not-passed')
       })
 
       it('should revert if amount > free amount', async function () {
@@ -264,14 +264,14 @@ describe('DepositToken', function () {
         const tx = metDepositToken
           .connect(deployer)
           .transferFrom(user.address, deployer.address, _unlockedDeposit.add('1'))
-        await expect(tx).to.revertedWith('not-enough-free-balance')
+        await expect(tx).revertedWith('not-enough-free-balance')
       })
     })
 
     describe('seize', function () {
       it('should revert if not issuer', async function () {
         const tx = metDepositToken.connect(user).seize(user.address, deployer.address, parseEther('10'))
-        await expect(tx).to.revertedWith('not-issuer')
+        await expect(tx).revertedWith('not-issuer')
       })
 
       it('should seize tokens', async function () {
@@ -284,7 +284,7 @@ describe('DepositToken', function () {
         ])
         const tx = () => issuerMock.mockCall(metDepositToken.address, call)
 
-        await expect(tx).to.changeTokenBalances(
+        await expect(tx).changeTokenBalances(
           metDepositToken,
           [user, deployer],
           [amountToSeize.mul('-1'), amountToSeize]

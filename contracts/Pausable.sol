@@ -8,7 +8,7 @@ import "./dependencies/openzeppelin/utils/Context.sol";
  * @dev Contract module which allows children to implement an emergency stop
  * mechanism that can be triggered by an authorized account.
  */
-contract Pausable is Context {
+abstract contract Pausable is Context {
     event Paused(address account);
     event Shutdown(address account);
     event Unpaused(address account);

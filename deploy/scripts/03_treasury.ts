@@ -7,7 +7,7 @@ const {alias: Treasury} = UpgradableContracts.Treasury
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {getNamedAccounts, deployments} = hre
   const {execute} = deployments
-  const {deployer, governor} = await getNamedAccounts()
+  const {deployer} = await getNamedAccounts()
 
   const {address: issuerAddress} = await deterministic(hre, UpgradableContracts.Issuer)
   const {deploy} = await deterministic(hre, UpgradableContracts.Treasury)
@@ -15,7 +15,6 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   await deploy()
 
   await execute(Treasury, {from: deployer, log: true}, 'initialize', issuerAddress)
-  await execute(Treasury, {from: deployer, log: true}, 'transferGovernorship', governor)
 }
 
 export default func
