@@ -307,12 +307,12 @@ describe('Issuer', function () {
       await issuer.connect(vSynthMock).mintDepositToken(metDepositToken.address, user.address, parseEther('1'))
     })
 
-    describe('burnWithdrawnDeposit', function () {
+    describe('burnDepositToken', function () {
       it('should revert if not vSynth', async function () {
         // when
         const tx = issuer
           .connect(user.address)
-          .burnWithdrawnDeposit(metDepositToken.address, ethers.constants.AddressZero, 0)
+          .burnDepositToken(metDepositToken.address, ethers.constants.AddressZero, 0)
 
         // then
         await expect(tx).to.revertedWith('not-vsynth')
@@ -321,7 +321,7 @@ describe('Issuer', function () {
       it('should burn deposit tokens', async function () {
         // when
         const amount = await metDepositToken.balanceOf(user.address)
-        const tx = () => issuer.connect(vSynthMock).burnWithdrawnDeposit(metDepositToken.address, user.address, amount)
+        const tx = () => issuer.connect(vSynthMock).burnDepositToken(metDepositToken.address, user.address, amount)
 
         // then
         await expect(tx).to.changeTokenBalance(metDepositToken, user, amount.mul('-1'))

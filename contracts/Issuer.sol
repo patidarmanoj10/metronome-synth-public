@@ -495,7 +495,7 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
      * @param _to The beneficiary account
      * @param _amount The account to pull
      */
-    function withdrawFromTreasury(
+    function pullFromTreasury(
         IDepositToken _depositToken,
         address _to,
         uint256 _amount
@@ -510,7 +510,7 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
      * @param _account The account to burn from
      * @param _amount The amount to burn
      */
-    function burnWithdrawnDeposit(
+    function burnDepositToken(
         IDepositToken _depositToken,
         address _account,
         uint256 _amount
@@ -535,6 +535,24 @@ contract Issuer is IIssuer, ReentrancyGuard, Manageable, IssuerStorageV1 {
         require(_from != _to, "seize-from-and-to-are-the-same");
         require(_amount > 0, "amount-to-seize-is-zero");
         _depositToken.seize(_from, _to, _amount);
+    }
+
+    /**
+     * @notice Seize synthetic asset
+     * @param _syntheticAsset The synthetic asset to seize from
+     * @param _from The account to seize from
+     * @param _to The account to transfer to
+     * @param _amount The amount to seize
+     */
+    function seizeSyntheticAsset(
+        ISyntheticAsset _syntheticAsset,
+        address _from,
+        address _to,
+        uint256 _amount
+    ) external override nonReentrant onlyVSynth {
+        require(_from != _to, "seize-from-and-to-are-the-same");
+        require(_amount > 0, "amount-to-seize-is-zero");
+        _syntheticAsset.seize(_from, _to, _amount);
     }
 
     /**

@@ -285,6 +285,21 @@ contract SyntheticAsset is ISyntheticAsset, Manageable, SyntheticAssetStorageV1 
     }
 
     /**
+     * @notice Seize tokens
+     * @dev Same as _transfer
+     * @param _from The account to seize from
+     * @param _to The beneficiary account
+     * @param _amount The amount to seize
+     */
+    function seize(
+        address _from,
+        address _to,
+        uint256 _amount
+    ) public override onlyIssuer {
+        _transfer(_from, _to, _amount);
+    }
+
+    /**
      * @notice Update collateralization ratio
      * @param _newCollateralizationRatio The new CR value
      */

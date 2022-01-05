@@ -30,4 +30,10 @@ interface ISyntheticAsset is IERC20, IERC20Metadata {
     function toggleIsActive() external;
 
     function updateInterestRate(uint256 _newInterestRate) external;
+
+    function seize(
+        address _from,
+        address _to,
+        uint256 _amount
+    ) external;
 }

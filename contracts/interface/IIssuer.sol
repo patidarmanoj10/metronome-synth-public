@@ -107,7 +107,7 @@ interface IIssuer {
         uint256 _amount
     ) external;
 
-    function burnWithdrawnDeposit(
+    function burnDepositToken(
         IDepositToken _depositToken,
         address _account,
         uint256 _amount
@@ -120,11 +120,18 @@ interface IIssuer {
         uint256 _amount
     ) external;
 
+    function seizeSyntheticAsset(
+        ISyntheticAsset _syntheticAsset,
+        address _from,
+        address _to,
+        uint256 _amount
+    ) external;
+
     function updateTreasury(ITreasury _newTreasury) external;
 
     function getTreasury() external view returns (ITreasury);
 
-    function withdrawFromTreasury(
+    function pullFromTreasury(
         IDepositToken _token,
         address _to,
         uint256 _amount
