@@ -26,30 +26,9 @@ interface IController {
         view
         returns (ISyntheticAsset[] memory _syntheticAssets);
 
-    function debtOfUsingLatestPrices(address _account)
-        external
-        view
-        returns (
-            uint256 _debtInUsd,
-            uint256 _lockedDepositInUsd,
-            bool _anyPriceInvalid
-        );
+    function debtOf(address _account) external view returns (uint256 _debtInUsd, uint256 _lockedDepositInUsd);
 
-    function depositOfUsingLatestPrices(address _account)
-        external
-        view
-        returns (uint256 _depositInUsd, bool _anyPriceInvalid);
-
-    function debtPositionOfUsingLatestPrices(address _account)
-        external
-        view
-        returns (
-            bool _isHealthy,
-            uint256 _lockedDepositInUsd,
-            uint256 _depositInUsd,
-            uint256 _unlockedDepositInUsd,
-            bool _anyPriceInvalid
-        );
+    function depositOf(address _account) external view returns (uint256 _depositInUsd);
 
     function debtPositionOf(address _account)
         external
@@ -59,11 +38,6 @@ interface IController {
             uint256 _depositInUsd,
             uint256 _unlockedDepositInUsd
         );
-
-    function maxIssuableForUsingLatestPrices(address _account, ISyntheticAsset _syntheticAsset)
-        external
-        view
-        returns (uint256 _maxIssuable, bool _anyPriceInvalid);
 
     function maxIssuableFor(address _account, ISyntheticAsset _syntheticAsset) external returns (uint256 _maxIssuable);
 

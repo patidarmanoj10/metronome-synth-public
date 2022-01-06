@@ -23,7 +23,7 @@ export const getMinLiquidationAmountInUsd = async function (
   accountAddress: string,
   vsAsset: SyntheticAsset
 ): Promise<BigNumber> {
-  const {_lockedDepositInUsd, _depositInUsd} = await controller.debtPositionOfUsingLatestPrices(accountAddress)
+  const {_lockedDepositInUsd, _depositInUsd} = await controller.debtPositionOf(accountAddress)
   const vsAssetCR = await vsAsset.collateralizationRatio()
   const fee = (await controller.liquidatorFee()).add(await controller.liquidateFee())
 
@@ -42,7 +42,7 @@ export const getMaxLiquidationAmountInUsd = async function (
   controller: Controller,
   accountAddress: string
 ): Promise<BigNumber> {
-  const {_depositInUsd} = await controller.debtPositionOfUsingLatestPrices(accountAddress)
+  const {_depositInUsd} = await controller.debtPositionOf(accountAddress)
   const fee = (await controller.liquidatorFee()).add(await controller.liquidateFee())
 
   const numerator = _depositInUsd
