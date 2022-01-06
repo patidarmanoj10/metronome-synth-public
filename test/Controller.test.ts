@@ -416,6 +416,18 @@ describe('Controller', function () {
           await expect(tx).revertedWith('amount-to-mint-is-zero')
         })
 
+        it('should revert if new debt < debt floor', async function () {
+          // given
+          await controller.updateDebtFloor(parseEther('10000')) // $10,000
+
+          // when
+          const toMint = parseEther('1') // $4,000
+          const tx = controller.connect(alice).mint(vsEth.address, toMint)
+
+          // then
+          await expect(tx).revertedWith('debt-lt-floor')
+        })
+
         it('should mint vsEth (mintFee == 0)', async function () {
           // given
           const maxIssuableBefore = await controller.maxIssuableFor(alice.address, vsEth.address)
@@ -699,6 +711,35 @@ describe('Controller', function () {
             await expect(tx).revertedWith('burn-amount-exceeds-balance')
           })
 
+          it('should revert if new debt < debt floor', async function () {
+            // given
+            await controller.updateDebtFloor(parseEther('3000')) // $3,000
+
+            const amount = await vsEth.balanceOf(alice.address)
+            expect(amount).eq(parseEther('1')) // $4,000
+
+            // when
+            const toRepay = amount.div('2') // $2,000
+            const tx = controller.connect(alice).repay(vsEth.address, alice.address, toRepay)
+
+            // then
+            await expect(tx).revertedWith('debt-lt-floor')
+          })
+
+          it('should allow repay all when debt floor is set', async function () {
+            // given
+            await controller.updateRepayFee(0)
+            await controller.updateDebtFloor(parseEther('3000')) // $3,000
+            const amount = await vsEth.balanceOf(alice.address)
+
+            // when
+            await controller.connect(alice).repay(vsEth.address, alice.address, amount)
+
+            // then
+            const {_debtInUsd: debtAfter} = await controller.debtOf(alice.address)
+            expect(debtAfter).eq(0)
+          })
+
           it('should repay if amount == debt (repayFee == 0)', async function () {
             // given
             await controller.updateRepayFee(0)
@@ -871,6 +912,57 @@ describe('Controller', function () {
 
             // then
             await expect(tx).revertedWith('debt-position-ended-up-unhealthy')
+          })
+
+          describe('debt floor', function () {
+            it('should revert if debt from assetIn becomes < debt floor', async function () {
+              // given
+              await controller.updateSwapFee(0)
+              await controller.updateDebtFloor(parseEther('3000')) // $3,000
+
+              const balance = await vsEth.balanceOf(alice.address)
+              expect(balance).eq(parseEther('1')) // $4,000
+
+              // when
+              const amountIn = balance.div('2') // $2,000
+              const tx = controller.connect(alice).swap(vsEth.address, vsDoge.address, amountIn)
+
+              // then
+              await expect(tx).revertedWith('asset-in-debt-lt-floor')
+            })
+
+            it('should revert if debt from assetOut becomes < debt floor', async function () {
+              // given
+              await controller.updateSwapFee(0)
+              await controller.updateDebtFloor(parseEther('3000')) // $3,000
+
+              const balance = await vsEth.balanceOf(alice.address)
+              expect(balance).eq(parseEther('1')) // $4,000
+
+              // when
+              const amountIn = balance.div('4') // $1,000
+              const tx = controller.connect(alice).swap(vsEth.address, vsDoge.address, amountIn)
+
+              // then
+              await expect(tx).revertedWith('asset-out-debt-lt-floor')
+            })
+
+            it('should allow swap if debt from assetIn becomes 0', async function () {
+              // given
+              await controller.updateSwapFee(0)
+              await controller.updateDebtFloor(parseEther('3000')) // $3,000
+
+              const balance = await vsEth.balanceOf(alice.address)
+              expect(balance).eq(parseEther('1')) // $4,000
+
+              // when
+              const amountIn = balance
+              await controller.connect(alice).swap(vsEth.address, vsDoge.address, amountIn)
+
+              // then
+              const assetInDebt = await vsEthDebtToken.balanceOf(alice.address)
+              expect(assetInDebt).eq(0)
+            })
           })
 
           it('should swap synthetic assets (swapFee == 0)', async function () {
@@ -1078,6 +1170,41 @@ describe('Controller', function () {
 
               // then
               await expect(tx).revertedWith('amount-gt-max-liquidable')
+            })
+
+            describe('debt floor', function () {
+              it('should revert if debt becomes < debt floor', async function () {
+                // given
+                await controller.updateDebtFloor(parseEther('3000')) // $3,000
+                const debtBefore = await vsEthDebtToken.balanceOf(alice.address)
+                expect(debtBefore).eq(parseEther('1')) // $4,000
+
+                // when
+                const amountToRepay = debtBefore.div('2') // $2,0000
+                const tx = controller
+                  .connect(liquidator)
+                  .liquidate(vsEth.address, alice.address, amountToRepay, metDepositToken.address)
+
+                // then
+                await expect(tx).revertedWith('debt-lt-floor')
+              })
+
+              it('should allow erase debt when debt floor set', async function () {
+                // given
+                await controller.updateDebtFloor(parseEther('3000')) // $3,000
+                const debtBefore = await vsEthDebtToken.balanceOf(alice.address)
+                expect(debtBefore).eq(parseEther('1')) // $4,000
+
+                // when
+                const amountToRepay = debtBefore
+                await controller
+                  .connect(liquidator)
+                  .liquidate(vsEth.address, alice.address, amountToRepay, metDepositToken.address)
+
+                // then
+                const debtAfter = await vsEthDebtToken.balanceOf(alice.address)
+                expect(debtAfter).eq(0)
+              })
             })
 
             it('should revert if repaying more than max allowed to liquidate', async function () {

@@ -146,6 +146,10 @@ contract ControllerMock is IController {
         revert("mock-does-not-implement");
     }
 
+    function updateDebtFloor(uint256) external pure {
+        revert("mock-does-not-implement");
+    }
+
     function updateDepositFee(uint256) external pure {
         revert("mock-does-not-implement");
     }

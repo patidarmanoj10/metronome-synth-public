@@ -90,6 +90,9 @@ contract Controller is ReentrancyGuard, Pausable, Governable, ControllerStorageV
         uint256 fee
     );
 
+    /// @notice Emitted when liquidate fee is updated
+    event DebtFloorUpdated(uint256 oldDebtFloorInUsd, uint256 newDebtFloorInUsd);
+
     /// @notice Emitted when deposit fee is updated
     event DepositFeeUpdated(uint256 oldDepositFee, uint256 newDepositFee);
 
@@ -165,6 +168,7 @@ contract Controller is ReentrancyGuard, Pausable, Governable, ControllerStorageV
         oracle = _oracle;
         treasury = _treasury;
 
+        debtFloorInUsd = 0;
         depositFee = 0;
         mintFee = 0;
         withdrawFee = 0;
@@ -436,6 +440,14 @@ contract Controller is ReentrancyGuard, Pausable, Governable, ControllerStorageV
 
         accrueInterest(_syntheticAsset);
 
+        if (debtFloorInUsd > 0) {
+            uint256 _newDebtInUsd = oracle.convertToUsd(
+                _syntheticAsset,
+                _syntheticAsset.debtToken().balanceOf(_account) + _amount
+            );
+            require(_newDebtInUsd >= debtFloorInUsd, "debt-lt-floor");
+        }
+
         require(_amount <= maxIssuableFor(_account, _syntheticAsset), "not-enough-collateral");
 
         uint256 _amountToMint = _amount;
@@ -478,6 +490,14 @@ contract Controller is ReentrancyGuard, Pausable, Governable, ControllerStorageV
             _amountToRepay -= _feeAmount;
         }
 
+        if (debtFloorInUsd > 0) {
+            uint256 _newDebtInUsd = oracle.convertToUsd(
+                _syntheticAsset,
+                _syntheticAsset.debtToken().balanceOf(_onBehalfOf) - _amountToRepay
+            );
+            require(_newDebtInUsd == 0 || _newDebtInUsd >= debtFloorInUsd, "debt-lt-floor");
+        }
+
         _syntheticAsset.burn(_payer, _amountToRepay);
         _syntheticAsset.debtToken().burn(_onBehalfOf, _amountToRepay);
 
@@ -507,6 +527,14 @@ contract Controller is ReentrancyGuard, Pausable, Governable, ControllerStorageV
         uint256 _percentOfDebtToLiquidate = _amountToRepay.wadDiv(_syntheticAsset.debtToken().balanceOf(_account));
 
         require(_percentOfDebtToLiquidate <= maxLiquidable, "amount-gt-max-liquidable");
+
+        if (debtFloorInUsd > 0) {
+            uint256 _newDebtInUsd = oracle.convertToUsd(
+                _syntheticAsset,
+                _syntheticAsset.debtToken().balanceOf(_account) - _amountToRepay
+            );
+            require(_newDebtInUsd == 0 || _newDebtInUsd >= debtFloorInUsd, "debt-lt-floor");
+        }
 
         (bool _isHealthy, , uint256 _depositInUsd, ) = debtPositionOf(_account);
 
@@ -550,17 +578,25 @@ contract Controller is ReentrancyGuard, Pausable, Governable, ControllerStorageV
         ISyntheticAsset _syntheticAssetOut,
         uint256 _amountIn,
         uint256 _fee
-    )
-        private
-        onlyIfSyntheticAssetExists(_syntheticAssetIn)
-        onlyIfSyntheticAssetExists(_syntheticAssetOut)
-        onlyIfSyntheticAssetIsActive(_syntheticAssetOut)
-        returns (uint256 _amountOutAfterFee, uint256 _feeAmount)
-    {
+    ) private returns (uint256 _amountOutAfterFee, uint256 _feeAmount) {
         require(_amountIn > 0, "amount-in-is-zero");
         require(_amountIn <= _syntheticAssetIn.balanceOf(_account), "amount-in-gt-synthetic-balance");
 
         uint256 _amountOut = oracle.convert(_syntheticAssetIn, _syntheticAssetOut, _amountIn);
+
+        if (debtFloorInUsd > 0) {
+            uint256 _inNewDebtInUsd = oracle.convertToUsd(
+                _syntheticAssetIn,
+                _syntheticAssetIn.debtToken().balanceOf(_account) - _amountIn
+            );
+            require(_inNewDebtInUsd == 0 || _inNewDebtInUsd >= debtFloorInUsd, "asset-in-debt-lt-floor");
+
+            uint256 _outNewDebtInUsd = oracle.convertToUsd(
+                _syntheticAssetOut,
+                _syntheticAssetOut.debtToken().balanceOf(_account) + _amountOut
+            );
+            require(_outNewDebtInUsd >= debtFloorInUsd, "asset-out-debt-lt-floor");
+        }
 
         _syntheticAssetIn.burn(_account, _amountIn);
         _syntheticAssetIn.debtToken().burn(_account, _amountIn);
@@ -598,7 +634,16 @@ contract Controller is ReentrancyGuard, Pausable, Governable, ControllerStorageV
         ISyntheticAsset _syntheticAssetIn,
         ISyntheticAsset _syntheticAssetOut,
         uint256 _amountIn
-    ) external override whenNotShutdown nonReentrant returns (uint256 _amountOut) {
+    )
+        external
+        override
+        whenNotShutdown
+        nonReentrant
+        onlyIfSyntheticAssetExists(_syntheticAssetIn)
+        onlyIfSyntheticAssetExists(_syntheticAssetOut)
+        onlyIfSyntheticAssetIsActive(_syntheticAssetOut)
+        returns (uint256 _amountOut)
+    {
         accrueInterest(_syntheticAssetIn);
         accrueInterest(_syntheticAssetOut);
 
@@ -754,6 +799,14 @@ contract Controller is ReentrancyGuard, Pausable, Governable, ControllerStorageV
         require(_newMaxLiquidable <= 1e18, "max-liquidable-gt-100%");
         emit MaxLiquidableUpdated(maxLiquidable, _newMaxLiquidable);
         maxLiquidable = _newMaxLiquidable;
+    }
+
+    /**
+     * @notice Update debt floor
+     */
+    function updateDebtFloor(uint256 _newDebtFloorInUsd) external override onlyGovernor {
+        emit DebtFloorUpdated(debtFloorInUsd, _newDebtFloorInUsd);
+        debtFloorInUsd = _newDebtFloorInUsd;
     }
 
     /**
