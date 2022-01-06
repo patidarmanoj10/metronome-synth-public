@@ -25,11 +25,12 @@ contract SyntheticAsset is Manageable, SyntheticAssetStorageV1 {
     ) public initializer {
         require(address(_debtToken) != address(0), "debt-token-is-null");
         require(_decimals == _debtToken.decimals(), "debt-decimals-is-not-the-same");
+        require(address(_controller) != address(0), "controller-address-is-zero");
+        require(_collateralizationRatio >= 1e18, "collaterization-ratio-lt-100%");
 
         __Manageable_init();
 
-        setController(_controller);
-
+        controller = _controller;
         name = _name;
         symbol = _symbol;
         decimals = _decimals;
@@ -38,7 +39,7 @@ contract SyntheticAsset is Manageable, SyntheticAssetStorageV1 {
         isActive = true;
         oracle = _oracle;
         interestRate = _interestRate;
-        updateCollateralizationRatio(_collateralizationRatio);
+        collateralizationRatio = _collateralizationRatio;
     }
 
     /// @notice Emitted when CR is updated

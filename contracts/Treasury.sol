@@ -16,10 +16,12 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
     string public constant VERSION = "1.0.0";
 
     function initialize(IController _controller) public initializer {
+        require(address(_controller) != address(0), "controller-address-is-zero");
+
         __ReentrancyGuard_init();
         __Manageable_init();
 
-        setController(_controller);
+        controller = _controller;
     }
 
     /**

@@ -10,7 +10,7 @@ const WETHGateway = 'WETHGateway'
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {getNamedAccounts, deployments} = hre
   const {execute, deploy} = deployments
-  const {deployer} = await getNamedAccounts()
+  const {deployer, governor} = await getNamedAccounts()
 
   await deploy(WETHGateway, {
     from: deployer,
@@ -21,6 +21,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {address: controllerAddress} = await deterministic(hre, UpgradableContracts.Controller)
 
   await execute(WETHGateway, {from: deployer, log: true}, 'authorizeController', controllerAddress)
+  await execute(WETHGateway, {from: deployer, log: true}, 'transferGovernorship', governor)
 }
 
 export default func

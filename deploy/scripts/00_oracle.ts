@@ -23,7 +23,7 @@ const {UNISWAP_V3, UNISWAP_V2, CHAINLINK} = Protocol
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {getNamedAccounts, deployments} = hre
   const {execute, deploy} = deployments
-  const {deployer} = await getNamedAccounts()
+  const {deployer, governor} = await getNamedAccounts()
 
   const uniswapV3PriceProvider = await deploy('UniswapV3PriceProvider', {
     from: deployer,
@@ -47,6 +47,8 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     log: true,
     args: [STALE_PERIOD],
   })
+
+  await execute(Oracle, {from: deployer, log: true}, 'transferGovernorship', governor)
 
   await execute(Oracle, {from: deployer, log: true}, 'setPriceProvider', UNISWAP_V3, uniswapV3PriceProvider.address)
   await execute(Oracle, {from: deployer, log: true}, 'setPriceProvider', UNISWAP_V2, uniswapV2PriceProvider.address)

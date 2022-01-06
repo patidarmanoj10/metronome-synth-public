@@ -193,8 +193,6 @@ describe('Deployments', function () {
     it('should have correct params', async function () {
       expect(await treasury.controller()).eq(controller.address)
       expect(await treasury.governor()).eq(deployer.address)
-      await treasury.connect(governor).acceptGovernorship()
-      expect(await treasury.governor()).eq(governor.address)
     })
 
     it('should upgrade implementation', async function () {
@@ -223,8 +221,6 @@ describe('Deployments', function () {
       expect(await metDepositToken.oracle()).eq(oracle.address)
       expect(await metDepositToken.underlying()).eq(MET_ADDRESS)
       expect(await metDepositToken.governor()).eq(deployer.address)
-      await metDepositToken.connect(governor).acceptGovernorship()
-      expect(await metDepositToken.governor()).eq(governor.address)
     })
 
     it('should upgrade implementation', async function () {
@@ -252,8 +248,6 @@ describe('Deployments', function () {
       expect(await vsEth.debtToken()).eq(vsEthDebtToken.address)
       expect(await vsEth.governor()).eq(deployer.address)
       expect(await vsEth.interestRate()).eq(parseEther('0'))
-      await vsEth.connect(governor).acceptGovernorship()
-      expect(await vsEth.governor()).eq(governor.address)
     })
 
     it('should upgrade implementation', async function () {
@@ -279,8 +273,6 @@ describe('Deployments', function () {
     it('vsETH debt token should have correct params', async function () {
       expect(await vsEthDebtToken.controller()).eq(controller.address)
       expect(await vsEthDebtToken.governor()).eq(deployer.address)
-      await vsEthDebtToken.connect(governor).acceptGovernorship()
-      expect(await vsEthDebtToken.governor()).eq(governor.address)
     })
 
     it('should upgrade implementation', async function () {

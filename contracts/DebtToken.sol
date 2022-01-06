@@ -21,10 +21,11 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
         IController _controller,
         ISyntheticAsset _syntheticAsset
     ) public initializer {
+        require(address(_controller) != address(0), "controller-address-is-zero");
+
         __Manageable_init();
 
-        setController(_controller);
-
+        controller = _controller;
         name = _name;
         symbol = _symbol;
         decimals = _decimals;

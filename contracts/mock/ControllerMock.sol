@@ -11,6 +11,7 @@ import "../interface/IController.sol";
 contract ControllerMock is IController {
     IDepositToken public depositToken;
     IOracle public oracle;
+    address public governor;
 
     constructor(IDepositToken _depositToken, IOracle _oracle) {
         depositToken = _depositToken;
@@ -204,5 +205,9 @@ contract ControllerMock is IController {
 
     function depositTokenOf(IERC20) external view override returns (IDepositToken) {
         return depositToken;
+    }
+
+    function transferGovernorship(address _governor) public {
+        governor = _governor;
     }
 }

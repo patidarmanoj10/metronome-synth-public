@@ -4,6 +4,7 @@ pragma solidity 0.8.9;
 
 import "../dependencies/openzeppelin/utils/Context.sol";
 import "../dependencies/openzeppelin/proxy/utils/Initializable.sol";
+import "../interface/IGovernable.sol";
 
 /**
  * @dev Contract module which provides a basic access control mechanism, where
@@ -14,7 +15,7 @@ import "../dependencies/openzeppelin/proxy/utils/Initializable.sol";
  * can later be changed with {transferGovernorship}.
  *
  */
-abstract contract Governable is Context, Initializable {
+abstract contract Governable is IGovernable, Context, Initializable {
     address public governor;
     address private proposedGovernor;
 
@@ -44,7 +45,7 @@ abstract contract Governable is Context, Initializable {
      * @dev Throws if called by any account other than the governor.
      */
     modifier onlyGovernor() {
-        require(governor == _msgSender(), "not-the-governor");
+        require(governor == _msgSender(), "not-governor");
         _;
     }
 
