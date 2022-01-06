@@ -11,9 +11,9 @@ import {
   UniswapV2PriceProvider__factory,
   ChainlinkPriceProvider__factory,
   ERC20Mock__factory,
-  ERC20,
   PriceProviderMock__factory,
   PriceProviderMock,
+  ERC20Mock,
 } from '../../typechain'
 import {
   DEFAULT_TWAP_PERIOD,
@@ -43,11 +43,11 @@ describe.only('Oracle', function () {
   let deployer: SignerWithAddress
   let user: SignerWithAddress
   let oracle: Oracle
-  let mUSD: ERC20
-  let depositToken: ERC20
-  let vsDOGE: ERC20
-  let vsETH: ERC20
-  let vsBTC: ERC20
+  let mUSD: ERC20Mock
+  let depositToken: ERC20Mock
+  let vsDOGE: ERC20Mock
+  let vsETH: ERC20Mock
+  let vsBTC: ERC20Mock
   let priceProviderMock: PriceProviderMock
 
   before(enableForking)

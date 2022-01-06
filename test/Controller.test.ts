@@ -209,7 +209,7 @@ describe('Controller', function () {
       const balance = await met.balanceOf(alice.address)
       const tooHigh = balance.add('1')
       const tx = controller.connect(alice).deposit(metDepositToken.address, tooHigh, alice.address)
-      await expect(tx).revertedWith('ERC20: transfer amount exceeds balance')
+      await expect(tx).reverted
     })
 
     it('should deposit MET and mint vSynth-MET (depositFee == 0)', async function () {
@@ -223,6 +223,24 @@ describe('Controller', function () {
       await expect(tx())
         .emit(controller, 'CollateralDeposited')
         .withArgs(metDepositToken.address, alice.address, alice.address, amount, 0)
+    })
+
+    it('should deposit TOKEN and mint vSynth-TOKEN when TOKEN has transfer fee', async function () {
+      // given
+      const fee = parseEther('0.1') // 10%
+      await met.updateFee(fee)
+
+      // when
+      const amount = parseEther('100')
+      const tx = () => controller.connect(alice).deposit(metDepositToken.address, amount, alice.address)
+
+      // then
+      const amountAfterFee = amount.sub(amount.mul(fee).div(parseEther('1')))
+      await expect(tx).changeTokenBalances(met, [alice, treasury], [amount.mul('-1'), amountAfterFee])
+      await expect(tx).changeTokenBalances(metDepositToken, [alice, controller], [amountAfterFee, 0])
+      await expect(tx())
+        .emit(controller, 'CollateralDeposited')
+        .withArgs(metDepositToken.address, alice.address, alice.address, amountAfterFee, 0)
     })
 
     it('should deposit MET and mint vSynth-MET (depositFee > 0)', async function () {
@@ -303,6 +321,24 @@ describe('Controller', function () {
       beforeEach(async function () {
         await met.connect(alice).approve(controller.address, ethers.constants.MaxUint256)
         await controller.connect(alice).deposit(metDepositToken.address, userDepositAmount, alice.address)
+      })
+
+      it('should withdraw when collateral charges transfer fee', async function () {
+        // given
+        const fee = parseEther('0.1') // 10%
+        await met.updateFee(fee)
+        const metBalanceBefore = await met.balanceOf(alice.address)
+        const amountToWithdraw = await metDepositToken.balanceOf(alice.address)
+
+        // when
+        const amountAfterFee = amountToWithdraw.sub(amountToWithdraw.mul(fee).div(parseEther('1')))
+        const tx = controller.connect(alice).withdraw(metDepositToken.address, amountToWithdraw, alice.address)
+        await expect(tx)
+          .emit(controller, 'CollateralWithdrawn')
+          .withArgs(metDepositToken.address, alice.address, alice.address, amountToWithdraw, 0)
+
+        // then
+        expect(await met.balanceOf(alice.address)).eq(metBalanceBefore.add(amountAfterFee))
       })
 
       describe('mint', function () {
