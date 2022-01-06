@@ -18,12 +18,12 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
         string memory _name,
         string memory _symbol,
         uint8 _decimals,
-        IIssuer _issuer,
+        IController _controller,
         ISyntheticAsset _syntheticAsset
     ) public initializer {
         __Manageable_init();
 
-        setIssuer(_issuer);
+        setController(_controller);
 
         name = _name;
         symbol = _symbol;
@@ -121,7 +121,7 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
      * @param _to The account to mint to
      * @param _amount The amount to mint
      */
-    function mint(address _to, uint256 _amount) public override onlyIssuer {
+    function mint(address _to, uint256 _amount) public override onlyController {
         _mint(_to, _amount);
     }
 
@@ -130,7 +130,7 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
      * @param _from The account to burn from
      * @param _amount The amount to burn
      */
-    function burn(address _from, uint256 _amount) public override onlyIssuer {
+    function burn(address _from, uint256 _amount) public override onlyController {
         _burn(_from, _amount);
     }
 
@@ -147,7 +147,7 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
      * @notice Accrue interest over debt supply
      * @return _interestAccumulated The total amount of debt tokens accrued
      */
-    function accrueInterest() external override onlyIssuer returns (uint256 _interestAccumulated) {
+    function accrueInterest() external override onlyController returns (uint256 _interestAccumulated) {
         uint256 _currentBlockNumber = getBlockNumber();
 
         if (lastBlockAccrued == _currentBlockNumber) {

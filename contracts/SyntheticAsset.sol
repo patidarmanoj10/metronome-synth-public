@@ -17,7 +17,7 @@ contract SyntheticAsset is Manageable, SyntheticAssetStorageV1 {
         string memory _name,
         string memory _symbol,
         uint8 _decimals,
-        IIssuer _issuer,
+        IController _controller,
         IDebtToken _debtToken,
         uint128 _collateralizationRatio,
         IOracle _oracle,
@@ -28,7 +28,7 @@ contract SyntheticAsset is Manageable, SyntheticAssetStorageV1 {
 
         __Manageable_init();
 
-        setIssuer(_issuer);
+        setController(_controller);
 
         name = _name;
         symbol = _symbol;
@@ -178,7 +178,7 @@ contract SyntheticAsset is Manageable, SyntheticAssetStorageV1 {
      * @param _to The account to mint to
      * @param _amount The amount to mint
      */
-    function mint(address _to, uint256 _amount) public override onlyIssuer {
+    function mint(address _to, uint256 _amount) public override onlyController {
         require(isActive, "synthetic-asset-is-inactive");
         uint256 _newTotalSupplyInUsd = oracle.convertToUsd(IERC20(address(this)), totalSupply + _amount);
         require(_newTotalSupplyInUsd <= maxTotalSupplyInUsd, "surpass-max-total-supply");
@@ -190,7 +190,7 @@ contract SyntheticAsset is Manageable, SyntheticAssetStorageV1 {
      * @param _from The account to burn from
      * @param _amount The amount to burn
      */
-    function burn(address _from, uint256 _amount) public override onlyIssuer {
+    function burn(address _from, uint256 _amount) public override onlyController {
         _burn(_from, _amount);
     }
 
@@ -205,7 +205,7 @@ contract SyntheticAsset is Manageable, SyntheticAssetStorageV1 {
         address _from,
         address _to,
         uint256 _amount
-    ) public override onlyIssuer {
+    ) public override onlyController {
         _transfer(_from, _to, _amount);
     }
 

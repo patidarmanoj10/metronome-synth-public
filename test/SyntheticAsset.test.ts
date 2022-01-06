@@ -16,7 +16,7 @@ describe('SyntheticAsset', function () {
   let deployer: SignerWithAddress
   let governor: SignerWithAddress
   let user: SignerWithAddress
-  let issuerMock: SignerWithAddress
+  let controllerMock: SignerWithAddress
   let vsAsset: SyntheticAsset
   let debtToken: DebtToken
   let oracle: OracleMock
@@ -28,7 +28,7 @@ describe('SyntheticAsset', function () {
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
-    ;[deployer, governor, user, issuerMock] = await ethers.getSigners()
+    ;[deployer, governor, user, controllerMock] = await ethers.getSigners()
 
     const oracleMock = new OracleMock__factory(deployer)
     oracle = <OracleMock>await oracleMock.deploy()
@@ -42,12 +42,12 @@ describe('SyntheticAsset', function () {
     vsAsset = await syntheticAssetFactory.deploy()
     await vsAsset.deployed()
 
-    await debtToken.initialize('vsETH Debt', 'vsEth-Debt', 18, issuerMock.address, vsAsset.address)
+    await debtToken.initialize('vsETH Debt', 'vsEth-Debt', 18, controllerMock.address, vsAsset.address)
     await vsAsset.initialize(
       name,
       symbol,
       18,
-      issuerMock.address,
+      controllerMock.address,
       debtToken.address,
       collateralizationRatio,
       oracle.address,
@@ -73,13 +73,13 @@ describe('SyntheticAsset', function () {
     it('should mint', async function () {
       expect(await vsAsset.balanceOf(user.address)).eq(0)
       const amount = parseEther('100')
-      await vsAsset.connect(issuerMock).mint(user.address, amount)
+      await vsAsset.connect(controllerMock).mint(user.address, amount)
       expect(await vsAsset.balanceOf(user.address)).eq(amount)
     })
 
-    it('should revert if not issuer', async function () {
+    it('should revert if not controller', async function () {
       const tx = vsAsset.connect(user).mint(user.address, parseEther('10'))
-      await expect(tx).revertedWith('not-issuer')
+      await expect(tx).revertedWith('not-controller')
     })
 
     it('should revert if surpass max total supply', async function () {
@@ -89,7 +89,7 @@ describe('SyntheticAsset', function () {
       await vsAsset.updateMaxTotalSupplyInUsd(max)
 
       // when
-      const tx = vsAsset.connect(issuerMock).mint(deployer.address, max.add('1'))
+      const tx = vsAsset.connect(controllerMock).mint(deployer.address, max.add('1'))
 
       // then
       await expect(tx).revertedWith('surpass-max-total-supply')
@@ -100,7 +100,7 @@ describe('SyntheticAsset', function () {
       await vsAsset.toggleIsActive()
 
       // when
-      const tx = vsAsset.connect(issuerMock).mint(deployer.address, '1')
+      const tx = vsAsset.connect(controllerMock).mint(deployer.address, '1')
 
       // then
       await expect(tx).revertedWith('synthetic-asset-is-inactive')
@@ -111,18 +111,18 @@ describe('SyntheticAsset', function () {
     const amount = parseEther('100')
 
     beforeEach(async function () {
-      await vsAsset.connect(issuerMock).mint(user.address, amount)
+      await vsAsset.connect(controllerMock).mint(user.address, amount)
     })
 
     it('should burn', async function () {
       expect(await vsAsset.balanceOf(user.address)).eq(amount)
-      await vsAsset.connect(issuerMock).burn(user.address, amount)
+      await vsAsset.connect(controllerMock).burn(user.address, amount)
       expect(await vsAsset.balanceOf(user.address)).eq(0)
     })
 
-    it('should revert if not issuer', async function () {
+    it('should revert if not controller', async function () {
       const tx = vsAsset.connect(user).burn(user.address, parseEther('10'))
-      await expect(tx).revertedWith('not-issuer')
+      await expect(tx).revertedWith('not-controller')
     })
   })
 

@@ -8,9 +8,9 @@ import "./IDepositToken.sol";
 import "./ITreasury.sol";
 
 /**
- * @notice IIssuer interface
+ * @notice Controller interface
  */
-interface IIssuer {
+interface IController {
     function isSyntheticAssetExists(ISyntheticAsset _syntheticAsset) external view returns (bool);
 
     function isDepositTokenExists(IDepositToken _depositToken) external view returns (bool);
@@ -75,67 +75,60 @@ interface IIssuer {
 
     function removeDepositToken(IDepositToken _depositToken) external;
 
+    function deposit(
+        IDepositToken _depositToken,
+        uint256 _amount,
+        address _onBehalfOf
+    ) external;
+
+    function mint(ISyntheticAsset _syntheticAsset, uint256 _amount) external;
+
+    function withdraw(
+        IDepositToken _depositToken,
+        uint256 _amount,
+        address _to
+    ) external;
+
+    function repay(
+        ISyntheticAsset _syntheticAsset,
+        address _onBehalfOf,
+        uint256 _amount
+    ) external;
+
+    function liquidate(
+        ISyntheticAsset _syntheticAsset,
+        address _account,
+        uint256 _amountToRepay,
+        IDepositToken _depositToken
+    ) external;
+
+    function swap(
+        ISyntheticAsset _syntheticAssetIn,
+        ISyntheticAsset _syntheticAssetOut,
+        uint256 _amountIn
+    ) external returns (uint256 _amountOut);
+
     function updateOracle(IOracle _newOracle) external;
 
-    function mintSyntheticAsset(
-        ISyntheticAsset _syntheticAsset,
-        address _to,
-        uint256 _amount
-    ) external;
+    function updateDepositFee(uint256 _newDepositFee) external;
 
-    function mintDebtToken(
-        IDebtToken _debtToken,
-        address _to,
-        uint256 _amount
-    ) external;
+    function updateMintFee(uint256 _newMintFee) external;
 
-    function burnSyntheticAsset(
-        ISyntheticAsset _syntheticAsset,
-        address _from,
-        uint256 _amount
-    ) external;
+    function updateWithdrawFee(uint256 _newWithdrawFee) external;
 
-    function burnDebtToken(
-        IDebtToken _debtToken,
-        address _from,
-        uint256 _amount
-    ) external;
+    function updateRepayFee(uint256 _newRepayFee) external;
 
-    function mintDepositToken(
-        IDepositToken _depositToken,
-        address _to,
-        uint256 _amount
-    ) external;
+    function updateSwapFee(uint256 _newSwapFee) external;
 
-    function burnDepositToken(
-        IDepositToken _depositToken,
-        address _account,
-        uint256 _amount
-    ) external;
+    function updateLiquidatorFee(uint256 _newLiquidatorFee) external;
 
-    function seizeDepositToken(
-        IDepositToken _depositToken,
-        address _from,
-        address _to,
-        uint256 _amount
-    ) external;
+    function updateLiquidateFee(uint256 _newLiquidateFee) external;
 
-    function seizeSyntheticAsset(
-        ISyntheticAsset _syntheticAsset,
-        address _from,
-        address _to,
-        uint256 _amount
-    ) external;
+    function updateMaxLiquidable(uint256 _newMaxLiquidable) external;
 
     function updateTreasury(ITreasury _newTreasury) external;
 
     function treasury() external view returns (ITreasury);
-
-    function pullFromTreasury(
-        IDepositToken _token,
-        address _to,
-        uint256 _amount
-    ) external;
 
     function accrueInterest(ISyntheticAsset _syntheticAsset) external;
 }

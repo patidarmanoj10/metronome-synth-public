@@ -23,7 +23,7 @@ const {UNISWAP_V3, UNISWAP_V2, CHAINLINK} = Protocol
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {getNamedAccounts, deployments} = hre
   const {execute, deploy} = deployments
-  const {deployer, governor} = await getNamedAccounts()
+  const {deployer} = await getNamedAccounts()
 
   const uniswapV3PriceProvider = await deploy('UniswapV3PriceProvider', {
     from: deployer,

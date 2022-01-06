@@ -4,7 +4,7 @@ import {parseEther} from 'ethers/lib/utils'
 import {UpgradableContracts, deterministic} from '../helpers'
 
 const {
-  Issuer: {alias: Issuer},
+  Controller: {alias: Controller},
   VsEthDebtToken: {alias: VsEthDebtToken},
   VsEth: {alias: VsEth},
 } = UpgradableContracts
@@ -18,7 +18,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   const oracle = await get(Oracle)
 
-  const {address: issuerAddress} = await deterministic(hre, UpgradableContracts.Issuer)
+  const {address: controllerAddress} = await deterministic(hre, UpgradableContracts.Controller)
   const {address: vsEthDebtTokenAddress} = await deterministic(hre, UpgradableContracts.VsEthDebtToken)
   const {deploy} = await deterministic(hre, UpgradableContracts.VsEth)
 
@@ -31,14 +31,14 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     'Vesper Synth ETH',
     'vsETH',
     18,
-    issuerAddress,
+    controllerAddress,
     vsEthDebtTokenAddress,
     parseEther('1.5'), // CR = 150%
     oracle.address,
     parseEther('0') // Interest Rate = 0%
   )
 
-  await execute(Issuer, {from: deployer, log: true}, 'addSyntheticAsset', syntheticAssetAddress)
+  await execute(Controller, {from: deployer, log: true}, 'addSyntheticAsset', syntheticAssetAddress)
 }
 
 export default func

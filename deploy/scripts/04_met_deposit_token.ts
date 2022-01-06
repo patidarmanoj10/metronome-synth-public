@@ -6,7 +6,7 @@ import Address from '../../helpers/address'
 const {MET_ADDRESS} = Address
 const {
   MetDepositToken: {alias: MetDepositToken},
-  Issuer: {alias: Issuer},
+  Controller: {alias: Controller},
 } = UpgradableContracts
 const Oracle = 'Oracle'
 
@@ -17,7 +17,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   const oracle = await get(Oracle)
 
-  const {address: issuerAddress} = await deterministic(hre, UpgradableContracts.Issuer)
+  const {address: controllerAddress} = await deterministic(hre, UpgradableContracts.Controller)
   const {deploy} = await deterministic(hre, UpgradableContracts.MetDepositToken)
 
   const {address: depositTokenAddress} = await deploy()
@@ -30,13 +30,13 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     {from: deployer, log: true},
     'initialize',
     MET_ADDRESS,
-    issuerAddress,
+    controllerAddress,
     oracle.address,
     symbol,
     decimals
   )
 
-  await execute(Issuer, {from: deployer, log: true}, 'addDepositToken', depositTokenAddress)
+  await execute(Controller, {from: deployer, log: true}, 'addDepositToken', depositTokenAddress)
 }
 
 export default func

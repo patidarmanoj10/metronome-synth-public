@@ -2,7 +2,7 @@ import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
 import {UpgradableContracts, deterministic} from '../helpers'
 
-const {alias: Issuer} = UpgradableContracts.Issuer
+const {alias: Controller} = UpgradableContracts.Controller
 const Oracle = 'Oracle'
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
@@ -12,15 +12,14 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   const oracle = await get(Oracle)
 
-  const {address: vSynthAddress} = await deterministic(hre, UpgradableContracts.VSynth)
   const {address: treasuryAddress} = await deterministic(hre, UpgradableContracts.Treasury)
 
-  const {deploy} = await deterministic(hre, UpgradableContracts.Issuer)
+  const {deploy} = await deterministic(hre, UpgradableContracts.Controller)
   await deploy()
 
-  await execute(Issuer, {from: deployer, log: true}, 'initialize', oracle.address, treasuryAddress, vSynthAddress)
+  await execute(Controller, {from: deployer, log: true}, 'initialize', oracle.address, treasuryAddress)
 }
 
 export default func
-func.tags = [Issuer]
+func.tags = [Controller]
 func.dependencies = [Oracle]

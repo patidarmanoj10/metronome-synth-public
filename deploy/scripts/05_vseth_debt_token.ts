@@ -9,7 +9,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {execute} = deployments
   const {deployer} = await getNamedAccounts()
 
-  const {address: issuerAddress} = await deterministic(hre, UpgradableContracts.Issuer)
+  const {address: controllerAddress} = await deterministic(hre, UpgradableContracts.Controller)
   const {address: vsEthAddress} = await deterministic(hre, UpgradableContracts.VsEth)
 
   const {deploy} = await deterministic(hre, UpgradableContracts.VsEthDebtToken)
@@ -23,7 +23,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     'vsETH Debt',
     'vsETH-Debt',
     18,
-    issuerAddress,
+    controllerAddress,
     vsEthAddress
   )
 }

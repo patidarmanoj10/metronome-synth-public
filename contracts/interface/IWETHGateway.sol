@@ -2,10 +2,10 @@
 
 pragma solidity 0.8.9;
 
-import "./IVSynth.sol";
+import "./IController.sol";
 
 interface IWETHGateway {
-    function depositETH(IVSynth _vSynth) external payable;
+    function depositETH(IController _controller) external payable;
 
-    function withdrawETH(IVSynth _vSynth, uint256 _amount) external;
+    function withdrawETH(IController _controller, uint256 _amount) external;
 }

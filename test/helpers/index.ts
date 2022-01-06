@@ -1,7 +1,7 @@
 import {BigNumber} from '@ethersproject/bignumber'
 import {parseEther} from '@ethersproject/units'
 import {ethers, network} from 'hardhat'
-import {VSynth, Issuer, SyntheticAsset} from '../../typechain'
+import {Controller, SyntheticAsset} from '../../typechain'
 
 export const HOUR = BigNumber.from(60 * 60)
 export const CHAINLINK_ETH_AGGREGATOR_ADDRESS = '0x5f4ec3df9cbd43714fe2740f5e3616155c5b8419'
@@ -19,14 +19,13 @@ export const BLOCKS_PER_YEAR = 2102400
  * Note: This should be used when collateral:debit >= 1
  */
 export const getMinLiquidationAmountInUsd = async function (
-  vSynth: VSynth,
-  issuer: Issuer,
+  controller: Controller,
   accountAddress: string,
   vsAsset: SyntheticAsset
 ): Promise<BigNumber> {
-  const {_lockedDepositInUsd, _depositInUsd} = await issuer.debtPositionOfUsingLatestPrices(accountAddress)
+  const {_lockedDepositInUsd, _depositInUsd} = await controller.debtPositionOfUsingLatestPrices(accountAddress)
   const vsAssetCR = await vsAsset.collateralizationRatio()
-  const fee = (await vSynth.liquidatorFee()).add(await vSynth.liquidateFee())
+  const fee = (await controller.liquidatorFee()).add(await controller.liquidateFee())
 
   const numerator = _depositInUsd.sub(_lockedDepositInUsd)
   const denominator = fee.sub(vsAssetCR.sub(parseEther('1')))
@@ -40,12 +39,11 @@ export const getMinLiquidationAmountInUsd = async function (
  * Calculates USD value needed = C/(1 + L)
  */
 export const getMaxLiquidationAmountInUsd = async function (
-  vSynth: VSynth,
-  issuer: Issuer,
+  controller: Controller,
   accountAddress: string
 ): Promise<BigNumber> {
-  const {_depositInUsd} = await issuer.debtPositionOfUsingLatestPrices(accountAddress)
-  const fee = (await vSynth.liquidatorFee()).add(await vSynth.liquidateFee())
+  const {_depositInUsd} = await controller.debtPositionOfUsingLatestPrices(accountAddress)
+  const fee = (await controller.liquidatorFee()).add(await controller.liquidateFee())
 
   const numerator = _depositInUsd
   const denominator = parseEther('1').add(fee)

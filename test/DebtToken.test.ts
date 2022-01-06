@@ -9,7 +9,7 @@ import {BLOCKS_PER_YEAR} from './helpers'
 
 describe('DebtToken', function () {
   let deployer: SignerWithAddress
-  let issuerMock: SignerWithAddress
+  let controllerMock: SignerWithAddress
   let user1: SignerWithAddress
   let user2: SignerWithAddress
   let debtToken: DebtTokenMock
@@ -21,7 +21,7 @@ describe('DebtToken', function () {
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
-    ;[deployer, issuerMock, user1, user2] = await ethers.getSigners()
+    ;[deployer, controllerMock, user1, user2] = await ethers.getSigners()
 
     const syntheticAssetMockFactory = new SyntheticAssetMock__factory(deployer)
     syntheticAssetMock = await syntheticAssetMockFactory.deploy('Vesper Synth ETH', 'vsETH', interestRate)
@@ -29,9 +29,9 @@ describe('DebtToken', function () {
     const debtTokenMockFactory = new DebtTokenMock__factory(deployer)
     debtToken = await debtTokenMockFactory.deploy()
     await debtToken.deployed()
-    await debtToken.initialize(name, symbol, 18, issuerMock.address, syntheticAssetMock.address)
+    await debtToken.initialize(name, symbol, 18, controllerMock.address, syntheticAssetMock.address)
 
-    debtToken = debtToken.connect(issuerMock)
+    debtToken = debtToken.connect(controllerMock)
   })
 
   it('default values', async function () {
@@ -49,9 +49,9 @@ describe('DebtToken', function () {
       expect(await debtToken.balanceOf(user1.address)).eq(amount)
     })
 
-    it('should revert if not issuer', async function () {
+    it('should revert if not controller', async function () {
       const tx = debtToken.connect(user1).mint(user1.address, parseEther('10'))
-      await expect(tx).revertedWith('not-issuer')
+      await expect(tx).revertedWith('not-controller')
     })
   })
 
@@ -69,9 +69,9 @@ describe('DebtToken', function () {
         expect(await debtToken.balanceOf(user1.address)).eq(0)
       })
 
-      it('should revert if not issuer', async function () {
+      it('should revert if not controller', async function () {
         const tx = debtToken.connect(user1).mint(user1.address, parseEther('10'))
-        await expect(tx).revertedWith('not-issuer')
+        await expect(tx).revertedWith('not-controller')
       })
     })
 
@@ -99,7 +99,7 @@ describe('DebtToken', function () {
 
       // when
       await syntheticAssetMock.updateInterestRate(parseEther('0.02')) // 2%
-      await debtToken.setBlockNumber(BLOCKS_PER_YEAR)
+      await debtToken.setBlockNumber((await ethers.provider.getBlockNumber()) + BLOCKS_PER_YEAR)
       await debtToken.accrueInterest()
 
       // then
@@ -134,11 +134,11 @@ describe('DebtToken', function () {
       // when
       // 1st year 10% interest + 2nd year 50% interest
       await syntheticAssetMock.updateInterestRate(parseEther('0.1')) // 10%
-      await debtToken.setBlockNumber(BLOCKS_PER_YEAR)
+      await debtToken.setBlockNumber((await ethers.provider.getBlockNumber()) + BLOCKS_PER_YEAR)
       await debtToken.accrueInterest()
 
       await syntheticAssetMock.updateInterestRate(parseEther('0.5')) // 50%
-      await debtToken.setBlockNumber(BLOCKS_PER_YEAR)
+      await debtToken.setBlockNumber((await ethers.provider.getBlockNumber()) + BLOCKS_PER_YEAR)
       await debtToken.accrueInterest()
 
       // then
@@ -147,7 +147,7 @@ describe('DebtToken', function () {
       // @ts-ignore
       expect(totalDebt).closeTo(debtOfUser, parseEther('0.0001'))
       // @ts-ignore
-      expect(totalDebt).closeTo(parseEther('165'), parseEther('0.01'))
+      expect(totalDebt).closeTo(parseEther('165'), parseEther('0.001'))
     })
 
     it('should stop accruing interest after changing interest rate to 0', async function () {
@@ -170,7 +170,7 @@ describe('DebtToken', function () {
       // @ts-ignore
       expect(totalDebt).closeTo(debtOfUser, parseEther('0.0001'))
       // @ts-ignore
-      expect(totalDebt).closeTo(parseEther('110'), parseEther('0.01'))
+      expect(totalDebt).closeTo(parseEther('110'), parseEther('0.1'))
     })
   })
 })

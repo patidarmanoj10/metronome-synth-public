@@ -33,7 +33,7 @@ contract DepositToken is Manageable, DepositTokenStorageV1 {
      * @notice Requires that amount is lower than the account's unlocked balance
      */
     modifier onlyIfNotLocked(address _account, uint256 _amount) {
-        (, , , uint256 _unlockedDepositInUsd) = issuer.debtPositionOf(_account);
+        (, , , uint256 _unlockedDepositInUsd) = controller.debtPositionOf(_account);
         uint256 _unlockedDeposit = oracle.convertFromUsd(underlying, _unlockedDepositInUsd);
         require(_unlockedDeposit >= _amount, "not-enough-free-balance");
         _;
@@ -41,7 +41,7 @@ contract DepositToken is Manageable, DepositTokenStorageV1 {
 
     function initialize(
         IERC20 _underlying,
-        IIssuer _issuer,
+        IController _controller,
         IOracle _oracle,
         string memory _symbol,
         uint8 _decimals
@@ -50,7 +50,7 @@ contract DepositToken is Manageable, DepositTokenStorageV1 {
 
         __Manageable_init();
 
-        setIssuer(_issuer);
+        setController(_controller);
 
         name = "Tokenized deposit position";
         symbol = _symbol;
@@ -162,7 +162,7 @@ contract DepositToken is Manageable, DepositTokenStorageV1 {
      * @param _to The account to mint to
      * @param _amount The amount to mint
      */
-    function mint(address _to, uint256 _amount) public override onlyIssuer {
+    function mint(address _to, uint256 _amount) public override onlyController {
         require(isActive, "deposit-token-is-inactive");
         uint256 _newTotalSupplyInUsd = oracle.convertToUsd(underlying, totalSupply + _amount);
         require(_newTotalSupplyInUsd <= maxTotalSupplyInUsd, "surpass-max-total-supply");
@@ -178,7 +178,7 @@ contract DepositToken is Manageable, DepositTokenStorageV1 {
     function burnFromUnlocked(address _from, uint256 _amount)
         public
         override
-        onlyIssuer
+        onlyController
         onlyIfNotLocked(_from, _amount)
     {
         _burn(_from, _amount);
@@ -192,7 +192,7 @@ contract DepositToken is Manageable, DepositTokenStorageV1 {
     function burnForWithdraw(address _from, uint256 _amount)
         public
         override
-        onlyIssuer
+        onlyController
         onlyIfNotLocked(_from, _amount)
         onlyIfMinDepositTimePassed(_from, _amount)
     {
@@ -204,7 +204,7 @@ contract DepositToken is Manageable, DepositTokenStorageV1 {
      * @param _from The account to burn from
      * @param _amount The amount to burn
      */
-    function burn(address _from, uint256 _amount) public override onlyIssuer {
+    function burn(address _from, uint256 _amount) public override onlyController {
         _burn(_from, _amount);
     }
 
@@ -246,7 +246,7 @@ contract DepositToken is Manageable, DepositTokenStorageV1 {
         address _from,
         address _to,
         uint256 _amount
-    ) public override onlyIssuer {
+    ) public override onlyController {
         _transfer(_from, _to, _amount);
     }
 

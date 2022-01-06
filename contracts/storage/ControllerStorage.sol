@@ -2,9 +2,11 @@
 
 pragma solidity 0.8.9;
 
-import "../interface/IVSynth.sol";
+import "../dependencies/openzeppelin/utils/structs/EnumerableSet.sol";
+import "../interface/IController.sol";
+import "../interface/ITreasury.sol";
 
-abstract contract VSynthStorageV1 is IVSynth {
+abstract contract ControllerStorageV1 is IController {
     /**
      * @notice The fee charged when depositing collateral
      * @dev Use 18 decimals (e.g. 1e16 = 1%)
@@ -36,12 +38,6 @@ abstract contract VSynthStorageV1 is IVSynth {
     uint256 public swapFee;
 
     /**
-     * @notice The fee charged when refinancing a debt
-     * @dev Use 18 decimals (e.g. 1e16 = 1%)
-     */
-    uint256 public refinanceFee;
-
-    /**
      * @notice The fee charged from liquidated deposit that goes to the liquidator
      * @dev Use 18 decimals (e.g. 1e16 = 1%)
      */
@@ -65,7 +61,22 @@ abstract contract VSynthStorageV1 is IVSynth {
     IOracle public oracle;
 
     /**
-     * @notice Issuer contract
+     * @notice Treasury contract
      */
-    IIssuer public issuer;
+    ITreasury public treasury;
+
+    /**
+     * @notice Represents collateral's deposits
+     */
+    EnumerableSet.AddressSet internal depositTokens;
+
+    /**
+     * @notice Get the deposit token's address from given underlying asset
+     */
+    mapping(IERC20 => IDepositToken) public depositTokenOf;
+
+    /**
+     * @notice Avaliable synthetic assets
+     */
+    EnumerableSet.AddressSet internal syntheticAssets;
 }
