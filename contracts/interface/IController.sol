@@ -21,11 +21,6 @@ interface IController {
 
     function getSyntheticAssets() external view returns (address[] memory);
 
-    function syntheticAssetsMintedBy(address _account)
-        external
-        view
-        returns (ISyntheticAsset[] memory _syntheticAssets);
-
     function debtOf(address _account) external view returns (uint256 _debtInUsd, uint256 _lockedDepositInUsd);
 
     function depositOf(address _account) external view returns (uint256 _depositInUsd);
@@ -41,11 +36,11 @@ interface IController {
 
     function maxIssuableFor(address _account, ISyntheticAsset _syntheticAsset) external returns (uint256 _maxIssuable);
 
-    function addSyntheticAsset(ISyntheticAsset _synthetic) external;
+    function addSyntheticAsset(address _synthetic) external;
 
     function removeSyntheticAsset(ISyntheticAsset _synthetic) external;
 
-    function addDepositToken(IDepositToken _depositToken) external;
+    function addDepositToken(address _depositToken) external;
 
     function removeDepositToken(IDepositToken _depositToken) external;
 
@@ -102,7 +97,7 @@ interface IController {
 
     function updateMaxLiquidable(uint256 _newMaxLiquidable) external;
 
-    function updateTreasury(ITreasury _newTreasury) external;
+    function updateTreasury(ITreasury _newTreasury, bool _withMigration) external;
 
     function treasury() external view returns (ITreasury);
 

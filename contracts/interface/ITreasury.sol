@@ -10,4 +10,6 @@ interface ITreasury {
         address _to,
         uint256 _amount
     ) external;
+
+    function migrateTo(address _newTreasury) external;
 }

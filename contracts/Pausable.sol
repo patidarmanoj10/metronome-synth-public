@@ -3,12 +3,13 @@
 pragma solidity 0.8.9;
 
 import "./dependencies/openzeppelin/utils/Context.sol";
+import "./access/Governable.sol";
 
 /**
  * @dev Contract module which allows children to implement an emergency stop
  * mechanism that can be triggered by an authorized account.
  */
-abstract contract Pausable is Context {
+abstract contract Pausable is Governable {
     event Paused(address account);
     event Shutdown(address account);
     event Unpaused(address account);
@@ -37,26 +38,26 @@ abstract contract Pausable is Context {
     }
 
     /// @dev Pause contract operations, if contract is not paused.
-    function _pause() internal virtual whenNotPaused {
+    function pause() external virtual whenNotPaused onlyGovernor {
         paused = true;
         emit Paused(_msgSender());
     }
 
     /// @dev Unpause contract operations, allow only if contract is paused and not shutdown.
-    function _unpause() internal virtual whenPaused whenNotShutdown {
+    function unpause() external virtual whenPaused whenNotShutdown onlyGovernor {
         paused = false;
         emit Unpaused(_msgSender());
     }
 
     /// @dev Shutdown contract operations, if not already shutdown.
-    function _shutdown() internal virtual whenNotShutdown {
+    function shutdown() external virtual whenNotShutdown onlyGovernor {
         stopEverything = true;
         paused = true;
         emit Shutdown(_msgSender());
     }
 
     /// @dev Open contract operations, if contract is in shutdown state
-    function _open() internal virtual whenShutdown {
+    function open() external virtual whenShutdown onlyGovernor {
         stopEverything = false;
         emit Open(_msgSender());
     }

@@ -71,11 +71,7 @@ contract ControllerMock is IController {
         _unlockedDepositInUsd = _depositInUsd - _lockedDepositInUsd;
     }
 
-    function syntheticAssetsMintedBy(address) external pure override returns (ISyntheticAsset[] memory) {
-        revert("mock-does-not-implement");
-    }
-
-    function addSyntheticAsset(ISyntheticAsset) external pure override {
+    function addSyntheticAsset(address) external pure override {
         revert("mock-does-not-implement");
     }
 
@@ -83,7 +79,7 @@ contract ControllerMock is IController {
         revert("mock-does-not-implement");
     }
 
-    function addDepositToken(IDepositToken) external pure override {
+    function addDepositToken(address) external pure override {
         revert("mock-does-not-implement");
     }
 
@@ -194,7 +190,7 @@ contract ControllerMock is IController {
         revert("mock-does-not-implement");
     }
 
-    function updateTreasury(ITreasury) external pure override {
+    function updateTreasury(ITreasury, bool) external pure override {
         revert("mock-does-not-implement");
     }
 
