@@ -568,15 +568,16 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
         _syntheticAssetIn.burn(_account, _amountIn);
         _syntheticAssetIn.debtToken().burn(_account, _amountIn);
 
-        _syntheticAssetOut.mint(_account, _amountOutBeforeFee);
-        _syntheticAssetOut.debtToken().mint(_account, _amountOutBeforeFee);
-
-        uint256 _feeAmount = swapFee > 0 ? _amountOutBeforeFee.wadMul(swapFee) : 0;
-        _amountOut = _amountOutBeforeFee - _feeAmount;
-
-        if (_feeAmount > 0) {
-            _syntheticAssetOut.seize(_account, address(treasury), _feeAmount);
+        _amountOut = _amountOutBeforeFee;
+        uint256 _feeAmount;
+        if (swapFee > 0) {
+            _feeAmount = _amountOutBeforeFee.wadMul(swapFee);
+            _syntheticAssetOut.mint(address(treasury), _feeAmount);
+            _amountOut -= _feeAmount;
         }
+
+        _syntheticAssetOut.mint(_account, _amountOut);
+        _syntheticAssetOut.debtToken().mint(_account, _amountOutBeforeFee);
 
         (bool _isHealthyAfter, , , ) = debtPositionOf(_account);
         require(_isHealthyAfter, "position-ended-up-unhealthy");
