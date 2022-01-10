@@ -571,9 +571,6 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
             require(_amountIn > 0 && _amountIn <= _syntheticAssetIn.balanceOf(_account), "amount-in-0-or-gt-balance");
         }
 
-        (bool _isHealthy, , , ) = debtPositionOf(_account);
-        require(_isHealthy, "position-is-unhealthy");
-
         uint256 _amountOutBeforeFee = oracle.convert(_syntheticAssetIn, _syntheticAssetOut, _amountIn);
 
         if (debtFloorInUsd > 0) {
