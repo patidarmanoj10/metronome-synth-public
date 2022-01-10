@@ -6,10 +6,9 @@
 
 pragma solidity 0.8.9;
 
-import "../interface/IIssuer.sol";
-import "../interface/IDepositToken.sol";
+import "../interface/IController.sol";
 
-contract IssuerMock is IIssuer {
+contract ControllerMock is IController {
     IDepositToken public depositToken;
     IOracle public oracle;
 
@@ -122,73 +121,86 @@ contract IssuerMock is IIssuer {
         revert("mock-does-not-implement");
     }
 
-    function updateOracle(IOracle) external pure override {
-        revert("mock-does-not-implement");
-    }
-
-    function mintSyntheticAsset(
-        ISyntheticAsset,
-        address,
-        uint256
-    ) external pure override {
-        revert("mock-does-not-implement");
-    }
-
-    function mintDebtToken(
-        IDebtToken,
-        address,
-        uint256
-    ) external pure override {
-        revert("mock-does-not-implement");
-    }
-
-    function burnSyntheticAsset(
-        ISyntheticAsset,
-        address,
-        uint256
-    ) external pure override {
-        revert("mock-does-not-implement");
-    }
-
-    function burnDebtToken(
-        IDebtToken,
-        address,
-        uint256
-    ) external pure override {
-        revert("mock-does-not-implement");
-    }
-
-    function mintDepositToken(
+    function deposit(
         IDepositToken _depositToken,
-        address _to,
-        uint256 _amount
-    ) external override {
-        _depositToken.mint(_to, _amount);
+        uint256 _amount,
+        address _onBehalfOf
+    ) external {
+        _depositToken.underlying().transferFrom(msg.sender, address(this), _amount);
+        _depositToken.mint(_onBehalfOf, _amount);
     }
 
-    function burnDepositToken(
-        IDepositToken _depositToken,
-        address _from,
-        uint256 _amount
-    ) external override {
-        _depositToken.mint(_from, _amount);
-    }
-
-    function seizeDepositToken(
-        IDepositToken,
-        address,
-        address,
-        uint256
-    ) external pure override {
+    function mint(ISyntheticAsset, uint256) external pure {
         revert("mock-does-not-implement");
     }
 
-    function seizeSyntheticAsset(
+    function withdraw(
+        IDepositToken _depositToken,
+        uint256 _amount,
+        address _to
+    ) external {
+        _depositToken.burn(msg.sender, _amount);
+        _depositToken.underlying().transfer(_to, _amount);
+    }
+
+    function repay(
         ISyntheticAsset,
         address,
-        address,
         uint256
-    ) external pure override {
+    ) external pure {
+        revert("mock-does-not-implement");
+    }
+
+    function liquidate(
+        ISyntheticAsset,
+        address,
+        uint256,
+        IDepositToken
+    ) external pure {
+        revert("mock-does-not-implement");
+    }
+
+    function swap(
+        ISyntheticAsset,
+        ISyntheticAsset,
+        uint256
+    ) external pure returns (uint256) {
+        revert("mock-does-not-implement");
+    }
+
+    function updateOracle(IOracle) external pure {
+        revert("mock-does-not-implement");
+    }
+
+    function updateDepositFee(uint256) external pure {
+        revert("mock-does-not-implement");
+    }
+
+    function updateMintFee(uint256) external pure {
+        revert("mock-does-not-implement");
+    }
+
+    function updateWithdrawFee(uint256) external pure {
+        revert("mock-does-not-implement");
+    }
+
+    function updateRepayFee(uint256) external pure {
+        revert("mock-does-not-implement");
+    }
+
+    function updateSwapFee(uint256) external pure {
+        revert("mock-does-not-implement");
+    }
+
+    function updateLiquidatorFee(uint256) external pure {
+        revert("mock-does-not-implement");
+    }
+
+    function updateLiquidateFee(uint256) external pure {
+        revert("mock-does-not-implement");
+    }
+
+    function updateMaxLiquidable(uint256) external pure {
         revert("mock-does-not-implement");
     }
 
@@ -205,14 +217,6 @@ contract IssuerMock is IIssuer {
     }
 
     function updateTreasury(ITreasury) external pure override {
-        revert("mock-does-not-implement");
-    }
-
-    function pullFromTreasury(
-        IDepositToken,
-        address,
-        uint256
-    ) external pure override {
         revert("mock-does-not-implement");
     }
 

@@ -3,23 +3,16 @@
 pragma solidity 0.8.9;
 
 import "./Governable.sol";
-import "../interface/IDebtToken.sol";
-import "../interface/IVSynth.sol";
-import "../interface/IIssuer.sol";
+import "../interface/IController.sol";
 
 /**
  * @title Reusable contract that handles accesses
  */
 abstract contract Manageable is Governable {
     /**
-     * @notice vSynth contract
+     * @notice Controller contract
      */
-    IVSynth public vSynth;
-
-    /**
-     * @notice Issuer contract
-     */
-    IIssuer public issuer;
+    IController public controller;
 
     // solhint-disable-next-line func-name-mixedcase
     function __Manageable_init() internal initializer {
@@ -27,33 +20,20 @@ abstract contract Manageable is Governable {
     }
 
     /**
-     * @notice Requires that the caller is the vSynth contract
+     * @notice Requires that the caller is the Controller contract
      */
-    modifier onlyVSynth() {
-        require(_msgSender() == address(vSynth), "not-vsynth");
+    modifier onlyController() {
+        require(_msgSender() == address(controller), "not-controller");
         _;
     }
 
     /**
-     * @notice Requires that the caller is the Issuer contract
+     * @notice Update Controller contract
+     * @param _controller The new Controller contract
      */
-    modifier onlyIssuer() {
-        require(_msgSender() == address(issuer), "not-issuer");
-        _;
-    }
-
-    /**
-     * @notice Update vSynth contract
-     * @param _vSynth The new vSynth contract
-     */
-    function setVSynth(IVSynth _vSynth) public onlyGovernor {
-        require(address(_vSynth) != address(0), "new-vsynth-address-is-zero");
-        vSynth = _vSynth;
-    }
-
-    function setIssuer(IIssuer _issuer) public onlyGovernor {
-        require(address(_issuer) != address(0), "new-issuer-address-is-zero");
-        issuer = _issuer;
+    function setController(IController _controller) public onlyGovernor {
+        require(address(_controller) != address(0), "new-vsynth-address-is-zero");
+        controller = _controller;
     }
 
     uint256[49] private __gap;

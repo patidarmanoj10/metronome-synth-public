@@ -23,29 +23,33 @@ contract WETHGateway is Governable, IWETHGateway {
         weth = _weth;
     }
 
-    function authorizeVSynth(address _vSynth) external onlyGovernor {
-        weth.safeApprove(_vSynth, type(uint256).max);
+    /**
+     * @notice Authorize the Controller contract to receive WETH tokens
+     * @param _controller The Controller contract
+     */
+    function authorizeController(address _controller) external onlyGovernor {
+        weth.safeApprove(_controller, type(uint256).max);
     }
 
     /**
      * @notice deposits WETH as collateral using native ETH. A corresponding amount of the deposit token is minted.
-     * @param _vSynth The VSynth contract
+     * @param _controller The Controller contract
      */
-    function depositETH(IVSynth _vSynth) external payable override {
+    function depositETH(IController _controller) external payable override {
         weth.deposit{value: msg.value}();
-        IDepositToken _depositToken = _vSynth.issuer().depositTokenOf(weth);
-        _vSynth.deposit(_depositToken, msg.value, msg.sender);
+        IDepositToken _depositToken = _controller.depositTokenOf(weth);
+        _controller.deposit(_depositToken, msg.value, msg.sender);
     }
 
     /**
      * @notice withdraws the weth _reserves of msg.sender.
-     * @param _vSynth The VSynth contract
+     * @param _controller The Controller contract
      * @param _amount The amount of deposit tokens to withdraw and receive native ETH
      */
-    function withdrawETH(IVSynth _vSynth, uint256 _amount) external override {
-        IDepositToken _depositToken = _vSynth.issuer().depositTokenOf(weth);
+    function withdrawETH(IController _controller, uint256 _amount) external override {
+        IDepositToken _depositToken = _controller.depositTokenOf(weth);
         _depositToken.safeTransferFrom(msg.sender, address(this), _amount);
-        _vSynth.withdraw(_depositToken, _amount, address(this));
+        _controller.withdraw(_depositToken, _amount, address(this));
         weth.withdraw(_amount);
         Address.sendValue(payable(msg.sender), _amount);
     }

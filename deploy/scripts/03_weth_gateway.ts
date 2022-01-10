@@ -18,9 +18,9 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     args: [WETH_ADDRESS],
   })
 
-  const {address: vSynthAddress} = await deterministic(hre, UpgradableContracts.VSynth)
+  const {address: controllerAddress} = await deterministic(hre, UpgradableContracts.Controller)
 
-  await execute(WETHGateway, {from: deployer, log: true}, 'authorizeVSynth', vSynthAddress)
+  await execute(WETHGateway, {from: deployer, log: true}, 'authorizeController', controllerAddress)
 }
 
 export default func

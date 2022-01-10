@@ -9,12 +9,12 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {execute} = deployments
   const {deployer} = await getNamedAccounts()
 
-  const {address: issuerAddress} = await deterministic(hre, UpgradableContracts.Issuer)
+  const {address: controllerAddress} = await deterministic(hre, UpgradableContracts.Controller)
   const {deploy} = await deterministic(hre, UpgradableContracts.Treasury)
 
   await deploy()
 
-  await execute(Treasury, {from: deployer, log: true}, 'initialize', issuerAddress)
+  await execute(Treasury, {from: deployer, log: true}, 'initialize', controllerAddress)
 }
 
 export default func
