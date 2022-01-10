@@ -18,42 +18,12 @@ contract OracleMock is IOracle {
 
     function update(IERC20 _asset) external {}
 
-    function convertToUsdUsingLatestPrice(IERC20 _asset, uint256 _amount)
-        public
-        view
-        override
-        returns (uint256 _amountInUsd, bool _priceInvalid)
-    {
-        _amountInUsd = _amount.wadMul(rates[_asset]);
-        _priceInvalid = false;
-    }
-
-    function convertFromUsdUsingLatestPrice(IERC20 _asset, uint256 _amountInUsd)
-        public
-        view
-        override
-        returns (uint256 _amount, bool _priceInvalid)
-    {
-        _amount = _amountInUsd.wadDiv(rates[_asset]);
-        _priceInvalid = false;
-    }
-
-    function convertUsingLatestPrice(
-        IERC20 _assetIn,
-        IERC20 _assetOut,
-        uint256 _amountIn
-    ) public view override returns (uint256 _amountOut, bool _priceInvalid) {
-        uint256 _amountInUsd = convertToUsd(_assetIn, _amountIn);
-        _amountOut = convertFromUsd(_assetOut, _amountInUsd);
-        _priceInvalid = false;
-    }
-
     function convertToUsd(IERC20 _asset, uint256 _amount) public view override returns (uint256 _amountInUsd) {
-        (_amountInUsd, ) = convertToUsdUsingLatestPrice(_asset, _amount);
+        _amountInUsd = _amount.wadMul(rates[_asset]);
     }
 
     function convertFromUsd(IERC20 _asset, uint256 _amountInUsd) public view override returns (uint256 _amount) {
-        (_amount, ) = convertFromUsdUsingLatestPrice(_asset, _amountInUsd);
+        _amount = _amountInUsd.wadDiv(rates[_asset]);
     }
 
     function convert(
@@ -61,6 +31,7 @@ contract OracleMock is IOracle {
         IERC20 _assetOut,
         uint256 _amountIn
     ) public view override returns (uint256 _amountOut) {
-        (_amountOut, ) = convertUsingLatestPrice(_assetIn, _assetOut, _amountIn);
+        uint256 _amountInUsd = convertToUsd(_assetIn, _amountIn);
+        _amountOut = convertFromUsd(_assetOut, _amountInUsd);
     }
 }

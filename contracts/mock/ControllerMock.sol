@@ -45,33 +45,11 @@ contract ControllerMock is IController {
         revert("mock-does-not-implement");
     }
 
-    function debtOfUsingLatestPrices(address)
-        external
-        pure
-        returns (
-            uint256,
-            uint256,
-            bool
-        )
-    {
+    function debtOf(address) external pure returns (uint256, uint256) {
         revert("mock-does-not-implement");
     }
 
-    function debtPositionOfUsingLatestPrices(address)
-        external
-        pure
-        returns (
-            bool,
-            uint256,
-            uint256,
-            uint256,
-            bool
-        )
-    {
-        revert("mock-does-not-implement");
-    }
-
-    function depositOfUsingLatestPrices(address) external pure override returns (uint256, bool) {
+    function depositOf(address) external pure override returns (uint256) {
         revert("mock-does-not-implement");
     }
 
@@ -89,7 +67,7 @@ contract ControllerMock is IController {
         _isHealthy = true;
         _lockedDepositInUsd = 0;
         uint256 _deposit = depositToken.balanceOf(_account);
-        (_depositInUsd, ) = oracle.convertToUsdUsingLatestPrice(depositToken.underlying(), _deposit);
+        _depositInUsd = oracle.convertToUsd(depositToken.underlying(), _deposit);
         _unlockedDepositInUsd = _depositInUsd - _lockedDepositInUsd;
     }
 
@@ -114,10 +92,6 @@ contract ControllerMock is IController {
     }
 
     function maxIssuableFor(address, ISyntheticAsset) external pure override returns (uint256) {
-        revert("mock-does-not-implement");
-    }
-
-    function maxIssuableForUsingLatestPrices(address, ISyntheticAsset) external pure override returns (uint256, bool) {
         revert("mock-does-not-implement");
     }
 

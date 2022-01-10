@@ -64,17 +64,6 @@ contract Oracle is IOracle, Governable {
         _;
     }
 
-    /**
-     * @dev Calls the update routine of an asset's price providers
-     * @dev I.e. Only Uniswap V2 price provider has the update function implemented
-     */
-    modifier updatePriceProviderIfNeeded(IERC20 _asset) {
-        if (assets[_asset].protocol != Protocol.NONE) {
-            _priceProviderOfAsset(_asset).update(_dataOfAsset(_asset));
-        }
-        _;
-    }
-
     constructor(uint256 _stalePeriod) {
         stalePeriod = _stalePeriod;
     }
@@ -187,131 +176,54 @@ contract Oracle is IOracle, Governable {
      * @param _asset The asset to update
      */
     // solhint-disable-next-line no-empty-blocks
-    function update(IERC20 _asset) public updatePriceProviderIfNeeded(_asset) {}
-
-    /**
-     * @notice Convert asset's amount to USD
-     * @param _asset The asset's address
-     * @param _amount The amount to convert
-     * @return _amountInUsd The amount in USD (8 decimals)
-     * @return _priceInvalid True if price is outdated and/or invalid
-     */
-    function convertToUsdUsingLatestPrice(IERC20 _asset, uint256 _amount)
-        public
-        view
-        onlyIfAssetHasPriceProvider(_asset)
-        returns (uint256 _amountInUsd, bool _priceInvalid)
-    {
-        if (assets[_asset].isUsd) return (_amount, false);
-
-        uint256 _lastUpdatedAt;
-        (_amountInUsd, _lastUpdatedAt) = _priceProviderOfAsset(_asset).convertToUsd(_dataOfAsset(_asset), _amount);
-        _priceInvalid = _amountInUsd == 0 || _priceIsStale(_lastUpdatedAt);
-    }
-
-    /**
-     * @notice Convert USD to asset's amount
-     * @param _asset The asset's address
-     * @param _amountInUsd The amount in USD (8 decimals)
-     * @return _amount The converted amount
-     * @return _priceInvalid True if price is outdated and/or invalid
-     */
-    function convertFromUsdUsingLatestPrice(IERC20 _asset, uint256 _amountInUsd)
-        public
-        view
-        onlyIfAssetHasPriceProvider(_asset)
-        returns (uint256 _amount, bool _priceInvalid)
-    {
-        if (assets[_asset].isUsd) return (_amountInUsd, false);
-
-        uint256 _lastUpdatedAt;
-        (_amount, _lastUpdatedAt) = _priceProviderOfAsset(_asset).convertFromUsd(_dataOfAsset(_asset), _amountInUsd);
-        _priceInvalid = _amount == 0 || _priceIsStale(_lastUpdatedAt);
-    }
-
-    /**
-     * @notice Convert assets' amounts
-     * @param _assetIn The asset to convert from
-     * @param _assetOut The asset to convert to
-     * @param _amountIn The amount to convert from
-     * @return _amountOut The converted amount
-     * @return _priceInvalid True if price is outdated and/or invalid
-     */
-    function convertUsingLatestPrice(
-        IERC20 _assetIn,
-        IERC20 _assetOut,
-        uint256 _amountIn
-    ) external view returns (uint256 _amountOut, bool _priceInvalid) {
-        (uint256 _amountInUsd, bool _price0Invalid) = convertToUsdUsingLatestPrice(_assetIn, _amountIn);
-        bool _price1Invalid;
-        (_amountOut, _price1Invalid) = convertFromUsdUsingLatestPrice(_assetOut, _amountInUsd);
-        _priceInvalid = _price0Invalid || _price1Invalid;
+    function update(IERC20 _asset) public {
+        if (assets[_asset].protocol != Protocol.NONE) {
+            _priceProviderOfAsset(_asset).update(_dataOfAsset(_asset));
+        }
     }
 
     /**
      * @notice Convert asset's amount to USD
-     * @dev Revert if price is invalid
      * @param _asset The asset's address
      * @param _amount The amount to convert
      * @return _amountInUsd The amount in USD (8 decimals)
      */
     function convertToUsd(IERC20 _asset, uint256 _amount)
         public
+        view
         onlyIfAssetHasPriceProvider(_asset)
-        updatePriceProviderIfNeeded(_asset)
         returns (uint256 _amountInUsd)
     {
-        bool _priceInvalid;
-        (_amountInUsd, _priceInvalid) = convertToUsdUsingLatestPrice(_asset, _amount);
-        require(!_priceInvalid, "price-is-invalid");
+        if (_amount == 0) return 0;
+        if (assets[_asset].isUsd) return _amount;
+
+        uint256 _lastUpdatedAt;
+        (_amountInUsd, _lastUpdatedAt) = _priceProviderOfAsset(_asset).convertToUsd(_dataOfAsset(_asset), _amount);
+        require(_amountInUsd > 0 && !_priceIsStale(_lastUpdatedAt), "price-is-invalid");
     }
 
     /**
      * @notice Convert USD to asset's amount
-     * @dev Revert if price is invalid
      * @param _asset The asset's address
      * @param _amountInUsd The amount in USD (8 decimals)
      * @return _amount The converted amount
      */
     function convertFromUsd(IERC20 _asset, uint256 _amountInUsd)
         public
+        view
         onlyIfAssetHasPriceProvider(_asset)
-        updatePriceProviderIfNeeded(_asset)
         returns (uint256 _amount)
     {
-        bool _priceInvalid;
-        (_amount, _priceInvalid) = convertFromUsdUsingLatestPrice(_asset, _amountInUsd);
-        require(!_priceInvalid, "price-is-invalid");
+        if (_amountInUsd == 0) return 0;
+        if (assets[_asset].isUsd) return _amountInUsd;
+
+        uint256 _lastUpdatedAt;
+        (_amount, _lastUpdatedAt) = _priceProviderOfAsset(_asset).convertFromUsd(_dataOfAsset(_asset), _amountInUsd);
+        require(_amount > 0 && !_priceIsStale(_lastUpdatedAt), "price-is-invalid");
     }
 
     /**
      * @notice Convert assets' amounts
-     * @dev Revert if price is invalid
-     * @param _priceProvider The price provider
-     * @param _assetIn The asset to convert from
-     * @param _assetOut The asset to convert to
-     * @param _amountIn The amount to convert from
-     * @return _amountOut The converted amount
-     */
-    function _convertUsingTheSamePriceProvider(
-        IPriceProvider _priceProvider,
-        IERC20 _assetIn,
-        IERC20 _assetOut,
-        uint256 _amountIn
-    )
-        private
-        onlyIfAssetHasPriceProvider(_assetIn)
-        updatePriceProviderIfNeeded(_assetIn)
-        onlyIfAssetHasPriceProvider(_assetOut)
-        updatePriceProviderIfNeeded(_assetOut)
-        returns (uint256 _amountOut)
-    {
-        (_amountOut, ) = _priceProvider.convert(_dataOfAsset(_assetIn), _dataOfAsset(_assetOut), _amountIn);
-    }
-
-    /**
-     * @notice Convert assets' amounts
-     * @dev Revert if price is invalid
      * @param _assetIn The asset to convert from
      * @param _assetOut The asset to convert to
      * @param _amountIn The amount to convert from
@@ -321,13 +233,8 @@ contract Oracle is IOracle, Governable {
         IERC20 _assetIn,
         IERC20 _assetOut,
         uint256 _amountIn
-    ) external returns (uint256 _amountOut) {
-        IPriceProvider _inPriceProvider = _priceProviderOfAsset(_assetIn);
-        if (_inPriceProvider == _priceProviderOfAsset(_assetOut)) {
-            _amountOut = _convertUsingTheSamePriceProvider(_inPriceProvider, _assetIn, _assetOut, _amountIn);
-        } else {
-            uint256 _amountInUsd = convertToUsd(_assetIn, _amountIn);
-            _amountOut = convertFromUsd(_assetOut, _amountInUsd);
-        }
+    ) external view returns (uint256 _amountOut) {
+        uint256 _amountInUsd = convertToUsd(_assetIn, _amountIn);
+        _amountOut = convertFromUsd(_assetOut, _amountInUsd);
     }
 }

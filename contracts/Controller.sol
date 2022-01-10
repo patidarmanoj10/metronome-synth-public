@@ -155,40 +155,6 @@ contract Controller is ReentrancyGuard, Pausable, Governable, ControllerStorageV
         _;
     }
 
-    /**
-     * @dev Update prices of assets that are used by the account (checks synthetic assets and deposit tokens)
-     */
-    modifier updatePricesOfAssetsUsedBy(address _account) {
-        for (uint256 i = 0; i < syntheticAssets.length(); ++i) {
-            ISyntheticAsset _syntheticAsset = ISyntheticAsset(syntheticAssets.at(i));
-            accrueInterest(_syntheticAsset);
-            if (_syntheticAsset.debtToken().balanceOf(_account) > 0) {
-                oracle.update(_syntheticAsset);
-            }
-        }
-
-        for (uint256 i = 0; i < depositTokens.length(); ++i) {
-            if (IDepositToken(depositTokens.at(i)).balanceOf(_account) > 0) {
-                oracle.update(IDepositToken(depositTokens.at(i)).underlying());
-            }
-        }
-
-        _;
-    }
-
-    /**
-     * @dev Update a specific asset's price (also updates the deposit tokens prices)
-     */
-    modifier updatePriceOfAsset(ISyntheticAsset _syntheticAsset) {
-        _syntheticAsset.debtToken().accrueInterest();
-        oracle.update(_syntheticAsset);
-
-        for (uint256 i = 0; i < depositTokens.length(); ++i) {
-            oracle.update(IDepositToken(depositTokens.at(i)).underlying());
-        }
-        _;
-    }
-
     function initialize(IOracle _oracle, ITreasury _treasury) public initializer {
         require(address(_treasury) != address(0), "treasury-is-null");
         require(address(_oracle) != address(0), "oracle-is-null");
@@ -281,29 +247,13 @@ contract Controller is ReentrancyGuard, Pausable, Governable, ControllerStorageV
      * @param _account The account to check
      * @return _debtInUsd The debt value in USD
      * @return _lockedDepositInUsd The USD amount that's covering the debt (considering collateralization ratios)
-     * @return _anyPriceInvalid Returns true if any price is invalid
      */
-    function debtOfUsingLatestPrices(address _account)
-        public
-        view
-        override
-        returns (
-            uint256 _debtInUsd,
-            uint256 _lockedDepositInUsd,
-            bool _anyPriceInvalid
-        )
-    {
+    function debtOf(address _account) public view override returns (uint256 _debtInUsd, uint256 _lockedDepositInUsd) {
         for (uint256 i = 0; i < syntheticAssets.length(); ++i) {
             ISyntheticAsset _syntheticAsset = ISyntheticAsset(syntheticAssets.at(i));
             uint256 _amount = _syntheticAsset.debtToken().balanceOf(_account);
             if (_amount > 0) {
-                (uint256 _amountInUsd, bool _priceInvalid) = oracle.convertToUsdUsingLatestPrice(
-                    _syntheticAsset,
-                    _amount
-                );
-
-                if (_priceInvalid) _anyPriceInvalid = true;
-
+                uint256 _amountInUsd = oracle.convertToUsd(_syntheticAsset, _amount);
                 _debtInUsd += _amountInUsd;
                 _lockedDepositInUsd += _amountInUsd.wadMul(_syntheticAsset.collateralizationRatio());
             }
@@ -315,24 +265,12 @@ contract Controller is ReentrancyGuard, Pausable, Governable, ControllerStorageV
      * @dev We can optimize this function by storing an array of which deposit toekns the account deposited avoiding looping all
      * @param _account The account to check
      * @return _depositInUsd The total deposit value in USD among all collaterals
-     * @return _anyPriceInvalid Returns true if any price is invalid
      */
-    function depositOfUsingLatestPrices(address _account)
-        public
-        view
-        override
-        returns (uint256 _depositInUsd, bool _anyPriceInvalid)
-    {
+    function depositOf(address _account) public view override returns (uint256 _depositInUsd) {
         for (uint256 i = 0; i < depositTokens.length(); ++i) {
             uint256 _amount = IDepositToken(depositTokens.at(i)).balanceOf(_account);
             if (_amount > 0) {
-                (uint256 _amountInUsd, bool _priceInvalid) = oracle.convertToUsdUsingLatestPrice(
-                    IDepositToken(depositTokens.at(i)).underlying(),
-                    _amount
-                );
-
-                if (_priceInvalid) _anyPriceInvalid = true;
-
+                uint256 _amountInUsd = oracle.convertToUsd(IDepositToken(depositTokens.at(i)).underlying(), _amount);
                 _depositInUsd += _amountInUsd;
             }
         }
@@ -345,44 +283,11 @@ contract Controller is ReentrancyGuard, Pausable, Governable, ControllerStorageV
      * @return _lockedDepositInUsd The amount of deposit (is USD) that's covering all debt (considering collateralization ratios)
      * @return _depositInUsd The total collateral deposited in USD
      * @return _unlockedDepositInUsd The amount of deposit (is USD) that isn't covering the account's debt
-     * @return _anyPriceInvalid Returns true if any price is invalid
-     */
-    function debtPositionOfUsingLatestPrices(address _account)
-        public
-        view
-        override
-        returns (
-            bool _isHealthy,
-            uint256 _lockedDepositInUsd,
-            uint256 _depositInUsd,
-            uint256 _unlockedDepositInUsd,
-            bool _anyPriceInvalid
-        )
-    {
-        (, _lockedDepositInUsd, _anyPriceInvalid) = debtOfUsingLatestPrices(_account);
-
-        bool _depositPriceInvalid;
-
-        (_depositInUsd, _depositPriceInvalid) = depositOfUsingLatestPrices(_account);
-
-        _unlockedDepositInUsd = _depositInUsd > _lockedDepositInUsd ? _depositInUsd - _lockedDepositInUsd : 0;
-
-        _isHealthy = _depositInUsd >= _lockedDepositInUsd;
-        _anyPriceInvalid = _anyPriceInvalid || _depositPriceInvalid;
-    }
-
-    /**
-     * @notice Get debt position from an account
-     * @param _account The account to check
-     * @return _isHealthy Whether the account's position is healthy
-     * @return _lockedDepositInUsd The amount of deposit (is USD) that's covering all debt (considering collateralization ratios)
-     * @return _depositInUsd The total collateral deposited in USD
-     * @return _unlockedDepositInUsd The amount of deposit (is USD) that isn't covering the account's debt
      */
     function debtPositionOf(address _account)
         public
+        view
         override
-        updatePricesOfAssetsUsedBy(_account)
         returns (
             bool _isHealthy,
             uint256 _lockedDepositInUsd,
@@ -390,58 +295,35 @@ contract Controller is ReentrancyGuard, Pausable, Governable, ControllerStorageV
             uint256 _unlockedDepositInUsd
         )
     {
-        bool _anyPriceInvalid;
-        (
-            _isHealthy,
-            _lockedDepositInUsd,
-            _depositInUsd,
-            _unlockedDepositInUsd,
-            _anyPriceInvalid
-        ) = debtPositionOfUsingLatestPrices(_account);
-        require(!_anyPriceInvalid, "invalid-price");
+        (, _lockedDepositInUsd) = debtOf(_account);
+
+        (_depositInUsd) = depositOf(_account);
+
+        _unlockedDepositInUsd = _depositInUsd > _lockedDepositInUsd ? _depositInUsd - _lockedDepositInUsd : 0;
+
+        _isHealthy = _depositInUsd >= _lockedDepositInUsd;
     }
 
     /**
      * @notice Get max issuable synthetic asset amount for a given account
-     * @dev This function will revert if any price from oracle is invalid
      * @param _account The account to check
      * @param _syntheticAsset The synthetic asset to check issuance
      * @return _maxIssuable The max issuable amount
      */
     function maxIssuableFor(address _account, ISyntheticAsset _syntheticAsset)
         public
-        override
-        onlyIfSyntheticAssetExists(_syntheticAsset)
-        updatePriceOfAsset(_syntheticAsset)
-        updatePricesOfAssetsUsedBy(_account)
-        returns (uint256 _maxIssuable)
-    {
-        bool _anyPriceInvalid;
-        (_maxIssuable, _anyPriceInvalid) = maxIssuableForUsingLatestPrices(_account, _syntheticAsset);
-        require(!_anyPriceInvalid, "invalid-price");
-    }
-
-    /**
-     * @notice Get max issuable synthetic asset amount for a given account
-     * @param _account The account to check
-     * @param _syntheticAsset The synthetic asset to check issuance
-     * @return _maxIssuable The max issuable amount
-     * @return _anyPriceInvalid Returns true if any price is invalid
-     */
-    function maxIssuableForUsingLatestPrices(address _account, ISyntheticAsset _syntheticAsset)
-        public
         view
         override
         onlyIfSyntheticAssetExists(_syntheticAsset)
-        returns (uint256 _maxIssuable, bool _anyPriceInvalid)
+        returns (uint256 _maxIssuable)
     {
         if (!_syntheticAsset.isActive()) {
-            return (0, false);
+            return 0;
         }
 
-        (, , , uint256 __unlockedDepositInUsd, ) = debtPositionOfUsingLatestPrices(_account);
+        (, , , uint256 __unlockedDepositInUsd) = debtPositionOf(_account);
 
-        (_maxIssuable, _anyPriceInvalid) = oracle.convertFromUsdUsingLatestPrice(
+        _maxIssuable = oracle.convertFromUsd(
             _syntheticAsset,
             __unlockedDepositInUsd.wadDiv(_syntheticAsset.collateralizationRatio())
         );
