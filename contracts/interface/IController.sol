@@ -50,7 +50,11 @@ interface IController {
         address _onBehalfOf
     ) external;
 
-    function mint(ISyntheticAsset _syntheticAsset, uint256 _amount) external;
+    function mint(
+        ISyntheticAsset _syntheticAsset,
+        uint256 _amount,
+        address _to
+    ) external;
 
     function withdraw(
         IDepositToken _depositToken,

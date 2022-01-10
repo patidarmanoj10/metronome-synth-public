@@ -51,6 +51,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     /// @notice Emitted when synthetic asset is minted
     event SyntheticAssetMinted(
         address indexed account,
+        address indexed to,
         ISyntheticAsset indexed syntheticAsset,
         uint256 amount,
         uint256 fee
@@ -381,7 +382,11 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
      * @param _syntheticAsset The synthetic asset to mint
      * @param _amount The amount to mint
      */
-    function mint(ISyntheticAsset _syntheticAsset, uint256 _amount) external override whenNotShutdown nonReentrant {
+    function mint(
+        ISyntheticAsset _syntheticAsset,
+        uint256 _amount,
+        address _to
+    ) external override whenNotShutdown nonReentrant {
         require(_amount > 0, "amount-is-zero");
         onlyIfSyntheticAssetExists(_syntheticAsset);
         onlyIfSyntheticAssetIsActive(_syntheticAsset);
@@ -408,10 +413,10 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
             _amountToMint -= _feeAmount;
         }
 
-        _syntheticAsset.mint(_account, _amountToMint);
+        _syntheticAsset.mint(_to, _amountToMint);
         _syntheticAsset.debtToken().mint(_account, _amount);
 
-        emit SyntheticAssetMinted(_account, _syntheticAsset, _amount, _feeAmount);
+        emit SyntheticAssetMinted(_account, _to, _syntheticAsset, _amount, _feeAmount);
     }
 
     /**

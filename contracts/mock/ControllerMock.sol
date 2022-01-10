@@ -101,7 +101,11 @@ contract ControllerMock is IController {
         _depositToken.mint(_onBehalfOf, _amount);
     }
 
-    function mint(ISyntheticAsset, uint256) external pure {
+    function mint(
+        ISyntheticAsset,
+        uint256,
+        address
+    ) external pure {
         revert("mock-does-not-implement");
     }
 
