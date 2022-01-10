@@ -364,7 +364,11 @@ contract Controller is ReentrancyGuard, Pausable, Governable, ControllerStorageV
 
         address _sender = _msgSender();
 
+        uint256 _balanceBefore = _depositToken.underlying().balanceOf(address(treasury));
+
         _depositToken.underlying().safeTransferFrom(_sender, address(treasury), _amount);
+
+        _amount = _depositToken.underlying().balanceOf(address(treasury)) - _balanceBefore;
 
         uint256 _amountToDeposit = _amount;
         uint256 _feeAmount;
