@@ -194,6 +194,7 @@ contract Oracle is IOracle, Governable {
         onlyIfAssetHasPriceProvider(_asset)
         returns (uint256 _amountInUsd)
     {
+        if (_amount == 0) return 0;
         if (assets[_asset].isUsd) return _amount;
 
         uint256 _lastUpdatedAt;
@@ -213,6 +214,7 @@ contract Oracle is IOracle, Governable {
         onlyIfAssetHasPriceProvider(_asset)
         returns (uint256 _amount)
     {
+        if (_amountInUsd == 0) return 0;
         if (assets[_asset].isUsd) return _amountInUsd;
 
         uint256 _lastUpdatedAt;

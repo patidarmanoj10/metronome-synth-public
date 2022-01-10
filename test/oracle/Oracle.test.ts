@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 /* eslint-disable camelcase */
-import {parseEther, parseUnits} from '@ethersproject/units'
+import {parseEther} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
@@ -21,19 +21,11 @@ import {
   enableForking,
   disableForking,
   increaseTime,
-  CHAINLINK_BTC_AGGREGATOR_ADDRESS,
-  CHAINLINK_ETH_AGGREGATOR_ADDRESS,
 } from '../helpers'
 import Address from '../../helpers/address'
 
-const {
-  MET_ADDRESS,
-  DAI_ADDRESS,
-  UNISWAP_V3_CROSS_POOL_ORACLE_ADDRESS,
-  WETH_ADDRESS,
-  UNISWAP_V2_ROUTER02_ADDRESS,
-  WBTC_ADDRESS,
-} = Address
+const {MET_ADDRESS, DAI_ADDRESS, UNISWAP_V3_CROSS_POOL_ORACLE_ADDRESS, WETH_ADDRESS, UNISWAP_V2_ROUTER02_ADDRESS} =
+  Address
 
 const STALE_PERIOD = ethers.constants.MaxUint256
 
@@ -46,7 +38,7 @@ const Protocol = {
 
 const abi = new ethers.utils.AbiCoder()
 
-describe('Oracle', function () {
+describe.only('Oracle', function () {
   let snapshotId: string
   let deployer: SignerWithAddress
   let user: SignerWithAddress
@@ -173,6 +165,13 @@ describe('Oracle', function () {
         const tx = oracle.convertToUsd(depositToken.address, parseEther('1'))
         await expect(tx).revertedWith('price-is-invalid')
       })
+
+      it('should return zero when amountIn is zero', async function () {
+        await oracle.setPriceProvider(Protocol.UNISWAP_V2, priceProviderMock.address)
+        await priceProviderMock.setAmount(0)
+        const amountOut = await oracle.convertToUsd(depositToken.address, 0)
+        expect(amountOut).eq(0)
+      })
     })
 
     describe('convertFromUsd', function () {
@@ -210,6 +209,13 @@ describe('Oracle', function () {
         await priceProviderMock.setAmount(0)
         const tx = oracle.convertFromUsd(depositToken.address, '480514770')
         await expect(tx).revertedWith('price-is-invalid')
+      })
+
+      it('should revert zero when amountIn is zero', async function () {
+        await oracle.setPriceProvider(Protocol.UNISWAP_V2, priceProviderMock.address)
+        await priceProviderMock.setAmount(0)
+        const amountOut = await oracle.convertFromUsd(depositToken.address, 0)
+        expect(amountOut).eq(0)
       })
     })
 
