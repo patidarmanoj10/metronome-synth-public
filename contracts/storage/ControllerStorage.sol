@@ -8,6 +8,12 @@ import "../interface/ITreasury.sol";
 
 abstract contract ControllerStorageV1 is IController {
     /**
+     * @notice The debt floor (in USD) for each synthetic asset
+     * This parameters is used to keep incentive for liquidators (i.e. cover gas and provide enough profit)
+     */
+    uint256 public debtFloorInUsd;
+
+    /**
      * @notice The fee charged when depositing collateral
      * @dev Use 18 decimals (e.g. 1e16 = 1%)
      */

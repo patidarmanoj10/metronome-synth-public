@@ -84,6 +84,8 @@ interface IController {
 
     function updateOracle(IOracle _newOracle) external;
 
+    function updateDebtFloor(uint256 _newDebtFloorInUsd) external;
+
     function updateDepositFee(uint256 _newDepositFee) external;
 
     function updateMintFee(uint256 _newMintFee) external;
