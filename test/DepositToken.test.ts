@@ -45,10 +45,9 @@ describe('DepositToken', function () {
     const controllerMockFactory = new ControllerMock__factory(deployer)
     controllerMock = await controllerMockFactory.deploy(metDepositToken.address, oracle.address)
     await controllerMock.deployed()
+    await controllerMock.transferGovernorship(governor.address)
 
     await metDepositToken.initialize(met.address, controllerMock.address, oracle.address, 'vSynth-MET', 18)
-    await metDepositToken.transferGovernorship(governor.address)
-    await metDepositToken.connect(governor).acceptGovernorship()
     metDepositToken = metDepositToken.connect(governor)
 
     await oracle.updateRate(met.address, metRate)

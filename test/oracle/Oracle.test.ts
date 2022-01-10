@@ -249,7 +249,7 @@ describe.only('Oracle', function () {
   describe('setPriceProvider', function () {
     it('should revert if not governor', async function () {
       const tx = oracle.connect(user).setPriceProvider(Protocol.CHAINLINK, deployer.address)
-      await expect(tx).revertedWith('not-the-governor')
+      await expect(tx).revertedWith('not-governor')
     })
 
     it('should revert if address is null', async function () {
@@ -269,7 +269,7 @@ describe.only('Oracle', function () {
   describe('updateStalePeriod', function () {
     it('should revert if not governor', async function () {
       const tx = oracle.connect(user).updateStalePeriod(0)
-      await expect(tx).revertedWith('not-the-governor')
+      await expect(tx).revertedWith('not-governor')
     })
 
     it('should revert if new value is the same as old', async function () {
@@ -288,7 +288,7 @@ describe.only('Oracle', function () {
   describe('addOrUpdateUsdAsset', function () {
     it('should revert if not governor', async function () {
       const tx = oracle.connect(user).addOrUpdateUsdAsset(mUSD.address)
-      await expect(tx).revertedWith('not-the-governor')
+      await expect(tx).revertedWith('not-governor')
     })
 
     it('should revert if asset address is null', async function () {
@@ -307,7 +307,7 @@ describe.only('Oracle', function () {
       const tx = oracle
         .connect(user)
         .addOrUpdateAssetThatUsesChainlink(depositToken.address, ethers.constants.AddressZero)
-      await expect(tx).revertedWith('not-the-governor')
+      await expect(tx).revertedWith('not-governor')
     })
 
     it('should revert if asset address is null', async function () {
@@ -332,7 +332,7 @@ describe.only('Oracle', function () {
       const tx = oracle
         .connect(user)
         .addOrUpdateAssetThatUsesUniswapV2(depositToken.address, ethers.constants.AddressZero)
-      await expect(tx).revertedWith('not-the-governor')
+      await expect(tx).revertedWith('not-governor')
     })
 
     it('should revert if asset address is null', async function () {
@@ -359,7 +359,7 @@ describe.only('Oracle', function () {
       const tx = oracle
         .connect(user)
         .addOrUpdateAssetThatUsesUniswapV3(depositToken.address, ethers.constants.AddressZero)
-      await expect(tx).revertedWith('not-the-governor')
+      await expect(tx).revertedWith('not-governor')
     })
 
     it('should revert if asset address is null', async function () {

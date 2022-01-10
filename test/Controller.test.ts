@@ -32,7 +32,6 @@ import {
 
 describe('Controller', function () {
   let deployer: SignerWithAddress
-  let governor: SignerWithAddress
   let alice: SignerWithAddress
   let bob: SignerWithAddress
   let liquidator: SignerWithAddress
@@ -59,7 +58,7 @@ describe('Controller', function () {
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
-    ;[deployer, governor, alice, bob, liquidator] = await ethers.getSigners()
+    ;[deployer, alice, bob, liquidator] = await ethers.getSigners()
 
     const oracleMock = new OracleMock__factory(deployer)
     oracle = <OracleMock>await oracleMock.deploy()
@@ -106,20 +105,12 @@ describe('Controller', function () {
 
     // Deployment tasks
     await metDepositToken.initialize(met.address, controller.address, oracle.address, 'vSynth-MET', 18)
-    await metDepositToken.transferGovernorship(governor.address)
-    await metDepositToken.connect(governor).acceptGovernorship()
 
     await daiDepositToken.initialize(dai.address, controller.address, oracle.address, 'vSynth-WBTC', 8)
-    await daiDepositToken.transferGovernorship(governor.address)
-    await daiDepositToken.connect(governor).acceptGovernorship()
 
     await treasury.initialize(controller.address)
-    await treasury.transferGovernorship(governor.address)
-    await treasury.connect(governor).acceptGovernorship()
 
     await vsEthDebtToken.initialize('vsETH Debt', 'vsETH-Debt', 18, controller.address, vsEth.address)
-    await vsEthDebtToken.transferGovernorship(governor.address)
-    await vsEthDebtToken.connect(governor).acceptGovernorship()
 
     await vsEth.initialize(
       'Vesper Synth ETH',
@@ -131,12 +122,8 @@ describe('Controller', function () {
       oracle.address,
       interestRate
     )
-    await vsEth.transferGovernorship(governor.address)
-    await vsEth.connect(governor).acceptGovernorship()
 
     await vsDogeDebtToken.initialize('vsDOGE Debt', 'vsDOGE-Debt', 18, controller.address, vsDoge.address)
-    await vsDogeDebtToken.transferGovernorship(governor.address)
-    await vsDogeDebtToken.connect(governor).acceptGovernorship()
 
     await vsDoge.initialize(
       'Vesper Synth DOGE',
@@ -148,8 +135,6 @@ describe('Controller', function () {
       oracle.address,
       interestRate
     )
-    await vsDoge.transferGovernorship(governor.address)
-    await vsDoge.connect(governor).acceptGovernorship()
 
     await controller.initialize(oracle.address, treasury.address)
     await controller.updateLiquidatorFee(liquidatorFee)
@@ -388,7 +373,7 @@ describe('Controller', function () {
 
         it('should revert if synthetic is not active', async function () {
           // given
-          await vsEth.connect(governor).toggleIsActive()
+          await vsEth.toggleIsActive()
 
           // when
           const amountToMint = parseEther('1')
@@ -531,7 +516,7 @@ describe('Controller', function () {
         describe('withdraw', function () {
           describe('when minimum deposit time is > 0', function () {
             beforeEach(async function () {
-              await metDepositToken.connect(governor).updateMinDepositTime(HOUR)
+              await metDepositToken.updateMinDepositTime(HOUR)
             })
 
             it('should revert if minimum deposit time have not passed', async function () {
@@ -860,7 +845,7 @@ describe('Controller', function () {
 
           it('should revert if synthetic out is not active', async function () {
             // given
-            await vsDoge.connect(governor).toggleIsActive()
+            await vsDoge.toggleIsActive()
 
             // when
             const amountIn = await vsEth.balanceOf(alice.address)
@@ -1821,7 +1806,7 @@ describe('Controller', function () {
       const tx = controller.connect(alice.address).updateMaxLiquidable(parseEther('1'))
 
       // then
-      await expect(tx).revertedWith('not-the-governor')
+      await expect(tx).revertedWith('not-governor')
     })
 
     it('should revert if using the current value', async function () {
@@ -1859,7 +1844,7 @@ describe('Controller', function () {
     describe('addSyntheticAsset', function () {
       it('should revert if not governor', async function () {
         const tx = controller.connect(alice).addSyntheticAsset(vsEth.address)
-        await expect(tx).revertedWith('not-the-governor')
+        await expect(tx).revertedWith('not-governor')
       })
 
       it('should add synthetic asset', async function () {
@@ -1909,7 +1894,7 @@ describe('Controller', function () {
         const tx = controller.connect(alice).removeSyntheticAsset(vsEth.address)
 
         // then
-        await expect(tx).revertedWith('not-the-governor')
+        await expect(tx).revertedWith('not-governor')
       })
 
       it('should revert if vsAsset has any supply', async function () {
@@ -1936,7 +1921,7 @@ describe('Controller', function () {
       const tx = controller.connect(alice.address).updateOracle(ethers.constants.AddressZero)
 
       // then
-      await expect(tx).revertedWith('not-the-governor')
+      await expect(tx).revertedWith('not-governor')
     })
 
     it('should revert if using the same address', async function () {
@@ -1990,7 +1975,7 @@ describe('Controller', function () {
       const tx = controller.connect(alice.address).updateTreasury(treasury.address)
 
       // then
-      await expect(tx).revertedWith('not-the-governor')
+      await expect(tx).revertedWith('not-governor')
     })
 
     it('should revert if address is zero', async function () {
@@ -2032,7 +2017,7 @@ describe('Controller', function () {
       const pricipal = parseEther('100')
 
       // given
-      await vsEth.connect(governor).updateInterestRate(newInterestRate)
+      await vsEth.updateInterestRate(newInterestRate)
       await controller.connect(alice).mint(vsEth.address, pricipal)
       await vsEthDebtToken.setBlockNumber((await ethers.provider.getBlockNumber()) + BLOCKS_PER_YEAR)
 

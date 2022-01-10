@@ -10,13 +10,15 @@ import {
   DebtToken__factory,
   OracleMock__factory,
   OracleMock,
+  ControllerMock,
+  ControllerMock__factory,
 } from '../typechain'
 
 describe('SyntheticAsset', function () {
   let deployer: SignerWithAddress
   let governor: SignerWithAddress
   let user: SignerWithAddress
-  let controllerMock: SignerWithAddress
+  let controllerMock: ControllerMock
   let vsAsset: SyntheticAsset
   let debtToken: DebtToken
   let oracle: OracleMock
@@ -28,11 +30,16 @@ describe('SyntheticAsset', function () {
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
-    ;[deployer, governor, user, controllerMock] = await ethers.getSigners()
+    ;[deployer, governor, user] = await ethers.getSigners()
 
     const oracleMock = new OracleMock__factory(deployer)
     oracle = <OracleMock>await oracleMock.deploy()
     await oracle.deployed()
+
+    const controllerMockFactory = new ControllerMock__factory(deployer)
+    controllerMock = await controllerMockFactory.deploy(ethers.constants.AddressZero, oracle.address)
+    await controllerMock.deployed()
+    await controllerMock.transferGovernorship(governor.address)
 
     const debtTokenFactory = new DebtToken__factory(deployer)
     debtToken = await debtTokenFactory.deploy()
@@ -54,8 +61,6 @@ describe('SyntheticAsset', function () {
       interestRate
     )
 
-    await vsAsset.transferGovernorship(governor.address)
-    await vsAsset.connect(governor).acceptGovernorship()
     vsAsset = vsAsset.connect(governor)
 
     await oracle.updateRate(vsAsset.address, parseEther('1')) // 1 vsAsset = $1
@@ -73,7 +78,8 @@ describe('SyntheticAsset', function () {
     it('should mint', async function () {
       expect(await vsAsset.balanceOf(user.address)).eq(0)
       const amount = parseEther('100')
-      await vsAsset.connect(controllerMock).mint(user.address, amount)
+      const call = vsAsset.interface.encodeFunctionData('mint', [user.address, amount])
+      await controllerMock.mockCall(vsAsset.address, call)
       expect(await vsAsset.balanceOf(user.address)).eq(amount)
     })
 
@@ -89,7 +95,8 @@ describe('SyntheticAsset', function () {
       await vsAsset.updateMaxTotalSupplyInUsd(max)
 
       // when
-      const tx = vsAsset.connect(controllerMock).mint(deployer.address, max.add('1'))
+      const call = vsAsset.interface.encodeFunctionData('mint', [user.address, max.add('1')])
+      const tx = controllerMock.mockCall(vsAsset.address, call)
 
       // then
       await expect(tx).revertedWith('surpass-max-total-supply')
@@ -100,7 +107,8 @@ describe('SyntheticAsset', function () {
       await vsAsset.toggleIsActive()
 
       // when
-      const tx = vsAsset.connect(controllerMock).mint(deployer.address, '1')
+      const call = vsAsset.interface.encodeFunctionData('mint', [deployer.address, '1'])
+      const tx = controllerMock.mockCall(vsAsset.address, call)
 
       // then
       await expect(tx).revertedWith('synthetic-asset-is-inactive')
@@ -111,12 +119,16 @@ describe('SyntheticAsset', function () {
     const amount = parseEther('100')
 
     beforeEach(async function () {
-      await vsAsset.connect(controllerMock).mint(user.address, amount)
+      const call = vsAsset.interface.encodeFunctionData('mint', [user.address, amount])
+      await controllerMock.mockCall(vsAsset.address, call)
     })
 
     it('should burn', async function () {
       expect(await vsAsset.balanceOf(user.address)).eq(amount)
-      await vsAsset.connect(controllerMock).burn(user.address, amount)
+
+      const call = vsAsset.interface.encodeFunctionData('burn', [user.address, amount])
+      await controllerMock.mockCall(vsAsset.address, call)
+
       expect(await vsAsset.balanceOf(user.address)).eq(0)
     })
 
@@ -137,7 +149,7 @@ describe('SyntheticAsset', function () {
 
     it('should revert if not governor', async function () {
       const tx = vsAsset.connect(user).updateCollateralizationRatio(parseEther('10'))
-      await expect(tx).revertedWith('not-the-governor')
+      await expect(tx).revertedWith('not-governor')
     })
 
     it('should revert if < 100%', async function () {
@@ -157,7 +169,7 @@ describe('SyntheticAsset', function () {
 
     it('should revert if not governor', async function () {
       const tx = vsAsset.connect(user).updateMaxTotalSupplyInUsd(parseEther('10'))
-      await expect(tx).revertedWith('not-the-governor')
+      await expect(tx).revertedWith('not-governor')
     })
   })
 
@@ -172,7 +184,7 @@ describe('SyntheticAsset', function () {
 
     it('should revert if not governor', async function () {
       const tx = vsAsset.connect(user).updateInterestRate(parseEther('0.12'))
-      await expect(tx).revertedWith('not-the-governor')
+      await expect(tx).revertedWith('not-governor')
     })
   })
 
@@ -186,7 +198,7 @@ describe('SyntheticAsset', function () {
 
     it('should revert if not governor', async function () {
       const tx = vsAsset.connect(user).toggleIsActive()
-      await expect(tx).revertedWith('not-the-governor')
+      await expect(tx).revertedWith('not-governor')
     })
   })
 })

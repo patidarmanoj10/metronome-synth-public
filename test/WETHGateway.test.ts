@@ -88,7 +88,7 @@ describe('WETHGateway', function () {
 
     it('should revert if caller is not governor', async function () {
       const tx = wethGateway.connect(user).authorizeController(controllerMock.address)
-      await expect(tx).revertedWith('not-the-governor')
+      await expect(tx).revertedWith('not-governor')
     })
   })
 
@@ -141,7 +141,7 @@ describe('WETHGateway', function () {
 
     it('should revert if caller is not governor', async function () {
       const tx = wethGateway.connect(user).emergencyTokenTransfer(tokenMock.address, user.address, parseEther('1'))
-      await expect(tx).revertedWith('not-the-governor')
+      await expect(tx).revertedWith('not-governor')
     })
   })
 })

@@ -47,11 +47,11 @@ contract DepositToken is Manageable, DepositTokenStorageV1 {
         uint8 _decimals
     ) public initializer {
         require(address(_underlying) != address(0), "underlying-is-null");
+        require(address(_controller) != address(0), "controller-address-is-zero");
 
         __Manageable_init();
 
-        setController(_controller);
-
+        controller = _controller;
         name = "Tokenized deposit position";
         symbol = _symbol;
         underlying = _underlying;

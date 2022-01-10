@@ -81,7 +81,7 @@ describe('UniswapV2PriceProvider', function () {
   describe('updateTwapPeriod', function () {
     it('should revert if not governor', async function () {
       const tx = priceProvider.connect(user).updateTwapPeriod(1)
-      await expect(tx).revertedWith('not-the-governor')
+      await expect(tx).revertedWith('not-governor')
     })
 
     it('should update twap period', async function () {
