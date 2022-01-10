@@ -187,7 +187,7 @@ describe('Controller', function () {
     it('should revert if collateral amount is 0', async function () {
       const toDeposit = 0
       const tx = controller.connect(alice).deposit(metDepositToken.address, toDeposit, alice.address)
-      await expect(tx).revertedWith('zero-collateral-amount')
+      await expect(tx).revertedWith('amount-is-zero')
     })
 
     it('should revert if MET balance is not enough', async function () {
@@ -368,7 +368,7 @@ describe('Controller', function () {
           const tx = controller.mint(invalidSynthetic.address, toIssue)
 
           // then
-          await expect(tx).revertedWith('synthetic-asset-does-not-exists')
+          await expect(tx).revertedWith('asset-inexistent')
         })
 
         it('should revert if synthetic is not active', async function () {
@@ -380,7 +380,7 @@ describe('Controller', function () {
           const tx = controller.connect(alice).mint(vsEth.address, amountToMint)
 
           // then
-          await expect(tx).revertedWith('synthetic-asset-is-not-active')
+          await expect(tx).revertedWith('asset-inactive')
         })
 
         it('should revert if user has not enough collateral deposited', async function () {
@@ -398,7 +398,7 @@ describe('Controller', function () {
           const tx = controller.connect(alice).mint(vsEth.address, toIssue)
 
           // then
-          await expect(tx).revertedWith('amount-to-mint-is-zero')
+          await expect(tx).revertedWith('amount-is-zero')
         })
 
         it('should revert if new debt < debt floor', async function () {
@@ -570,7 +570,7 @@ describe('Controller', function () {
               const tx = controller.connect(alice).withdraw(metDepositToken.address, 0, alice.address)
 
               // then
-              await expect(tx).revertedWith('amount-to-withdraw-is-zero')
+              await expect(tx).revertedWith('amount-is-zero')
             })
 
             it('should revert if amount > unlocked collateral amount', async function () {
@@ -584,7 +584,7 @@ describe('Controller', function () {
                 .withdraw(metDepositToken.address, unlockedDeposit.add('1'), alice.address)
 
               // then
-              await expect(tx).revertedWith('amount-to-withdraw-gt-unlocked')
+              await expect(tx).revertedWith('amount-gt-unlocked')
             })
 
             it('should withdraw if amount <= unlocked collateral amount (withdrawFee == 0)', async function () {
@@ -682,7 +682,7 @@ describe('Controller', function () {
             const tx = controller.connect(alice).repay(vsEth.address, alice.address, 0)
 
             // then
-            await expect(tx).revertedWith('amount-to-repay-is-zero')
+            await expect(tx).revertedWith('amount-is-zero')
           })
 
           it('should revert if amount > unlocked collateral amount', async function () {
@@ -852,7 +852,7 @@ describe('Controller', function () {
             const tx = controller.connect(alice).swap(vsEth.address, vsDoge.address, amountIn)
 
             // then
-            await expect(tx).revertedWith('synthetic-asset-is-not-active')
+            await expect(tx).revertedWith('asset-inactive')
           })
 
           it('should revert if user has not enough balance', async function () {
@@ -864,7 +864,7 @@ describe('Controller', function () {
             const tx = controller.connect(alice).swap(vsEth.address, vsDoge.address, amountIn)
 
             // then
-            await expect(tx).revertedWith('amount-in-gt-synthetic-balance')
+            await expect(tx).revertedWith('amount-in-gt-balance')
           })
 
           it('should revert if debt position is unhealty', async function () {
@@ -878,7 +878,7 @@ describe('Controller', function () {
             const tx = controller.connect(alice).swap(vsEth.address, vsDoge.address, amountIn)
 
             // then
-            await expect(tx).revertedWith('debt-position-is-unhealthy')
+            await expect(tx).revertedWith('position-is-unhealthy')
           })
 
           it('should revert if debt position becomes unhealty (swapFee == 0)', async function () {
@@ -896,7 +896,7 @@ describe('Controller', function () {
             const tx = controller.connect(alice).swap(vsEth.address, vsDoge.address, amountIn)
 
             // then
-            await expect(tx).revertedWith('debt-position-ended-up-unhealthy')
+            await expect(tx).revertedWith('position-ended-up-unhealthy')
           })
 
           describe('debt floor', function () {
@@ -1047,7 +1047,7 @@ describe('Controller', function () {
             const tx = controller.liquidate(vsEth.address, alice.address, 0, metDepositToken.address)
 
             // then
-            await expect(tx).revertedWith('amount-to-repay-is-zero')
+            await expect(tx).revertedWith('amount-is-zero')
           })
 
           it('should revert if liquidator == account', async function () {
@@ -1596,7 +1596,7 @@ describe('Controller', function () {
                 .liquidate(vsEth.address, alice.address, amountToRepay, metDepositToken.address)
 
               // then
-              await expect(tx).revertedWith('amount-to-repay-is-too-high')
+              await expect(tx).revertedWith('amount-too-high')
             })
 
             it('should liquidate by repaying max possible amount (liquidafeFee == 0)', async function () {
@@ -1815,7 +1815,7 @@ describe('Controller', function () {
       const tx = controller.updateMaxLiquidable(maxLiquidable)
 
       // then
-      await expect(tx).revertedWith('new-value-is-same-as-current')
+      await expect(tx).revertedWith('new-is-same-as-current')
     })
 
     it('should revert if max liquidable > 100%', async function () {
@@ -1824,7 +1824,7 @@ describe('Controller', function () {
       const tx = controller.updateMaxLiquidable(maxLiquidable)
 
       // then
-      await expect(tx).revertedWith('max-liquidable-gt-100%')
+      await expect(tx).revertedWith('max-is-100%')
     })
 
     it('should update max liquidable param', async function () {
@@ -1910,7 +1910,7 @@ describe('Controller', function () {
         const tx = controller.removeSyntheticAsset(vsAsset.address)
 
         // then
-        await expect(tx).revertedWith('synthetic-asset-with-supply')
+        await expect(tx).revertedWith('supply-gt-0')
       })
     })
   })
@@ -1932,7 +1932,7 @@ describe('Controller', function () {
       const tx = controller.updateOracle(oracle.address)
 
       // then
-      await expect(tx).revertedWith('new-oracle-is-same-as-current')
+      await expect(tx).revertedWith('new-is-same-as-current')
     })
 
     it('should revert if address is zero', async function () {
@@ -1940,7 +1940,7 @@ describe('Controller', function () {
       const tx = controller.updateOracle(ethers.constants.AddressZero)
 
       // then
-      await expect(tx).revertedWith('oracle-address-is-null')
+      await expect(tx).revertedWith('address-is-null')
     })
 
     it('should update oracle contract', async function () {
@@ -1964,15 +1964,15 @@ describe('Controller', function () {
       expect(await controller.treasury()).eq(treasury.address)
 
       // when
-      const tx = controller.updateTreasury(treasury.address)
+      const tx = controller.updateTreasury(treasury.address, true)
 
       // then
-      await expect(tx).revertedWith('new-treasury-is-same-as-current')
+      await expect(tx).revertedWith('new-same-as-current')
     })
 
     it('should revert if caller is not governor', async function () {
       // when
-      const tx = controller.connect(alice.address).updateTreasury(treasury.address)
+      const tx = controller.connect(alice.address).updateTreasury(treasury.address, true)
 
       // then
       await expect(tx).revertedWith('not-governor')
@@ -1980,27 +1980,39 @@ describe('Controller', function () {
 
     it('should revert if address is zero', async function () {
       // when
-      const tx = controller.updateTreasury(ethers.constants.AddressZero)
+      const tx = controller.updateTreasury(ethers.constants.AddressZero, true)
 
       // then
-      await expect(tx).revertedWith('treasury-address-is-null')
+      await expect(tx).revertedWith('address-is-null')
     })
 
     it('should migrate funds to the new treasury', async function () {
-      // given
-      const balance = parseEther('100')
-      await met.mint(treasury.address, balance)
-
       const treasuryFactory = new Treasury__factory(deployer)
       const newTreasury = await treasuryFactory.deploy()
       await newTreasury.deployed()
       await newTreasury.initialize(controller.address)
 
+      // given
+      const balance = parseEther('1')
+      await met.mint(deployer.address, parseEther('10000'))
+      await met.approve(controller.address, parseEther('10000'))
+      await controller.deposit(metDepositToken.address, parseEther('10000'), deployer.address)
+
+      await metDepositToken.transfer(treasury.address, balance)
+      await controller.mint(vsEth.address, balance)
+      await vsEth.transfer(treasury.address, balance)
+
+      expect(await met.balanceOf(treasury.address)).gt(0)
+      expect(await vsEth.balanceOf(treasury.address)).gt(0)
+      expect(await metDepositToken.balanceOf(treasury.address)).gt(0)
+
       // when
-      const tx = () => controller.updateTreasury(newTreasury.address)
+      await controller.updateTreasury(newTreasury.address, true)
 
       // then
-      await expect(tx).changeTokenBalances(met, [treasury, newTreasury], [balance.mul('-1'), balance])
+      expect(await met.balanceOf(treasury.address)).eq(0)
+      expect(await vsEth.balanceOf(treasury.address)).eq(0)
+      expect(await metDepositToken.balanceOf(treasury.address)).eq(0)
     })
   })
 
