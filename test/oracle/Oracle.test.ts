@@ -38,7 +38,7 @@ const Protocol = {
 
 const abi = new ethers.utils.AbiCoder()
 
-describe.only('Oracle', function () {
+describe('Oracle', function () {
   let snapshotId: string
   let deployer: SignerWithAddress
   let user: SignerWithAddress
