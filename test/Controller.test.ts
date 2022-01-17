@@ -5,7 +5,7 @@ import {BigNumber} from '@ethersproject/bignumber'
 import {parseEther} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
-import {ethers} from 'hardhat'
+import {ethers, waffle} from 'hardhat'
 import {
   DepositToken,
   DepositToken__factory,
@@ -32,6 +32,126 @@ import {
 
 const {MaxUint256} = ethers.constants
 
+const liquidatorFee = parseEther('0.1') // 10%
+const vsEthCR = parseEther('1.5') // 150%
+const vsDogeCR = parseEther('2') // 200%
+const ethRate = parseEther('4000') // 1 ETH = $4,000
+const metRate = parseEther('4') // 1 MET = $4
+const daiRate = parseEther('1') // 1 DAI = $1
+const dogeRate = parseEther('0.4') // 1 DOGE = $0.4
+const interestRate = parseEther('0')
+
+async function fixture() {
+  const [deployer, alice, , liquidator] = await ethers.getSigners()
+  const oracleMock = new OracleMock__factory(deployer)
+  const oracle = <OracleMock>await oracleMock.deploy()
+  await oracle.deployed()
+
+  const erc20MockFactory = new ERC20Mock__factory(deployer)
+
+  const met = await erc20MockFactory.deploy('Metronome', 'MET', 18)
+  await met.deployed()
+
+  const dai = await erc20MockFactory.deploy('Dai Stablecoin', 'DAI', 8)
+  await dai.deployed()
+
+  const treasuryFactory = new Treasury__factory(deployer)
+  const treasury = await treasuryFactory.deploy()
+  await treasury.deployed()
+
+  const depositTokenFactory = new DepositToken__factory(deployer)
+  const metDepositToken = await depositTokenFactory.deploy()
+  await metDepositToken.deployed()
+
+  const daiDepositToken = await depositTokenFactory.deploy()
+  await daiDepositToken.deployed()
+
+  const debtTokenMockFactory = new DebtTokenMock__factory(deployer)
+
+  const vsEthDebtToken = await debtTokenMockFactory.deploy()
+  await vsEthDebtToken.deployed()
+
+  const vsDogeDebtToken = await debtTokenMockFactory.deploy()
+  await vsDogeDebtToken.deployed()
+
+  const syntheticAssetFactory = new SyntheticAsset__factory(deployer)
+
+  const vsEth = await syntheticAssetFactory.deploy()
+  await vsEth.deployed()
+
+  const vsDoge = await syntheticAssetFactory.deploy()
+  await vsDoge.deployed()
+
+  const controllerFactory = new Controller__factory(deployer)
+  const controller = await controllerFactory.deploy()
+  await controller.deployed()
+
+  // Deployment tasks
+  await metDepositToken.initialize(met.address, controller.address, oracle.address, 'vSynth-MET', 18)
+
+  await daiDepositToken.initialize(dai.address, controller.address, oracle.address, 'vSynth-WBTC', 8)
+
+  await treasury.initialize(controller.address)
+
+  await vsEthDebtToken.initialize('vsETH Debt', 'vsETH-Debt', 18, controller.address, vsEth.address)
+
+  await vsEth.initialize(
+    'Vesper Synth ETH',
+    'vsETH',
+    18,
+    controller.address,
+    vsEthDebtToken.address,
+    vsEthCR,
+    oracle.address,
+    interestRate
+  )
+
+  await vsDogeDebtToken.initialize('vsDOGE Debt', 'vsDOGE-Debt', 18, controller.address, vsDoge.address)
+
+  await vsDoge.initialize(
+    'Vesper Synth DOGE',
+    'vsDOGE',
+    18,
+    controller.address,
+    vsDogeDebtToken.address,
+    vsDogeCR,
+    oracle.address,
+    interestRate
+  )
+
+  await controller.initialize(oracle.address, treasury.address)
+  await controller.updateLiquidatorFee(liquidatorFee)
+  await controller.addDepositToken(metDepositToken.address)
+  await controller.addSyntheticAsset(vsEth.address)
+  await controller.addDepositToken(daiDepositToken.address)
+  await controller.addSyntheticAsset(vsDoge.address)
+
+  // mint some collaterals to users
+  await met.mint(alice.address, parseEther(`${1e6}`))
+  await met.mint(liquidator.address, parseEther(`${1e6}`))
+  await dai.mint(alice.address, parseEther(`${1e6}`))
+
+  // initialize mocked oracle
+  await oracle.updateRate(dai.address, daiRate)
+  await oracle.updateRate(met.address, metRate)
+  await oracle.updateRate(vsEth.address, ethRate)
+  await oracle.updateRate(vsDoge.address, dogeRate)
+
+  return {
+    oracle,
+    met,
+    dai,
+    treasury,
+    metDepositToken,
+    daiDepositToken,
+    vsEthDebtToken,
+    vsDogeDebtToken,
+    vsEth,
+    vsDoge,
+    controller,
+  }
+}
+
 describe('Controller', function () {
   let deployer: SignerWithAddress
   let alice: SignerWithAddress
@@ -49,112 +169,22 @@ describe('Controller', function () {
   let oracle: OracleMock
   let controller: Controller
 
-  const liquidatorFee = parseEther('0.1') // 10%
-  const vsEthCR = parseEther('1.5') // 150%
-  const vsDogeCR = parseEther('2') // 200%
-  const ethRate = parseEther('4000') // 1 ETH = $4,000
-  const metRate = parseEther('4') // 1 MET = $4
-  const daiRate = parseEther('1') // 1 DAI = $1
-  const dogeRate = parseEther('0.4') // 1 DOGE = $0.4
-  const interestRate = parseEther('0')
-
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[deployer, alice, bob, liquidator] = await ethers.getSigners()
-
-    const oracleMock = new OracleMock__factory(deployer)
-    oracle = <OracleMock>await oracleMock.deploy()
-    await oracle.deployed()
-
-    const erc20MockFactory = new ERC20Mock__factory(deployer)
-
-    met = await erc20MockFactory.deploy('Metronome', 'MET', 18)
-    await met.deployed()
-
-    dai = await erc20MockFactory.deploy('Dai Stablecoin', 'DAI', 8)
-    await dai.deployed()
-
-    const treasuryFactory = new Treasury__factory(deployer)
-    treasury = await treasuryFactory.deploy()
-    await treasury.deployed()
-
-    const depositTokenFactory = new DepositToken__factory(deployer)
-    metDepositToken = await depositTokenFactory.deploy()
-    await metDepositToken.deployed()
-
-    daiDepositToken = await depositTokenFactory.deploy()
-    await daiDepositToken.deployed()
-
-    const debtTokenMockFactory = new DebtTokenMock__factory(deployer)
-
-    vsEthDebtToken = await debtTokenMockFactory.deploy()
-    await vsEthDebtToken.deployed()
-
-    vsDogeDebtToken = await debtTokenMockFactory.deploy()
-    await vsDogeDebtToken.deployed()
-
-    const syntheticAssetFactory = new SyntheticAsset__factory(deployer)
-
-    vsEth = await syntheticAssetFactory.deploy()
-    await vsEth.deployed()
-
-    vsDoge = await syntheticAssetFactory.deploy()
-    await vsDoge.deployed()
-
-    const controllerFactory = new Controller__factory(deployer)
-    controller = await controllerFactory.deploy()
-    await controller.deployed()
-
-    // Deployment tasks
-    await metDepositToken.initialize(met.address, controller.address, oracle.address, 'vSynth-MET', 18)
-
-    await daiDepositToken.initialize(dai.address, controller.address, oracle.address, 'vSynth-WBTC', 8)
-
-    await treasury.initialize(controller.address)
-
-    await vsEthDebtToken.initialize('vsETH Debt', 'vsETH-Debt', 18, controller.address, vsEth.address)
-
-    await vsEth.initialize(
-      'Vesper Synth ETH',
-      'vsETH',
-      18,
-      controller.address,
-      vsEthDebtToken.address,
-      vsEthCR,
-      oracle.address,
-      interestRate
-    )
-
-    await vsDogeDebtToken.initialize('vsDOGE Debt', 'vsDOGE-Debt', 18, controller.address, vsDoge.address)
-
-    await vsDoge.initialize(
-      'Vesper Synth DOGE',
-      'vsDOGE',
-      18,
-      controller.address,
-      vsDogeDebtToken.address,
-      vsDogeCR,
-      oracle.address,
-      interestRate
-    )
-
-    await controller.initialize(oracle.address, treasury.address)
-    await controller.updateLiquidatorFee(liquidatorFee)
-    await controller.addDepositToken(metDepositToken.address)
-    await controller.addSyntheticAsset(vsEth.address)
-    await controller.addDepositToken(daiDepositToken.address)
-    await controller.addSyntheticAsset(vsDoge.address)
-
-    // mint some collaterals to users
-    await met.mint(alice.address, parseEther(`${1e6}`))
-    await met.mint(liquidator.address, parseEther(`${1e6}`))
-    await dai.mint(alice.address, parseEther(`${1e6}`))
-
-    // initialize mocked oracle
-    await oracle.updateRate(dai.address, daiRate)
-    await oracle.updateRate(met.address, metRate)
-    await oracle.updateRate(vsEth.address, ethRate)
-    await oracle.updateRate(vsDoge.address, dogeRate)
+    ;({
+      oracle,
+      met,
+      dai,
+      treasury,
+      metDepositToken,
+      daiDepositToken,
+      vsEthDebtToken,
+      vsDogeDebtToken,
+      vsEth,
+      vsDoge,
+      controller,
+    } = await waffle.loadFixture(fixture))
   })
 
   describe('deposit', function () {
