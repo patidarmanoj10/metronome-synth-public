@@ -937,20 +937,6 @@ describe('Controller', function () {
             await expect(tx).revertedWith('amount-in-0-or-gt-balance')
           })
 
-          it('should revert if debt position is unhealty', async function () {
-            // given
-            await oracle.updateRate(met.address, parseEther('0.0001'))
-
-            const vsAssetInBalance = await vsEth.balanceOf(alice.address)
-
-            // when
-            const amountIn = vsAssetInBalance
-            const tx = controller.connect(alice).swap(vsEth.address, vsDoge.address, amountIn)
-
-            // then
-            await expect(tx).revertedWith('position-is-unhealthy')
-          })
-
           it('should revert if debt position becomes unhealty (swapFee == 0)', async function () {
             // Note: Using all MET collateral to mint max vsETH possible (that has 150% CR)
             // and try to swap all balance for vsDOGE that has 200% CR
