@@ -11,6 +11,7 @@ interface ContractConfig {
 }
 
 interface UpgradableContractsConfig {
+  MasterOracle: ContractConfig
   Controller: ContractConfig
   Treasury: ContractConfig
   MetDepositToken: ContractConfig
@@ -19,6 +20,7 @@ interface UpgradableContractsConfig {
 }
 
 export const UpgradableContracts: UpgradableContractsConfig = {
+  MasterOracle: {alias: 'MasterOracle', contract: 'MasterOracle', adminContract: 'MasterOracleUpgrader'},
   Controller: {alias: 'Controller', contract: 'Controller', adminContract: 'ControllerUpgrader'},
   Treasury: {alias: 'Treasury', contract: 'Treasury', adminContract: 'TreasuryUpgrader'},
   MetDepositToken: {alias: 'MetDepositToken', contract: 'DepositToken', adminContract: 'DepositTokenUpgrader'},

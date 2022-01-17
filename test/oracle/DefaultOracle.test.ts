@@ -5,8 +5,8 @@ import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
 import {
-  Oracle,
-  Oracle__factory,
+  DefaultOracle,
+  DefaultOracle__factory,
   UniswapV3PriceProvider__factory,
   UniswapV2PriceProvider__factory,
   ChainlinkPriceProvider__factory,
@@ -38,11 +38,11 @@ const Protocol = {
 
 const abi = new ethers.utils.AbiCoder()
 
-describe('Oracle', function () {
+describe('DefaultOracle', function () {
   let snapshotId: string
   let deployer: SignerWithAddress
   let user: SignerWithAddress
-  let oracle: Oracle
+  let oracle: DefaultOracle
   let mUSD: ERC20Mock
   let depositToken: ERC20Mock
   let vsDOGE: ERC20Mock
@@ -109,7 +109,7 @@ describe('Oracle', function () {
     await priceProviderMock.deployed()
 
     // Oracle
-    const oracleFactory = new Oracle__factory(deployer)
+    const oracleFactory = new DefaultOracle__factory(deployer)
     oracle = await oracleFactory.deploy(STALE_PERIOD)
     await oracle.deployed()
 

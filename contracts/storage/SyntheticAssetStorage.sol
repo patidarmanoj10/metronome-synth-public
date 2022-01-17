@@ -4,7 +4,6 @@ pragma solidity 0.8.9;
 
 import "../interface/ISyntheticAsset.sol";
 import "../interface/IDebtToken.sol";
-import "../interface/oracle/IOracle.sol";
 
 abstract contract SyntheticAssetStorageV1 is ISyntheticAsset {
     mapping(address => uint256) public balanceOf;
@@ -34,11 +33,6 @@ abstract contract SyntheticAssetStorageV1 is ISyntheticAsset {
      * @notice If a vsAsset isn't active, it disables minting new tokens
      */
     bool public isActive;
-
-    /**
-     * @notice Prices oracle
-     */
-    IOracle public oracle;
 
     /**
      * @notice Interest rate

@@ -10,10 +10,10 @@ import "../interface/IController.sol";
 
 contract ControllerMock is IController {
     IDepositToken public depositToken;
-    IOracle public oracle;
+    IMasterOracle public oracle;
     address public governor;
 
-    constructor(IDepositToken _depositToken, IOracle _oracle) {
+    constructor(IDepositToken _depositToken, IMasterOracle _oracle) {
         depositToken = _depositToken;
         oracle = _oracle;
     }
@@ -68,7 +68,7 @@ contract ControllerMock is IController {
         _isHealthy = true;
         _lockedDepositInUsd = 0;
         uint256 _deposit = depositToken.balanceOf(_account);
-        _depositInUsd = oracle.convertToUsd(depositToken.underlying(), _deposit);
+        _depositInUsd = oracle.convertToUsd(depositToken, _deposit);
         _unlockedDepositInUsd = _depositInUsd - _lockedDepositInUsd;
     }
 
@@ -143,7 +143,7 @@ contract ControllerMock is IController {
         revert("mock-does-not-implement");
     }
 
-    function updateOracle(IOracle) external pure {
+    function updateOracle(IMasterOracle) external pure {
         revert("mock-does-not-implement");
     }
 

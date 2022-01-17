@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.9;
 
-import "./oracle/IOracle.sol";
+import "./oracle/IMasterOracle.sol";
 import "./ISyntheticAsset.sol";
 import "./IDepositToken.sol";
 import "./ITreasury.sol";
@@ -81,7 +81,7 @@ interface IController {
         uint256 _amountIn
     ) external returns (uint256 _amountOut);
 
-    function updateOracle(IOracle _newOracle) external;
+    function updateOracle(IMasterOracle _newOracle) external;
 
     function updateDebtFloor(uint256 _newDebtFloorInUsd) external;
 
@@ -104,6 +104,8 @@ interface IController {
     function updateTreasury(ITreasury _newTreasury, bool _withMigration) external;
 
     function treasury() external view returns (ITreasury);
+
+    function oracle() external view returns (IMasterOracle);
 
     function accrueInterest(ISyntheticAsset _syntheticAsset) external;
 }

@@ -87,9 +87,9 @@ async function fixture() {
   await controller.deployed()
 
   // Deployment tasks
-  await metDepositToken.initialize(met.address, controller.address, oracle.address, 'vSynth-MET', 18)
+  await metDepositToken.initialize(met.address, controller.address, 'vSynth-MET', 18)
 
-  await daiDepositToken.initialize(dai.address, controller.address, oracle.address, 'vSynth-WBTC', 8)
+  await daiDepositToken.initialize(dai.address, controller.address, 'vSynth-WBTC', 8)
 
   await treasury.initialize(controller.address)
 
@@ -102,7 +102,6 @@ async function fixture() {
     controller.address,
     vsEthDebtToken.address,
     vsEthCR,
-    oracle.address,
     interestRate
   )
 
@@ -115,7 +114,6 @@ async function fixture() {
     controller.address,
     vsDogeDebtToken.address,
     vsDogeCR,
-    oracle.address,
     interestRate
   )
 
@@ -132,8 +130,8 @@ async function fixture() {
   await dai.mint(alice.address, parseEther(`${1e6}`))
 
   // initialize mocked oracle
-  await oracle.updateRate(dai.address, daiRate)
-  await oracle.updateRate(met.address, metRate)
+  await oracle.updateRate(daiDepositToken.address, daiRate)
+  await oracle.updateRate(metDepositToken.address, metRate)
   await oracle.updateRate(vsEth.address, ethRate)
   await oracle.updateRate(vsDoge.address, dogeRate)
 
@@ -378,7 +376,7 @@ describe('Controller', function () {
         let maxIssuableInEth: BigNumber
 
         beforeEach(async function () {
-          collateralInUsd = await oracle.convertToUsd(met.address, userDepositAmount)
+          collateralInUsd = await oracle.convertToUsd(metDepositToken.address, userDepositAmount)
           maxIssuableInUsd = collateralInUsd.mul(parseEther('1')).div(vsEthCR)
           maxIssuableInEth = maxIssuableInUsd.mul(parseEther('1')).div(ethRate)
         })
@@ -641,7 +639,7 @@ describe('Controller', function () {
               const {_unlockedDepositInUsd} = await controller.debtPositionOf(alice.address)
 
               // when
-              const unlockedDeposit = await oracle.convertFromUsd(met.address, _unlockedDepositInUsd)
+              const unlockedDeposit = await oracle.convertFromUsd(metDepositToken.address, _unlockedDepositInUsd)
               const tx = controller
                 .connect(alice)
                 .withdraw(metDepositToken.address, unlockedDeposit.add('1'), alice.address)
@@ -672,7 +670,7 @@ describe('Controller', function () {
               const depositBefore = await metDepositToken.balanceOf(alice.address)
 
               // when
-              const amountToWithdraw = await oracle.convertFromUsd(met.address, amountToWithdrawInUsd)
+              const amountToWithdraw = await oracle.convertFromUsd(metDepositToken.address, amountToWithdrawInUsd)
               const tx = controller.connect(alice).withdraw(metDepositToken.address, amountToWithdraw, alice.address)
               await expect(tx)
                 .emit(controller, 'CollateralWithdrawn')
@@ -692,7 +690,7 @@ describe('Controller', function () {
               const metBalanceBefore = await met.balanceOf(alice.address)
               const depositBefore = await metDepositToken.balanceOf(alice.address)
               const {_unlockedDepositInUsd: amountToWithdrawInUsd} = await controller.debtPositionOf(alice.address)
-              const amount = await oracle.convertFromUsd(met.address, amountToWithdrawInUsd)
+              const amount = await oracle.convertFromUsd(metDepositToken.address, amountToWithdrawInUsd)
               const expectedFee = amount.mul(withdrawFee).div(parseEther('1'))
               const expectedAmountAfterFee = amount.sub(expectedFee)
 
@@ -715,7 +713,7 @@ describe('Controller', function () {
               const depositBefore = await metDepositToken.balanceOf(alice.address)
 
               // when
-              const amountToWithdraw = await oracle.convertFromUsd(met.address, amountToWithdrawInUsd)
+              const amountToWithdraw = await oracle.convertFromUsd(metDepositToken.address, amountToWithdrawInUsd)
               const tx = controller.connect(alice).withdraw(metDepositToken.address, amountToWithdraw, bob.address)
               await expect(tx)
                 .emit(controller, 'CollateralWithdrawn')
@@ -1181,7 +1179,7 @@ describe('Controller', function () {
             const newMetRate = parseEther('0.95')
 
             beforeEach(async function () {
-              await oracle.updateRate(met.address, newMetRate)
+              await oracle.updateRate(metDepositToken.address, newMetRate)
 
               const {_debtInUsd} = await controller.debtOf(alice.address)
               expect(_debtInUsd).eq(userMintAmount.mul(ethRate).div(parseEther('1')))
@@ -1330,7 +1328,7 @@ describe('Controller', function () {
               const [, , , , depositSeized] = PositionLiquidated.args!
 
               const amountToSeizeInUsd = debtInUsdBefore.mul(parseEther('1').add(liquidatorFee)).div(parseEther('1'))
-              const expectedDepositSeized = await oracle.convertFromUsd(met.address, amountToSeizeInUsd)
+              const expectedDepositSeized = await oracle.convertFromUsd(metDepositToken.address, amountToSeizeInUsd)
               const expectedDepositAfter = collateralInUsdBefore
                 .sub(amountToSeizeInUsd)
                 .mul(parseEther('1'))
@@ -1353,7 +1351,7 @@ describe('Controller', function () {
               await controller.updateLiquidateFee(liquidateFee)
               const {_debtInUsd: debtInUsdBefore} = await controller.debtOf(alice.address)
               const {_depositInUsd: depositInUsdBefore} = await controller.debtPositionOf(alice.address)
-              const depositBefore = await oracle.convertFromUsd(met.address, depositInUsdBefore)
+              const depositBefore = await oracle.convertFromUsd(metDepositToken.address, depositInUsdBefore)
 
               // when
               const amountToRepay = userMintAmount // repay all user's debt
@@ -1372,7 +1370,7 @@ describe('Controller', function () {
               const expectedDepositToLiquidator = debtInUsdBefore
                 .mul(parseEther('1').add(liquidatorFee))
                 .div(newMetRate)
-              const expectedDepositSeized = await oracle.convertFromUsd(met.address, depositToSeizeInUsd)
+              const expectedDepositSeized = await oracle.convertFromUsd(metDepositToken.address, depositToSeizeInUsd)
               const expectedDepositAfter = depositBefore.sub(expectedDepositSeized)
 
               const {_isHealthy} = await controller.debtPositionOf(alice.address)
@@ -1413,7 +1411,7 @@ describe('Controller', function () {
               await controller.updateLiquidateFee(0)
               const {_debtInUsd: debtInUsdBefore} = await controller.debtOf(alice.address)
               const {_depositInUsd: collateralInUsdBefore} = await controller.debtPositionOf(alice.address)
-              const collateralBefore = await oracle.convertFromUsd(met.address, collateralInUsdBefore)
+              const collateralBefore = await oracle.convertFromUsd(metDepositToken.address, collateralInUsdBefore)
               const minAmountToRepayInUsd = await getMinLiquidationAmountInUsd(controller, alice.address, vsEth)
 
               // when
@@ -1425,7 +1423,7 @@ describe('Controller', function () {
                 .liquidate(vsEth.address, alice.address, amountToRepay, metDepositToken.address)
               const [PositionLiquidated] = (await tx.wait()).events!.filter(({event}) => event === 'PositionLiquidated')
               const [, , , , depositSeized] = PositionLiquidated.args!
-              const depositSeizedInUsd = await oracle.convertToUsd(met.address, depositSeized)
+              const depositSeizedInUsd = await oracle.convertToUsd(metDepositToken.address, depositSeized)
 
               // then
               const {_debtInUsd: debtInUsdAfter} = await controller.debtOf(alice.address)
@@ -1435,7 +1433,10 @@ describe('Controller', function () {
                 _unlockedDepositInUsd: unlockedCollateralInUsdAfter,
                 _lockedDepositInUsd: lockedCollateralInUsdAfter,
               } = await controller.debtPositionOf(alice.address)
-              const lockedCollateralAfter = await oracle.convertFromUsd(met.address, lockedCollateralInUsdAfter)
+              const lockedCollateralAfter = await oracle.convertFromUsd(
+                metDepositToken.address,
+                lockedCollateralInUsdAfter
+              )
 
               const expectedLocked = debtInUsdAfter
                 .mul(vsEthCR)
@@ -1465,7 +1466,7 @@ describe('Controller', function () {
               const {_debtInUsd: debtInUsdBefore} = await controller.debtOf(alice.address)
               const {_depositInUsd: collateralInUsdBefore} = await controller.debtPositionOf(alice.address)
               const minAmountToRepayInUsd = await getMinLiquidationAmountInUsd(controller, alice.address, vsEth)
-              const collateralBefore = await oracle.convertFromUsd(met.address, collateralInUsdBefore)
+              const collateralBefore = await oracle.convertFromUsd(metDepositToken.address, collateralInUsdBefore)
 
               // when
               const amountToRepayInUsd = minAmountToRepayInUsd.mul(parseEther('1.1')).div(parseEther('1')) // min + 10%
@@ -1477,7 +1478,7 @@ describe('Controller', function () {
               const [PositionLiquidated] = (await tx.wait()).events!.filter(({event}) => event === 'PositionLiquidated')
               const [, , , , depositSeized] = PositionLiquidated.args!
 
-              const amountToRepayInMET = await oracle.convert(vsEth.address, met.address, amountToRepay)
+              const amountToRepayInMET = await oracle.convert(vsEth.address, metDepositToken.address, amountToRepay)
 
               const expectedDepositToLiquidator = amountToRepayInMET
                 .mul(parseEther('1').add(liquidatorFee))
@@ -1491,8 +1492,11 @@ describe('Controller', function () {
                 _unlockedDepositInUsd: unlockedCollateralInUsdAfter,
                 _lockedDepositInUsd: lockedCollateralInUsdAfter,
               } = await controller.debtPositionOf(alice.address)
-              const collateralAfter = await oracle.convertFromUsd(met.address, collateralInUsdAfter)
-              const lockedCollateralAfter = await oracle.convertFromUsd(met.address, lockedCollateralInUsdAfter)
+              const collateralAfter = await oracle.convertFromUsd(metDepositToken.address, collateralInUsdAfter)
+              const lockedCollateralAfter = await oracle.convertFromUsd(
+                metDepositToken.address,
+                lockedCollateralInUsdAfter
+              )
 
               const expectedLocked = debtInUsdAfter.mul(vsEthCR).div(newMetRate)
 
@@ -1518,7 +1522,7 @@ describe('Controller', function () {
               // given
               await controller.updateLiquidateFee(0)
               const {_depositInUsd: collateralInUsdBefore} = await controller.debtPositionOf(alice.address)
-              const collateralBefore = await oracle.convertFromUsd(met.address, collateralInUsdBefore)
+              const collateralBefore = await oracle.convertFromUsd(metDepositToken.address, collateralInUsdBefore)
 
               // when
               const minAmountToRepayInUsd = await getMinLiquidationAmountInUsd(controller, alice.address, vsEth)
@@ -1538,7 +1542,7 @@ describe('Controller', function () {
                 _unlockedDepositInUsd: unlockedCollateraInUsdlAfter,
                 _lockedDepositInUsd: lockedCollateralInUsdAfter,
               } = await controller.debtPositionOf(alice.address)
-              const collateralAfter = await oracle.convertFromUsd(met.address, collateralInUsdAfter)
+              const collateralAfter = await oracle.convertFromUsd(metDepositToken.address, collateralInUsdAfter)
 
               const currentCollateralizationRatio = collateralInUsdAfter.mul(parseEther('1')).div(debtInUsdAfter)
 
@@ -1560,7 +1564,7 @@ describe('Controller', function () {
               const liquidateFee = parseEther('0.01') // 1%
               await controller.updateLiquidateFee(liquidateFee)
               const {_depositInUsd: collateralInUsdBefore} = await controller.debtPositionOf(alice.address)
-              const collateralBefore = await oracle.convertFromUsd(met.address, collateralInUsdBefore)
+              const collateralBefore = await oracle.convertFromUsd(metDepositToken.address, collateralInUsdBefore)
 
               // when
               const amountToRepayInUsd = (await getMinLiquidationAmountInUsd(controller, alice.address, vsEth)).div('2')
@@ -1579,9 +1583,9 @@ describe('Controller', function () {
                 _unlockedDepositInUsd: unlockedCollateralInUsdAfter,
                 _lockedDepositInUsd: lockedCollateralInUsdAfter,
               } = await controller.debtPositionOf(alice.address)
-              const collateralAfter = await oracle.convertFromUsd(met.address, collateralInUsdAfter)
+              const collateralAfter = await oracle.convertFromUsd(metDepositToken.address, collateralInUsdAfter)
 
-              const amountToRepayInMET = await oracle.convert(vsEth.address, met.address, amountToRepay)
+              const amountToRepayInMET = await oracle.convert(vsEth.address, metDepositToken.address, amountToRepay)
 
               const expectedDepositToLiquidator = amountToRepayInMET.add(
                 amountToRepayInMET.mul(liquidatorFee).div(parseEther('1'))
@@ -1608,7 +1612,7 @@ describe('Controller', function () {
               // given
               await controller.updateLiquidateFee(0)
               const {_depositInUsd: depositInUsdBefore} = await controller.debtPositionOf(alice.address)
-              const depositBefore = await oracle.convertFromUsd(met.address, depositInUsdBefore)
+              const depositBefore = await oracle.convertFromUsd(metDepositToken.address, depositInUsdBefore)
 
               // when
               const amountToRepayInUsd = await getMinLiquidationAmountInUsd(controller, alice.address, vsEth)
@@ -1627,8 +1631,8 @@ describe('Controller', function () {
                 _unlockedDepositInUsd: unlockedCollateralInUsdAfter,
                 _lockedDepositInUsd: lockedDepositInUsdAfter,
               } = await controller.debtPositionOf(alice.address)
-              const depositAfter = await oracle.convertFromUsd(met.address, collateralInUsdAfter)
-              const lockedDepositAfter = await oracle.convertFromUsd(met.address, lockedDepositInUsdAfter)
+              const depositAfter = await oracle.convertFromUsd(metDepositToken.address, collateralInUsdAfter)
+              const lockedDepositAfter = await oracle.convertFromUsd(metDepositToken.address, lockedDepositInUsdAfter)
 
               const expectedLocked = debtInUsdAfter.mul(vsEthCR).div(newMetRate)
 
@@ -1652,7 +1656,7 @@ describe('Controller', function () {
               const liquidateFee = parseEther('0.01') // 1%
               await controller.updateLiquidateFee(liquidateFee)
               const {_depositInUsd: depositBeforeInUsd} = await controller.debtPositionOf(alice.address)
-              const depositBefore = await oracle.convertFromUsd(met.address, depositBeforeInUsd)
+              const depositBefore = await oracle.convertFromUsd(metDepositToken.address, depositBeforeInUsd)
 
               // when
               const amountToRepayInUsd = await getMinLiquidationAmountInUsd(controller, alice.address, vsEth)
@@ -1672,12 +1676,12 @@ describe('Controller', function () {
                 _unlockedDepositInUsd: unlockedDepositInUsdAfter,
                 _lockedDepositInUsd: lockedDepositInUsdAfter,
               } = await controller.debtPositionOf(alice.address)
-              const depositAfter = await oracle.convertFromUsd(met.address, depositInUsdAfter)
-              const lockedDepositAfter = await oracle.convertFromUsd(met.address, lockedDepositInUsdAfter)
+              const depositAfter = await oracle.convertFromUsd(metDepositToken.address, depositInUsdAfter)
+              const lockedDepositAfter = await oracle.convertFromUsd(metDepositToken.address, lockedDepositInUsdAfter)
 
               const expectedLocked = debtInUsdAfter.mul(vsEthCR).div(newMetRate)
 
-              const amountToRepayInMET = await oracle.convert(vsEth.address, met.address, amountToRepay)
+              const amountToRepayInMET = await oracle.convert(vsEth.address, metDepositToken.address, amountToRepay)
 
               const expectedDepositToLiquidator = amountToRepayInMET.add(
                 amountToRepayInMET.mul(liquidatorFee).div(parseEther('1'))
@@ -1706,7 +1710,7 @@ describe('Controller', function () {
             const newMetRate = parseEther('0.50')
 
             beforeEach(async function () {
-              await oracle.updateRate(met.address, newMetRate)
+              await oracle.updateRate(metDepositToken.address, newMetRate)
               const {_debtInUsd} = await controller.debtOf(alice.address)
               const {_depositInUsd} = await controller.debtPositionOf(alice.address)
               expect(_debtInUsd).gt(_depositInUsd)
@@ -1770,7 +1774,7 @@ describe('Controller', function () {
               const [PositionLiquidated] = (await tx.wait()).events!.filter(({event}) => event === 'PositionLiquidated')
               const [, , , , depositSeized] = PositionLiquidated.args!
 
-              const amountToRepayInMET = await oracle.convert(vsEth.address, met.address, amountToRepay)
+              const amountToRepayInMET = await oracle.convert(vsEth.address, metDepositToken.address, amountToRepay)
 
               const expectedDepositToLiquidator = amountToRepayInMET.add(
                 amountToRepayInMET.mul(liquidatorFee).div(parseEther('1'))
@@ -1796,7 +1800,7 @@ describe('Controller', function () {
               // given
               await controller.updateLiquidateFee(0)
               const {_depositInUsd: collateralInUsdBefore} = await controller.debtPositionOf(alice.address)
-              const collateralBefore = await oracle.convertFromUsd(met.address, collateralInUsdBefore)
+              const collateralBefore = await oracle.convertFromUsd(metDepositToken.address, collateralInUsdBefore)
 
               // when
               const amountToRepayInUsd = await getMaxLiquidationAmountInUsd(controller, alice.address)
@@ -1816,7 +1820,7 @@ describe('Controller', function () {
                 _unlockedDepositInUsd: unlockedCollateralInUsdAfter,
                 _lockedDepositInUsd: lockedCollateralInUsdAfter,
               } = await controller.debtPositionOf(alice.address)
-              const collateralAfter = await oracle.convertFromUsd(met.address, collateralInUsdAfter)
+              const collateralAfter = await oracle.convertFromUsd(metDepositToken.address, collateralInUsdAfter)
 
               const currentCollateralizationRatio = collateralInUsdAfter.mul(parseEther('1')).div(debtInUsdAfter)
 
@@ -1838,7 +1842,7 @@ describe('Controller', function () {
               const liquidateFee = parseEther('0.01') // 1%
               await controller.updateLiquidateFee(liquidateFee)
               const {_depositInUsd: collateralInUsdBefore} = await controller.debtPositionOf(alice.address)
-              const collateralBefore = await oracle.convertFromUsd(met.address, collateralInUsdBefore)
+              const collateralBefore = await oracle.convertFromUsd(metDepositToken.address, collateralInUsdBefore)
 
               // when
               const amountToRepayInUsd = (await getMaxLiquidationAmountInUsd(controller, alice.address)).div('2')
@@ -1857,9 +1861,9 @@ describe('Controller', function () {
                 _unlockedDepositInUsd: unlockedCollateralInUsdAfter,
                 _lockedDepositInUsd: lockedCollateralInUsdAfter,
               } = await controller.debtPositionOf(alice.address)
-              const collateralAfter = await oracle.convertFromUsd(met.address, collateralInUsdAfter)
+              const collateralAfter = await oracle.convertFromUsd(metDepositToken.address, collateralInUsdAfter)
 
-              const amountToRepayInMET = await oracle.convert(vsEth.address, met.address, amountToRepay)
+              const amountToRepayInMET = await oracle.convert(vsEth.address, metDepositToken.address, amountToRepay)
 
               const expectedDepositToLiquidator = amountToRepayInMET.add(
                 amountToRepayInMET.mul(liquidatorFee).div(parseEther('1'))
@@ -1996,7 +2000,6 @@ describe('Controller', function () {
           controller.address,
           debtToken.address,
           parseEther('1.5'),
-          oracle.address,
           interestRate
         )
 

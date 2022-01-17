@@ -34,7 +34,7 @@ contract DepositToken is Manageable, DepositTokenStorageV1 {
      */
     modifier onlyIfNotLocked(address _account, uint256 _amount) {
         (, , , uint256 _unlockedDepositInUsd) = controller.debtPositionOf(_account);
-        uint256 _unlockedDeposit = oracle.convertFromUsd(underlying, _unlockedDepositInUsd);
+        uint256 _unlockedDeposit = controller.oracle().convertFromUsd(this, _unlockedDepositInUsd);
         require(_unlockedDeposit >= _amount, "not-enough-free-balance");
         _;
     }
@@ -42,7 +42,6 @@ contract DepositToken is Manageable, DepositTokenStorageV1 {
     function initialize(
         IERC20 _underlying,
         IController _controller,
-        IOracle _oracle,
         string memory _symbol,
         uint8 _decimals
     ) public initializer {
@@ -58,7 +57,6 @@ contract DepositToken is Manageable, DepositTokenStorageV1 {
         minDepositTime = 0;
         maxTotalSupplyInUsd = type(uint256).max;
         isActive = true;
-        oracle = _oracle;
         decimals = _decimals;
     }
 
@@ -164,7 +162,7 @@ contract DepositToken is Manageable, DepositTokenStorageV1 {
      */
     function mint(address _to, uint256 _amount) public override onlyController {
         require(isActive, "deposit-token-is-inactive");
-        uint256 _newTotalSupplyInUsd = oracle.convertToUsd(underlying, totalSupply + _amount);
+        uint256 _newTotalSupplyInUsd = controller.oracle().convertToUsd(this, totalSupply + _amount);
         require(_newTotalSupplyInUsd <= maxTotalSupplyInUsd, "surpass-max-total-supply");
         _mint(_to, _amount);
         lastDepositOf[_to] = block.timestamp;

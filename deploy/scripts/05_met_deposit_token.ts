@@ -8,14 +8,11 @@ const {
   MetDepositToken: {alias: MetDepositToken},
   Controller: {alias: Controller},
 } = UpgradableContracts
-const Oracle = 'Oracle'
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {getNamedAccounts, deployments} = hre
-  const {get, execute} = deployments
+  const {execute} = deployments
   const {deployer} = await getNamedAccounts()
-
-  const oracle = await get(Oracle)
 
   const {address: controllerAddress} = await deterministic(hre, UpgradableContracts.Controller)
   const {deploy} = await deterministic(hre, UpgradableContracts.MetDepositToken)
@@ -31,7 +28,6 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     'initialize',
     MET_ADDRESS,
     controllerAddress,
-    oracle.address,
     symbol,
     decimals
   )

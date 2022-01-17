@@ -64,7 +64,7 @@ abstract contract ControllerStorageV1 is IController {
     /**
      * @notice Prices oracle
      */
-    IOracle public oracle;
+    IMasterOracle public oracle;
 
     /**
      * @notice Treasury contract

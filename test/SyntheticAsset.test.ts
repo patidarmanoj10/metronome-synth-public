@@ -57,7 +57,6 @@ describe('SyntheticAsset', function () {
       controllerMock.address,
       debtToken.address,
       collateralizationRatio,
-      oracle.address,
       interestRate
     )
 

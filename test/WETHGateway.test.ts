@@ -58,13 +58,13 @@ describe('WETHGateway', function () {
     wethGateway = await wethGatewayFactory.deploy(WETH_ADDRESS)
     await wethGateway.deployed()
 
-    await wethDepositToken.initialize(WETH_ADDRESS, controllerMock.address, oracleMock.address, 'vSynth-WETH', 18)
+    await wethDepositToken.initialize(WETH_ADDRESS, controllerMock.address, 'vSynth-WETH', 18)
 
     const erc20MockFactory = new ERC20Mock__factory(deployer)
     tokenMock = await erc20MockFactory.deploy('Name', 'SYMBOL', 18)
     await tokenMock.deployed()
 
-    await oracleMock.updateRate(weth.address, parseEther('1'))
+    await oracleMock.updateRate(wethDepositToken.address, parseEther('1'))
   })
 
   it('should not receive ETH if sender is not WETH contract', async function () {
