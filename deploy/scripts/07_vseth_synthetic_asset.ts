@@ -9,14 +9,10 @@ const {
   VsEth: {alias: VsEth},
 } = UpgradableContracts
 
-const Oracle = 'Oracle'
-
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {getNamedAccounts, deployments} = hre
-  const {get, execute} = deployments
+  const {execute} = deployments
   const {deployer} = await getNamedAccounts()
-
-  const oracle = await get(Oracle)
 
   const {address: controllerAddress} = await deterministic(hre, UpgradableContracts.Controller)
   const {address: vsEthDebtTokenAddress} = await deterministic(hre, UpgradableContracts.VsEthDebtToken)
@@ -34,7 +30,6 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     controllerAddress,
     vsEthDebtTokenAddress,
     parseEther('1.5'), // CR = 150%
-    oracle.address,
     parseEther('0') // Interest Rate = 0%
   )
 

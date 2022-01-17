@@ -47,10 +47,10 @@ describe('DepositToken', function () {
     await controllerMock.deployed()
     await controllerMock.transferGovernorship(governor.address)
 
-    await metDepositToken.initialize(met.address, controllerMock.address, oracle.address, 'vSynth-MET', 18)
+    await metDepositToken.initialize(met.address, controllerMock.address, 'vSynth-MET', 18)
     metDepositToken = metDepositToken.connect(governor)
 
-    await oracle.updateRate(met.address, metRate)
+    await oracle.updateRate(metDepositToken.address, metRate)
   })
 
   describe('mint', function () {
@@ -111,7 +111,7 @@ describe('DepositToken', function () {
       it('should revert if amount > free amount', async function () {
         // given
         const {_unlockedDepositInUsd} = await controllerMock.debtPositionOf(user.address)
-        const _unlockedDeposit = await oracle.convertFromUsd(met.address, _unlockedDepositInUsd)
+        const _unlockedDeposit = await oracle.convertFromUsd(metDepositToken.address, _unlockedDepositInUsd)
 
         // when
         const call = metDepositToken.interface.encodeFunctionData('burnFromUnlocked', [
@@ -127,7 +127,7 @@ describe('DepositToken', function () {
       it('should burn if amount <= free amount', async function () {
         // given
         const {_unlockedDepositInUsd} = await controllerMock.debtPositionOf(user.address)
-        const _unlockedDeposit = await oracle.convertFromUsd(met.address, _unlockedDepositInUsd)
+        const _unlockedDeposit = await oracle.convertFromUsd(metDepositToken.address, _unlockedDepositInUsd)
         expect(await metDepositToken.balanceOf(user.address)).eq(amount)
 
         // when
@@ -160,7 +160,7 @@ describe('DepositToken', function () {
       it('should revert if amount > free amount', async function () {
         // given
         const {_unlockedDepositInUsd} = await controllerMock.debtPositionOf(user.address)
-        const _unlockedDeposit = await oracle.convertFromUsd(met.address, _unlockedDepositInUsd)
+        const _unlockedDeposit = await oracle.convertFromUsd(metDepositToken.address, _unlockedDepositInUsd)
 
         // when
         const call = metDepositToken.interface.encodeFunctionData('burnForWithdraw', [
@@ -176,7 +176,7 @@ describe('DepositToken', function () {
       it('should burn if amount <= free amount', async function () {
         // given
         const {_unlockedDepositInUsd} = await controllerMock.debtPositionOf(user.address)
-        const _unlockedDeposit = await oracle.convertFromUsd(met.address, _unlockedDepositInUsd)
+        const _unlockedDeposit = await oracle.convertFromUsd(metDepositToken.address, _unlockedDepositInUsd)
         expect(await metDepositToken.balanceOf(user.address)).eq(amount)
 
         // when
@@ -204,7 +204,7 @@ describe('DepositToken', function () {
     describe('transfer', function () {
       it('should transfer if amount <= free amount', async function () {
         const {_unlockedDepositInUsd} = await controllerMock.debtPositionOf(user.address)
-        const _unlockedDeposit = await oracle.convertFromUsd(met.address, _unlockedDepositInUsd)
+        const _unlockedDeposit = await oracle.convertFromUsd(metDepositToken.address, _unlockedDepositInUsd)
         expect(await metDepositToken.balanceOf(user.address)).eq(amount)
         await metDepositToken.connect(user).transfer(deployer.address, _unlockedDeposit)
         expect(await metDepositToken.balanceOf(user.address)).eq(amount.sub(_unlockedDeposit))
@@ -216,7 +216,7 @@ describe('DepositToken', function () {
 
         // when
         const {_unlockedDepositInUsd} = await controllerMock.debtPositionOf(user.address)
-        const _unlockedDeposit = await oracle.convertFromUsd(met.address, _unlockedDepositInUsd)
+        const _unlockedDeposit = await oracle.convertFromUsd(metDepositToken.address, _unlockedDepositInUsd)
         const tx = metDepositToken.connect(user).transfer(deployer.address, _unlockedDeposit)
 
         // then
@@ -225,7 +225,7 @@ describe('DepositToken', function () {
 
       it('should revert if amount > free amount', async function () {
         const {_unlockedDepositInUsd} = await controllerMock.debtPositionOf(user.address)
-        const _unlockedDeposit = await oracle.convertFromUsd(met.address, _unlockedDepositInUsd)
+        const _unlockedDeposit = await oracle.convertFromUsd(metDepositToken.address, _unlockedDepositInUsd)
         const tx = metDepositToken.connect(user).transfer(deployer.address, _unlockedDeposit.add('1'))
         await expect(tx).revertedWith('not-enough-free-balance')
       })
@@ -238,7 +238,7 @@ describe('DepositToken', function () {
 
       it('should transfer if amount <= free amount', async function () {
         const {_unlockedDepositInUsd} = await controllerMock.debtPositionOf(user.address)
-        const _unlockedDeposit = await oracle.convertFromUsd(met.address, _unlockedDepositInUsd)
+        const _unlockedDeposit = await oracle.convertFromUsd(metDepositToken.address, _unlockedDepositInUsd)
         expect(await metDepositToken.balanceOf(user.address)).eq(amount)
         await metDepositToken.connect(deployer).transferFrom(user.address, deployer.address, _unlockedDeposit)
         expect(await metDepositToken.balanceOf(user.address)).eq(amount.sub(_unlockedDeposit))
@@ -250,7 +250,7 @@ describe('DepositToken', function () {
 
         // when
         const {_unlockedDepositInUsd} = await controllerMock.debtPositionOf(user.address)
-        const _unlockedDeposit = await oracle.convertFromUsd(met.address, _unlockedDepositInUsd)
+        const _unlockedDeposit = await oracle.convertFromUsd(metDepositToken.address, _unlockedDepositInUsd)
         const tx = metDepositToken.connect(deployer).transferFrom(user.address, deployer.address, _unlockedDeposit)
 
         // then
@@ -259,7 +259,7 @@ describe('DepositToken', function () {
 
       it('should revert if amount > free amount', async function () {
         const {_unlockedDepositInUsd} = await controllerMock.debtPositionOf(user.address)
-        const _unlockedDeposit = await oracle.convertFromUsd(met.address, _unlockedDepositInUsd)
+        const _unlockedDeposit = await oracle.convertFromUsd(metDepositToken.address, _unlockedDepositInUsd)
         const tx = metDepositToken
           .connect(deployer)
           .transferFrom(user.address, deployer.address, _unlockedDeposit.add('1'))

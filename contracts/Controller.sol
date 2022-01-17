@@ -121,12 +121,12 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     event LiquidateFeeUpdated(uint256 oldLiquidateFee, uint256 newLiquidateFee);
 
     /// @notice Emitted when oracle contract is updated
-    event OracleUpdated(IOracle indexed oldOracle, IOracle indexed newOracle);
+    event OracleUpdated(IMasterOracle indexed oldOracle, IMasterOracle indexed newOracle);
 
     /// @notice Emitted when treasury contract is updated
     event TreasuryUpdated(ITreasury indexed oldTreasury, ITreasury indexed newTreasury);
 
-    function initialize(IOracle _oracle, ITreasury _treasury) public initializer {
+    function initialize(IMasterOracle _oracle, ITreasury _treasury) public initializer {
         require(address(_treasury) != address(0), "treasury-is-null");
         require(address(_oracle) != address(0), "oracle-is-null");
 
@@ -236,7 +236,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
         for (uint256 i = 0; i < depositTokens.length(); ++i) {
             uint256 _amount = IDepositToken(depositTokens.at(i)).balanceOf(_account);
             if (_amount > 0) {
-                uint256 _amountInUsd = oracle.convertToUsd(IDepositToken(depositTokens.at(i)).underlying(), _amount);
+                uint256 _amountInUsd = oracle.convertToUsd(IDepositToken(depositTokens.at(i)), _amount);
                 _depositInUsd += _amountInUsd;
             }
         }
@@ -364,7 +364,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
         (, , , uint256 _unlockedDepositInUsd) = debtPositionOf(_account);
 
-        uint256 _unlockedDeposit = oracle.convertFromUsd(_depositToken.underlying(), _unlockedDepositInUsd);
+        uint256 _unlockedDeposit = oracle.convertFromUsd(_depositToken, _unlockedDepositInUsd);
 
         if (_amount == type(uint256).max) {
             _amount = _unlockedDeposit;
@@ -522,11 +522,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
         require(!_isHealthy, "position-is-healthy");
 
-        uint256 _amountToRepayInCollateral = oracle.convert(
-            _syntheticAsset,
-            _depositToken.underlying(),
-            _amountToRepay
-        );
+        uint256 _amountToRepayInCollateral = oracle.convert(_syntheticAsset, _depositToken, _amountToRepay);
 
         uint256 _toProtocol = liquidateFee > 0 ? _amountToRepayInCollateral.wadMul(liquidateFee) : 0;
         uint256 _toLiquidator = _amountToRepayInCollateral.wadMul(1e18 + liquidatorFee);
@@ -663,7 +659,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     /**
      * @notice Update price oracle contract
      */
-    function updateOracle(IOracle _newOracle) external override onlyGovernor {
+    function updateOracle(IMasterOracle _newOracle) external override onlyGovernor {
         require(address(_newOracle) != address(0), "address-is-null");
         require(_newOracle != oracle, "new-is-same-as-current");
 

@@ -20,7 +20,6 @@ contract SyntheticAsset is Manageable, SyntheticAssetStorageV1 {
         IController _controller,
         IDebtToken _debtToken,
         uint128 _collateralizationRatio,
-        IOracle _oracle,
         uint256 _interestRate
     ) public initializer {
         require(address(_debtToken) != address(0), "debt-token-is-null");
@@ -37,7 +36,6 @@ contract SyntheticAsset is Manageable, SyntheticAssetStorageV1 {
         debtToken = _debtToken;
         maxTotalSupplyInUsd = type(uint256).max;
         isActive = true;
-        oracle = _oracle;
         interestRate = _interestRate;
         collateralizationRatio = _collateralizationRatio;
     }
@@ -181,7 +179,7 @@ contract SyntheticAsset is Manageable, SyntheticAssetStorageV1 {
      */
     function mint(address _to, uint256 _amount) public override onlyController {
         require(isActive, "synthetic-asset-is-inactive");
-        uint256 _newTotalSupplyInUsd = oracle.convertToUsd(IERC20(address(this)), totalSupply + _amount);
+        uint256 _newTotalSupplyInUsd = controller.oracle().convertToUsd(IERC20(address(this)), totalSupply + _amount);
         require(_newTotalSupplyInUsd <= maxTotalSupplyInUsd, "surpass-max-total-supply");
         _mint(_to, _amount);
     }

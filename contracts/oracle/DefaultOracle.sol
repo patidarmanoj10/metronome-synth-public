@@ -10,7 +10,7 @@ import "../interface/oracle/IPriceProvider.sol";
 /**
  * @title Oracle contract that encapsulates 3rd-party protocols' oracles
  */
-contract Oracle is IOracle, Governable {
+contract DefaultOracle is IOracle, Governable {
     /**
      * @notice The supported protocols
      */

@@ -9,7 +9,7 @@ const {MET_ADDRESS, WETH_ADDRESS, UNISWAP_V2_ROUTER02_ADDRESS, UNISWAP_V3_CROSS_
 const TWAP_PERIOD = 60 * 60 * 2 // 2 hours
 const STALE_PERIOD = 60 * 15 // 15 minutes
 
-const Oracle = 'Oracle'
+const DefaultOracle = 'DefaultOracle'
 
 const Protocol = {
   NONE: 0,
@@ -42,26 +42,56 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     log: true,
   })
 
-  await deploy(Oracle, {
+  await deploy(DefaultOracle, {
     from: deployer,
     log: true,
     args: [STALE_PERIOD],
   })
 
-  await execute(Oracle, {from: deployer, log: true}, 'transferGovernorship', governor)
+  await execute(DefaultOracle, {from: deployer, log: true}, 'transferGovernorship', governor)
 
-  await execute(Oracle, {from: deployer, log: true}, 'setPriceProvider', UNISWAP_V3, uniswapV3PriceProvider.address)
-  await execute(Oracle, {from: deployer, log: true}, 'setPriceProvider', UNISWAP_V2, uniswapV2PriceProvider.address)
-  await execute(Oracle, {from: deployer, log: true}, 'setPriceProvider', CHAINLINK, chainlinkPriceProvider.address)
+  await execute(
+    DefaultOracle,
+    {from: deployer, log: true},
+    'setPriceProvider',
+    UNISWAP_V3,
+    uniswapV3PriceProvider.address
+  )
+  await execute(
+    DefaultOracle,
+    {from: deployer, log: true},
+    'setPriceProvider',
+    UNISWAP_V2,
+    uniswapV2PriceProvider.address
+  )
+  await execute(
+    DefaultOracle,
+    {from: deployer, log: true},
+    'setPriceProvider',
+    CHAINLINK,
+    chainlinkPriceProvider.address
+  )
 
-  await execute(Oracle, {from: deployer, log: true}, 'addOrUpdateUsdAsset', DAI_ADDRESS)
+  await execute(DefaultOracle, {from: deployer, log: true}, 'addOrUpdateUsdAsset', DAI_ADDRESS)
 
   const {address: vsEthAddress} = await deterministic(hre, UpgradableContracts.VsEth)
-  await execute(Oracle, {from: deployer, log: true}, 'addOrUpdateAssetThatUsesUniswapV2', vsEthAddress, WETH_ADDRESS)
+  await execute(
+    DefaultOracle,
+    {from: deployer, log: true},
+    'addOrUpdateAssetThatUsesUniswapV2',
+    vsEthAddress,
+    WETH_ADDRESS
+  )
 
-  // For `depositToken` we use its underlying asset on querying
-  await execute(Oracle, {from: deployer, log: true}, 'addOrUpdateAssetThatUsesUniswapV3', MET_ADDRESS, MET_ADDRESS)
+  const {address: metDepositTokenAddress} = await deterministic(hre, UpgradableContracts.MetDepositToken)
+  await execute(
+    DefaultOracle,
+    {from: deployer, log: true},
+    'addOrUpdateAssetThatUsesUniswapV3',
+    metDepositTokenAddress,
+    MET_ADDRESS
+  )
 }
 
 export default func
-func.tags = [Oracle]
+func.tags = [DefaultOracle]

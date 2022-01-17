@@ -35,9 +35,4 @@ abstract contract DepositTokenStorageV1 is IDepositToken {
      * @notice If a collateral isn't active, it disables minting new tokens
      */
     bool public isActive;
-
-    /**
-     * @notice Prices oracle
-     */
-    IOracle public oracle;
 }

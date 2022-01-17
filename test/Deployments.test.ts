@@ -9,8 +9,8 @@ import {
   DepositToken,
   DepositToken__factory,
   OracleMock__factory,
-  Oracle,
-  Oracle__factory,
+  DefaultOracle,
+  DefaultOracle__factory,
   SyntheticAsset,
   SyntheticAsset__factory,
   Treasury,
@@ -36,6 +36,10 @@ import {
   WETHGateway__factory,
   ControllerUpgrader,
   ControllerUpgrader__factory,
+  MasterOracle__factory,
+  MasterOracle,
+  MasterOracleUpgrader__factory,
+  MasterOracleUpgrader,
 } from '../typechain'
 import {disableForking, enableForking} from './helpers'
 import Address from '../helpers/address'
@@ -49,7 +53,9 @@ describe('Deployments', function () {
   let uniswapV3PriceProvider: UniswapV3PriceProvider
   let uniswapV2PriceProvider: UniswapV2PriceProvider
   let chainlinkPriceProvider: ChainlinkPriceProvider
-  let oracle: Oracle
+  let defaultOracle: DefaultOracle
+  let masterOracle: MasterOracle
+  let masterOracleUpgrader: MasterOracleUpgrader
   let controller: Controller
   let controllerUpgrader: ControllerUpgrader
   let treasury: Treasury
@@ -75,7 +81,9 @@ describe('Deployments', function () {
       UniswapV3PriceProvider: {address: uniswapV3PriceProviderAddress},
       UniswapV2PriceProvider: {address: uniswapV2PriceProviderAddress},
       ChainlinkPriceProvider: {address: chainlinkPriceProviderAddress},
-      Oracle: {address: oracleAddress},
+      DefaultOracle: {address: defaultOracleAddress},
+      MasterOracle: {address: masterOracleAddress},
+      MasterOracleUpgrader: {address: masterOracleUpgraderAddress},
       Controller: {address: controllerAddress},
       ControllerUpgrader: {address: controllerUpgraderAddress},
       Treasury: {address: treasuryAddress},
@@ -92,7 +100,10 @@ describe('Deployments', function () {
     uniswapV3PriceProvider = UniswapV3PriceProvider__factory.connect(uniswapV3PriceProviderAddress, deployer)
     uniswapV2PriceProvider = UniswapV2PriceProvider__factory.connect(uniswapV2PriceProviderAddress, deployer)
     chainlinkPriceProvider = ChainlinkPriceProvider__factory.connect(chainlinkPriceProviderAddress, deployer)
-    oracle = Oracle__factory.connect(oracleAddress, deployer)
+    defaultOracle = DefaultOracle__factory.connect(defaultOracleAddress, deployer)
+
+    masterOracle = MasterOracle__factory.connect(masterOracleAddress, deployer)
+    masterOracleUpgrader = MasterOracleUpgrader__factory.connect(masterOracleUpgraderAddress, deployer)
 
     controller = Controller__factory.connect(controllerAddress, deployer)
     controllerUpgrader = ControllerUpgrader__factory.connect(controllerUpgraderAddress, deployer)
@@ -142,7 +153,7 @@ describe('Deployments', function () {
     }
   }
 
-  describe('Oracle', function () {
+  describe('DefaultOracle', function () {
     it('should have correct params', async function () {
       const Protocol = {
         NONE: 0,
@@ -151,20 +162,47 @@ describe('Deployments', function () {
         CHAINLINK: 3,
       }
 
-      expect(await oracle.providerByProtocol(Protocol.UNISWAP_V3)).eq(uniswapV3PriceProvider.address)
-      expect(await oracle.providerByProtocol(Protocol.UNISWAP_V2)).eq(uniswapV2PriceProvider.address)
-      expect(await oracle.providerByProtocol(Protocol.CHAINLINK)).eq(chainlinkPriceProvider.address)
+      expect(await defaultOracle.providerByProtocol(Protocol.UNISWAP_V3)).eq(uniswapV3PriceProvider.address)
+      expect(await defaultOracle.providerByProtocol(Protocol.UNISWAP_V2)).eq(uniswapV2PriceProvider.address)
+      expect(await defaultOracle.providerByProtocol(Protocol.CHAINLINK)).eq(chainlinkPriceProvider.address)
 
-      expect(await oracle.governor()).eq(deployer.address)
-      await oracle.connect(governor).acceptGovernorship()
-      expect(await oracle.governor()).eq(governor.address)
+      expect(await defaultOracle.governor()).eq(deployer.address)
+      await defaultOracle.connect(governor).acceptGovernorship()
+      expect(await defaultOracle.governor()).eq(governor.address)
+    })
+  })
+
+  describe('MasterOracle', function () {
+    it('should have correct params', async function () {
+      expect(await masterOracle.defaultOracle()).eq(defaultOracle.address)
+      expect(await masterOracle.governor()).eq(deployer.address)
+      await masterOracle.connect(governor).acceptGovernorship()
+      expect(await masterOracle.governor()).eq(governor.address)
+    })
+
+    it('should upgrade implementation', async function () {
+      await upgradeTestcase({
+        newImplfactory: new MasterOracle__factory(deployer),
+        proxy: masterOracle,
+        upgrader: masterOracleUpgrader,
+        expectToFail: false,
+      })
+    })
+
+    it('should fail if implementation breaks storage', async function () {
+      await upgradeTestcase({
+        newImplfactory: new OracleMock__factory(deployer),
+        proxy: masterOracle,
+        upgrader: masterOracleUpgrader,
+        expectToFail: true,
+      })
     })
   })
 
   describe('Controller', function () {
     it('should have correct params', async function () {
       expect(await controller.treasury()).eq(treasury.address)
-      expect(await controller.oracle()).eq(oracle.address)
+      expect(await controller.oracle()).eq(masterOracle.address)
       expect(await controller.governor()).eq(deployer.address)
       await controller.connect(governor).acceptGovernorship()
       expect(await controller.governor()).eq(governor.address)
@@ -210,15 +248,14 @@ describe('Deployments', function () {
       expect(await wethGateway.weth()).eq(WETH_ADDRESS)
 
       expect(await controller.governor()).eq(deployer.address)
-      await oracle.connect(governor).acceptGovernorship()
-      expect(await oracle.governor()).eq(governor.address)
+      await defaultOracle.connect(governor).acceptGovernorship()
+      expect(await defaultOracle.governor()).eq(governor.address)
     })
   })
 
   describe('DepositToken', function () {
     it('deposit token should have correct params', async function () {
       expect(await metDepositToken.controller()).eq(controller.address)
-      expect(await metDepositToken.oracle()).eq(oracle.address)
       expect(await metDepositToken.underlying()).eq(MET_ADDRESS)
       expect(await metDepositToken.governor()).eq(deployer.address)
     })
