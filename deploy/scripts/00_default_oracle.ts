@@ -45,7 +45,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   await deploy(DefaultOracle, {
     from: deployer,
     log: true,
-    args: [STALE_PERIOD],
+    args: [],
   })
 
   await execute(DefaultOracle, {from: deployer, log: true}, 'transferGovernorship', governor)
@@ -80,7 +80,8 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     {from: deployer, log: true},
     'addOrUpdateAssetThatUsesUniswapV2',
     vsEthAddress,
-    WETH_ADDRESS
+    WETH_ADDRESS,
+    STALE_PERIOD
   )
 
   const {address: metDepositTokenAddress} = await deterministic(hre, UpgradableContracts.MetDepositToken)
