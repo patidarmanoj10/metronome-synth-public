@@ -3,12 +3,14 @@
 // solhint-disable no-unused-vars
 // solhint-disable avoid-low-level-calls
 // solhint-disable use-forbidden-name
+// solhint-disable no-empty-blocks
 
 pragma solidity 0.8.9;
 
 import "../interface/IController.sol";
+import "../interface/IGovernable.sol";
 
-contract ControllerMock is IController {
+contract ControllerMock is IController, IGovernable {
     IDepositToken public depositToken;
     IMasterOracle public oracle;
     address public governor;
@@ -46,7 +48,7 @@ contract ControllerMock is IController {
         revert("mock-does-not-implement");
     }
 
-    function debtOf(address) external pure returns (uint256, uint256) {
+    function debtOf(address) external pure override returns (uint256, uint256) {
         revert("mock-does-not-implement");
     }
 
@@ -96,7 +98,7 @@ contract ControllerMock is IController {
         IDepositToken _depositToken,
         uint256 _amount,
         address _onBehalfOf
-    ) external {
+    ) external override {
         _depositToken.underlying().transferFrom(msg.sender, address(this), _amount);
         _depositToken.mint(_onBehalfOf, _amount);
     }
@@ -105,7 +107,7 @@ contract ControllerMock is IController {
         ISyntheticAsset,
         uint256,
         address
-    ) external pure {
+    ) external pure override {
         revert("mock-does-not-implement");
     }
 
@@ -113,7 +115,7 @@ contract ControllerMock is IController {
         IDepositToken _depositToken,
         uint256 _amount,
         address _to
-    ) external {
+    ) external override {
         _depositToken.burn(msg.sender, _amount);
         _depositToken.underlying().transfer(_to, _amount);
     }
@@ -122,7 +124,7 @@ contract ControllerMock is IController {
         ISyntheticAsset,
         address,
         uint256
-    ) external pure {
+    ) external pure override {
         revert("mock-does-not-implement");
     }
 
@@ -131,7 +133,7 @@ contract ControllerMock is IController {
         address,
         uint256,
         IDepositToken
-    ) external pure {
+    ) external pure override {
         revert("mock-does-not-implement");
     }
 
@@ -139,7 +141,7 @@ contract ControllerMock is IController {
         ISyntheticAsset,
         ISyntheticAsset,
         uint256
-    ) external pure returns (uint256) {
+    ) external pure override returns (uint256) {
         revert("mock-does-not-implement");
     }
 
@@ -147,39 +149,39 @@ contract ControllerMock is IController {
         revert("mock-does-not-implement");
     }
 
-    function updateDebtFloor(uint256) external pure {
+    function updateDebtFloor(uint256) external pure override {
         revert("mock-does-not-implement");
     }
 
-    function updateDepositFee(uint256) external pure {
+    function updateDepositFee(uint256) external pure override {
         revert("mock-does-not-implement");
     }
 
-    function updateMintFee(uint256) external pure {
+    function updateMintFee(uint256) external pure override {
         revert("mock-does-not-implement");
     }
 
-    function updateWithdrawFee(uint256) external pure {
+    function updateWithdrawFee(uint256) external pure override {
         revert("mock-does-not-implement");
     }
 
-    function updateRepayFee(uint256) external pure {
+    function updateRepayFee(uint256) external pure override {
         revert("mock-does-not-implement");
     }
 
-    function updateSwapFee(uint256) external pure {
+    function updateSwapFee(uint256) external pure override {
         revert("mock-does-not-implement");
     }
 
-    function updateLiquidatorFee(uint256) external pure {
+    function updateLiquidatorFee(uint256) external pure override {
         revert("mock-does-not-implement");
     }
 
-    function updateLiquidateFee(uint256) external pure {
+    function updateLiquidateFee(uint256) external pure override {
         revert("mock-does-not-implement");
     }
 
-    function updateMaxLiquidable(uint256) external pure {
+    function updateMaxLiquidable(uint256) external pure override {
         revert("mock-does-not-implement");
     }
 
@@ -207,7 +209,23 @@ contract ControllerMock is IController {
         return depositToken;
     }
 
-    function transferGovernorship(address _governor) public {
+    function transferGovernorship(address _governor) public override {
         governor = _governor;
+    }
+
+    function addToDepositTokensOfAccount(address) external pure override {}
+
+    function removeFromDepositTokensOfAccount(address) external pure override {}
+
+    function addToDebtTokensOfAccount(address) external pure override {}
+
+    function removeFromDebtTokensOfAccount(address) external pure override {}
+
+    function getDepositTokensOfAccount(address) external pure override returns (address[] memory) {
+        revert("mock-does-not-implement");
+    }
+
+    function getDebtTokensOfAccount(address) external pure override returns (address[] memory) {
+        revert("mock-does-not-implement");
     }
 }

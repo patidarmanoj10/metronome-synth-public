@@ -4,8 +4,8 @@
 import {BigNumber} from '@ethersproject/bignumber'
 import {parseEther} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
-import {expect} from 'chai'
-import {ethers, waffle} from 'hardhat'
+import chai, {expect} from 'chai'
+import {ethers, network, waffle} from 'hardhat'
 import {
   DepositToken,
   DepositToken__factory,
@@ -28,7 +28,11 @@ import {
   getMinLiquidationAmountInUsd,
   HOUR,
   increaseTime,
+  setEtherBalance,
 } from './helpers'
+import {FakeContract, smock} from '@defi-wonderland/smock'
+
+chai.use(smock.matchers)
 
 const {MaxUint256} = ethers.constants
 
@@ -2175,6 +2179,145 @@ describe('Controller', function () {
       expect(totalDebt).closeTo(debtOfUser, parseEther('0.000001'))
       expect(creditOfUser).eq(pricipal)
       expect(totalCredit).eq(creditOfUser.add(creditOfTreasury))
+    })
+  })
+
+  describe('depositTokensOfAccount', function () {
+    let depositToken: FakeContract
+
+    beforeEach(async function () {
+      depositToken = await smock.fake('DepositToken')
+      await controller.addDepositToken(depositToken.address)
+      await setEtherBalance(depositToken.address, parseEther('1'))
+    })
+
+    describe('addToDepositTokensOfAccount', function () {
+      it('should revert if caller is not a deposit token', async function () {
+        const tx = controller.connect(alice).addToDepositTokensOfAccount(alice.address)
+        await expect(tx).revertedWith('caller-is-not-deposit-token')
+      })
+
+      // eslint-disable-next-line quotes
+      it("should add deposit token to the account's array", async function () {
+        // given
+        expect(await controller.getDepositTokensOfAccount(alice.address)).deep.eq([])
+
+        // then
+        await controller.connect(depositToken.wallet).addToDepositTokensOfAccount(alice.address)
+
+        // when
+        expect(await controller.getDepositTokensOfAccount(alice.address)).deep.eq([depositToken.address])
+      })
+
+      it('should not add same deposit token twice', async function () {
+        // given
+        expect(await controller.getDepositTokensOfAccount(alice.address)).deep.eq([])
+
+        // then
+        await controller.connect(depositToken.wallet).addToDepositTokensOfAccount(alice.address)
+        await controller.connect(depositToken.wallet).addToDepositTokensOfAccount(alice.address)
+
+        // when
+        expect(await controller.getDepositTokensOfAccount(alice.address)).deep.eq([depositToken.address])
+      })
+    })
+
+    describe('removeFromDepositTokensOfAccount', function () {
+      beforeEach(async function () {
+        await controller.connect(depositToken.wallet).addToDepositTokensOfAccount(alice.address)
+      })
+
+      it('should revert if caller is not a deposit token', async function () {
+        const tx = controller.connect(alice).removeFromDepositTokensOfAccount(alice.address)
+        await expect(tx).revertedWith('caller-is-not-deposit-token')
+      })
+
+      // eslint-disable-next-line quotes
+      it("should remove deposit token to the account's array", async function () {
+        // given
+        expect(await controller.getDepositTokensOfAccount(alice.address)).deep.eq([depositToken.address])
+
+        // then
+        await controller.connect(depositToken.wallet).removeFromDepositTokensOfAccount(alice.address)
+
+        // when
+        expect(await controller.getDepositTokensOfAccount(alice.address)).deep.eq([])
+      })
+    })
+  })
+
+  describe('debtTokensOfAccount', function () {
+    let syntheticAsset: FakeContract
+    let debtToken: FakeContract
+
+    beforeEach(async function () {
+      syntheticAsset = await smock.fake('SyntheticAsset')
+      debtToken = await smock.fake('DebtToken')
+      syntheticAsset.debtToken.returns(debtToken.address)
+      debtToken.syntheticAsset.returns(syntheticAsset.address)
+
+      await controller.addSyntheticAsset(syntheticAsset.address)
+      await setEtherBalance(debtToken.address, parseEther('1'))
+    })
+
+    describe('addToDebtTokensOfAccount', function () {
+      it('should revert if caller is not a debt token', async function () {
+        const invalidDebtToken = await smock.fake('DebtToken')
+        invalidDebtToken.syntheticAsset.returns(syntheticAsset.address)
+
+        const tx = controller.connect(invalidDebtToken.wallet).addToDebtTokensOfAccount(alice.address)
+        await expect(tx).revertedWith('caller-is-not-debt-token')
+      })
+
+      // eslint-disable-next-line quotes
+      it("should add debt token to the account's array", async function () {
+        // given
+        expect(await controller.getDebtTokensOfAccount(alice.address)).deep.eq([])
+
+        // then
+        await controller.connect(debtToken.wallet).addToDebtTokensOfAccount(alice.address)
+
+        // when
+        expect(await controller.getDebtTokensOfAccount(alice.address)).deep.eq([debtToken.address])
+      })
+
+      it('should not add same debt token twice', async function () {
+        // given
+        expect(await controller.getDebtTokensOfAccount(alice.address)).deep.eq([])
+
+        // then
+        await controller.connect(debtToken.wallet).addToDebtTokensOfAccount(alice.address)
+        await controller.connect(debtToken.wallet).addToDebtTokensOfAccount(alice.address)
+
+        // when
+        expect(await controller.getDebtTokensOfAccount(alice.address)).deep.eq([debtToken.address])
+      })
+    })
+
+    describe('removeFromDebtTokensOfAccount', function () {
+      beforeEach(async function () {
+        await controller.connect(debtToken.wallet).addToDebtTokensOfAccount(alice.address)
+      })
+
+      it('should revert if caller is not a debt token', async function () {
+        const invalidDebtToken = await smock.fake('DebtToken')
+        invalidDebtToken.syntheticAsset.returns(syntheticAsset.address)
+
+        const tx = controller.connect(invalidDebtToken.wallet).removeFromDebtTokensOfAccount(alice.address)
+        await expect(tx).revertedWith('caller-is-not-debt-token')
+      })
+
+      // eslint-disable-next-line quotes
+      it("should remove debt token to the account's array", async function () {
+        // given
+        expect(await controller.getDebtTokensOfAccount(alice.address)).deep.eq([debtToken.address])
+
+        // then
+        await controller.connect(debtToken.wallet).removeFromDebtTokensOfAccount(alice.address)
+
+        // when
+        expect(await controller.getDebtTokensOfAccount(alice.address)).deep.eq([])
+      })
     })
   })
 })

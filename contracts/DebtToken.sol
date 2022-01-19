@@ -94,10 +94,14 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
     function _mint(address _account, uint256 _amount) internal virtual {
         require(_account != address(0), "mint-to-the-zero-address");
 
+        _beforeTokenTransfer(address(0), _account, _amount);
+
         totalSupply += _amount;
         principalOf[_account] += _amount;
         interestRateOf[_account] = debtIndex;
         emit Transfer(address(0), _account, _amount);
+
+        _afterTokenTransfer(address(0), _account, _amount);
     }
 
     /**
@@ -105,6 +109,9 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
      */
     function _burn(address _account, uint256 _amount) internal virtual {
         require(_account != address(0), "burn-from-the-zero-address");
+
+        // Note: Commented out because will never reach the hook implementation at this point
+        // _beforeTokenTransfer(address(0), _account, _amount);
 
         uint256 accountBalance = balanceOf(_account);
         require(accountBalance >= _amount, "burn-amount-exceeds-balance");
@@ -115,6 +122,28 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
         totalSupply -= _amount;
 
         emit Transfer(_account, address(0), _amount);
+
+        _afterTokenTransfer(_account, address(0), _amount);
+    }
+
+    function _beforeTokenTransfer(
+        address, /*_from*/
+        address _to,
+        uint256 /*_amount*/
+    ) internal virtual {
+        if (balanceOf(_to) == 0) {
+            controller.addToDebtTokensOfAccount(_to);
+        }
+    }
+
+    function _afterTokenTransfer(
+        address _from,
+        address, /* _to*/
+        uint256 /*_amount*/
+    ) internal virtual {
+        if (balanceOf(_from) == 0) {
+            controller.removeFromDebtTokensOfAccount(_from);
+        }
     }
 
     /**

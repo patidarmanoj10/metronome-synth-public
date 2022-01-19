@@ -144,16 +144,24 @@ contract DepositToken is Manageable, DepositTokenStorageV1 {
     }
 
     function _beforeTokenTransfer(
-        address _from,
+        address, /*_from*/
         address _to,
-        uint256 _amount // solhint-disable-next-line no-empty-blocks
-    ) internal virtual {}
+        uint256 /*_amount*/
+    ) internal virtual {
+        if (balanceOf[_to] == 0) {
+            controller.addToDepositTokensOfAccount(_to);
+        }
+    }
 
     function _afterTokenTransfer(
         address _from,
-        address _to,
-        uint256 _amount // solhint-disable-next-line no-empty-blocks
-    ) internal virtual {}
+        address, /*_to*/
+        uint256 /*_amount*/
+    ) internal virtual {
+        if (balanceOf[_from] == 0) {
+            controller.removeFromDepositTokensOfAccount(_from);
+        }
+    }
 
     /**
      * @notice Mint deposit token when an account deposits collateral
@@ -166,20 +174,6 @@ contract DepositToken is Manageable, DepositTokenStorageV1 {
         require(_newTotalSupplyInUsd <= maxTotalSupplyInUsd, "surpass-max-total-supply");
         _mint(_to, _amount);
         lastDepositOf[_to] = block.timestamp;
-    }
-
-    /**
-     * @notice Burn deposit token if unlocked
-     * @param _from The account to burn from
-     * @param _amount The amount to burn
-     */
-    function burnFromUnlocked(address _from, uint256 _amount)
-        public
-        override
-        onlyController
-        onlyIfNotLocked(_from, _amount)
-    {
-        _burn(_from, _amount);
     }
 
     /**

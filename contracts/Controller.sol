@@ -16,6 +16,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     using SafeERC20 for IERC20;
     using WadRayMath for uint256;
     using EnumerableSet for EnumerableSet.AddressSet;
+    using MappedEnumerableSet for MappedEnumerableSet.AddressSet;
 
     string public constant VERSION = "1.0.0";
 
@@ -172,6 +173,18 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     }
 
     /**
+     * @dev Throws if `msg.sender` isn't a debt token
+     */
+    function _requireMsgSenderIsDebtToken() private view {
+        IDebtToken _debtToken = IDebtToken(_msgSender());
+        ISyntheticAsset _syntheticAsset = _debtToken.syntheticAsset();
+        require(
+            syntheticAssets.contains(address(_syntheticAsset)) && _msgSender() == address(_syntheticAsset.debtToken()),
+            "caller-is-not-debt-token"
+        );
+    }
+
+    /**
      * @notice Get all synthetic assets
      * @dev WARNING: This operation will copy the entire storage to memory, which can be quite expensive. This is designed
      * to mostly be used by view accessors that are queried without any gas fees.
@@ -187,6 +200,24 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
      */
     function getDepositTokens() external view override returns (address[] memory) {
         return depositTokens.values();
+    }
+
+    /**
+     * @notice Get deposit tokens of an account
+     * @dev WARNING: This operation will copy the entire storage to memory, which can be quite expensive. This is designed
+     * to mostly be used by view accessors that are queried without any gas fees.
+     */
+    function getDepositTokensOfAccount(address _account) external view override returns (address[] memory) {
+        return depositTokensOfAccount.values(_account);
+    }
+
+    /**
+     * @notice Get all deposit tokens
+     * @dev WARNING: This operation will copy the entire storage to memory, which can be quite expensive. This is designed
+     * to mostly be used by view accessors that are queried without any gas fees.
+     */
+    function getDebtTokensOfAccount(address _account) external view override returns (address[] memory) {
+        return debtTokensOfAccount.values(_account);
     }
 
     /**
@@ -215,14 +246,12 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
      * @return _lockedDepositInUsd The USD amount that's covering the debt (considering collateralization ratios)
      */
     function debtOf(address _account) public view override returns (uint256 _debtInUsd, uint256 _lockedDepositInUsd) {
-        for (uint256 i = 0; i < syntheticAssets.length(); ++i) {
-            ISyntheticAsset _syntheticAsset = ISyntheticAsset(syntheticAssets.at(i));
-            uint256 _amount = _syntheticAsset.debtToken().balanceOf(_account);
-            if (_amount > 0) {
-                uint256 _amountInUsd = oracle.convertToUsd(_syntheticAsset, _amount);
-                _debtInUsd += _amountInUsd;
-                _lockedDepositInUsd += _amountInUsd.wadMul(_syntheticAsset.collateralizationRatio());
-            }
+        for (uint256 i = 0; i < debtTokensOfAccount.length(_account); ++i) {
+            IDebtToken _debtToken = IDebtToken(debtTokensOfAccount.at(_account, i));
+            ISyntheticAsset _syntheticAsset = _debtToken.syntheticAsset();
+            uint256 _amountInUsd = oracle.convertToUsd(_syntheticAsset, _debtToken.balanceOf(_account));
+            _debtInUsd += _amountInUsd;
+            _lockedDepositInUsd += _amountInUsd.wadMul(_syntheticAsset.collateralizationRatio());
         }
     }
 
@@ -233,12 +262,10 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
      * @return _depositInUsd The total deposit value in USD among all collaterals
      */
     function depositOf(address _account) public view override returns (uint256 _depositInUsd) {
-        for (uint256 i = 0; i < depositTokens.length(); ++i) {
-            uint256 _amount = IDepositToken(depositTokens.at(i)).balanceOf(_account);
-            if (_amount > 0) {
-                uint256 _amountInUsd = oracle.convertToUsd(IDepositToken(depositTokens.at(i)), _amount);
-                _depositInUsd += _amountInUsd;
-            }
+        for (uint256 i = 0; i < depositTokensOfAccount.length(_account); ++i) {
+            IDepositToken _depositToken = IDepositToken(depositTokensOfAccount.at(_account, i));
+            uint256 _amountInUsd = oracle.convertToUsd(_depositToken, _depositToken.balanceOf(_account));
+            _depositInUsd += _amountInUsd;
         }
     }
 
@@ -654,6 +681,46 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
         depositTokens.remove(address(_depositToken));
 
         emit DepositTokenRemoved(_depositToken);
+    }
+
+    /**
+     * @notice Add a deposit token to the per-account list
+     * @dev This function is called from `DepositToken._beforeTokenTransfer` hook
+     * @param _account The account address
+     */
+    function addToDepositTokensOfAccount(address _account) external {
+        require(depositTokens.contains(_msgSender()), "caller-is-not-deposit-token");
+        depositTokensOfAccount.add(_account, _msgSender());
+    }
+
+    /**
+     * @notice Remove a deposit token from the per-account list
+     * @dev This function is called from `DepositToken._afterTokenTransfer` hook
+     * @param _account The account address
+     */
+    function removeFromDepositTokensOfAccount(address _account) external {
+        require(depositTokens.contains(_msgSender()), "caller-is-not-deposit-token");
+        depositTokensOfAccount.remove(_account, _msgSender());
+    }
+
+    /**
+     * @notice Add a debt token to the per-account list
+     * @dev This function is called from `DebtToken._beforeTokenTransfer` hook
+     * @param _account The account address
+     */
+    function addToDebtTokensOfAccount(address _account) external {
+        _requireMsgSenderIsDebtToken();
+        debtTokensOfAccount.add(_account, _msgSender());
+    }
+
+    /**
+     * @notice Remove a debt token from the per-account list
+     * @dev This function is called from `DebtToken._afterTokenTransfer` hook
+     * @param _account The account address
+     */
+    function removeFromDebtTokensOfAccount(address _account) external {
+        _requireMsgSenderIsDebtToken();
+        debtTokensOfAccount.remove(_account, _msgSender());
     }
 
     /**

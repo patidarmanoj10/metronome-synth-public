@@ -77,3 +77,10 @@ export const disableForking = async (): Promise<void> => {
     params: [],
   })
 }
+
+export const setEtherBalance = async (address: string, value: BigNumber): Promise<void> => {
+  await network.provider.request({
+    method: 'hardhat_setBalance',
+    params: [address, ethers.utils.hexStripZeros(value.toHexString())],
+  })
+}

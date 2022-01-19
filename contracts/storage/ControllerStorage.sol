@@ -3,6 +3,7 @@
 pragma solidity 0.8.9;
 
 import "../dependencies/openzeppelin/utils/structs/EnumerableSet.sol";
+import "../lib/MappedEnumerableSet.sol";
 import "../interface/IController.sol";
 import "../interface/ITreasury.sol";
 
@@ -85,4 +86,14 @@ abstract contract ControllerStorageV1 is IController {
      * @notice Avaliable synthetic assets
      */
     EnumerableSet.AddressSet internal syntheticAssets;
+
+    /**
+     * @notice Per-account deposit tokens (i.e. tokens that user has balance > 0)
+     */
+    MappedEnumerableSet.AddressSet internal depositTokensOfAccount;
+
+    /**
+     * @notice Per-account debt tokens (i.e. tokens that user has balance > 0)
+     */
+    MappedEnumerableSet.AddressSet internal debtTokensOfAccount;
 }

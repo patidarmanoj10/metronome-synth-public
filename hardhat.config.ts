@@ -63,6 +63,11 @@ const config: HardhatUserConfig = {
         enabled: true,
         runs: 100,
       },
+      outputSelection: {
+        '*': {
+          '*': ['storageLayout'],
+        },
+      },
     },
   },
   spdxLicenseIdentifier: {
