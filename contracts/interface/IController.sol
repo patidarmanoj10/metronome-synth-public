@@ -108,4 +108,16 @@ interface IController {
     function oracle() external view returns (IMasterOracle);
 
     function accrueInterest(ISyntheticAsset _syntheticAsset) external;
+
+    function addToDepositTokensOfAccount(address _account) external;
+
+    function removeFromDepositTokensOfAccount(address _account) external;
+
+    function addToDebtTokensOfAccount(address _account) external;
+
+    function removeFromDebtTokensOfAccount(address _account) external;
+
+    function getDepositTokensOfAccount(address _account) external view returns (address[] memory);
+
+    function getDebtTokensOfAccount(address _account) external view returns (address[] memory);
 }

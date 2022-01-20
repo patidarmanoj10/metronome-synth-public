@@ -7,4 +7,6 @@ pragma solidity 0.8.9;
  */
 interface IGovernable {
     function governor() external view returns (address _governor);
+
+    function transferGovernorship(address _proposedGovernor) external;
 }

@@ -2,14 +2,17 @@
 /* eslint-disable camelcase */
 import {parseEther} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
-import {expect} from 'chai'
+import chai, {expect} from 'chai'
 import {ethers} from 'hardhat'
 import {DebtTokenMock, DebtTokenMock__factory, SyntheticAssetMock, SyntheticAssetMock__factory} from '../typechain'
-import {BLOCKS_PER_YEAR} from './helpers'
+import {BLOCKS_PER_YEAR, setEtherBalance} from './helpers'
+import {FakeContract, smock} from '@defi-wonderland/smock'
+
+chai.use(smock.matchers)
 
 describe('DebtToken', function () {
   let deployer: SignerWithAddress
-  let controllerMock: SignerWithAddress
+  let controllerMock: FakeContract
   let user1: SignerWithAddress
   let user2: SignerWithAddress
   let debtToken: DebtTokenMock
@@ -21,17 +24,18 @@ describe('DebtToken', function () {
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
-    ;[deployer, controllerMock, user1, user2] = await ethers.getSigners()
+    ;[deployer, , user1, user2] = await ethers.getSigners()
 
     const syntheticAssetMockFactory = new SyntheticAssetMock__factory(deployer)
     syntheticAssetMock = await syntheticAssetMockFactory.deploy('Vesper Synth ETH', 'vsETH', interestRate)
+
+    controllerMock = await smock.fake('Controller')
+    await setEtherBalance(controllerMock.address, parseEther('10'))
 
     const debtTokenMockFactory = new DebtTokenMock__factory(deployer)
     debtToken = await debtTokenMockFactory.deploy()
     await debtToken.deployed()
     await debtToken.initialize(name, symbol, 18, controllerMock.address, syntheticAssetMock.address)
-
-    debtToken = debtToken.connect(controllerMock)
   })
 
   it('default values', async function () {
@@ -45,7 +49,9 @@ describe('DebtToken', function () {
     it('should mint', async function () {
       expect(await debtToken.balanceOf(user1.address)).eq(0)
       const amount = parseEther('100')
-      await debtToken.mint(user1.address, amount)
+
+      await debtToken.connect(controllerMock.wallet).mint(user1.address, amount)
+
       expect(await debtToken.balanceOf(user1.address)).eq(amount)
     })
 
@@ -53,19 +59,38 @@ describe('DebtToken', function () {
       const tx = debtToken.connect(user1).mint(user1.address, parseEther('10'))
       await expect(tx).revertedWith('not-controller')
     })
+
+    it('should add debt token to user array only if balance was 0 before mint', async function () {
+      // given
+      controllerMock.addToDebtTokensOfAccount.reset()
+      expect(await debtToken.balanceOf(user1.address)).eq(0)
+
+      // when
+      // Note: Set `gasLimit` prevents messing up the calls counter
+      // See more: https://github.com/defi-wonderland/smock/issues/99
+      const gasLimit = 250000
+      await debtToken.connect(controllerMock.wallet).mint(user1.address, parseEther('1'), {gasLimit})
+      await debtToken.connect(controllerMock.wallet).mint(user1.address, parseEther('1'), {gasLimit})
+      await debtToken.connect(controllerMock.wallet).mint(user1.address, parseEther('1'), {gasLimit})
+
+      // then
+      expect(controllerMock.addToDebtTokensOfAccount).callCount(1)
+    })
   })
 
   describe('when some token was minted', function () {
     const amount = parseEther('100')
 
     beforeEach('should mint', async function () {
-      await debtToken.mint(user1.address, amount)
+      await debtToken.connect(controllerMock.wallet).mint(user1.address, amount)
     })
 
     describe('burn', function () {
       it('should burn', async function () {
         expect(await debtToken.balanceOf(user1.address)).eq(amount)
-        await debtToken.burn(user1.address, amount)
+
+        await debtToken.connect(controllerMock.wallet).burn(user1.address, amount)
+
         expect(await debtToken.balanceOf(user1.address)).eq(0)
       })
 
@@ -88,6 +113,25 @@ describe('DebtToken', function () {
         await expect(tx).revertedWith('transfer-not-supported')
       })
     })
+
+    it('should remove debt token from user array only if burning all', async function () {
+      // given
+      controllerMock.removeFromDebtTokensOfAccount.reset()
+      expect(await debtToken.balanceOf(user1.address)).eq(amount)
+
+      // when
+      // Note: Set `gasLimit` prevents messing up the calls counter
+      // See more: https://github.com/defi-wonderland/smock/issues/99
+      const gasLimit = 250000
+      await debtToken.connect(controllerMock.wallet).burn(user1.address, amount.div('4'), {gasLimit})
+      await debtToken.connect(controllerMock.wallet).burn(user1.address, amount.div('4'), {gasLimit})
+      await debtToken.connect(controllerMock.wallet).burn(user1.address, amount.div('4'), {gasLimit})
+      await debtToken.connect(controllerMock.wallet).burn(user1.address, amount.div('4'), {gasLimit})
+
+      // then
+      expect(await debtToken.balanceOf(user1.address)).eq(0)
+      expect(controllerMock.removeFromDebtTokensOfAccount).callCount(1)
+    })
   })
 
   describe('accrueInterest', function () {
@@ -95,12 +139,13 @@ describe('DebtToken', function () {
 
     it('should accrue interest', async function () {
       // given
-      await debtToken.mint(user1.address, principal)
+      await debtToken.connect(controllerMock.wallet).mint(user1.address, principal)
 
       // when
       await syntheticAssetMock.updateInterestRate(parseEther('0.02')) // 2%
       await debtToken.setBlockNumber((await ethers.provider.getBlockNumber()) + BLOCKS_PER_YEAR)
-      await debtToken.accrueInterest()
+
+      await debtToken.connect(controllerMock.wallet).accrueInterest()
 
       // then
       const totalDebt = await debtToken.totalSupply()
@@ -113,12 +158,12 @@ describe('DebtToken', function () {
 
     it('should not accrue interest if rate is 0', async function () {
       // given
-      await debtToken.mint(user1.address, principal)
+      await debtToken.connect(controllerMock.wallet).mint(user1.address, principal)
 
       // when
       await syntheticAssetMock.updateInterestRate(parseEther('0'))
       await debtToken.setBlockNumber(BLOCKS_PER_YEAR)
-      await debtToken.accrueInterest()
+      await debtToken.connect(controllerMock.wallet).accrueInterest()
 
       // then
       const totalDebt = await debtToken.totalSupply()
@@ -129,17 +174,17 @@ describe('DebtToken', function () {
 
     it('should accrue interest after changing interest rate', async function () {
       // given
-      await debtToken.mint(user1.address, principal)
+      await debtToken.connect(controllerMock.wallet).mint(user1.address, principal)
 
       // when
       // 1st year 10% interest + 2nd year 50% interest
       await syntheticAssetMock.updateInterestRate(parseEther('0.1')) // 10%
       await debtToken.setBlockNumber((await ethers.provider.getBlockNumber()) + BLOCKS_PER_YEAR)
-      await debtToken.accrueInterest()
+      await debtToken.connect(controllerMock.wallet).accrueInterest()
 
       await syntheticAssetMock.updateInterestRate(parseEther('0.5')) // 50%
       await debtToken.setBlockNumber((await ethers.provider.getBlockNumber()) + BLOCKS_PER_YEAR)
-      await debtToken.accrueInterest()
+      await debtToken.connect(controllerMock.wallet).accrueInterest()
 
       // then
       const totalDebt = await debtToken.totalSupply()
@@ -152,17 +197,17 @@ describe('DebtToken', function () {
 
     it('should stop accruing interest after changing interest rate to 0', async function () {
       // given
-      await debtToken.mint(user1.address, principal)
+      await debtToken.connect(controllerMock.wallet).mint(user1.address, principal)
 
       // when
       // 1st year 10% interest + 2nd year 50% interest
       await syntheticAssetMock.updateInterestRate(parseEther('0.1')) // 10%
       await debtToken.setBlockNumber(BLOCKS_PER_YEAR)
-      await debtToken.accrueInterest()
+      await debtToken.connect(controllerMock.wallet).accrueInterest()
 
       await syntheticAssetMock.updateInterestRate(parseEther('0'))
       await debtToken.setBlockNumber(BLOCKS_PER_YEAR)
-      await debtToken.accrueInterest()
+      await debtToken.connect(controllerMock.wallet).accrueInterest()
 
       // then
       const totalDebt = await debtToken.totalSupply()
