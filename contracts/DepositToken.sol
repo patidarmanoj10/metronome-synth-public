@@ -24,7 +24,7 @@ contract DepositToken is Manageable, DepositTokenStorageV1 {
     /**
      * @dev Throws if minimum deposit time haven't passed
      */
-    modifier onlyIfMinDepositTimePassed(address _account, uint256 _amount) {
+    modifier onlyIfMinDepositTimePassed(address _account) {
         require(block.timestamp >= lastDepositOf[_account] + minDepositTime, "min-deposit-time-have-not-passed");
         _;
     }
@@ -192,7 +192,7 @@ contract DepositToken is Manageable, DepositTokenStorageV1 {
         override
         onlyController
         onlyIfNotLocked(_from, _amount)
-        onlyIfMinDepositTimePassed(_from, _amount)
+        onlyIfMinDepositTimePassed(_from)
     {
         _burn(_from, _amount);
     }
@@ -216,13 +216,13 @@ contract DepositToken is Manageable, DepositTokenStorageV1 {
         address _sender,
         address _recipient,
         uint256 _amount
-    ) private onlyIfNotLocked(_sender, _amount) onlyIfMinDepositTimePassed(_sender, _amount) returns (bool) {
+    ) private onlyIfNotLocked(_sender, _amount) onlyIfMinDepositTimePassed(_sender) {
         _transfer(_sender, _recipient, _amount);
-        return true;
     }
 
     function transfer(address _to, uint256 _amount) public override returns (bool) {
-        return _transferWithChecks(_msgSender(), _to, _amount);
+        _transferWithChecks(_msgSender(), _to, _amount);
+        return true;
     }
 
     function transferFrom(
@@ -230,7 +230,15 @@ contract DepositToken is Manageable, DepositTokenStorageV1 {
         address _recipient,
         uint256 _amount
     ) public override returns (bool) {
-        return _transferWithChecks(_sender, _recipient, _amount);
+        _transferWithChecks(_sender, _recipient, _amount);
+
+        uint256 currentAllowance = allowance[_sender][_msgSender()];
+        require(currentAllowance >= _amount, "amount-exceeds-allowance");
+        unchecked {
+            _approve(_sender, _msgSender(), currentAllowance - _amount);
+        }
+
+        return true;
     }
 
     /**
