@@ -351,10 +351,6 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
         address _sender = _msgSender();
 
-        if (_amount == type(uint256).max) {
-            _amount = _depositToken.underlying().balanceOf(_sender);
-        }
-
         uint256 _balanceBefore = _depositToken.underlying().balanceOf(address(treasury));
 
         _depositToken.underlying().safeTransferFrom(_sender, address(treasury), _amount);
@@ -391,13 +387,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
         (, , , uint256 _unlockedDepositInUsd) = debtPositionOf(_account);
 
-        uint256 _unlockedDeposit = oracle.convertFromUsd(_depositToken, _unlockedDepositInUsd);
-
-        if (_amount == type(uint256).max) {
-            _amount = _unlockedDeposit;
-        } else {
-            require(_amount <= _unlockedDeposit, "amount-gt-unlocked");
-        }
+        require(_amount <= oracle.convertFromUsd(_depositToken, _unlockedDepositInUsd), "amount-gt-unlocked");
 
         uint256 _amountToWithdraw = _amount;
         uint256 _feeAmount;
@@ -431,11 +421,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
         accrueInterest(_syntheticAsset);
 
-        if (_amount == type(uint256).max) {
-            _amount = maxIssuableFor(_account, _syntheticAsset);
-        } else {
-            require(_amount <= maxIssuableFor(_account, _syntheticAsset), "not-enough-collateral");
-        }
+        require(_amount <= maxIssuableFor(_account, _syntheticAsset), "not-enough-collateral");
 
         if (debtFloorInUsd > 0) {
             require(
@@ -476,11 +462,6 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
         accrueInterest(_syntheticAsset);
 
         address _payer = _msgSender();
-
-        if (_amount == type(uint256).max) {
-            uint256 _debtPlusFee = _syntheticAsset.debtToken().balanceOf(_onBehalfOf).wadDiv(1e18 - repayFee);
-            _amount = Math.min(_syntheticAsset.balanceOf(_payer), _debtPlusFee);
-        }
 
         uint256 _amountToRepay = _amount;
         uint256 _feeAmount;
@@ -524,13 +505,6 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
         require(_liquidator != _account, "can-not-liquidate-own-position");
 
         accrueInterest(_syntheticAsset);
-
-        if (_amountToRepay == type(uint256).max) {
-            _amountToRepay = Math.min(
-                _syntheticAsset.balanceOf(_liquidator),
-                _syntheticAsset.debtToken().balanceOf(_account).wadMul(maxLiquidable)
-            );
-        }
 
         require(
             _amountToRepay.wadDiv(_syntheticAsset.debtToken().balanceOf(_account)) <= maxLiquidable,
@@ -588,11 +562,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
         address _account = _msgSender();
 
-        if (_amountIn == type(uint256).max) {
-            _amountIn = _syntheticAssetIn.balanceOf(_account);
-        } else {
-            require(_amountIn > 0 && _amountIn <= _syntheticAssetIn.balanceOf(_account), "amount-in-0-or-gt-balance");
-        }
+        require(_amountIn > 0 && _amountIn <= _syntheticAssetIn.balanceOf(_account), "amount-in-0-or-gt-balance");
 
         uint256 _amountOutBeforeFee = oracle.convert(_syntheticAssetIn, _syntheticAssetOut, _amountIn);
 

@@ -5,7 +5,7 @@ import {BigNumber} from '@ethersproject/bignumber'
 import {parseEther} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import chai, {expect} from 'chai'
-import {ethers, network, waffle} from 'hardhat'
+import {ethers, waffle} from 'hardhat'
 import {
   DepositToken,
   DepositToken__factory,
@@ -33,8 +33,6 @@ import {
 import {FakeContract, smock} from '@defi-wonderland/smock'
 
 chai.use(smock.matchers)
-
-const {MaxUint256} = ethers.constants
 
 const liquidatorFee = parseEther('0.1') // 10%
 const vsEthCR = parseEther('1.5') // 150%
@@ -242,20 +240,6 @@ describe('Controller', function () {
       await expect(tx())
         .emit(controller, 'CollateralDeposited')
         .withArgs(metDepositToken.address, alice.address, alice.address, amount, 0)
-    })
-
-    it('should deposit all balance if amount == uint256(-1) (depositFee > 0)', async function () {
-      // given
-      await controller.updateDepositFee(parseEther('0.05'))
-      const balanceBefore = await met.balanceOf(alice.address)
-      expect(balanceBefore).gt(0)
-
-      // when
-      await controller.connect(alice).deposit(metDepositToken.address, MaxUint256, alice.address)
-
-      // then
-      const balanceAfter = await met.balanceOf(alice.address)
-      expect(balanceAfter).eq(0)
     })
 
     it('should deposit TOKEN and mint vSynth-TOKEN when TOKEN has transfer fee', async function () {
@@ -554,21 +538,6 @@ describe('Controller', function () {
             .emit(controller, 'SyntheticAssetMinted')
             .withArgs(alice.address, alice.address, vsEth.address, amount, expectedFee)
         })
-
-        it('should mint max issuable amount when amount == uint256(-1) (mintFee > 0)', async function () {
-          // given
-          const mintFee = parseEther('0.1') // 10%
-          await controller.updateMintFee(mintFee)
-          const maxBefore = await controller.maxIssuableFor(alice.address, vsEth.address)
-          expect(maxBefore).gt(0)
-
-          // when
-          await controller.connect(alice).mint(vsEth.address, MaxUint256, alice.address)
-
-          // then
-          const maxAfter = await controller.maxIssuableFor(alice.address, vsEth.address)
-          expect(maxAfter).eq(0)
-        })
       })
 
       describe('when user minted some vsETH', function () {
@@ -650,21 +619,6 @@ describe('Controller', function () {
 
               // then
               await expect(tx).revertedWith('amount-gt-unlocked')
-            })
-
-            it('should withdraw all unlocked deposit if amount == uint256(-1) (withdrawFee > 0)', async function () {
-              // given
-              await controller.updateWithdrawFee(parseEther('0.05'))
-              const {_unlockedDepositInUsd: unlockedBefore} = await controller.debtPositionOf(alice.address)
-              expect(unlockedBefore).gt(0)
-
-              // when
-
-              await controller.connect(alice).withdraw(metDepositToken.address, MaxUint256, alice.address)
-
-              // then
-              const {_unlockedDepositInUsd: unlockedAfter} = await controller.debtPositionOf(alice.address)
-              expect(unlockedAfter).eq(0)
             })
 
             it('should withdraw if amount <= unlocked collateral amount (withdrawFee == 0)', async function () {
@@ -862,28 +816,6 @@ describe('Controller', function () {
             expect(depositInUsdAfter).eq(depositInUsdBefore)
           })
 
-          it('should repay all debt if amount == uint256(-1) (repayFee > 0)', async function () {
-            // given
-            await met.mint(deployer.address, parseEther('10000000'))
-            await met.approve(controller.address, MaxUint256)
-            await controller.connect(deployer).deposit(metDepositToken.address, MaxUint256, deployer.address)
-
-            const repayFee = parseEther('0.1') // 10%
-            await controller.updateRepayFee(repayFee)
-
-            // const {_lockedDepositInUsd: debtBefore} = await controller.debtPositionOf(alice.address)
-            const debtBefore = await vsEthDebtToken.balanceOf(alice.address)
-            expect(debtBefore).gt(0)
-
-            // when
-            await controller.connect(deployer).mint(vsEth.address, MaxUint256, deployer.address)
-            await controller.connect(deployer).repay(vsEth.address, alice.address, MaxUint256)
-
-            // then
-            const debtAfter = await vsEthDebtToken.balanceOf(alice.address)
-            expect(debtAfter).eq(0)
-          })
-
           it('should repay if amount < debt (repayFee > 0)', async function () {
             // given
             const repayFee = parseEther('0.1') // 10%
@@ -1074,25 +1006,6 @@ describe('Controller', function () {
             expect(vsAssetInDebtBalanceAfter).eq(vsAssetInDebtBalanceBefore.sub(amountIn))
             expect(vsAssetOutBalanceAfter).eq(vsAssetOutBalanceBefore.add(expectedAmountOut))
             expect(vsAssetOutDebtBalanceAfter).eq(vsAssetOutDebtBalanceBefore.add(expectedAmountOut))
-          })
-
-          it('should swap using all assetIn balance when amount == uint256(-1) (swapFee > 0)', async function () {
-            // given
-            const swapFee = parseEther('0.1') // 10%
-            await controller.updateSwapFee(swapFee)
-
-            const vsAssetInBalanceBefore = await vsEth.balanceOf(alice.address)
-            expect(vsAssetInBalanceBefore).gt(0)
-
-            // when
-            const vsAssetIn = vsEth.address
-            const vsAssetOut = vsDoge.address
-            const amountIn = MaxUint256
-            await controller.connect(alice).swap(vsAssetIn, vsAssetOut, amountIn)
-
-            // then
-            const vsAssetInBalanceAfter = await vsEth.balanceOf(alice.address)
-            expect(vsAssetInBalanceAfter).eq(0)
           })
 
           it('should swap synthetic assets (swapFee > 0)', async function () {
@@ -1390,24 +1303,6 @@ describe('Controller', function () {
               )
               expect(await vsEth.balanceOf(liquidator.address)).eq(liquidatorMintAmount.sub(amountToRepay))
               expect(await vsEthDebtToken.balanceOf(liquidator.address)).eq(liquidatorMintAmount)
-            })
-
-            it('should seize all collateral when using uint256(-1) (liquidateFee > 0)', async function () {
-              // given
-              const liquidateFee = parseEther('0.01') // 1%
-              await controller.updateLiquidateFee(liquidateFee)
-
-              const {_debtInUsd: debtBefore} = await controller.debtOf(alice.address)
-              expect(debtBefore).gt(0)
-
-              // when
-              await controller
-                .connect(liquidator)
-                .liquidate(vsEth.address, alice.address, MaxUint256, metDepositToken.address)
-
-              // then
-              const {_debtInUsd: debtAfter} = await controller.debtOf(alice.address)
-              expect(debtAfter).eq(0)
             })
 
             it('should liquidate by repaying > needed to make position healthy (liquidateFee == 0)', async function () {
