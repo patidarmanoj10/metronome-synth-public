@@ -114,6 +114,7 @@ describe('WETHGateway', function () {
       const value = parseEther('100')
       await wethGateway.authorizeController(controllerMock.address)
       await wethGateway.connect(user).depositETH(controllerMock.address, {value})
+      await wethDepositToken.connect(user).approve(wethGateway.address, value)
     })
 
     it('should withdraw ETH from Controller', async function () {
