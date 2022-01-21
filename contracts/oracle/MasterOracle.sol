@@ -86,7 +86,11 @@ contract MasterOracle is Initializable, IMasterOracle, Governable {
     function convertToUsd(IERC20 _asset, uint256 _amount) public view returns (uint256 _amountInUsd) {
         IOracle _oracle = oracles[address(_asset)];
 
-        if (address(_oracle) != address(0)) return _oracle.convertToUsd(_asset, _amount);
+        if (address(_oracle) != address(0)) {
+            _amountInUsd = _oracle.convertToUsd(_asset, _amount);
+            require(_amountInUsd > 0, "invalid-price");
+            return _amountInUsd;
+        }
         if (address(defaultOracle) != address(0)) return defaultOracle.convertToUsd(_asset, _amount);
         revert("asset-without-oracle");
     }
@@ -100,7 +104,11 @@ contract MasterOracle is Initializable, IMasterOracle, Governable {
     function convertFromUsd(IERC20 _asset, uint256 _amountInUsd) public view returns (uint256 _amount) {
         IOracle _oracle = oracles[address(_asset)];
 
-        if (address(_oracle) != address(0)) return _oracle.convertFromUsd(_asset, _amountInUsd);
+        if (address(_oracle) != address(0)) {
+            _amount = _oracle.convertFromUsd(_asset, _amountInUsd);
+            require(_amount > 0, "invalid-price");
+            return _amount;
+        }
         if (address(defaultOracle) != address(0)) return defaultOracle.convertFromUsd(_asset, _amountInUsd);
         revert("asset-without-oracle");
     }

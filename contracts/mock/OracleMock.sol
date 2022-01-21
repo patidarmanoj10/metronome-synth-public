@@ -30,7 +30,7 @@ contract OracleMock is IOracle {
         IERC20 _assetIn,
         IERC20 _assetOut,
         uint256 _amountIn
-    ) public view override returns (uint256 _amountOut) {
+    ) public view returns (uint256 _amountOut) {
         uint256 _amountInUsd = convertToUsd(_assetIn, _amountIn);
         _amountOut = convertFromUsd(_assetOut, _amountInUsd);
     }

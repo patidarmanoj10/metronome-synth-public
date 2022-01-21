@@ -29,6 +29,7 @@ contract DefaultOracle is IOracle, Governable {
         Protocol protocol;
         bytes assetData; // encoded data used for queries on price providers
         bool isUsd; // i.e. when true no oracle query is needed (amountOut = amountIn)
+        uint256 stalePeriod; // it's used to determine if a price is invalid (i.e. outdated)
     }
 
     /**
@@ -41,20 +42,11 @@ contract DefaultOracle is IOracle, Governable {
      */
     mapping(Protocol => IPriceProvider) public providerByProtocol;
 
-    /**
-     * @notice The stale period
-     * @dev It's used to determine if a price is invalid (i.e. outdated)
-     */
-    uint256 public stalePeriod;
-
     /// @notice Emitted when a price provider is updated
     event PriceProviderUpdated(Protocol protocol, IPriceProvider oldPriceProvider, IPriceProvider newPriceProvider);
 
-    /// @notice Emitted when stale period is updated
-    event StalePeriodUpdated(uint256 oldStalePeriod, uint256 newStalePeriod);
-
     /// @notice Emitted when asset setup is updated
-    event AssetUpdated(IERC20 indexed asset, Protocol protocol, bytes assetData, bool isUsd);
+    event AssetUpdated(IERC20 indexed asset, Protocol protocol, bytes assetData, bool isUsd, uint256 stalePeriod);
 
     /**
      * @dev Throws if the asset isn't avaliable
@@ -62,10 +54,6 @@ contract DefaultOracle is IOracle, Governable {
     modifier onlyIfAssetHasPriceProvider(IERC20 _asset) {
         require(assets[_asset].isUsd || assets[_asset].protocol != Protocol.NONE, "asset-has-no-price-provider");
         _;
-    }
-
-    constructor(uint256 _stalePeriod) {
-        stalePeriod = _stalePeriod;
     }
 
     /**
@@ -95,22 +83,12 @@ contract DefaultOracle is IOracle, Governable {
     }
 
     /**
-     * @notice Update stale period
-     * @param _newStalePeriod The new period
-     */
-    function updateStalePeriod(uint256 _newStalePeriod) external onlyGovernor {
-        require(_newStalePeriod != stalePeriod, "stale-period-same-as-current");
-        emit StalePeriodUpdated(stalePeriod, _newStalePeriod);
-        stalePeriod = _newStalePeriod;
-    }
-
-    /**
      * @notice Check if a price timestamp is outdated
      * @param _timeOfLastUpdate The price timestamp
      * @return true if  price is stale (outdated)
      */
-    function _priceIsStale(uint256 _timeOfLastUpdate) private view returns (bool) {
-        return block.timestamp - _timeOfLastUpdate > stalePeriod;
+    function _priceIsStale(IERC20 _asset, uint256 _timeOfLastUpdate) private view returns (bool) {
+        return block.timestamp - _timeOfLastUpdate > assets[_asset].stalePeriod;
     }
 
     /**
@@ -124,11 +102,12 @@ contract DefaultOracle is IOracle, Governable {
         IERC20 _asset,
         Protocol _protocol,
         bytes memory _assetData,
-        bool _isUsd
+        bool _isUsd,
+        uint256 _stalePeriod
     ) private {
         require(address(_asset) != address(0), "asset-address-is-null");
-        assets[_asset] = Asset({protocol: _protocol, assetData: _assetData, isUsd: _isUsd});
-        emit AssetUpdated(_asset, _protocol, _assetData, _isUsd);
+        assets[_asset] = Asset({protocol: _protocol, assetData: _assetData, isUsd: _isUsd, stalePeriod: _stalePeriod});
+        emit AssetUpdated(_asset, _protocol, _assetData, _isUsd, _stalePeriod);
     }
 
     /**
@@ -136,28 +115,38 @@ contract DefaultOracle is IOracle, Governable {
      * @param _asset The asset to store
      */
     function addOrUpdateUsdAsset(IERC20 _asset) external onlyGovernor {
-        _addOrUpdateAsset(_asset, Protocol.NONE, new bytes(0), true);
+        _addOrUpdateAsset(_asset, Protocol.NONE, new bytes(0), true, type(uint256).max);
     }
 
     /**
      * @notice Store an asset that uses Chainlink source of price
      * @param _asset The asset to store
      * @param _aggregator The asset's chainlink aggregator contract
+     * @param _stalePeriod The stale period
      */
-    function addOrUpdateAssetThatUsesChainlink(IERC20Metadata _asset, address _aggregator) external onlyGovernor {
+    function addOrUpdateAssetThatUsesChainlink(
+        IERC20Metadata _asset,
+        address _aggregator,
+        uint256 _stalePeriod
+    ) external onlyGovernor {
         require(address(_asset) != address(0), "asset-address-is-null");
         require(address(_aggregator) != address(0), "aggregator-address-is-null");
-        _addOrUpdateAsset(_asset, Protocol.CHAINLINK, abi.encode(_aggregator, _asset.decimals()), false);
+        _addOrUpdateAsset(_asset, Protocol.CHAINLINK, abi.encode(_aggregator, _asset.decimals()), false, _stalePeriod);
     }
 
     /**
      * @notice Store an asset that uses UniswapV2 source of price
      * @param _asset The asset to store
      * @param _underlying The actual asset to get prices from (e.g. vsETH uses WETH)
+     * @param _stalePeriod The stale period
      */
-    function addOrUpdateAssetThatUsesUniswapV2(IERC20 _asset, IERC20 _underlying) external onlyGovernor {
+    function addOrUpdateAssetThatUsesUniswapV2(
+        IERC20 _asset,
+        IERC20 _underlying,
+        uint256 _stalePeriod
+    ) external onlyGovernor {
         require(address(_underlying) != address(0), "underlying-address-is-null");
-        _addOrUpdateAsset(_asset, Protocol.UNISWAP_V2, abi.encode(_underlying), false);
+        _addOrUpdateAsset(_asset, Protocol.UNISWAP_V2, abi.encode(_underlying), false, _stalePeriod);
     }
 
     /**
@@ -168,7 +157,7 @@ contract DefaultOracle is IOracle, Governable {
      */
     function addOrUpdateAssetThatUsesUniswapV3(IERC20 _asset, IERC20 _underlying) external onlyGovernor {
         require(address(_underlying) != address(0), "underlying-address-is-null");
-        _addOrUpdateAsset(_asset, Protocol.UNISWAP_V3, abi.encode(_underlying), false);
+        _addOrUpdateAsset(_asset, Protocol.UNISWAP_V3, abi.encode(_underlying), false, type(uint256).max);
     }
 
     /**
@@ -194,12 +183,11 @@ contract DefaultOracle is IOracle, Governable {
         onlyIfAssetHasPriceProvider(_asset)
         returns (uint256 _amountInUsd)
     {
-        if (_amount == 0) return 0;
         if (assets[_asset].isUsd) return _amount;
 
         uint256 _lastUpdatedAt;
         (_amountInUsd, _lastUpdatedAt) = _priceProviderOfAsset(_asset).convertToUsd(_dataOfAsset(_asset), _amount);
-        require(_amountInUsd > 0 && !_priceIsStale(_lastUpdatedAt), "price-is-invalid");
+        require(_amountInUsd > 0 && !_priceIsStale(_asset, _lastUpdatedAt), "price-is-invalid");
     }
 
     /**
@@ -214,12 +202,11 @@ contract DefaultOracle is IOracle, Governable {
         onlyIfAssetHasPriceProvider(_asset)
         returns (uint256 _amount)
     {
-        if (_amountInUsd == 0) return 0;
         if (assets[_asset].isUsd) return _amountInUsd;
 
         uint256 _lastUpdatedAt;
         (_amount, _lastUpdatedAt) = _priceProviderOfAsset(_asset).convertFromUsd(_dataOfAsset(_asset), _amountInUsd);
-        require(_amount > 0 && !_priceIsStale(_lastUpdatedAt), "price-is-invalid");
+        require(_amount > 0 && !_priceIsStale(_asset, _lastUpdatedAt), "price-is-invalid");
     }
 
     /**
