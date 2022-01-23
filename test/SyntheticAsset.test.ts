@@ -50,15 +50,7 @@ describe('SyntheticAsset', function () {
     await vsAsset.deployed()
 
     await debtToken.initialize('vsETH Debt', 'vsEth-Debt', 18, controllerMock.address, vsAsset.address)
-    await vsAsset.initialize(
-      name,
-      symbol,
-      18,
-      controllerMock.address,
-      debtToken.address,
-      collateralizationRatio,
-      interestRate
-    )
+    await vsAsset.initialize(name, symbol, 18, controllerMock.address, debtToken.address, interestRate)
 
     vsAsset = vsAsset.connect(governor)
 
@@ -69,7 +61,6 @@ describe('SyntheticAsset', function () {
     expect(await vsAsset.totalSupply()).eq(0)
     expect(await vsAsset.name()).eq(name)
     expect(await vsAsset.symbol()).eq(symbol)
-    expect(await vsAsset.collateralizationRatio()).eq(collateralizationRatio)
     expect(await vsAsset.decimals()).eq(18)
   })
 
@@ -134,26 +125,6 @@ describe('SyntheticAsset', function () {
     it('should revert if not controller', async function () {
       const tx = vsAsset.connect(user).burn(user.address, parseEther('10'))
       await expect(tx).revertedWith('not-controller')
-    })
-  })
-
-  describe('updateCollateralizationRatio', function () {
-    it('should update collateralization ratio', async function () {
-      const before = await vsAsset.collateralizationRatio()
-      const after = before.mul('2')
-      const tx = vsAsset.updateCollateralizationRatio(after)
-      await expect(tx).emit(vsAsset, 'CollateralizationRatioUpdated').withArgs(before, after)
-      expect(await vsAsset.collateralizationRatio()).eq(after)
-    })
-
-    it('should revert if not governor', async function () {
-      const tx = vsAsset.connect(user).updateCollateralizationRatio(parseEther('10'))
-      await expect(tx).revertedWith('not-governor')
-    })
-
-    it('should revert if < 100%', async function () {
-      const tx = vsAsset.updateCollateralizationRatio(parseEther('1').sub('1'))
-      await expect(tx).revertedWith('collaterization-ratio-lt-100%')
     })
   })
 

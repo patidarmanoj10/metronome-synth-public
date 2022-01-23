@@ -48,11 +48,11 @@ contract ControllerMock is IController, IGovernable {
         revert("mock-does-not-implement");
     }
 
-    function debtOf(address) external pure override returns (uint256, uint256) {
+    function debtOf(address) external pure override returns (uint256) {
         revert("mock-does-not-implement");
     }
 
-    function depositOf(address) external pure override returns (uint256) {
+    function depositOf(address) external pure override returns (uint256, uint256) {
         revert("mock-does-not-implement");
     }
 
@@ -62,16 +62,18 @@ contract ControllerMock is IController, IGovernable {
         override
         returns (
             bool _isHealthy,
-            uint256 _lockedDepositInUsd,
             uint256 _depositInUsd,
-            uint256 _unlockedDepositInUsd
+            uint256 _debtInUsd,
+            uint256 _mintableLimitInUsd,
+            uint256 _mintableInUsd
         )
     {
         _isHealthy = true;
-        _lockedDepositInUsd = 0;
         uint256 _deposit = depositToken.balanceOf(_account);
         _depositInUsd = oracle.convertToUsd(depositToken, _deposit);
-        _unlockedDepositInUsd = _depositInUsd - _lockedDepositInUsd;
+        _debtInUsd = 0;
+        _mintableLimitInUsd = _depositInUsd;
+        _mintableInUsd = _mintableLimitInUsd;
     }
 
     function addSyntheticAsset(address) external pure override {
@@ -87,10 +89,6 @@ contract ControllerMock is IController, IGovernable {
     }
 
     function removeDepositToken(IDepositToken) external pure override {
-        revert("mock-does-not-implement");
-    }
-
-    function maxIssuableFor(address, ISyntheticAsset) external pure override returns (uint256) {
         revert("mock-does-not-implement");
     }
 

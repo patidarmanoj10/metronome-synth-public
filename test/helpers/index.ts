@@ -1,7 +1,7 @@
 import {BigNumber} from '@ethersproject/bignumber'
 import {parseEther} from '@ethersproject/units'
 import {ethers, network} from 'hardhat'
-import {Controller, SyntheticAsset} from '../../typechain'
+import {Controller, DepositToken} from '../../typechain'
 
 export const HOUR = BigNumber.from(60 * 60)
 export const CHAINLINK_ETH_AGGREGATOR_ADDRESS = '0x5f4ec3df9cbd43714fe2740f5e3616155c5b8419'
@@ -11,24 +11,40 @@ export const DEFAULT_TWAP_PERIOD = HOUR.mul('2')
 export const BLOCKS_PER_YEAR = 2102400
 
 /**
- * sCR = synthetic's collateralization ratio
- * D = debt with collateralization value in USD
- * C = collateral value in USD
- * L = liquidation fee
- * Calculates USD value needed = (C - D)/(L - sCR - 1)
- * Note: This should be used when collateral:debit >= 1
+ * X (amount to repay)
+ * D (current debt)
+ * C (colleteral)
+ * CR (collateral's collateralization ratio)
+ * LIMIT (mintable limit) = SUM(C * CR)
+ * FEE = 1e18 + liquidatorFee + liquidateFee
+ * D' (debt after liquidation) = D - X
+ * C' (collateral after liquidation) = C - (X * FEE)
+ * LIMIT' (mintable limit after liquidation) = LIMIT - (C * CR) + (C' * CR)
+ *
+ * We want to discover the X value that makes: D' == LIMIT'
+ * => D' == LIMIT'
+ * => D - X = LIMIT - (C * CR) + (C' * CR)
+ * => D - X = LIMIT - (C * CR) + ([C - (X * FEE)] * CR)
+ * => D - X = LIMIT - C*CR + C*CR - (X * FEE)*CR
+ * => D - X = LIMIT - X * FEE * CR
+ * => D - X - LIMIT = -1 * X * FEE * CR
+ * => D/X - LIMIT/X = (-1 * FEE * CR) + 1
+ * => (D - LIMIT)/X = (-1 * FEE * CR) + 1
+ * => (D - LIMIT)/[(-1 * FEE * CR) + 1] = X
  */
 export const getMinLiquidationAmountInUsd = async function (
   controller: Controller,
   accountAddress: string,
-  vsAsset: SyntheticAsset
+  depositToken: DepositToken
 ): Promise<BigNumber> {
-  const {_lockedDepositInUsd, _depositInUsd} = await controller.debtPositionOf(accountAddress)
-  const vsAssetCR = await vsAsset.collateralizationRatio()
-  const fee = (await controller.liquidatorFee()).add(await controller.liquidateFee())
+  const {_mintableLimitInUsd, _debtInUsd} = await controller.debtPositionOf(accountAddress)
+  const fee = parseEther('1')
+    .add(await controller.liquidatorFee())
+    .add(await controller.liquidateFee())
+  const cr = await depositToken.collateralizationRatio()
 
-  const numerator = _depositInUsd.sub(_lockedDepositInUsd)
-  const denominator = fee.sub(vsAssetCR.sub(parseEther('1')))
+  const numerator = _debtInUsd.sub(_mintableLimitInUsd)
+  const denominator = fee.mul('-1').mul(cr).div(parseEther('1')).add(parseEther('1'))
 
   return numerator.mul(parseEther('1')).div(denominator)
 }

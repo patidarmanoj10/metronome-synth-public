@@ -29,7 +29,6 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     18,
     controllerAddress,
     vsEthDebtTokenAddress,
-    parseEther('1.5'), // CR = 150%
     parseEther('0') // Interest Rate = 0%
   )
 

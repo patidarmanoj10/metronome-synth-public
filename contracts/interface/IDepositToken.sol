@@ -8,6 +8,12 @@ import "../dependencies/openzeppelin/token/ERC20/extensions/IERC20Metadata.sol";
 interface IDepositToken is IERC20, IERC20Metadata {
     function underlying() external view returns (IERC20);
 
+    function collateralizationRatio() external view returns (uint256);
+
+    function unlockedBalanceOf(address _account) external view returns (uint256);
+
+    function lockedBalanceOf(address _account) external view returns (uint256);
+
     function minDepositTime() external view returns (uint256);
 
     function lastDepositOf(address _account) external view returns (uint256);
@@ -23,6 +29,8 @@ interface IDepositToken is IERC20, IERC20Metadata {
         address _to,
         uint256 _amount
     ) external;
+
+    function updateCollateralizationRatio(uint128 _newCollateralizationRatio) external;
 
     function isActive() external view returns (bool);
 

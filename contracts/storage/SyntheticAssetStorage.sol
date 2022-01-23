@@ -19,12 +19,6 @@ abstract contract SyntheticAssetStorageV1 is ISyntheticAsset {
     uint8 public decimals;
 
     /**
-     * @notice Collaterization ration for the synthetic asset
-     * @dev Use 18 decimals (e.g. 15e17 = 150%)
-     */
-    uint256 public collateralizationRatio;
-
-    /**
      * @notice Non-transferable token that represents users' debts
      */
     IDebtToken public debtToken;

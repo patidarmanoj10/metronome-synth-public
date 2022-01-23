@@ -2,6 +2,7 @@ import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
 import {UpgradableContracts, deterministic} from '../helpers'
 import Address from '../../helpers/address'
+import {parseEther} from 'ethers/lib/utils'
 
 const {MET_ADDRESS} = Address
 const {
@@ -29,7 +30,8 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     MET_ADDRESS,
     controllerAddress,
     symbol,
-    decimals
+    decimals,
+    parseEther('0.67') // CR = 67%
   )
 
   await execute(Controller, {from: deployer, log: true}, 'addDepositToken', depositTokenAddress)

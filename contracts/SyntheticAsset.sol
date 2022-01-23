@@ -19,13 +19,11 @@ contract SyntheticAsset is Manageable, SyntheticAssetStorageV1 {
         uint8 _decimals,
         IController _controller,
         IDebtToken _debtToken,
-        uint128 _collateralizationRatio,
         uint256 _interestRate
     ) public initializer {
         require(address(_debtToken) != address(0), "debt-token-is-null");
         require(_decimals == _debtToken.decimals(), "debt-decimals-is-not-the-same");
         require(address(_controller) != address(0), "controller-address-is-zero");
-        require(_collateralizationRatio >= 1e18, "collaterization-ratio-lt-100%");
 
         __Manageable_init();
 
@@ -37,11 +35,7 @@ contract SyntheticAsset is Manageable, SyntheticAssetStorageV1 {
         maxTotalSupplyInUsd = type(uint256).max;
         isActive = true;
         interestRate = _interestRate;
-        collateralizationRatio = _collateralizationRatio;
     }
-
-    /// @notice Emitted when CR is updated
-    event CollateralizationRatioUpdated(uint256 oldCollateralizationRatio, uint256 newCollateralizationRatio);
 
     /// @notice Emitted when max total supply is updated
     event MaxTotalSupplyUpdated(uint256 oldMaxTotalSupply, uint256 newMaxTotalSupply);
@@ -206,16 +200,6 @@ contract SyntheticAsset is Manageable, SyntheticAssetStorageV1 {
         uint256 _amount
     ) public override onlyController {
         _transfer(_from, _to, _amount);
-    }
-
-    /**
-     * @notice Update collateralization ratio
-     * @param _newCollateralizationRatio The new CR value
-     */
-    function updateCollateralizationRatio(uint128 _newCollateralizationRatio) public override onlyGovernor {
-        require(_newCollateralizationRatio >= 1e18, "collaterization-ratio-lt-100%");
-        emit CollateralizationRatioUpdated(collateralizationRatio, _newCollateralizationRatio);
-        collateralizationRatio = _newCollateralizationRatio;
     }
 
     /**
