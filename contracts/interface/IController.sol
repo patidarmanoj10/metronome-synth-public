@@ -21,20 +21,20 @@ interface IController {
 
     function getSyntheticAssets() external view returns (address[] memory);
 
-    function debtOf(address _account) external view returns (uint256 _debtInUsd, uint256 _lockedDepositInUsd);
+    function debtOf(address _account) external view returns (uint256 _debtInUsd);
 
-    function depositOf(address _account) external view returns (uint256 _depositInUsd);
+    function depositOf(address _account) external view returns (uint256 _depositInUsd, uint256 _mintableLimitInUsd);
 
     function debtPositionOf(address _account)
         external
+        view
         returns (
             bool _isHealthy,
-            uint256 _lockedDepositInUsd,
             uint256 _depositInUsd,
-            uint256 _unlockedDepositInUsd
+            uint256 _debtInUsd,
+            uint256 _mintableLimitInUsd,
+            uint256 _mintableInUsd
         );
-
-    function maxIssuableFor(address _account, ISyntheticAsset _syntheticAsset) external returns (uint256 _maxIssuable);
 
     function addSyntheticAsset(address _synthetic) external;
 

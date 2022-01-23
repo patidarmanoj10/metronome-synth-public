@@ -22,6 +22,12 @@ abstract contract DepositTokenStorageV1 is IDepositToken {
     IERC20 public underlying;
 
     /**
+     * @notice Collaterization ration for the deposit token
+     * @dev Use 18 decimals (e.g. 0.66e18 = 66%)
+     */
+    uint256 public collateralizationRatio;
+
+    /**
      * @notice The min amount of time that an account should wait after deposit collateral before be able to withdraw
      */
     uint256 public minDepositTime;

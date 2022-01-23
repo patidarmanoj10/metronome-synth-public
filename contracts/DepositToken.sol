@@ -2,6 +2,8 @@
 
 pragma solidity 0.8.9;
 
+import "./dependencies/openzeppelin/utils/math/Math.sol";
+import "./lib/WadRayMath.sol";
 import "./access/Manageable.sol";
 import "./storage/DepositTokenStorage.sol";
 
@@ -10,7 +12,12 @@ import "./storage/DepositTokenStorage.sol";
  */
 
 contract DepositToken is Manageable, DepositTokenStorageV1 {
+    using WadRayMath for uint256;
+
     string public constant VERSION = "1.0.0";
+
+    /// @notice Emitted when CR is updated
+    event CollateralizationRatioUpdated(uint256 oldCollateralizationRatio, uint256 newCollateralizationRatio);
 
     /// @notice Emitted when minimum deposit time is updated
     event MinDepositTimeUpdated(uint256 oldMinDepositTime, uint256 newMinDepositTime);
@@ -33,8 +40,7 @@ contract DepositToken is Manageable, DepositTokenStorageV1 {
      * @notice Requires that amount is lower than the account's unlocked balance
      */
     modifier onlyIfNotLocked(address _account, uint256 _amount) {
-        (, , , uint256 _unlockedDepositInUsd) = controller.debtPositionOf(_account);
-        uint256 _unlockedDeposit = controller.oracle().convertFromUsd(this, _unlockedDepositInUsd);
+        uint256 _unlockedDeposit = unlockedBalanceOf(_account);
         require(_unlockedDeposit >= _amount, "not-enough-free-balance");
         _;
     }
@@ -43,10 +49,12 @@ contract DepositToken is Manageable, DepositTokenStorageV1 {
         IERC20 _underlying,
         IController _controller,
         string memory _symbol,
-        uint8 _decimals
+        uint8 _decimals,
+        uint128 _collateralizationRatio
     ) public initializer {
         require(address(_underlying) != address(0), "underlying-is-null");
         require(address(_controller) != address(0), "controller-address-is-zero");
+        require(_collateralizationRatio <= 1e18, "collaterization-ratio-gt-100%");
 
         __Manageable_init();
 
@@ -58,6 +66,7 @@ contract DepositToken is Manageable, DepositTokenStorageV1 {
         maxTotalSupplyInUsd = type(uint256).max;
         isActive = true;
         decimals = _decimals;
+        collateralizationRatio = _collateralizationRatio;
     }
 
     function approve(address spender, uint256 _amount) public virtual override returns (bool) {
@@ -228,6 +237,29 @@ contract DepositToken is Manageable, DepositTokenStorageV1 {
     }
 
     /**
+     * @notice Get the unlocked balance (i.e. transfarable, withdrawable)
+     * @param _account The account to check
+     * @return _unlockedBalance The amount that user can transfer or withdraw
+     */
+    function unlockedBalanceOf(address _account) public view override returns (uint256 _unlockedBalance) {
+        (, , , , uint256 _mintableInUsd) = controller.debtPositionOf(_account);
+
+        if (_mintableInUsd > 0) {
+            uint256 _unlockedInUsd = _mintableInUsd.wadDiv(collateralizationRatio);
+            _unlockedBalance = Math.min(balanceOf[_account], controller.oracle().convertFromUsd(this, _unlockedInUsd));
+        }
+    }
+
+    /**
+     * @notice Get the locked balance
+     * @param _account The account to check
+     * @return _lockedBalance The locked amount
+     */
+    function lockedBalanceOf(address _account) public view override returns (uint256 _lockedBalance) {
+        return balanceOf[_account] - unlockedBalanceOf(_account);
+    }
+
+    /**
      * @notice Seize tokens
      * @dev Same as _transfer
      * @param _from The account to seize from
@@ -240,6 +272,16 @@ contract DepositToken is Manageable, DepositTokenStorageV1 {
         uint256 _amount
     ) public override onlyController {
         _transfer(_from, _to, _amount);
+    }
+
+    /**
+     * @notice Update collateralization ratio
+     * @param _newCollateralizationRatio The new CR value
+     */
+    function updateCollateralizationRatio(uint128 _newCollateralizationRatio) public override onlyGovernor {
+        require(_newCollateralizationRatio <= 1e18, "collaterization-ratio-gt-100%");
+        emit CollateralizationRatioUpdated(collateralizationRatio, _newCollateralizationRatio);
+        collateralizationRatio = _newCollateralizationRatio;
     }
 
     /**

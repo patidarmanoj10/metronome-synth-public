@@ -13,6 +13,7 @@ import {
 } from '../typechain'
 import {HOUR, setEtherBalance} from './helpers'
 import {FakeContract, smock} from '@defi-wonderland/smock'
+import {BigNumber} from 'ethers'
 
 chai.use(smock.matchers)
 
@@ -26,21 +27,7 @@ describe('DepositToken', function () {
   let oracle: OracleMock
 
   const metRate = parseEther('4') // 1 MET = $4
-
-  // Note: I was not able to use an async function in order to return dynamic value
-  // As workaround I've created this function to avoid duplication
-  // See more: https://github.com/defi-wonderland/smock/issues/107
-  const buildReturn_debtPositionOf = async (account: string) => {
-    const deposit = await metDepositToken.balanceOf(account)
-    const _depositInUsd = await oracle.convertToUsd(metDepositToken.address, deposit)
-
-    return () => {
-      const _isHealth = true
-      const _lockedDepositInUsd = 0
-      const _unlockedDepositInUsd = _depositInUsd.sub(_lockedDepositInUsd)
-      return [_isHealth, _lockedDepositInUsd, _depositInUsd, _unlockedDepositInUsd]
-    }
-  }
+  const metCR = parseEther('0.5') // 50%
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
@@ -63,7 +50,7 @@ describe('DepositToken', function () {
     controllerMock.oracle.returns(oracle.address)
     controllerMock.governor.returns(governor.address)
 
-    await metDepositToken.initialize(met.address, controllerMock.address, 'vSynth-MET', 18)
+    await metDepositToken.initialize(met.address, controllerMock.address, 'vSynth-MET', 18, metCR)
     metDepositToken = metDepositToken.connect(governor)
 
     await oracle.updateRate(metDepositToken.address, metRate)
@@ -125,9 +112,28 @@ describe('DepositToken', function () {
   describe('when user has some balance', function () {
     const amount = parseEther('100')
 
+    const debtPositionOf_returnsAllUnlocked = (balance: BigNumber) => () => {
+      const _isHealth = true
+      const _depositInUsd = balance.mul(metRate).div(parseEther('1'))
+      const _debtInUsd = parseEther('0') // all tokens are unlocked
+      const _mintableLimitInUsd = _depositInUsd.mul(parseEther('1')).div(metCR)
+      const _mintableInUsd = _mintableLimitInUsd.sub(_debtInUsd)
+      return [_isHealth, _depositInUsd, _debtInUsd, _mintableLimitInUsd, _mintableInUsd]
+    }
+
+    const debtPositionOf_returnsAllLocked = (balance: BigNumber) => () => {
+      const _isHealth = true
+      const _depositInUsd = balance.mul(metRate).div(parseEther('1'))
+      const _mintableLimitInUsd = _depositInUsd.mul(metCR).div(parseEther('1'))
+      const _debtInUsd = _mintableLimitInUsd
+      const _mintableInUsd = parseEther('0') // all tokens are locked
+      return [_isHealth, _depositInUsd, _debtInUsd, _mintableLimitInUsd, _mintableInUsd]
+    }
+
     beforeEach(async function () {
       await metDepositToken.connect(controllerMock.wallet).mint(user.address, amount)
       expect(await metDepositToken.balanceOf(user.address)).eq(amount)
+      controllerMock.debtPositionOf.returns(debtPositionOf_returnsAllUnlocked(amount))
     })
 
     describe('burnForWithdraw', function () {
@@ -141,7 +147,6 @@ describe('DepositToken', function () {
         await metDepositToken.connect(governor).updateMinDepositTime(HOUR)
 
         // when
-        controllerMock.debtPositionOf.returns(await buildReturn_debtPositionOf(user.address))
         const tx = metDepositToken.connect(controllerMock.wallet).burnForWithdraw(user.address, parseEther('10'))
 
         // then
@@ -150,9 +155,16 @@ describe('DepositToken', function () {
 
       it('should revert if amount > free amount', async function () {
         // given
-        controllerMock.debtPositionOf.returns(await buildReturn_debtPositionOf(user.address))
-        const {_unlockedDepositInUsd} = await controllerMock.debtPositionOf(user.address)
-        const _unlockedDeposit = await oracle.convertFromUsd(metDepositToken.address, _unlockedDepositInUsd)
+        controllerMock.debtPositionOf.returns(() => {
+          const _isHealth = true
+          const _depositInUsd = parseEther('100')
+          const _debtInUsd = parseEther('50')
+          const _mintableLimitInUsd = parseEther('50')
+          const _mintableInUsd = BigNumber.from(0) // no unlocked token
+          return [_isHealth, _depositInUsd, _debtInUsd, _mintableLimitInUsd, _mintableInUsd]
+        })
+
+        const _unlockedDeposit = await metDepositToken.unlockedBalanceOf(user.address)
 
         // when
         const tx = metDepositToken
@@ -165,9 +177,16 @@ describe('DepositToken', function () {
 
       it('should burn if amount <= free amount', async function () {
         // given
-        controllerMock.debtPositionOf.returns(await buildReturn_debtPositionOf(user.address))
-        const {_unlockedDepositInUsd} = await controllerMock.debtPositionOf(user.address)
-        const _unlockedDeposit = await oracle.convertFromUsd(metDepositToken.address, _unlockedDepositInUsd)
+        controllerMock.debtPositionOf.returns(() => {
+          const _isHealth = true
+          const _depositInUsd = amount.mul(metRate).div(parseEther('1'))
+          const _debtInUsd = parseEther('0') // all tokens are unlocked
+          const _mintableLimitInUsd = _depositInUsd.mul(metCR).div(parseEther('1'))
+          const _mintableInUsd = _mintableLimitInUsd.sub(_debtInUsd)
+          return [_isHealth, _depositInUsd, _debtInUsd, _mintableLimitInUsd, _mintableInUsd]
+        })
+
+        const _unlockedDeposit = await metDepositToken.unlockedBalanceOf(user.address)
         expect(await metDepositToken.balanceOf(user.address)).eq(amount)
 
         // when
@@ -211,11 +230,12 @@ describe('DepositToken', function () {
 
     describe('transfer', function () {
       it('should transfer if amount <= free amount', async function () {
-        controllerMock.debtPositionOf.returns(await buildReturn_debtPositionOf(user.address))
-        const {_unlockedDepositInUsd} = await controllerMock.debtPositionOf(user.address)
-        const _unlockedDeposit = await oracle.convertFromUsd(metDepositToken.address, _unlockedDepositInUsd)
+        // when
+        const _unlockedDeposit = await metDepositToken.unlockedBalanceOf(user.address)
         expect(await metDepositToken.balanceOf(user.address)).eq(amount)
         await metDepositToken.connect(user).transfer(deployer.address, _unlockedDeposit)
+
+        // then
         expect(await metDepositToken.balanceOf(user.address)).eq(amount.sub(_unlockedDeposit))
       })
 
@@ -224,9 +244,7 @@ describe('DepositToken', function () {
         await metDepositToken.connect(governor).updateMinDepositTime(HOUR)
 
         // when
-        controllerMock.debtPositionOf.returns(await buildReturn_debtPositionOf(user.address))
-        const {_unlockedDepositInUsd} = await controllerMock.debtPositionOf(user.address)
-        const _unlockedDeposit = await oracle.convertFromUsd(metDepositToken.address, _unlockedDepositInUsd)
+        const _unlockedDeposit = await metDepositToken.unlockedBalanceOf(user.address)
         const tx = metDepositToken.connect(user).transfer(deployer.address, _unlockedDeposit)
 
         // then
@@ -234,10 +252,14 @@ describe('DepositToken', function () {
       })
 
       it('should revert if amount > free amount', async function () {
-        controllerMock.debtPositionOf.returns(await buildReturn_debtPositionOf(user.address))
-        const {_unlockedDepositInUsd} = await controllerMock.debtPositionOf(user.address)
-        const _unlockedDeposit = await oracle.convertFromUsd(metDepositToken.address, _unlockedDepositInUsd)
+        // given
+        controllerMock.debtPositionOf.returns(debtPositionOf_returnsAllLocked(amount))
+
+        // when
+        const _unlockedDeposit = await metDepositToken.unlockedBalanceOf(user.address)
         const tx = metDepositToken.connect(user).transfer(deployer.address, _unlockedDeposit.add('1'))
+
+        // then
         await expect(tx).revertedWith('not-enough-free-balance')
       })
 
@@ -254,16 +276,9 @@ describe('DepositToken', function () {
         // See more: https://github.com/defi-wonderland/smock/issues/99
         const gasLimit = 250000
 
-        controllerMock.debtPositionOf.returns(await buildReturn_debtPositionOf(user.address))
         await metDepositToken.connect(user).transfer(deployer.address, amount.div('4'), {gasLimit})
-
-        controllerMock.debtPositionOf.returns(await buildReturn_debtPositionOf(user.address))
         await metDepositToken.connect(user).transfer(deployer.address, amount.div('4'), {gasLimit})
-
-        controllerMock.debtPositionOf.returns(await buildReturn_debtPositionOf(user.address))
         await metDepositToken.connect(user).transfer(deployer.address, amount.div('4'), {gasLimit})
-
-        controllerMock.debtPositionOf.returns(await buildReturn_debtPositionOf(user.address))
         await metDepositToken.connect(user).transfer(deployer.address, amount.div('4'), {gasLimit})
 
         // then
@@ -283,11 +298,12 @@ describe('DepositToken', function () {
       })
 
       it('should transfer if amount <= free amount', async function () {
-        controllerMock.debtPositionOf.returns(await buildReturn_debtPositionOf(user.address))
-        const {_unlockedDepositInUsd} = await controllerMock.debtPositionOf(user.address)
-        const _unlockedDeposit = await oracle.convertFromUsd(metDepositToken.address, _unlockedDepositInUsd)
+        // when
+        const _unlockedDeposit = await metDepositToken.unlockedBalanceOf(user.address)
         expect(await metDepositToken.balanceOf(user.address)).eq(amount)
         await metDepositToken.connect(deployer).transferFrom(user.address, deployer.address, _unlockedDeposit)
+
+        // then
         expect(await metDepositToken.balanceOf(user.address)).eq(amount.sub(_unlockedDeposit))
       })
 
@@ -296,9 +312,7 @@ describe('DepositToken', function () {
         await metDepositToken.connect(governor).updateMinDepositTime(HOUR)
 
         // when
-        controllerMock.debtPositionOf.returns(await buildReturn_debtPositionOf(user.address))
-        const {_unlockedDepositInUsd} = await controllerMock.debtPositionOf(user.address)
-        const _unlockedDeposit = await oracle.convertFromUsd(metDepositToken.address, _unlockedDepositInUsd)
+        const _unlockedDeposit = await metDepositToken.unlockedBalanceOf(user.address)
         const tx = metDepositToken.connect(deployer).transferFrom(user.address, deployer.address, _unlockedDeposit)
 
         // then
@@ -306,12 +320,13 @@ describe('DepositToken', function () {
       })
 
       it('should revert if amount > free amount', async function () {
-        controllerMock.debtPositionOf.returns(await buildReturn_debtPositionOf(user.address))
-        const {_unlockedDepositInUsd} = await controllerMock.debtPositionOf(user.address)
-        const _unlockedDeposit = await oracle.convertFromUsd(metDepositToken.address, _unlockedDepositInUsd)
+        // when
+        const _unlockedDeposit = await metDepositToken.unlockedBalanceOf(user.address)
         const tx = metDepositToken
           .connect(deployer)
           .transferFrom(user.address, deployer.address, _unlockedDeposit.add('1'))
+
+        // then
         await expect(tx).revertedWith('not-enough-free-balance')
       })
     })
@@ -333,6 +348,26 @@ describe('DepositToken', function () {
           [user, deployer],
           [amountToSeize.mul('-1'), amountToSeize]
         )
+      })
+    })
+
+    describe('updateCollateralizationRatio', function () {
+      it('should update collateralization ratio', async function () {
+        const before = await metDepositToken.collateralizationRatio()
+        const after = before.mul('2')
+        const tx = metDepositToken.updateCollateralizationRatio(after)
+        await expect(tx).emit(metDepositToken, 'CollateralizationRatioUpdated').withArgs(before, after)
+        expect(await metDepositToken.collateralizationRatio()).eq(after)
+      })
+
+      it('should revert if not governor', async function () {
+        const tx = metDepositToken.connect(user).updateCollateralizationRatio(parseEther('10'))
+        await expect(tx).revertedWith('not-governor')
+      })
+
+      it('should revert if > 100%', async function () {
+        const tx = metDepositToken.updateCollateralizationRatio(parseEther('1').add('1'))
+        await expect(tx).revertedWith('collaterization-ratio-gt-100%')
       })
     })
   })

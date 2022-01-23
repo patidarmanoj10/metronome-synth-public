@@ -243,15 +243,13 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
      * @dev We can optimize this function by storing an array of which synthetics the account minted avoiding looping all
      * @param _account The account to check
      * @return _debtInUsd The debt value in USD
-     * @return _lockedDepositInUsd The USD amount that's covering the debt (considering collateralization ratios)
      */
-    function debtOf(address _account) public view override returns (uint256 _debtInUsd, uint256 _lockedDepositInUsd) {
+    function debtOf(address _account) public view override returns (uint256 _debtInUsd) {
         for (uint256 i = 0; i < debtTokensOfAccount.length(_account); ++i) {
             IDebtToken _debtToken = IDebtToken(debtTokensOfAccount.at(_account, i));
             ISyntheticAsset _syntheticAsset = _debtToken.syntheticAsset();
             uint256 _amountInUsd = oracle.convertToUsd(_syntheticAsset, _debtToken.balanceOf(_account));
             _debtInUsd += _amountInUsd;
-            _lockedDepositInUsd += _amountInUsd.wadMul(_syntheticAsset.collateralizationRatio());
         }
     }
 
@@ -260,22 +258,30 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
      * @dev We can optimize this function by storing an array of which deposit toekns the account deposited avoiding looping all
      * @param _account The account to check
      * @return _depositInUsd The total deposit value in USD among all collaterals
+     * @return _mintableLimitInUsd The max value in USD that can be used to mint synthetic assets
      */
-    function depositOf(address _account) public view override returns (uint256 _depositInUsd) {
+    function depositOf(address _account)
+        public
+        view
+        override
+        returns (uint256 _depositInUsd, uint256 _mintableLimitInUsd)
+    {
         for (uint256 i = 0; i < depositTokensOfAccount.length(_account); ++i) {
             IDepositToken _depositToken = IDepositToken(depositTokensOfAccount.at(_account, i));
             uint256 _amountInUsd = oracle.convertToUsd(_depositToken, _depositToken.balanceOf(_account));
             _depositInUsd += _amountInUsd;
+            _mintableLimitInUsd += _amountInUsd.wadMul(_depositToken.collateralizationRatio());
         }
     }
 
     /**
-     * @notice Get debt position from an account
+     * @notice Get if the debt position from an account is healthy
      * @param _account The account to check
      * @return _isHealthy Whether the account's position is healthy
-     * @return _lockedDepositInUsd The amount of deposit (is USD) that's covering all debt (considering collateralization ratios)
      * @return _depositInUsd The total collateral deposited in USD
-     * @return _unlockedDepositInUsd The amount of deposit (is USD) that isn't covering the account's debt
+     * @return _debtInUsd The total debt in USD
+     * @return _mintableLimitInUsd The max amount of debt (is USD) that can be created (considering collateralization ratios)
+     * @return _mintableInUsd The amount of debt (is USD) that is free (i.e. can be used to mint synthetic assets)
      */
     function debtPositionOf(address _account)
         public
@@ -283,42 +289,16 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
         override
         returns (
             bool _isHealthy,
-            uint256 _lockedDepositInUsd,
             uint256 _depositInUsd,
-            uint256 _unlockedDepositInUsd
+            uint256 _debtInUsd,
+            uint256 _mintableLimitInUsd,
+            uint256 _mintableInUsd
         )
     {
-        (, _lockedDepositInUsd) = debtOf(_account);
-
-        (_depositInUsd) = depositOf(_account);
-
-        _unlockedDepositInUsd = _depositInUsd > _lockedDepositInUsd ? _depositInUsd - _lockedDepositInUsd : 0;
-
-        _isHealthy = _depositInUsd >= _lockedDepositInUsd;
-    }
-
-    /**
-     * @notice Get max issuable synthetic asset amount for a given account
-     * @param _account The account to check
-     * @param _syntheticAsset The synthetic asset to check issuance
-     * @return _maxIssuable The max issuable amount
-     */
-    function maxIssuableFor(address _account, ISyntheticAsset _syntheticAsset)
-        public
-        view
-        override
-        returns (uint256 _maxIssuable)
-    {
-        _requireSyntheticAssetExists(_syntheticAsset);
-
-        if (_syntheticAsset.isActive()) {
-            (, , , uint256 __unlockedDepositInUsd) = debtPositionOf(_account);
-
-            _maxIssuable = oracle.convertFromUsd(
-                _syntheticAsset,
-                __unlockedDepositInUsd.wadDiv(_syntheticAsset.collateralizationRatio())
-            );
-        }
+        _debtInUsd = debtOf(_account);
+        (_depositInUsd, _mintableLimitInUsd) = depositOf(_account);
+        _isHealthy = _debtInUsd <= _mintableLimitInUsd;
+        _mintableInUsd = _debtInUsd < _mintableLimitInUsd ? _mintableLimitInUsd - _debtInUsd : 0;
     }
 
     /**
@@ -385,9 +365,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
         address _account = _msgSender();
 
-        (, , , uint256 _unlockedDepositInUsd) = debtPositionOf(_account);
-
-        require(_amount <= oracle.convertFromUsd(_depositToken, _unlockedDepositInUsd), "amount-gt-unlocked");
+        require(_amount <= _depositToken.unlockedBalanceOf(_account), "amount-gt-unlocked");
 
         uint256 _amountToWithdraw = _amount;
         uint256 _feeAmount;
@@ -421,7 +399,9 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
         accrueInterest(_syntheticAsset);
 
-        require(_amount <= maxIssuableFor(_account, _syntheticAsset), "not-enough-collateral");
+        (, , , , uint256 _mintableInUsd) = debtPositionOf(_account);
+
+        require(_amount <= oracle.convertFromUsd(_syntheticAsset, _mintableInUsd), "not-enough-collateral");
 
         if (debtFloorInUsd > 0) {
             require(
@@ -519,7 +499,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
             require(_newDebtInUsd == 0 || _newDebtInUsd >= debtFloorInUsd, "debt-lt-floor");
         }
 
-        (bool _isHealthy, , , ) = debtPositionOf(_account);
+        (bool _isHealthy, , , , ) = debtPositionOf(_account);
 
         require(!_isHealthy, "position-is-healthy");
 
@@ -595,9 +575,6 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
         _syntheticAssetOut.mint(_account, _amountOut);
         _syntheticAssetOut.debtToken().mint(_account, _amountOutBeforeFee);
-
-        (bool _isHealthyAfter, , , ) = debtPositionOf(_account);
-        require(_isHealthyAfter, "position-ended-up-unhealthy");
 
         emit SyntheticAssetSwapped(_account, _syntheticAssetIn, _syntheticAssetOut, _amountIn, _amountOut, _feeAmount);
     }

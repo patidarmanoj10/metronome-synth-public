@@ -17,13 +17,9 @@ interface ISyntheticAsset is IERC20, IERC20Metadata {
 
     function debtToken() external view returns (IDebtToken);
 
-    function collateralizationRatio() external view returns (uint256);
-
     function mint(address _to, uint256 amount) external;
 
     function burn(address _from, uint256 amount) external;
-
-    function updateCollateralizationRatio(uint128 _newCollateralizationRatio) external;
 
     function updateMaxTotalSupplyInUsd(uint256 _newMaxTotalSupply) external;
 
