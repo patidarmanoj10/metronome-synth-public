@@ -18,7 +18,8 @@ contract DebtTokenUpgrader is UpgraderBase {
     }
 
     function _checkResults(bytes[] memory _beforeResults, bytes[] memory _afterResults) internal pure override {
-        _checkUint256Results(_beforeResults, _afterResults, 0, 1);
+        _checkUint256Results(_beforeResults, _afterResults, 0, 0);
+        _checkUint8Results(_beforeResults, _afterResults, 1, 1);
         _checkStringResults(_beforeResults, _afterResults, 2, 3);
     }
 }
