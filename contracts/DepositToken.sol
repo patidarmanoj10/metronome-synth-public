@@ -3,6 +3,7 @@
 pragma solidity 0.8.9;
 
 import "./dependencies/openzeppelin/utils/math/Math.sol";
+import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./lib/WadRayMath.sol";
 import "./access/Manageable.sol";
 import "./storage/DepositTokenStorage.sol";
@@ -11,7 +12,7 @@ import "./storage/DepositTokenStorage.sol";
  * @title Represents the users' deposits
  */
 
-contract DepositToken is Manageable, DepositTokenStorageV1 {
+contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     using WadRayMath for uint256;
 
     string public constant VERSION = "1.0.0";
@@ -93,7 +94,7 @@ contract DepositToken is Manageable, DepositTokenStorageV1 {
         address sender,
         address recipient,
         uint256 _amount
-    ) internal virtual {
+    ) internal virtual nonReentrant {
         require(sender != address(0), "transfer-from-the-zero-address");
         require(recipient != address(0), "transfer-to-the-zero-address");
 
