@@ -20,7 +20,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   const {address: depositTokenAddress} = await deploy()
 
-  const symbol = 'vSynths-MET'
+  const symbol = 'vSynth-MET'
   const decimals = 18 // Same as MET
 
   await execute(

@@ -107,8 +107,6 @@ interface IController {
 
     function oracle() external view returns (IMasterOracle);
 
-    function accrueInterest(ISyntheticAsset _syntheticAsset) external;
-
     function addToDepositTokensOfAccount(address _account) external;
 
     function removeFromDepositTokensOfAccount(address _account) external;

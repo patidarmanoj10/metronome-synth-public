@@ -7,8 +7,8 @@ import "../DebtToken.sol";
 contract DebtTokenMock is DebtToken {
     uint256 private blockNumber;
 
-    function setBlockNumber(uint256 _newBlockNumber) external {
-        blockNumber = _newBlockNumber;
+    function incrementBlockNumber(uint256 _toIncrement) external {
+        blockNumber = getBlockNumber() + _toIncrement;
     }
 
     function getBlockNumber() public view override returns (uint256 _blockNumber) {

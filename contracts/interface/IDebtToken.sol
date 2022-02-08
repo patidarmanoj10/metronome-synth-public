@@ -9,7 +9,7 @@ import "./ISyntheticAsset.sol";
 interface IDebtToken is IERC20, IERC20Metadata {
     function syntheticAsset() external view returns (ISyntheticAsset);
 
-    function accrueInterest() external returns (uint256 _interestAccumulated);
+    function accrueInterest() external returns (uint256 _interestAmountAccrued);
 
     function mint(address _to, uint256 _amount) external;
 

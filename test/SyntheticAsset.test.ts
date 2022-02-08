@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 /* eslint-disable camelcase */
 import {parseEther} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
@@ -6,8 +7,8 @@ import {ethers} from 'hardhat'
 import {
   SyntheticAsset,
   SyntheticAsset__factory,
-  DebtToken,
-  DebtToken__factory,
+  DebtTokenMock,
+  DebtTokenMock__factory,
   OracleMock__factory,
   OracleMock,
   ControllerMock,
@@ -18,30 +19,30 @@ describe('SyntheticAsset', function () {
   let deployer: SignerWithAddress
   let governor: SignerWithAddress
   let user: SignerWithAddress
+  let treasury: SignerWithAddress
   let controllerMock: ControllerMock
   let vsAsset: SyntheticAsset
-  let debtToken: DebtToken
+  let debtToken: DebtTokenMock
   let oracle: OracleMock
 
   const name = 'Vesper Synth ETH'
   const symbol = 'vsEth'
-  const collateralizationRatio = parseEther('1.5')
   const interestRate = parseEther('0')
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
-    ;[deployer, governor, user] = await ethers.getSigners()
+    ;[deployer, governor, user, treasury] = await ethers.getSigners()
 
     const oracleMock = new OracleMock__factory(deployer)
     oracle = <OracleMock>await oracleMock.deploy()
     await oracle.deployed()
 
     const controllerMockFactory = new ControllerMock__factory(deployer)
-    controllerMock = await controllerMockFactory.deploy(ethers.constants.AddressZero, oracle.address)
+    controllerMock = await controllerMockFactory.deploy(ethers.constants.AddressZero, oracle.address, treasury.address)
     await controllerMock.deployed()
     await controllerMock.transferGovernorship(governor.address)
 
-    const debtTokenFactory = new DebtToken__factory(deployer)
+    const debtTokenFactory = new DebtTokenMock__factory(deployer)
     debtToken = await debtTokenFactory.deploy()
     await debtToken.deployed()
 
@@ -169,6 +170,39 @@ describe('SyntheticAsset', function () {
     it('should revert if not governor', async function () {
       const tx = vsAsset.connect(user).toggleIsActive()
       await expect(tx).revertedWith('not-governor')
+    })
+  })
+
+  describe('acrueInterest', function () {
+    it('should mint accrued fee to treasury', async function () {
+      const pricipal = parseEther('100')
+
+      // given
+      await vsAsset.updateInterestRate(parseEther('0.1')) // 10%
+
+      const mintCall = vsAsset.interface.encodeFunctionData('mint', [user.address, pricipal])
+      await controllerMock.mockCall(vsAsset.address, mintCall)
+      await controllerMock.mockCall(debtToken.address, mintCall)
+
+      // eslint-disable-next-line new-cap
+      await debtToken.incrementBlockNumber(await vsAsset.BLOCKS_PER_YEAR())
+
+      // when
+      await vsAsset.accrueInterest()
+
+      // then
+      const totalCredit = await vsAsset.totalSupply()
+      const totalDebt = await debtToken.totalSupply()
+      const debtOfUser = await debtToken.balanceOf(user.address)
+      const creditOfUser = await vsAsset.balanceOf(user.address)
+      const creditOfTreasury = await vsAsset.balanceOf(treasury.address)
+      // @ts-ignore
+      expect(totalDebt).closeTo(parseEther('110'), parseEther('0.01'))
+      expect(totalCredit).eq(totalDebt)
+      // @ts-ignore
+      expect(totalDebt).closeTo(debtOfUser, parseEther('0.000001'))
+      expect(creditOfUser).eq(pricipal)
+      expect(totalCredit).eq(creditOfUser.add(creditOfTreasury))
     })
   })
 })

@@ -11,13 +11,19 @@ import "../interface/IController.sol";
 import "../interface/IGovernable.sol";
 
 contract ControllerMock is IController, IGovernable {
+    ITreasury public treasury;
     IDepositToken public depositToken;
     IMasterOracle public oracle;
     address public governor;
 
-    constructor(IDepositToken _depositToken, IMasterOracle _oracle) {
+    constructor(
+        IDepositToken _depositToken,
+        IMasterOracle _oracle,
+        ITreasury _treasury
+    ) {
         depositToken = _depositToken;
         oracle = _oracle;
+        treasury = _treasury;
     }
 
     function mockCall(address _to, bytes memory _data) public {
@@ -191,15 +197,7 @@ contract ControllerMock is IController, IGovernable {
         revert("mock-does-not-implement");
     }
 
-    function treasury() external pure override returns (ITreasury) {
-        revert("mock-does-not-implement");
-    }
-
     function updateTreasury(ITreasury, bool) external pure override {
-        revert("mock-does-not-implement");
-    }
-
-    function accrueInterest(ISyntheticAsset) external pure override {
         revert("mock-does-not-implement");
     }
 

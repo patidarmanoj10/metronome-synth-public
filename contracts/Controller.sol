@@ -302,19 +302,6 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     }
 
     /**
-     * @notice Accrue interest for a given synthetic asset's debts
-     * @param _syntheticAsset The synthetic asset's to accrue interest from
-     */
-    function accrueInterest(ISyntheticAsset _syntheticAsset) public {
-        uint256 _interestAccumulated = _syntheticAsset.debtToken().accrueInterest();
-
-        if (_interestAccumulated > 0) {
-            // Note: We can save some gas by incrementing only and mint all accrue amount later
-            _syntheticAsset.mint(address(treasury), _interestAccumulated);
-        }
-    }
-
-    /**
      * @notice Deposit colleteral and mint vSynth-Collateral (tokenized deposit position)
      * @param _depositToken The collateral tokens to deposit
      * @param _amount The amount of collateral tokens to deposit
@@ -397,7 +384,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
         address _account = _msgSender();
 
-        accrueInterest(_syntheticAsset);
+        _syntheticAsset.accrueInterest();
 
         (, , , , uint256 _mintableInUsd) = debtPositionOf(_account);
 
@@ -439,7 +426,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     ) external override whenNotShutdown nonReentrant {
         require(_amount > 0, "amount-is-zero");
 
-        accrueInterest(_syntheticAsset);
+        _syntheticAsset.accrueInterest();
 
         address _payer = _msgSender();
 
@@ -484,7 +471,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
         address _liquidator = _msgSender();
         require(_liquidator != _account, "can-not-liquidate-own-position");
 
-        accrueInterest(_syntheticAsset);
+        _syntheticAsset.accrueInterest();
 
         require(
             _amountToRepay.wadDiv(_syntheticAsset.debtToken().balanceOf(_account)) <= maxLiquidable,
@@ -537,8 +524,8 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
         _requireSyntheticAssetExists(_syntheticAssetOut);
         _requireSyntheticAssetIsActive(_syntheticAssetOut);
 
-        accrueInterest(_syntheticAssetIn);
-        accrueInterest(_syntheticAssetOut);
+        _syntheticAssetIn.accrueInterest();
+        _syntheticAssetOut.accrueInterest();
 
         address _account = _msgSender();
 

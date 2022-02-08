@@ -23,7 +23,6 @@ import {
   DebtTokenMock__factory,
 } from '../typechain'
 import {
-  BLOCKS_PER_YEAR,
   getMaxLiquidationAmountInUsd,
   getMinLiquidationAmountInUsd,
   HOUR,
@@ -1938,42 +1937,6 @@ describe('Controller', function () {
       expect(await met.balanceOf(treasury.address)).eq(0)
       expect(await vsEth.balanceOf(treasury.address)).eq(0)
       expect(await metDepositToken.balanceOf(treasury.address)).eq(0)
-    })
-  })
-
-  describe('acrueInterest', function () {
-    const userDepositAmount = parseEther('200000')
-    const newInterestRate = parseEther('0.1')
-
-    beforeEach(async function () {
-      await met.connect(alice).approve(controller.address, ethers.constants.MaxUint256)
-      await controller.connect(alice).deposit(metDepositToken.address, userDepositAmount, alice.address)
-    })
-
-    it('should mint accrued fee to treasury', async function () {
-      const pricipal = parseEther('100')
-
-      // given
-      await vsEth.updateInterestRate(newInterestRate)
-      await controller.connect(alice).mint(vsEth.address, pricipal, alice.address)
-      await vsEthDebtToken.setBlockNumber((await ethers.provider.getBlockNumber()) + BLOCKS_PER_YEAR)
-
-      // when
-      await controller.accrueInterest(vsEth.address)
-
-      // then
-      const totalCredit = await vsEth.totalSupply()
-      const totalDebt = await vsEthDebtToken.totalSupply()
-      const debtOfUser = await vsEthDebtToken.balanceOf(alice.address)
-      const creditOfUser = await vsEth.balanceOf(alice.address)
-      const creditOfTreasury = await vsEth.balanceOf(treasury.address)
-      // @ts-ignore
-      expect(totalDebt).closeTo(parseEther('110'), parseEther('0.01'))
-      expect(totalCredit).eq(totalDebt)
-      // @ts-ignore
-      expect(totalDebt).closeTo(debtOfUser, parseEther('0.000001'))
-      expect(creditOfUser).eq(pricipal)
-      expect(totalCredit).eq(creditOfUser.add(creditOfTreasury))
     })
   })
 

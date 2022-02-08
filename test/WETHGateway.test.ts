@@ -51,7 +51,11 @@ describe('WETHGateway', function () {
     await wethDepositToken.deployed()
 
     const controllerMockFactory = new ControllerMock__factory(deployer)
-    controllerMock = await controllerMockFactory.deploy(wethDepositToken.address, oracleMock.address)
+    controllerMock = await controllerMockFactory.deploy(
+      wethDepositToken.address,
+      oracleMock.address,
+      ethers.constants.AddressZero
+    )
     await controllerMock.deployed()
 
     const wethGatewayFactory = new WETHGateway__factory(deployer)

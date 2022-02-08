@@ -4,7 +4,7 @@ import {parseEther} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import chai, {expect} from 'chai'
 import {ethers} from 'hardhat'
-import {DebtTokenMock, DebtTokenMock__factory, SyntheticAssetMock, SyntheticAssetMock__factory} from '../typechain'
+import {DebtTokenMock, DebtTokenMock__factory, SyntheticAsset, SyntheticAsset__factory} from '../typechain'
 import {BLOCKS_PER_YEAR, setEtherBalance} from './helpers'
 import {FakeContract, smock} from '@defi-wonderland/smock'
 
@@ -15,8 +15,9 @@ describe('DebtToken', function () {
   let controllerMock: FakeContract
   let user1: SignerWithAddress
   let user2: SignerWithAddress
+  let treasury: SignerWithAddress
   let debtToken: DebtTokenMock
-  let syntheticAssetMock: SyntheticAssetMock
+  let syntheticAsset: SyntheticAsset
 
   const name = 'vsETH Debt'
   const symbol = 'vsEth-Debt'
@@ -24,18 +25,31 @@ describe('DebtToken', function () {
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
-    ;[deployer, , user1, user2] = await ethers.getSigners()
+    ;[deployer, , user1, user2, treasury] = await ethers.getSigners()
 
-    const syntheticAssetMockFactory = new SyntheticAssetMock__factory(deployer)
-    syntheticAssetMock = await syntheticAssetMockFactory.deploy('Vesper Synth ETH', 'vsETH', interestRate)
+    const syntheticAssetFactory = new SyntheticAsset__factory(deployer)
+    syntheticAsset = await syntheticAssetFactory.deploy()
+    await syntheticAsset.deployed()
 
     controllerMock = await smock.fake('Controller')
+    controllerMock.treasury.returns(treasury.address)
+    controllerMock.governor.returns(deployer.address)
     await setEtherBalance(controllerMock.address, parseEther('10'))
 
     const debtTokenMockFactory = new DebtTokenMock__factory(deployer)
     debtToken = await debtTokenMockFactory.deploy()
     await debtToken.deployed()
-    await debtToken.initialize(name, symbol, 18, controllerMock.address, syntheticAssetMock.address)
+
+    await debtToken.initialize(name, symbol, 18, controllerMock.address, syntheticAsset.address)
+
+    await syntheticAsset.initialize(
+      'Vesper Synth ETH',
+      'vsETH',
+      18,
+      controllerMock.address,
+      debtToken.address,
+      interestRate
+    )
   })
 
   it('default values', async function () {
@@ -134,6 +148,79 @@ describe('DebtToken', function () {
     })
   })
 
+  describe('balanceOf - get updated balance without calling accrueInterest()', function () {
+    const principal = parseEther('100')
+
+    it('should get updated balance', async function () {
+      // given
+      await debtToken.connect(controllerMock.wallet).mint(user1.address, principal)
+
+      // when
+      await syntheticAsset.updateInterestRate(parseEther('0.02')) // 2%
+
+      await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
+
+      // then
+      const debtOfUser = await debtToken.balanceOf(user1.address)
+
+      // @ts-ignore
+      expect(debtOfUser).closeTo(parseEther('102'), parseEther('0.0001'))
+    })
+
+    it('should not accrue interest if rate is 0', async function () {
+      // given
+      await debtToken.connect(controllerMock.wallet).mint(user1.address, principal)
+
+      // when
+      await syntheticAsset.updateInterestRate(parseEther('0'))
+
+      await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
+
+      // then
+      const debtOfUser = await debtToken.balanceOf(user1.address)
+
+      expect(debtOfUser).eq(principal)
+    })
+
+    it('should accrue interest after changing interest rate', async function () {
+      // given
+      await debtToken.connect(controllerMock.wallet).mint(user1.address, principal)
+
+      // when
+      // 1st year 10% interest + 2nd year 50% interest
+      await syntheticAsset.updateInterestRate(parseEther('0.1')) // 10%
+      await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
+
+      await syntheticAsset.updateInterestRate(parseEther('0.5')) // 50%
+      await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
+
+      // then
+      const debtOfUser = await debtToken.balanceOf(user1.address)
+      // @ts-ignore
+      expect(debtOfUser).closeTo(parseEther('165'), parseEther('0.001'))
+    })
+
+    it('should stop accruing interest after changing interest rate to 0', async function () {
+      // given
+      await debtToken.connect(controllerMock.wallet).mint(user1.address, principal)
+
+      // when
+      // 1st year 10% interest + 2nd year 0% interest
+      await syntheticAsset.updateInterestRate(parseEther('0.1')) // 10%
+
+      await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
+
+      await syntheticAsset.updateInterestRate(parseEther('0'))
+
+      await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
+
+      // then
+      const debtOfUser = await debtToken.balanceOf(user1.address)
+      // @ts-ignore
+      expect(debtOfUser).closeTo(parseEther('110'), parseEther('0.1'))
+    })
+  })
+
   describe('accrueInterest', function () {
     const principal = parseEther('100')
 
@@ -142,16 +229,12 @@ describe('DebtToken', function () {
       await debtToken.connect(controllerMock.wallet).mint(user1.address, principal)
 
       // when
-      await syntheticAssetMock.updateInterestRate(parseEther('0.02')) // 2%
-      await debtToken.setBlockNumber((await ethers.provider.getBlockNumber()) + BLOCKS_PER_YEAR)
-
-      await debtToken.connect(controllerMock.wallet).accrueInterest()
+      await syntheticAsset.updateInterestRate(parseEther('0.02')) // 2%
+      await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
+      await syntheticAsset.accrueInterest()
 
       // then
       const totalDebt = await debtToken.totalSupply()
-      const debtOfUser = await debtToken.balanceOf(user1.address)
-      // @ts-ignore
-      expect(totalDebt).closeTo(debtOfUser, parseEther('0.0001'))
       // @ts-ignore
       expect(totalDebt).closeTo(parseEther('102'), parseEther('0.0001'))
     })
@@ -161,14 +244,12 @@ describe('DebtToken', function () {
       await debtToken.connect(controllerMock.wallet).mint(user1.address, principal)
 
       // when
-      await syntheticAssetMock.updateInterestRate(parseEther('0'))
-      await debtToken.setBlockNumber(BLOCKS_PER_YEAR)
-      await debtToken.connect(controllerMock.wallet).accrueInterest()
+      await syntheticAsset.updateInterestRate(parseEther('0'))
+      await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
+      await syntheticAsset.accrueInterest()
 
       // then
       const totalDebt = await debtToken.totalSupply()
-      const debtOfUser = await debtToken.balanceOf(user1.address)
-      expect(totalDebt).eq(debtOfUser)
       expect(totalDebt).eq(principal)
     })
 
@@ -178,19 +259,16 @@ describe('DebtToken', function () {
 
       // when
       // 1st year 10% interest + 2nd year 50% interest
-      await syntheticAssetMock.updateInterestRate(parseEther('0.1')) // 10%
-      await debtToken.setBlockNumber((await ethers.provider.getBlockNumber()) + BLOCKS_PER_YEAR)
-      await debtToken.connect(controllerMock.wallet).accrueInterest()
+      await syntheticAsset.updateInterestRate(parseEther('0.1')) // 10%
+      await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
+      await syntheticAsset.accrueInterest()
 
-      await syntheticAssetMock.updateInterestRate(parseEther('0.5')) // 50%
-      await debtToken.setBlockNumber((await ethers.provider.getBlockNumber()) + BLOCKS_PER_YEAR)
-      await debtToken.connect(controllerMock.wallet).accrueInterest()
+      await syntheticAsset.updateInterestRate(parseEther('0.5')) // 50%
+      await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
+      await syntheticAsset.accrueInterest()
 
       // then
       const totalDebt = await debtToken.totalSupply()
-      const debtOfUser = await debtToken.balanceOf(user1.address)
-      // @ts-ignore
-      expect(totalDebt).closeTo(debtOfUser, parseEther('0.0001'))
       // @ts-ignore
       expect(totalDebt).closeTo(parseEther('165'), parseEther('0.001'))
     })
@@ -201,19 +279,16 @@ describe('DebtToken', function () {
 
       // when
       // 1st year 10% interest + 2nd year 50% interest
-      await syntheticAssetMock.updateInterestRate(parseEther('0.1')) // 10%
-      await debtToken.setBlockNumber(BLOCKS_PER_YEAR)
-      await debtToken.connect(controllerMock.wallet).accrueInterest()
+      await syntheticAsset.updateInterestRate(parseEther('0.1')) // 10%
+      await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
+      await syntheticAsset.accrueInterest()
 
-      await syntheticAssetMock.updateInterestRate(parseEther('0'))
-      await debtToken.setBlockNumber(BLOCKS_PER_YEAR)
-      await debtToken.connect(controllerMock.wallet).accrueInterest()
+      await syntheticAsset.updateInterestRate(parseEther('0'))
+      await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
+      await syntheticAsset.accrueInterest()
 
       // then
       const totalDebt = await debtToken.totalSupply()
-      const debtOfUser = await debtToken.balanceOf(user1.address)
-      // @ts-ignore
-      expect(totalDebt).closeTo(debtOfUser, parseEther('0.0001'))
       // @ts-ignore
       expect(totalDebt).closeTo(parseEther('110'), parseEther('0.1'))
     })
