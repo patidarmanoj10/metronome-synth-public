@@ -16,7 +16,7 @@ abstract contract DebtTokenStorageV1 is IDebtToken {
      */
     mapping(address => uint256) internal debtIndexOf;
 
-    uint256 public totalSupply;
+    uint256 internal totalSupply_;
     uint8 public decimals;
     string public name;
     string public symbol;

@@ -148,7 +148,7 @@ describe('DebtToken', function () {
     })
   })
 
-  describe('balanceOf - get updated balance without calling accrueInterest()', function () {
+  describe('balanceOf & totalSupply - get updated values without calling accrueInterest()', function () {
     const principal = parseEther('100')
 
     it('should get updated balance', async function () {
@@ -162,9 +162,11 @@ describe('DebtToken', function () {
 
       // then
       const debtOfUser = await debtToken.balanceOf(user1.address)
+      const totalDebt = await debtToken.totalSupply()
 
       // @ts-ignore
       expect(debtOfUser).closeTo(parseEther('102'), parseEther('0.0001'))
+      expect(totalDebt).eq(debtOfUser)
     })
 
     it('should not accrue interest if rate is 0', async function () {
@@ -178,8 +180,10 @@ describe('DebtToken', function () {
 
       // then
       const debtOfUser = await debtToken.balanceOf(user1.address)
+      const totalDebt = await debtToken.totalSupply()
 
       expect(debtOfUser).eq(principal)
+      expect(totalDebt).eq(debtOfUser)
     })
 
     it('should accrue interest after changing interest rate', async function () {
@@ -196,8 +200,12 @@ describe('DebtToken', function () {
 
       // then
       const debtOfUser = await debtToken.balanceOf(user1.address)
+      const totalDebt = await debtToken.totalSupply()
+
       // @ts-ignore
       expect(debtOfUser).closeTo(parseEther('165'), parseEther('0.001'))
+      // @ts-ignore
+      expect(totalDebt).closeTo(debtOfUser, parseEther('0.00000001'))
     })
 
     it('should stop accruing interest after changing interest rate to 0', async function () {
@@ -216,8 +224,11 @@ describe('DebtToken', function () {
 
       // then
       const debtOfUser = await debtToken.balanceOf(user1.address)
+      const totalDebt = await debtToken.totalSupply()
+
       // @ts-ignore
       expect(debtOfUser).closeTo(parseEther('110'), parseEther('0.1'))
+      expect(totalDebt).eq(debtOfUser)
     })
   })
 
@@ -278,12 +289,32 @@ describe('DebtToken', function () {
       await debtToken.connect(controllerMock.wallet).mint(user1.address, principal)
 
       // when
-      // 1st year 10% interest + 2nd year 50% interest
+      // 1st year 10% interest + 2nd year 0% interest
       await syntheticAsset.updateInterestRate(parseEther('0.1')) // 10%
       await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
       await syntheticAsset.accrueInterest()
 
       await syntheticAsset.updateInterestRate(parseEther('0'))
+      await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
+      await syntheticAsset.accrueInterest()
+
+      // then
+      const totalDebt = await debtToken.totalSupply()
+      // @ts-ignore
+      expect(totalDebt).closeTo(parseEther('110'), parseEther('0.1'))
+    })
+
+    it('should not accrue interest backwards after changing interest rate from 0', async function () {
+      // given
+      await debtToken.connect(controllerMock.wallet).mint(user1.address, principal)
+
+      // when
+      // 1st year 0% interest + 2nd year 10% interest
+      await syntheticAsset.updateInterestRate(parseEther('0'))
+      await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
+      await syntheticAsset.accrueInterest()
+
+      await syntheticAsset.updateInterestRate(parseEther('0.1')) // 10%
       await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
       await syntheticAsset.accrueInterest()
 

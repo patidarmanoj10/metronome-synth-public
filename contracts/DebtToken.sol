@@ -42,6 +42,12 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
         debtIndex = 1e18;
     }
 
+    function totalSupply() external view override returns (uint256) {
+        (uint256 _interestAmountAccrued, , ) = _calculateInterestAccrual();
+
+        return totalSupply_ + _interestAmountAccrued;
+    }
+
     /**
      * @notice Get the updated (principal + interest) user's debt
      */
@@ -107,7 +113,7 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
 
         _beforeTokenTransfer(address(0), _account, _amount);
 
-        totalSupply += _amount;
+        totalSupply_ += _amount;
         principalOf[_account] += _amount;
         debtIndexOf[_account] = debtIndex;
         emit Transfer(address(0), _account, _amount);
@@ -130,7 +136,7 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
         principalOf[_account] = accountBalance - _amount;
         debtIndexOf[_account] = debtIndex;
 
-        totalSupply -= _amount;
+        totalSupply_ -= _amount;
 
         emit Transfer(_account, address(0), _amount);
 
@@ -211,7 +217,7 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
 
         uint256 _interestRateToAccrue = syntheticAsset.interestRatePerBlock() * _blockDelta;
 
-        _interestAmountAccrued = _interestRateToAccrue.wadMul(totalSupply);
+        _interestAmountAccrued = _interestRateToAccrue.wadMul(totalSupply_);
 
         _debtIndex = debtIndex + _interestRateToAccrue.wadMul(debtIndex);
     }
@@ -222,13 +228,16 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
      */
     function accrueInterest() external override onlySyntheticAsset returns (uint256 _interestAmountAccrued) {
         uint256 _debtIndex;
-        uint256 _lastBlockAccrued;
-        (_interestAmountAccrued, _debtIndex, _lastBlockAccrued) = _calculateInterestAccrual();
+        uint256 _currentBlockNumber;
 
-        if (_interestAmountAccrued > 0) {
-            totalSupply += _interestAmountAccrued;
-            debtIndex = _debtIndex;
-            lastBlockAccrued = _lastBlockAccrued;
+        (_interestAmountAccrued, _debtIndex, _currentBlockNumber) = _calculateInterestAccrual();
+
+        if (_currentBlockNumber == lastBlockAccrued) {
+            return 0;
         }
+
+        totalSupply_ += _interestAmountAccrued;
+        debtIndex = _debtIndex;
+        lastBlockAccrued = _currentBlockNumber;
     }
 }
