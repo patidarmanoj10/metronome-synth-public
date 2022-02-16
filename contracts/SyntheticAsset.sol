@@ -223,7 +223,20 @@ contract SyntheticAsset is Manageable, SyntheticAssetStorageV1 {
      * @notice Update interest rate (APR)
      */
     function updateInterestRate(uint256 _newInterestRate) public override onlyGovernor {
+        accrueInterest();
         emit InterestRateUpdated(interestRate, _newInterestRate);
         interestRate = _newInterestRate;
+    }
+
+    /**
+     * @notice Accrue interest
+     */
+    function accrueInterest() public {
+        uint256 _interestAmountAccrued = debtToken.accrueInterest();
+
+        if (_interestAmountAccrued > 0) {
+            // Note: We can save some gas by incrementing only and mint all accrued amount later
+            _mint(address(controller.treasury()), _interestAmountAccrued);
+        }
     }
 }

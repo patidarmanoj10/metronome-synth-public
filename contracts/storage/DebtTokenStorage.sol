@@ -5,10 +5,18 @@ pragma solidity 0.8.9;
 import "../interface/IDebtToken.sol";
 
 abstract contract DebtTokenStorageV1 is IDebtToken {
+    /**
+     * @notice The total amount of minted tokens
+     * @dev This value changes within the mint and burn operations
+     */
     mapping(address => uint256) internal principalOf;
-    mapping(address => uint256) internal interestRateOf;
 
-    uint256 public totalSupply;
+    /**
+     * @notice The `debtIndex` "snapshot" of the account's latest `principalOf` update (i.e. mint/burn)
+     */
+    mapping(address => uint256) internal debtIndexOf;
+
+    uint256 internal totalSupply_;
     uint8 public decimals;
     string public name;
     string public symbol;

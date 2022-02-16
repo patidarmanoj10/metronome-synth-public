@@ -14,6 +14,14 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
 
     string public constant VERSION = "1.0.0";
 
+    /**
+     * @dev Throws if the caller isn't the synthetic asset
+     */
+    modifier onlySyntheticAsset() {
+        require(_msgSender() == address(syntheticAsset), "not-synthetic-asset");
+        _;
+    }
+
     function initialize(
         string memory _name,
         string memory _symbol,
@@ -34,6 +42,12 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
         debtIndex = 1e18;
     }
 
+    function totalSupply() external view override returns (uint256) {
+        (uint256 _interestAmountAccrued, , ) = _calculateInterestAccrual();
+
+        return totalSupply_ + _interestAmountAccrued;
+    }
+
     /**
      * @notice Get the updated (principal + interest) user's debt
      */
@@ -41,8 +55,11 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
         if (principalOf[_account] == 0) {
             return 0;
         }
-        uint256 principalTimesIndex = principalOf[_account] * debtIndex;
-        return principalTimesIndex / interestRateOf[_account];
+
+        (, uint256 _debtIndex, ) = _calculateInterestAccrual();
+
+        // Note: The `debtIndex / debtIndexOf` gives the interest to apply to the principal amount
+        return (principalOf[_account] * _debtIndex) / debtIndexOf[_account];
     }
 
     function transfer(
@@ -96,9 +113,9 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
 
         _beforeTokenTransfer(address(0), _account, _amount);
 
-        totalSupply += _amount;
+        totalSupply_ += _amount;
         principalOf[_account] += _amount;
-        interestRateOf[_account] = debtIndex;
+        debtIndexOf[_account] = debtIndex;
         emit Transfer(address(0), _account, _amount);
 
         _afterTokenTransfer(address(0), _account, _amount);
@@ -117,9 +134,9 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
         require(accountBalance >= _amount, "burn-amount-exceeds-balance");
 
         principalOf[_account] = accountBalance - _amount;
-        interestRateOf[_account] = debtIndex;
+        debtIndexOf[_account] = debtIndex;
 
-        totalSupply -= _amount;
+        totalSupply_ -= _amount;
 
         emit Transfer(_account, address(0), _amount);
 
@@ -174,24 +191,53 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
     }
 
     /**
-     * @notice Accrue interest over debt supply
-     * @return _interestAccumulated The total amount of debt tokens accrued
+     * @notice Calculate interest to accrue
+     * @dev This util function avoids code duplication accross `balanceOf` and `accrueInterest`
+     * @return _interestAmountAccrued The total amount of debt tokens accrued
+     * @return _debtIndex The new `debtIndex` value
+     * @return _currentBlockNumber The current block number
      */
-    function accrueInterest() external override onlyController returns (uint256 _interestAccumulated) {
-        uint256 _currentBlockNumber = getBlockNumber();
+
+    function _calculateInterestAccrual()
+        private
+        view
+        returns (
+            uint256 _interestAmountAccrued,
+            uint256 _debtIndex,
+            uint256 _currentBlockNumber
+        )
+    {
+        _currentBlockNumber = getBlockNumber();
 
         if (lastBlockAccrued == _currentBlockNumber) {
-            return 0;
+            return (0, debtIndex, _currentBlockNumber);
         }
 
         uint256 _blockDelta = _currentBlockNumber - lastBlockAccrued;
 
         uint256 _interestRateToAccrue = syntheticAsset.interestRatePerBlock() * _blockDelta;
 
-        _interestAccumulated = _interestRateToAccrue.wadMul(totalSupply);
+        _interestAmountAccrued = _interestRateToAccrue.wadMul(totalSupply_);
 
-        totalSupply += _interestAccumulated;
+        _debtIndex = debtIndex + _interestRateToAccrue.wadMul(debtIndex);
+    }
 
-        debtIndex += _interestRateToAccrue.wadMul(debtIndex);
+    /**
+     * @notice Accrue interest over debt supply
+     * @return _interestAmountAccrued The total amount of debt tokens accrued
+     */
+    function accrueInterest() external override onlySyntheticAsset returns (uint256 _interestAmountAccrued) {
+        uint256 _debtIndex;
+        uint256 _currentBlockNumber;
+
+        (_interestAmountAccrued, _debtIndex, _currentBlockNumber) = _calculateInterestAccrual();
+
+        if (_currentBlockNumber == lastBlockAccrued) {
+            return 0;
+        }
+
+        totalSupply_ += _interestAmountAccrued;
+        debtIndex = _debtIndex;
+        lastBlockAccrued = _currentBlockNumber;
     }
 }

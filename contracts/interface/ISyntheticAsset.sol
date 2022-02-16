@@ -32,4 +32,6 @@ interface ISyntheticAsset is IERC20, IERC20Metadata {
         address _to,
         uint256 _amount
     ) external;
+
+    function accrueInterest() external;
 }
