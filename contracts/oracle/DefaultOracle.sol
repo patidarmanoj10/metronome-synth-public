@@ -208,20 +208,4 @@ contract DefaultOracle is IOracle, Governable {
         (_amount, _lastUpdatedAt) = _priceProviderOfAsset(_asset).convertFromUsd(_dataOfAsset(_asset), _amountInUsd);
         require(_amount > 0 && !_priceIsStale(_asset, _lastUpdatedAt), "price-is-invalid");
     }
-
-    /**
-     * @notice Convert assets' amounts
-     * @param _assetIn The asset to convert from
-     * @param _assetOut The asset to convert to
-     * @param _amountIn The amount to convert from
-     * @return _amountOut The converted amount
-     */
-    function convert(
-        IERC20 _assetIn,
-        IERC20 _assetOut,
-        uint256 _amountIn
-    ) external view returns (uint256 _amountOut) {
-        uint256 _amountInUsd = convertToUsd(_assetIn, _amountIn);
-        _amountOut = convertFromUsd(_assetOut, _amountInUsd);
-    }
 }

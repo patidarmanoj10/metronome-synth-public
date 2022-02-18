@@ -85,16 +85,4 @@ describe('ChainlinkPriceProvider', function () {
       expect(_amount).eq(parseEther('1'))
     })
   })
-
-  describe('convert', function () {
-    it('should get Token->Token price', async function () {
-      const tokenIn = abi.encode(['address', 'uint256'], [CHAINLINK_BTC_AGGREGATOR_ADDRESS, 8])
-      const tokenOut = abi.encode(['address', 'uint256'], [CHAINLINK_ETH_AGGREGATOR_ADDRESS, 18])
-      const amountIn = parseUnits('1', 8) // 1 BTC
-      const {_amountOut} = await priceProvider.convert(tokenIn, tokenOut, amountIn)
-
-      // @ts-ignore
-      expect(_amountOut).closeTo(parseEther('14.5'), parseEther('0.05'))
-    })
-  })
 })

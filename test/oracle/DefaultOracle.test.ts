@@ -206,16 +206,6 @@ describe('DefaultOracle', function () {
         await expect(tx).revertedWith('price-is-invalid')
       })
     })
-
-    describe('convert', function () {
-      it('should convert assets using distinct price providers', async function () {
-        const amountInUsd = '344642503883'
-        const amountInEther = await oracle.convertFromUsd(vsETH.address, amountInUsd)
-        const amountInDoge = await oracle.convert(vsETH.address, vsDOGE.address, amountInEther)
-        const _amountInUsd = await oracle.convertToUsd(vsDOGE.address, amountInDoge)
-        expect(_amountInUsd).closeTo(amountInUsd, 2)
-      })
-    })
   })
 
   describe('update', function () {

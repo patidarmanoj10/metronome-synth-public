@@ -113,24 +113,4 @@ contract UniswapV3PriceProvider is IPriceProvider, Governable {
      */
     // solhint-disable-next-line no-empty-blocks
     function update(bytes memory) external {}
-
-    /**
-     * @notice Convert two assets' amounts
-     * @param _encodedTokenInAddress The input asset's encoded address
-     * @param _encodedTokenOutAddress  The output asset's encoded address
-     * @param _amountIn The amount in
-     * @return _amountOut The amout out
-     * @return _lastUpdatedAt The timestamp of the price used to convert
-     */
-    function convert(
-        bytes memory _encodedTokenInAddress,
-        bytes memory _encodedTokenOutAddress,
-        uint256 _amountIn
-    ) public view returns (uint256 _amountOut, uint256 _lastUpdatedAt) {
-        address _tokenIn = _decode(_encodedTokenInAddress);
-        address _tokenOut = _decode(_encodedTokenOutAddress);
-
-        _amountOut = crossPoolOracle.assetToAsset(_tokenIn, _amountIn, _tokenOut, twapPeriod);
-        _lastUpdatedAt = block.timestamp;
-    }
 }
