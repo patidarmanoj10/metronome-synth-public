@@ -21,7 +21,7 @@ abstract contract DebtTokenStorageV1 is IDebtToken {
     string public name;
     string public symbol;
 
-    ISyntheticAsset public syntheticAsset;
+    ISyntheticToken public syntheticToken;
 
     /**
      * @notice The block when interest accrual was calculated for the last time

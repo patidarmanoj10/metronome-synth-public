@@ -13,8 +13,8 @@ import {
   ERC20Mock__factory,
   OracleMock,
   OracleMock__factory,
-  SyntheticAsset,
-  SyntheticAsset__factory,
+  SyntheticToken,
+  SyntheticToken__factory,
   Treasury,
   Treasury__factory,
   Controller__factory,
@@ -75,12 +75,12 @@ async function fixture() {
   const vsDogeDebtToken = await debtTokenMockFactory.deploy()
   await vsDogeDebtToken.deployed()
 
-  const syntheticAssetFactory = new SyntheticAsset__factory(deployer)
+  const syntheticTokenFactory = new SyntheticToken__factory(deployer)
 
-  const vsEth = await syntheticAssetFactory.deploy()
+  const vsEth = await syntheticTokenFactory.deploy()
   await vsEth.deployed()
 
-  const vsDoge = await syntheticAssetFactory.deploy()
+  const vsDoge = await syntheticTokenFactory.deploy()
   await vsDoge.deployed()
 
   const controllerFactory = new Controller__factory(deployer)
@@ -105,9 +105,9 @@ async function fixture() {
   await controller.initialize(oracle.address, treasury.address)
   await controller.updateLiquidatorFee(liquidatorFee)
   await controller.addDepositToken(metDepositToken.address)
-  await controller.addSyntheticAsset(vsEth.address)
+  await controller.addSyntheticToken(vsEth.address)
   await controller.addDepositToken(daiDepositToken.address)
-  await controller.addSyntheticAsset(vsDoge.address)
+  await controller.addSyntheticToken(vsDoge.address)
 
   // mint some collaterals to users
   await met.mint(alice.address, parseEther(`${1e6}`))
@@ -144,8 +144,8 @@ describe('Controller', function () {
   let dai: ERC20Mock
   let vsEthDebtToken: DebtTokenMock
   let vsDogeDebtToken: DebtTokenMock
-  let vsEth: SyntheticAsset
-  let vsDoge: SyntheticAsset
+  let vsEth: SyntheticToken
+  let vsDoge: SyntheticToken
   let treasury: Treasury
   let metDepositToken: DepositToken
   let daiDepositToken: DepositToken
@@ -358,7 +358,7 @@ describe('Controller', function () {
           const tx = controller.connect(alice).mint(vsEth.address, toMint, alice.address)
 
           // then
-          await expect(tx).emit(controller, 'SyntheticAssetMinted')
+          await expect(tx).emit(controller, 'SyntheticTokenMinted')
         })
 
         it('should revert if shutdown', async function () {
@@ -380,7 +380,7 @@ describe('Controller', function () {
           const tx = controller.mint(invalidSynthetic.address, toIssue, alice.address)
 
           // then
-          await expect(tx).revertedWith('asset-inexistent')
+          await expect(tx).revertedWith('synthetic-inexistent')
         })
 
         it('should revert if synthetic is not active', async function () {
@@ -392,7 +392,7 @@ describe('Controller', function () {
           const tx = controller.connect(alice).mint(vsEth.address, amountToMint, alice.address)
 
           // then
-          await expect(tx).revertedWith('asset-inactive')
+          await expect(tx).revertedWith('synthetic-inactive')
         })
 
         it('should revert if user has not enough collateral deposited', async function () {
@@ -468,7 +468,7 @@ describe('Controller', function () {
           await expect(tx).changeTokenBalances(vsEthDebtToken, [alice], [amountToMint])
           await expect(tx).changeTokenBalances(met, [controller], [0])
           await expect(tx())
-            .emit(controller, 'SyntheticAssetMinted')
+            .emit(controller, 'SyntheticTokenMinted')
             .withArgs(alice.address, alice.address, vsEth.address, amountToMint, 0)
         })
 
@@ -489,7 +489,7 @@ describe('Controller', function () {
           // See: https://github.com/EthWorks/Waffle/issues/569
           await expect(tx).changeTokenBalances(vsEthDebtToken, [alice], [amount])
           await expect(tx())
-            .emit(controller, 'SyntheticAssetMinted')
+            .emit(controller, 'SyntheticTokenMinted')
             .withArgs(alice.address, alice.address, vsEth.address, amount, expectedFee)
         })
 
@@ -498,7 +498,7 @@ describe('Controller', function () {
           const amount = await oracle.convertFromUsd(vsEth.address, _mintableInUsd)
           const tx = controller.connect(alice).mint(vsEth.address, amount, alice.address)
           await expect(tx)
-            .emit(controller, 'SyntheticAssetMinted')
+            .emit(controller, 'SyntheticTokenMinted')
             .withArgs(alice.address, alice.address, vsEth.address, amount, 0)
         })
 
@@ -512,7 +512,7 @@ describe('Controller', function () {
           const expectedFee = amount.mul(mintFee).div(parseEther('1'))
           const tx = controller.connect(alice).mint(vsEth.address, amount, alice.address)
           await expect(tx)
-            .emit(controller, 'SyntheticAssetMinted')
+            .emit(controller, 'SyntheticTokenMinted')
             .withArgs(alice.address, alice.address, vsEth.address, amount, expectedFee)
         })
       })
@@ -825,7 +825,7 @@ describe('Controller', function () {
             const tx = controller.connect(alice).swap(vsEth.address, vsDoge.address, amount)
 
             // then
-            await expect(tx).emit(controller, 'SyntheticAssetSwapped')
+            await expect(tx).emit(controller, 'SyntheticTokenSwapped')
           })
 
           it('should revert if shutdown', async function () {
@@ -857,7 +857,7 @@ describe('Controller', function () {
             const tx = controller.connect(alice).swap(vsEth.address, vsDoge.address, amountIn)
 
             // then
-            await expect(tx).revertedWith('asset-inactive')
+            await expect(tx).revertedWith('synthetic-inactive')
           })
 
           it('should revert if user has not enough balance', async function () {
@@ -886,7 +886,7 @@ describe('Controller', function () {
               const tx = controller.connect(alice).swap(vsEth.address, vsDoge.address, amountIn)
 
               // then
-              await expect(tx).revertedWith('asset-in-debt-lt-floor')
+              await expect(tx).revertedWith('synthetic-in-debt-lt-floor')
             })
 
             it('should revert if debt from assetOut becomes < debt floor', async function () {
@@ -902,7 +902,7 @@ describe('Controller', function () {
               const tx = controller.connect(alice).swap(vsEth.address, vsDoge.address, amountIn)
 
               // then
-              await expect(tx).revertedWith('asset-out-debt-lt-floor')
+              await expect(tx).revertedWith('synthetic-out-debt-lt-floor')
             })
 
             it('should allow swap if debt from assetIn becomes 0', async function () {
@@ -918,12 +918,12 @@ describe('Controller', function () {
               await controller.connect(alice).swap(vsEth.address, vsDoge.address, amountIn)
 
               // then
-              const assetInDebt = await vsEthDebtToken.balanceOf(alice.address)
-              expect(assetInDebt).eq(0)
+              const vsAssetInDebt = await vsEthDebtToken.balanceOf(alice.address)
+              expect(vsAssetInDebt).eq(0)
             })
           })
 
-          it('should swap synthetic assets (swapFee == 0)', async function () {
+          it('should swap synthetic tokens (swapFee == 0)', async function () {
             // given
             await controller.updateSwapFee(0)
             const vsAssetInBalanceBefore = await vsEth.balanceOf(alice.address)
@@ -945,7 +945,7 @@ describe('Controller', function () {
             const expectedAmountOut = amountInUsd.mul(parseEther('1')).div(dogeRate)
 
             await expect(tx)
-              .emit(controller, 'SyntheticAssetSwapped')
+              .emit(controller, 'SyntheticTokenSwapped')
               .withArgs(alice.address, vsAssetIn, vsAssetOut, amountIn, expectedAmountOut, 0)
 
             const vsAssetInBalanceAfter = await vsEth.balanceOf(alice.address)
@@ -961,7 +961,7 @@ describe('Controller', function () {
             expect(vsAssetOutDebtBalanceAfter).eq(vsAssetOutDebtBalanceBefore.add(expectedAmountOut))
           })
 
-          it('should swap synthetic assets (swapFee > 0)', async function () {
+          it('should swap synthetic tokens (swapFee > 0)', async function () {
             // given
             const swapFee = parseEther('0.1') // 10%
             await controller.updateSwapFee(swapFee)
@@ -986,7 +986,7 @@ describe('Controller', function () {
             const expectedAmountOutAfterFee = expectedAmountOut.sub(expectedFee)
 
             await expect(tx)
-              .emit(controller, 'SyntheticAssetSwapped')
+              .emit(controller, 'SyntheticTokenSwapped')
               .withArgs(alice.address, vsAssetIn, vsAssetOut, amountIn, expectedAmountOutAfterFee, expectedFee)
 
             const vsAssetInBalanceAfter = await vsEth.balanceOf(alice.address)
@@ -1774,48 +1774,48 @@ describe('Controller', function () {
   })
 
   describe('whitelisting', function () {
-    describe('addSyntheticAsset', function () {
+    describe('addSyntheticToken', function () {
       it('should revert if not governor', async function () {
-        const tx = controller.connect(alice).addSyntheticAsset(vsEth.address)
+        const tx = controller.connect(alice).addSyntheticToken(vsEth.address)
         await expect(tx).revertedWith('not-governor')
       })
 
-      it('should add synthetic asset', async function () {
+      it('should add synthetic token', async function () {
         const someTokenAddress = met.address
-        const syntheticAssetsBefore = await controller.getSyntheticAssets()
-        await controller.addSyntheticAsset(someTokenAddress)
-        const syntheticAssetsAfter = await controller.getSyntheticAssets()
-        expect(syntheticAssetsAfter.length).eq(syntheticAssetsBefore.length + 1)
+        const syntheticTokensBefore = await controller.getSyntheticTokens()
+        await controller.addSyntheticToken(someTokenAddress)
+        const syntheticTokensAfter = await controller.getSyntheticTokens()
+        expect(syntheticTokensAfter.length).eq(syntheticTokensBefore.length + 1)
       })
     })
 
-    describe('removeSyntheticAsset', function () {
-      it('should remove synthetic asset', async function () {
+    describe('removeSyntheticToken', function () {
+      it('should remove synthetic token', async function () {
         // given
         const debtTokenMockFactory = new DebtTokenMock__factory(deployer)
         const debtToken = await debtTokenMockFactory.deploy()
 
-        const SyntheticAssetFactory = new SyntheticAsset__factory(deployer)
-        const vsAsset = await SyntheticAssetFactory.deploy()
+        const syntheticTokenFactory = new SyntheticToken__factory(deployer)
+        const vsAsset = await syntheticTokenFactory.deploy()
 
         await debtToken.initialize('Vesper Synth BTC debt', 'vsBTC-debt', 8, controller.address, vsAsset.address)
         await vsAsset.initialize('Vesper Synth BTC', 'vsBTC', 8, controller.address, debtToken.address, interestRate)
 
         expect(await vsAsset.totalSupply()).eq(0)
-        await controller.addSyntheticAsset(vsAsset.address)
-        const syntheticAssetsBefore = await controller.getSyntheticAssets()
+        await controller.addSyntheticToken(vsAsset.address)
+        const syntheticTokensBefore = await controller.getSyntheticTokens()
 
         // when
-        await controller.removeSyntheticAsset(vsAsset.address)
+        await controller.removeSyntheticToken(vsAsset.address)
 
         // then
-        const syntheticAssetsAfter = await controller.getSyntheticAssets()
-        expect(syntheticAssetsAfter.length).eq(syntheticAssetsBefore.length - 1)
+        const syntheticTokensAfter = await controller.getSyntheticTokens()
+        expect(syntheticTokensAfter.length).eq(syntheticTokensBefore.length - 1)
       })
 
       it('should revert if not governor', async function () {
         // when
-        const tx = controller.connect(alice).removeSyntheticAsset(vsEth.address)
+        const tx = controller.connect(alice).removeSyntheticToken(vsEth.address)
 
         // then
         await expect(tx).revertedWith('not-governor')
@@ -1826,12 +1826,12 @@ describe('Controller', function () {
         const ERC20MockFactory = new ERC20Mock__factory(deployer)
         const vsAsset = await ERC20MockFactory.deploy('Vesper Synth BTC', 'vsBTC', 8)
         await vsAsset.deployed()
-        await controller.addSyntheticAsset(vsAsset.address)
+        await controller.addSyntheticToken(vsAsset.address)
         await vsAsset.mint(deployer.address, parseEther('100'))
         expect(await vsAsset.totalSupply()).gt(0)
 
         // when
-        const tx = controller.removeSyntheticAsset(vsAsset.address)
+        const tx = controller.removeSyntheticToken(vsAsset.address)
 
         // then
         await expect(tx).revertedWith('supply-gt-0')
@@ -2005,23 +2005,23 @@ describe('Controller', function () {
   })
 
   describe('debtTokensOfAccount', function () {
-    let syntheticAsset: FakeContract
+    let syntheticToken: FakeContract
     let debtToken: FakeContract
 
     beforeEach(async function () {
-      syntheticAsset = await smock.fake('SyntheticAsset')
+      syntheticToken = await smock.fake('SyntheticToken')
       debtToken = await smock.fake('DebtToken')
-      syntheticAsset.debtToken.returns(debtToken.address)
-      debtToken.syntheticAsset.returns(syntheticAsset.address)
+      syntheticToken.debtToken.returns(debtToken.address)
+      debtToken.syntheticToken.returns(syntheticToken.address)
 
-      await controller.addSyntheticAsset(syntheticAsset.address)
+      await controller.addSyntheticToken(syntheticToken.address)
       await setEtherBalance(debtToken.address, parseEther('1'))
     })
 
     describe('addToDebtTokensOfAccount', function () {
       it('should revert if caller is not a debt token', async function () {
         const invalidDebtToken = await smock.fake('DebtToken')
-        invalidDebtToken.syntheticAsset.returns(syntheticAsset.address)
+        invalidDebtToken.syntheticToken.returns(syntheticToken.address)
 
         const tx = controller.connect(invalidDebtToken.wallet).addToDebtTokensOfAccount(alice.address)
         await expect(tx).revertedWith('caller-is-not-debt-token')
@@ -2059,7 +2059,7 @@ describe('Controller', function () {
 
       it('should revert if caller is not a debt token', async function () {
         const invalidDebtToken = await smock.fake('DebtToken')
-        invalidDebtToken.syntheticAsset.returns(syntheticAsset.address)
+        invalidDebtToken.syntheticToken.returns(syntheticToken.address)
 
         const tx = controller.connect(invalidDebtToken.wallet).removeFromDebtTokensOfAccount(alice.address)
         await expect(tx).revertedWith('caller-is-not-debt-token')

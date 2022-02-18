@@ -6,7 +6,7 @@ import "../dependencies/openzeppelin/token/ERC20/IERC20.sol";
 import "../dependencies/openzeppelin/token/ERC20/extensions/IERC20Metadata.sol";
 import "./IDebtToken.sol";
 
-interface ISyntheticAsset is IERC20, IERC20Metadata {
+interface ISyntheticToken is IERC20, IERC20Metadata {
     function isActive() external view returns (bool);
 
     function maxTotalSupplyInUsd() external view returns (uint256);

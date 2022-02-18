@@ -3,7 +3,7 @@
 pragma solidity 0.8.9;
 
 import "./oracle/IMasterOracle.sol";
-import "./ISyntheticAsset.sol";
+import "./ISyntheticToken.sol";
 import "./IDepositToken.sol";
 import "./ITreasury.sol";
 
@@ -11,7 +11,7 @@ import "./ITreasury.sol";
  * @notice Controller interface
  */
 interface IController {
-    function isSyntheticAssetExists(ISyntheticAsset _syntheticAsset) external view returns (bool);
+    function isSyntheticTokenExists(ISyntheticToken _syntheticToken) external view returns (bool);
 
     function isDepositTokenExists(IDepositToken _depositToken) external view returns (bool);
 
@@ -19,7 +19,7 @@ interface IController {
 
     function getDepositTokens() external view returns (address[] memory);
 
-    function getSyntheticAssets() external view returns (address[] memory);
+    function getSyntheticTokens() external view returns (address[] memory);
 
     function debtOf(address _account) external view returns (uint256 _debtInUsd);
 
@@ -36,9 +36,9 @@ interface IController {
             uint256 _mintableInUsd
         );
 
-    function addSyntheticAsset(address _synthetic) external;
+    function addSyntheticToken(address _synthetic) external;
 
-    function removeSyntheticAsset(ISyntheticAsset _synthetic) external;
+    function removeSyntheticToken(ISyntheticToken _synthetic) external;
 
     function addDepositToken(address _depositToken) external;
 
@@ -51,7 +51,7 @@ interface IController {
     ) external;
 
     function mint(
-        ISyntheticAsset _syntheticAsset,
+        ISyntheticToken _syntheticToken,
         uint256 _amount,
         address _to
     ) external;
@@ -63,21 +63,21 @@ interface IController {
     ) external;
 
     function repay(
-        ISyntheticAsset _syntheticAsset,
+        ISyntheticToken _syntheticToken,
         address _onBehalfOf,
         uint256 _amount
     ) external;
 
     function liquidate(
-        ISyntheticAsset _syntheticAsset,
+        ISyntheticToken _syntheticToken,
         address _account,
         uint256 _amountToRepay,
         IDepositToken _depositToken
     ) external;
 
     function swap(
-        ISyntheticAsset _syntheticAssetIn,
-        ISyntheticAsset _syntheticAssetOut,
+        ISyntheticToken _syntheticTokenIn,
+        ISyntheticToken _syntheticTokenOut,
         uint256 _amountIn
     ) external returns (uint256 _amountOut);
 

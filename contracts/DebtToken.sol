@@ -15,10 +15,10 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
     string public constant VERSION = "1.0.0";
 
     /**
-     * @dev Throws if the caller isn't the synthetic asset
+     * @dev Throws if the caller isn't the synthetic token
      */
-    modifier onlySyntheticAsset() {
-        require(_msgSender() == address(syntheticAsset), "not-synthetic-asset");
+    modifier onlySyntheticToken() {
+        require(_msgSender() == address(syntheticToken), "not-synthetic-token");
         _;
     }
 
@@ -27,7 +27,7 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
         string memory _symbol,
         uint8 _decimals,
         IController _controller,
-        ISyntheticAsset _syntheticAsset
+        ISyntheticToken _syntheticToken
     ) public initializer {
         require(address(_controller) != address(0), "controller-address-is-zero");
 
@@ -37,7 +37,7 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
         name = _name;
         symbol = _symbol;
         decimals = _decimals;
-        syntheticAsset = _syntheticAsset;
+        syntheticToken = _syntheticToken;
         lastBlockAccrued = block.number;
         debtIndex = 1e18;
     }
@@ -215,7 +215,7 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
 
         uint256 _blockDelta = _currentBlockNumber - lastBlockAccrued;
 
-        uint256 _interestRateToAccrue = syntheticAsset.interestRatePerBlock() * _blockDelta;
+        uint256 _interestRateToAccrue = syntheticToken.interestRatePerBlock() * _blockDelta;
 
         _interestAmountAccrued = _interestRateToAccrue.wadMul(totalSupply_);
 
@@ -226,7 +226,7 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
      * @notice Accrue interest over debt supply
      * @return _interestAmountAccrued The total amount of debt tokens accrued
      */
-    function accrueInterest() external override onlySyntheticAsset returns (uint256 _interestAmountAccrued) {
+    function accrueInterest() external override onlySyntheticToken returns (uint256 _interestAmountAccrued) {
         uint256 _debtIndex;
         uint256 _currentBlockNumber;
 

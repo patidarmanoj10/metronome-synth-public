@@ -3,12 +3,12 @@
 pragma solidity 0.8.9;
 
 import "./access/Manageable.sol";
-import "./storage/SyntheticAssetStorage.sol";
+import "./storage/SyntheticTokenStorage.sol";
 
 /**
- * @title Synthetic Asset contract
+ * @title Synthetic Token contract
  */
-contract SyntheticAsset is Manageable, SyntheticAssetStorageV1 {
+contract SyntheticToken is Manageable, SyntheticTokenStorageV1 {
     string public constant VERSION = "1.0.0";
 
     uint256 public constant BLOCKS_PER_YEAR = 2102400;
@@ -41,7 +41,7 @@ contract SyntheticAsset is Manageable, SyntheticAssetStorageV1 {
     event MaxTotalSupplyUpdated(uint256 oldMaxTotalSupply, uint256 newMaxTotalSupply);
 
     /// @notice Emitted when active flag is updated
-    event SyntheticAssetActiveUpdated(bool oldActive, bool newActive);
+    event SyntheticTokenActiveUpdated(bool oldActive, bool newActive);
 
     /// @notice Emitted when interest rate is updated
     event InterestRateUpdated(uint256 oldInterestRate, uint256 newInterestRate);
@@ -167,19 +167,19 @@ contract SyntheticAsset is Manageable, SyntheticAssetStorageV1 {
     ) internal virtual {}
 
     /**
-     * @notice Mint synthetic asset
+     * @notice Mint synthetic token
      * @param _to The account to mint to
      * @param _amount The amount to mint
      */
     function mint(address _to, uint256 _amount) public override onlyController {
-        require(isActive, "synthetic-asset-is-inactive");
+        require(isActive, "synthetic-is-inactive");
         uint256 _newTotalSupplyInUsd = controller.oracle().convertToUsd(IERC20(address(this)), totalSupply + _amount);
         require(_newTotalSupplyInUsd <= maxTotalSupplyInUsd, "surpass-max-total-supply");
         _mint(_to, _amount);
     }
 
     /**
-     * @notice Burn synthetic asset
+     * @notice Burn synthetic token
      * @param _from The account to burn from
      * @param _amount The amount to burn
      */
@@ -212,10 +212,10 @@ contract SyntheticAsset is Manageable, SyntheticAssetStorageV1 {
     }
 
     /**
-     * @notice Enable/Disable the Synthetic Asset
+     * @notice Enable/Disable the Synthetic Token
      */
     function toggleIsActive() public override onlyGovernor {
-        emit SyntheticAssetActiveUpdated(isActive, !isActive);
+        emit SyntheticTokenActiveUpdated(isActive, !isActive);
         isActive = !isActive;
     }
 

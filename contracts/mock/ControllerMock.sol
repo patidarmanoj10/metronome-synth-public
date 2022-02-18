@@ -50,7 +50,7 @@ contract ControllerMock is IController, IGovernable {
         revert("mock-does-not-implement");
     }
 
-    function getSyntheticAssets() external pure override returns (address[] memory) {
+    function getSyntheticTokens() external pure override returns (address[] memory) {
         revert("mock-does-not-implement");
     }
 
@@ -82,11 +82,11 @@ contract ControllerMock is IController, IGovernable {
         _mintableInUsd = _mintableLimitInUsd;
     }
 
-    function addSyntheticAsset(address) external pure override {
+    function addSyntheticToken(address) external pure override {
         revert("mock-does-not-implement");
     }
 
-    function removeSyntheticAsset(ISyntheticAsset) external pure override {
+    function removeSyntheticToken(ISyntheticToken) external pure override {
         revert("mock-does-not-implement");
     }
 
@@ -108,7 +108,7 @@ contract ControllerMock is IController, IGovernable {
     }
 
     function mint(
-        ISyntheticAsset,
+        ISyntheticToken,
         uint256,
         address
     ) external pure override {
@@ -125,7 +125,7 @@ contract ControllerMock is IController, IGovernable {
     }
 
     function repay(
-        ISyntheticAsset,
+        ISyntheticToken,
         address,
         uint256
     ) external pure override {
@@ -133,7 +133,7 @@ contract ControllerMock is IController, IGovernable {
     }
 
     function liquidate(
-        ISyntheticAsset,
+        ISyntheticToken,
         address,
         uint256,
         IDepositToken
@@ -142,8 +142,8 @@ contract ControllerMock is IController, IGovernable {
     }
 
     function swap(
-        ISyntheticAsset,
-        ISyntheticAsset,
+        ISyntheticToken,
+        ISyntheticToken,
         uint256
     ) external pure override returns (uint256) {
         revert("mock-does-not-implement");
@@ -189,7 +189,7 @@ contract ControllerMock is IController, IGovernable {
         revert("mock-does-not-implement");
     }
 
-    function isSyntheticAssetExists(ISyntheticAsset) external pure override returns (bool) {
+    function isSyntheticTokenExists(ISyntheticToken) external pure override returns (bool) {
         revert("mock-does-not-implement");
     }
 
