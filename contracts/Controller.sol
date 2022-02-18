@@ -300,7 +300,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     }
 
     /**
-     * @notice Deposit colleteral and mint vSynth-Collateral (tokenized deposit position)
+     * @notice Deposit colleteral and mint vsCollateral-Deposit (tokenized deposit position)
      * @param _depositToken The collateral tokens to deposit
      * @param _amount The amount of collateral tokens to deposit
      * @param _onBehalfOf The account to deposit to
@@ -336,7 +336,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     }
 
     /**
-     * @notice Burn vSynth-Collateral and withdraw collateral
+     * @notice Burn vsCollateral-Deposit and withdraw collateral
      * @param _amount The amount of collateral to withdraw
      * @param _to The account that will receive withdrawn collateral
      */

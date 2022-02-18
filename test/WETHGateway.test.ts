@@ -62,7 +62,7 @@ describe('WETHGateway', function () {
     wethGateway = await wethGatewayFactory.deploy(WETH_ADDRESS)
     await wethGateway.deployed()
 
-    await wethDepositToken.initialize(WETH_ADDRESS, controllerMock.address, 'vSynth-WETH', 18, parseEther('1'))
+    await wethDepositToken.initialize(WETH_ADDRESS, controllerMock.address, 'vETH-Deposit', 18, parseEther('1'))
 
     const erc20MockFactory = new ERC20Mock__factory(deployer)
     tokenMock = await erc20MockFactory.deploy('Name', 'SYMBOL', 18)

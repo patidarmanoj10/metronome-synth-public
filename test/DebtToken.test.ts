@@ -20,7 +20,7 @@ describe('DebtToken', function () {
   let syntheticToken: SyntheticToken
 
   const name = 'vsETH Debt'
-  const symbol = 'vsEth-Debt'
+  const symbol = 'vsETH-Debt'
   const interestRate = parseEther('0')
 
   beforeEach(async function () {

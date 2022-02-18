@@ -88,9 +88,9 @@ async function fixture() {
   await controller.deployed()
 
   // Deployment tasks
-  await metDepositToken.initialize(met.address, controller.address, 'vSynth-MET', 18, metCR)
+  await metDepositToken.initialize(met.address, controller.address, 'vsMET-Deposit', 18, metCR)
 
-  await daiDepositToken.initialize(dai.address, controller.address, 'vSynth-DAI', 8, daiCR)
+  await daiDepositToken.initialize(dai.address, controller.address, 'vsDAI-Deposit', 8, daiCR)
 
   await treasury.initialize(controller.address)
 
@@ -212,7 +212,7 @@ describe('Controller', function () {
       await expect(tx).reverted
     })
 
-    it('should deposit MET and mint vSynth-MET (depositFee == 0)', async function () {
+    it('should deposit MET and mint vsMET-Deposit (depositFee == 0)', async function () {
       // when
       const amount = parseEther('10')
       const tx = () => controller.connect(alice).deposit(metDepositToken.address, amount, alice.address)
@@ -243,7 +243,7 @@ describe('Controller', function () {
         .withArgs(metDepositToken.address, alice.address, alice.address, amountAfterFee, 0)
     })
 
-    it('should deposit MET and mint vSynth-MET (depositFee > 0)', async function () {
+    it('should deposit MET and mint vsMET-Deposit (depositFee > 0)', async function () {
       // given
       const depositFee = parseEther('0.01') // 1%
       await controller.updateDepositFee(depositFee)
@@ -1800,7 +1800,7 @@ describe('Controller', function () {
         const syntheticTokenFactory = new SyntheticToken__factory(deployer)
         const vsAsset = await syntheticTokenFactory.deploy()
 
-        await debtToken.initialize('Vesper Synth BTC debt', 'vsBTC-debt', 8, controller.address, vsAsset.address)
+        await debtToken.initialize('Vesper Synth BTC debt', 'vsBTC-Debt', 8, controller.address, vsAsset.address)
         await vsAsset.initialize('Vesper Synth BTC', 'vsBTC', 8, controller.address, debtToken.address, interestRate)
 
         expect(await vsAsset.totalSupply()).eq(0)

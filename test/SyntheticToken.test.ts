@@ -26,7 +26,7 @@ describe('SyntheticToken', function () {
   let oracle: OracleMock
 
   const name = 'Vesper Synth ETH'
-  const symbol = 'vsEth'
+  const symbol = 'vsETH'
   const interestRate = parseEther('0')
 
   beforeEach(async function () {
@@ -50,7 +50,7 @@ describe('SyntheticToken', function () {
     vsAsset = await syntheticTokenFactory.deploy()
     await vsAsset.deployed()
 
-    await debtToken.initialize('vsETH Debt', 'vsEth-Debt', 18, controllerMock.address, vsAsset.address)
+    await debtToken.initialize('vsETH Debt', 'vsETH-Debt', 18, controllerMock.address, vsAsset.address)
     await vsAsset.initialize(name, symbol, 18, controllerMock.address, debtToken.address, interestRate)
 
     vsAsset = vsAsset.connect(governor)

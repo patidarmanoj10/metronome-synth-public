@@ -50,7 +50,7 @@ describe('DepositToken', function () {
     controllerMock.oracle.returns(oracle.address)
     controllerMock.governor.returns(governor.address)
 
-    await metDepositToken.initialize(met.address, controllerMock.address, 'vSynth-MET', 18, metCR)
+    await metDepositToken.initialize(met.address, controllerMock.address, 'vsMET-Deposit', 18, metCR)
     metDepositToken = metDepositToken.connect(governor)
 
     await oracle.updateRate(metDepositToken.address, metRate)
