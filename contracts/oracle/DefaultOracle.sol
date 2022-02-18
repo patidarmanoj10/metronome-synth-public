@@ -11,6 +11,8 @@ import "../interface/oracle/IPriceProvider.sol";
  * @title Oracle contract that encapsulates 3rd-party protocols' oracles
  */
 contract DefaultOracle is IOracle, Governable {
+    uint256 public constant ONE_USD = 1e8;
+
     /**
      * @notice The supported protocols
      */
@@ -129,6 +131,7 @@ contract DefaultOracle is IOracle, Governable {
         address _aggregator,
         uint256 _stalePeriod
     ) external onlyGovernor {
+        // Note: Keeping this check here because we call the `_asset.decimals()` function before calling `_addOrUpdateAsset`
         require(address(_asset) != address(0), "asset-address-is-null");
         require(address(_aggregator) != address(0), "aggregator-address-is-null");
         _addOrUpdateAsset(_asset, Protocol.CHAINLINK, abi.encode(_aggregator, _asset.decimals()), false, _stalePeriod);
@@ -172,40 +175,20 @@ contract DefaultOracle is IOracle, Governable {
     }
 
     /**
-     * @notice Convert asset's amount to USD
-     * @param _asset The asset's address
-     * @param _amount The amount to convert
-     * @return _amountInUsd The amount in USD (8 decimals)
+     * @notice Get asset's USD price
+     * @param _asset The asset's to get price from
+     * @return _priceInUsd The amount in USD (8 decimals)
      */
-    function convertToUsd(IERC20 _asset, uint256 _amount)
-        public
+    function getPriceInUsd(IERC20 _asset)
+        external
         view
         onlyIfAssetHasPriceProvider(_asset)
-        returns (uint256 _amountInUsd)
+        returns (uint256 _priceInUsd)
     {
-        if (assets[_asset].isUsd) return _amount;
+        if (assets[_asset].isUsd) return ONE_USD;
 
         uint256 _lastUpdatedAt;
-        (_amountInUsd, _lastUpdatedAt) = _priceProviderOfAsset(_asset).convertToUsd(_dataOfAsset(_asset), _amount);
-        require(_amountInUsd > 0 && !_priceIsStale(_asset, _lastUpdatedAt), "price-is-invalid");
-    }
-
-    /**
-     * @notice Convert USD to asset's amount
-     * @param _asset The asset's address
-     * @param _amountInUsd The amount in USD (8 decimals)
-     * @return _amount The converted amount
-     */
-    function convertFromUsd(IERC20 _asset, uint256 _amountInUsd)
-        public
-        view
-        onlyIfAssetHasPriceProvider(_asset)
-        returns (uint256 _amount)
-    {
-        if (assets[_asset].isUsd) return _amountInUsd;
-
-        uint256 _lastUpdatedAt;
-        (_amount, _lastUpdatedAt) = _priceProviderOfAsset(_asset).convertFromUsd(_dataOfAsset(_asset), _amountInUsd);
-        require(_amount > 0 && !_priceIsStale(_asset, _lastUpdatedAt), "price-is-invalid");
+        (_priceInUsd, _lastUpdatedAt) = _priceProviderOfAsset(_asset).getPriceInUsd(_dataOfAsset(_asset));
+        require(!_priceIsStale(_asset, _lastUpdatedAt), "price-is-stale");
     }
 }

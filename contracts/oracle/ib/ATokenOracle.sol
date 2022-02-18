@@ -14,18 +14,4 @@ contract ATokenOracle is InterestBearingOracle {
     function _getUnderlyingAsset(IERC20 _asset) internal view override returns (address _underlying) {
         return IAToken(address(_asset)).UNDERLYING_ASSET_ADDRESS();
     }
-
-    function _toUnderlyingAmount(
-        IERC20, /*_asset*/
-        uint256 _amount
-    ) internal pure override returns (uint256 _underlyingAmount) {
-        return _amount;
-    }
-
-    function _fromUnderlyingAmount(
-        IERC20, /*_asset*/
-        uint256 _underlyingAmount
-    ) internal pure override returns (uint256 _amount) {
-        return _underlyingAmount;
-    }
 }

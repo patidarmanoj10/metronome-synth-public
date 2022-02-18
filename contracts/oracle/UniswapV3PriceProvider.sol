@@ -67,43 +67,23 @@ contract UniswapV3PriceProvider is IPriceProvider, Governable {
     }
 
     /**
-     * @notice Convert asset's amount to USD
+     * @notice Get asset's USD price
      * @param _encodedTokenAddress The asset's encoded address
-     * @param _amount The amount to convert
-     * @return _amountInUsd The amount in USD (8 decimals)
+     * @return _priceInUsd The amount in USD (8 decimals)
      * @return _lastUpdatedAt The timestamp of the price used to convert
      */
-    function convertToUsd(bytes memory _encodedTokenAddress, uint256 _amount)
-        external
+    function getPriceInUsd(bytes memory _encodedTokenAddress)
+        public
         view
         override
-        returns (uint256 _amountInUsd, uint256 _lastUpdatedAt)
+        returns (uint256 _priceInUsd, uint256 _lastUpdatedAt)
     {
-        _amountInUsd = OracleHelpers.normalizeUsdOutput(
+        address _token = _decode(_encodedTokenAddress);
+        uint256 _decimals = IERC20Metadata(_token).decimals();
+        uint256 _amount = 10**_decimals;
+        _priceInUsd = OracleHelpers.normalizeUsdOutput(
             usdToken,
             crossPoolOracle.assetToAsset(_decode(_encodedTokenAddress), _amount, usdToken, twapPeriod)
-        );
-        _lastUpdatedAt = block.timestamp;
-    }
-
-    /**
-     * @notice Convert USD to asset's amount
-     * @param _encodedTokenAddress The asset's encoded address
-     * @param _amountInUsd The amount in USD (8 decimals)
-     * @return _amount The amount to convert
-     * @return _lastUpdatedAt The timestamp of the price used to convert
-     */
-    function convertFromUsd(bytes memory _encodedTokenAddress, uint256 _amountInUsd)
-        external
-        view
-        override
-        returns (uint256 _amount, uint256 _lastUpdatedAt)
-    {
-        _amount = crossPoolOracle.assetToAsset(
-            usdToken,
-            OracleHelpers.normalizeUsdInput(usdToken, _amountInUsd),
-            _decode(_encodedTokenAddress),
-            twapPeriod
         );
         _lastUpdatedAt = block.timestamp;
     }

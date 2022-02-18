@@ -63,7 +63,7 @@ contract MasterOracle is Initializable, IMasterOracle, Governable {
      * @param _assets The ERC20 asset addresses to link to `_oracles`
      * @param _oracles The `IOracle` contracts to be assigned to `_assets`
      */
-    function addOrUpdated(address[] calldata _assets, IOracle[] calldata _oracles) external onlyGovernor {
+    function addOrUpdate(address[] calldata _assets, IOracle[] calldata _oracles) external onlyGovernor {
         require(_assets.length > 0 && _oracles.length > 0, "invalid-arrays-length");
         _updateOracles(_assets, _oracles);
     }
@@ -78,21 +78,33 @@ contract MasterOracle is Initializable, IMasterOracle, Governable {
     }
 
     /**
+     * @notice Get asset's USD price
+     * @param _asset The asset's address
+     * @return _priceInUsd The USD price (8 decimals)
+     */
+    function _getPriceInUsd(IERC20 _asset) private view returns (uint256 _priceInUsd) {
+        IOracle _oracle = oracles[address(_asset)];
+
+        if (address(_oracle) != address(0)) {
+            _priceInUsd = _oracle.getPriceInUsd(_asset);
+        } else if (address(defaultOracle) != address(0)) {
+            _priceInUsd = defaultOracle.getPriceInUsd(_asset);
+        } else {
+            revert("asset-without-oracle");
+        }
+
+        require(_priceInUsd > 0, "invalid-price");
+    }
+
+    /**
      * @notice Convert asset's amount to USD
      * @param _asset The asset's address
      * @param _amount The amount to convert
      * @return _amountInUsd The amount in USD (8 decimals)
      */
     function convertToUsd(IERC20 _asset, uint256 _amount) public view returns (uint256 _amountInUsd) {
-        IOracle _oracle = oracles[address(_asset)];
-
-        if (address(_oracle) != address(0)) {
-            _amountInUsd = _oracle.convertToUsd(_asset, _amount);
-            require(_amountInUsd > 0, "invalid-price");
-            return _amountInUsd;
-        }
-        if (address(defaultOracle) != address(0)) return defaultOracle.convertToUsd(_asset, _amount);
-        revert("asset-without-oracle");
+        uint256 _priceInUsd = _getPriceInUsd(_asset);
+        _amountInUsd = (_amount * _priceInUsd) / 10**IERC20Metadata(address(_asset)).decimals();
     }
 
     /**
@@ -102,15 +114,8 @@ contract MasterOracle is Initializable, IMasterOracle, Governable {
      * @return _amount The converted amount
      */
     function convertFromUsd(IERC20 _asset, uint256 _amountInUsd) public view returns (uint256 _amount) {
-        IOracle _oracle = oracles[address(_asset)];
-
-        if (address(_oracle) != address(0)) {
-            _amount = _oracle.convertFromUsd(_asset, _amountInUsd);
-            require(_amount > 0, "invalid-price");
-            return _amount;
-        }
-        if (address(defaultOracle) != address(0)) return defaultOracle.convertFromUsd(_asset, _amountInUsd);
-        revert("asset-without-oracle");
+        uint256 _priceInUsd = _getPriceInUsd(_asset);
+        _amount = (_amountInUsd * 10**IERC20Metadata(address(_asset)).decimals()) / _priceInUsd;
     }
 
     /**

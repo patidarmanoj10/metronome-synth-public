@@ -208,40 +208,22 @@ contract UniswapV2PriceProvider is IPriceProvider, Governable {
     }
 
     /**
-     * @notice Convert asset's amount to USD
+     * @notice Get asset's USD price
      * @param _encodedTokenAddress The asset's encoded address
-     * @param _amount The amount to convert
-     * @return _amountInUsd The amount in USD (8 decimals)
+     * @return _priceInUsd The amount in USD (8 decimals)
      * @return _lastUpdatedAt The timestamp of the price used to convert
      */
-    function convertToUsd(bytes memory _encodedTokenAddress, uint256 _amount)
-        external
+    function getPriceInUsd(bytes memory _encodedTokenAddress)
+        public
         view
         override
-        returns (uint256 _amountInUsd, uint256 _lastUpdatedAt)
+        returns (uint256 _priceInUsd, uint256 _lastUpdatedAt)
     {
         address _token = _decode(_encodedTokenAddress);
+        uint256 _decimals = IERC20Metadata(_token).decimals();
+        uint256 _amount = 10**_decimals;
         uint256 _ethAmount = _token == WETH ? _amount : _getAmountOut(_token, _token, _amount);
-        _amountInUsd = OracleHelpers.normalizeUsdOutput(usdToken, _getAmountOut(usdToken, WETH, _ethAmount));
-        _lastUpdatedAt = oracleDataOf[usdToken].blockTimestampLast;
-    }
-
-    /**
-     * @notice Convert USD to asset's amount
-     * @param _encodedTokenAddress The asset's encoded address
-     * @param _amountInUsd The amount in USD (8 decimals)
-     * @return _amount The converted amount
-     * @return _lastUpdatedAt The timestamp of the price used to convert
-     */
-    function convertFromUsd(bytes memory _encodedTokenAddress, uint256 _amountInUsd)
-        external
-        view
-        override
-        returns (uint256 _amount, uint256 _lastUpdatedAt)
-    {
-        address _token = _decode(_encodedTokenAddress);
-        uint256 _ethAmount = _getAmountOut(usdToken, usdToken, OracleHelpers.normalizeUsdInput(usdToken, _amountInUsd));
-        _amount = _token == WETH ? _ethAmount : _getAmountOut(_token, WETH, _ethAmount);
+        _priceInUsd = OracleHelpers.normalizeUsdOutput(usdToken, _getAmountOut(usdToken, WETH, _ethAmount));
         _lastUpdatedAt = oracleDataOf[usdToken].blockTimestampLast;
     }
 }

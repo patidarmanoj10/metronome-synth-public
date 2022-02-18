@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
 /* eslint-disable camelcase */
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
@@ -13,7 +12,7 @@ import {
 } from '../../../typechain'
 import {enableForking, disableForking} from '../../helpers'
 import Address from '../../../helpers/address'
-import {parseEther} from 'ethers/lib/utils'
+import {parseUnits} from 'ethers/lib/utils'
 
 const {DAI_ADDRESS, CDAI_ADDRESS} = Address
 
@@ -50,23 +49,8 @@ describe('CTokenOracle', function () {
     await ethers.provider.send('evm_revert', [snapshotId])
   })
 
-  it('convertToUsd', async function () {
-    const cDaiAmount = parseEther('1')
-      .mul(parseEther('1'))
-      .div(await cDAI.exchangeRateStored())
-    const usdAmount = await ibOracle.convertToUsd(cDAI.address, cDaiAmount)
-
-    // @ts-ignore
-    expect(usdAmount).closeTo(parseEther('1'), parseEther('0.0000001'))
-  })
-
-  it('convertFromUsd', async function () {
-    const usdAmount = parseEther('1')
-    const cDaiAmount = await ibOracle.convertFromUsd(cDAI.address, usdAmount)
-
-    const oneDaiInCDAI = parseEther('1')
-      .mul(parseEther('1'))
-      .div(await cDAI.exchangeRateStored())
-    expect(cDaiAmount).eq(oneDaiInCDAI)
+  it('getPriceInUsd', async function () {
+    const price = await ibOracle.getPriceInUsd(cDAI.address)
+    expect(price).eq(parseUnits('1', 8))
   })
 })
