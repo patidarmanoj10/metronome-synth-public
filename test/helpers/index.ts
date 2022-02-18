@@ -37,13 +37,13 @@ export const getMinLiquidationAmountInUsd = async function (
   accountAddress: string,
   depositToken: DepositToken
 ): Promise<BigNumber> {
-  const {_mintableLimitInUsd, _debtInUsd} = await controller.debtPositionOf(accountAddress)
+  const {_issuableLimitInUsd, _debtInUsd} = await controller.debtPositionOf(accountAddress)
   const fee = parseEther('1')
     .add(await controller.liquidatorLiquidationFee())
     .add(await controller.protocolLiquidationFee())
   const cr = await depositToken.collateralizationRatio()
 
-  const numerator = _debtInUsd.sub(_mintableLimitInUsd)
+  const numerator = _debtInUsd.sub(_issuableLimitInUsd)
   const denominator = fee.mul('-1').mul(cr).div(parseEther('1')).add(parseEther('1'))
 
   return numerator.mul(parseEther('1')).div(denominator)

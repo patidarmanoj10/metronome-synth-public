@@ -70,16 +70,16 @@ contract ControllerMock is IController, IGovernable {
             bool _isHealthy,
             uint256 _depositInUsd,
             uint256 _debtInUsd,
-            uint256 _mintableLimitInUsd,
-            uint256 _mintableInUsd
+            uint256 _issuableLimitInUsd,
+            uint256 _issuableInUsd
         )
     {
         _isHealthy = true;
         uint256 _deposit = depositToken.balanceOf(_account);
         _depositInUsd = oracle.convertToUsd(depositToken, _deposit);
         _debtInUsd = 0;
-        _mintableLimitInUsd = _depositInUsd;
-        _mintableInUsd = _mintableLimitInUsd;
+        _issuableLimitInUsd = _depositInUsd;
+        _issuableInUsd = _issuableLimitInUsd;
     }
 
     function addSyntheticToken(address) external pure override {
@@ -107,7 +107,7 @@ contract ControllerMock is IController, IGovernable {
         _depositToken.mint(_onBehalfOf, _amount);
     }
 
-    function mint(
+    function issue(
         ISyntheticToken,
         uint256,
         address
@@ -161,7 +161,7 @@ contract ControllerMock is IController, IGovernable {
         revert("mock-does-not-implement");
     }
 
-    function updateMintFee(uint256) external pure override {
+    function updateIssueFee(uint256) external pure override {
         revert("mock-does-not-implement");
     }
 

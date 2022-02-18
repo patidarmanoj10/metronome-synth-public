@@ -23,7 +23,7 @@ interface IController {
 
     function debtOf(address _account) external view returns (uint256 _debtInUsd);
 
-    function depositOf(address _account) external view returns (uint256 _depositInUsd, uint256 _mintableLimitInUsd);
+    function depositOf(address _account) external view returns (uint256 _depositInUsd, uint256 _issuableLimitInUsd);
 
     function debtPositionOf(address _account)
         external
@@ -32,8 +32,8 @@ interface IController {
             bool _isHealthy,
             uint256 _depositInUsd,
             uint256 _debtInUsd,
-            uint256 _mintableLimitInUsd,
-            uint256 _mintableInUsd
+            uint256 _issuableLimitInUsd,
+            uint256 _issuableInUsd
         );
 
     function addSyntheticToken(address _synthetic) external;
@@ -50,7 +50,7 @@ interface IController {
         address _onBehalfOf
     ) external;
 
-    function mint(
+    function issue(
         ISyntheticToken _syntheticToken,
         uint256 _amount,
         address _to
@@ -87,7 +87,7 @@ interface IController {
 
     function updateDepositFee(uint256 _newDepositFee) external;
 
-    function updateMintFee(uint256 _newMintFee) external;
+    function updateIssueFee(uint256 _newIssueFee) external;
 
     function updateWithdrawFee(uint256 _newWithdrawFee) external;
 

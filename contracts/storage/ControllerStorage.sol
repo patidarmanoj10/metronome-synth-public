@@ -24,7 +24,7 @@ abstract contract ControllerStorageV1 is IController {
      * @notice The fee charged when minting a synthetic token
      * @dev Use 18 decimals (e.g. 1e16 = 1%)
      */
-    uint256 public mintFee;
+    uint256 public issueFee;
 
     /**
      * @notice The fee charged when withdrawing collateral

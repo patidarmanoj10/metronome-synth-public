@@ -12,7 +12,7 @@ contract ControllerUpgrader is UpgraderBase {
     function _calls() internal pure override returns (bytes[] memory calls) {
         calls = new bytes[](10);
         calls[0] = abi.encodeWithSignature("depositFee()");
-        calls[1] = abi.encodeWithSignature("mintFee()");
+        calls[1] = abi.encodeWithSignature("issueFee()");
         calls[2] = abi.encodeWithSignature("withdrawFee()");
         calls[3] = abi.encodeWithSignature("repayFee()");
         calls[4] = abi.encodeWithSignature("swapFee()");

@@ -251,10 +251,10 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @return _unlockedBalance The amount that user can transfer or withdraw
      */
     function unlockedBalanceOf(address _account) public view override returns (uint256 _unlockedBalance) {
-        (, , , , uint256 _mintableInUsd) = controller.debtPositionOf(_account);
+        (, , , , uint256 _issuableInUsd) = controller.debtPositionOf(_account);
 
-        if (_mintableInUsd > 0) {
-            uint256 _unlockedInUsd = _mintableInUsd.wadDiv(collateralizationRatio);
+        if (_issuableInUsd > 0) {
+            uint256 _unlockedInUsd = _issuableInUsd.wadDiv(collateralizationRatio);
             _unlockedBalance = Math.min(balanceOf[_account], controller.oracle().convertFromUsd(this, _unlockedInUsd));
         }
     }

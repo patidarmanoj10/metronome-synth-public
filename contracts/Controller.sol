@@ -50,8 +50,8 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
         uint256 fee
     );
 
-    /// @notice Emitted when synthetic token is minted
-    event SyntheticTokenMinted(
+    /// @notice Emitted when synthetic token is issued
+    event SyntheticTokenIssued(
         address indexed account,
         address indexed to,
         ISyntheticToken indexed syntheticToken,
@@ -97,8 +97,8 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     /// @notice Emitted when deposit fee is updated
     event DepositFeeUpdated(uint256 oldDepositFee, uint256 newDepositFee);
 
-    /// @notice Emitted when mint fee is updated
-    event MintFeeUpdated(uint256 oldMintFee, uint256 newMintFee);
+    /// @notice Emitted when issue fee is updated
+    event IssueFeeUpdated(uint256 oldIssueFee, uint256 newIssueFee);
 
     /// @notice Emitted when withdraw fee is updated
     event WithdrawFeeUpdated(uint256 oldWithdrawFee, uint256 newWithdrawFee);
@@ -240,7 +240,6 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
     /**
      * @notice Get account's debt by querying latest prices from oracles
-     * @dev We can optimize this function by storing an array of which synthetics the account minted avoiding looping all
      * @param _account The account to check
      * @return _debtInUsd The debt value in USD
      */
@@ -255,22 +254,21 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
     /**
      * @notice Get account's total collateral deposited by querying latest prices from oracles
-     * @dev We can optimize this function by storing an array of which deposit toekns the account deposited avoiding looping all
      * @param _account The account to check
      * @return _depositInUsd The total deposit value in USD among all collaterals
-     * @return _mintableLimitInUsd The max value in USD that can be used to mint synthetic tokens
+     * @return _issuableLimitInUsd The max value in USD that can be used to issue synthetic tokens
      */
     function depositOf(address _account)
         public
         view
         override
-        returns (uint256 _depositInUsd, uint256 _mintableLimitInUsd)
+        returns (uint256 _depositInUsd, uint256 _issuableLimitInUsd)
     {
         for (uint256 i = 0; i < depositTokensOfAccount.length(_account); ++i) {
             IDepositToken _depositToken = IDepositToken(depositTokensOfAccount.at(_account, i));
             uint256 _amountInUsd = oracle.convertToUsd(_depositToken, _depositToken.balanceOf(_account));
             _depositInUsd += _amountInUsd;
-            _mintableLimitInUsd += _amountInUsd.wadMul(_depositToken.collateralizationRatio());
+            _issuableLimitInUsd += _amountInUsd.wadMul(_depositToken.collateralizationRatio());
         }
     }
 
@@ -280,8 +278,8 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
      * @return _isHealthy Whether the account's position is healthy
      * @return _depositInUsd The total collateral deposited in USD
      * @return _debtInUsd The total debt in USD
-     * @return _mintableLimitInUsd The max amount of debt (is USD) that can be created (considering collateralization ratios)
-     * @return _mintableInUsd The amount of debt (is USD) that is free (i.e. can be used to mint synthetic tokens)
+     * @return _issuableLimitInUsd The max amount of debt (is USD) that can be created (considering collateralization ratios)
+     * @return _issuableInUsd The amount of debt (is USD) that is free (i.e. can be used to issue synthetic tokens)
      */
     function debtPositionOf(address _account)
         public
@@ -291,14 +289,14 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
             bool _isHealthy,
             uint256 _depositInUsd,
             uint256 _debtInUsd,
-            uint256 _mintableLimitInUsd,
-            uint256 _mintableInUsd
+            uint256 _issuableLimitInUsd,
+            uint256 _issuableInUsd
         )
     {
         _debtInUsd = debtOf(_account);
-        (_depositInUsd, _mintableLimitInUsd) = depositOf(_account);
-        _isHealthy = _debtInUsd <= _mintableLimitInUsd;
-        _mintableInUsd = _debtInUsd < _mintableLimitInUsd ? _mintableLimitInUsd - _debtInUsd : 0;
+        (_depositInUsd, _issuableLimitInUsd) = depositOf(_account);
+        _isHealthy = _debtInUsd <= _issuableLimitInUsd;
+        _issuableInUsd = _debtInUsd < _issuableLimitInUsd ? _issuableLimitInUsd - _debtInUsd : 0;
     }
 
     /**
@@ -370,10 +368,10 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
     /**
      * @notice Lock collateral and mint synthetic token
-     * @param _syntheticToken The synthetic token to mint
+     * @param _syntheticToken The synthetic token to issue
      * @param _amount The amount to mint
      */
-    function mint(
+    function issue(
         ISyntheticToken _syntheticToken,
         uint256 _amount,
         address _to
@@ -386,9 +384,9 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
         _syntheticToken.accrueInterest();
 
-        (, , , , uint256 _mintableInUsd) = debtPositionOf(_account);
+        (, , , , uint256 _issuableInUsd) = debtPositionOf(_account);
 
-        require(_amount <= oracle.convertFromUsd(_syntheticToken, _mintableInUsd), "not-enough-collateral");
+        require(_amount <= oracle.convertFromUsd(_syntheticToken, _issuableInUsd), "not-enough-collateral");
 
         if (debtFloorInUsd > 0) {
             require(
@@ -398,18 +396,18 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
             );
         }
 
-        uint256 _amountToMint = _amount;
+        uint256 _amountToIssue = _amount;
         uint256 _feeAmount;
-        if (mintFee > 0) {
-            _feeAmount = _amount.wadMul(mintFee);
+        if (issueFee > 0) {
+            _feeAmount = _amount.wadMul(issueFee);
             _syntheticToken.mint(address(treasury), _feeAmount);
-            _amountToMint -= _feeAmount;
+            _amountToIssue -= _feeAmount;
         }
 
-        _syntheticToken.mint(_to, _amountToMint);
+        _syntheticToken.mint(_to, _amountToIssue);
         _syntheticToken.debtToken().mint(_account, _amount);
 
-        emit SyntheticTokenMinted(_account, _to, _syntheticToken, _amount, _feeAmount);
+        emit SyntheticTokenIssued(_account, _to, _syntheticToken, _amount, _feeAmount);
     }
 
     /**
@@ -680,12 +678,12 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     }
 
     /**
-     * @notice Update mint fee
+     * @notice Update issue fee
      */
-    function updateMintFee(uint256 _newMintFee) external override onlyGovernor {
-        require(_newMintFee <= 1e18, "max-is-100%");
-        emit MintFeeUpdated(mintFee, _newMintFee);
-        mintFee = _newMintFee;
+    function updateIssueFee(uint256 _newIssueFee) external override onlyGovernor {
+        require(_newIssueFee <= 1e18, "max-is-100%");
+        emit IssueFeeUpdated(issueFee, _newIssueFee);
+        issueFee = _newIssueFee;
     }
 
     /**
