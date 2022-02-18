@@ -4,7 +4,7 @@ import {parseEther} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import chai, {expect} from 'chai'
 import {ethers} from 'hardhat'
-import {DebtTokenMock, DebtTokenMock__factory, SyntheticAsset, SyntheticAsset__factory} from '../typechain'
+import {DebtTokenMock, DebtTokenMock__factory, SyntheticToken, SyntheticToken__factory} from '../typechain'
 import {BLOCKS_PER_YEAR, setEtherBalance} from './helpers'
 import {FakeContract, smock} from '@defi-wonderland/smock'
 
@@ -17,19 +17,19 @@ describe('DebtToken', function () {
   let user2: SignerWithAddress
   let treasury: SignerWithAddress
   let debtToken: DebtTokenMock
-  let syntheticAsset: SyntheticAsset
+  let syntheticToken: SyntheticToken
 
   const name = 'vsETH Debt'
-  const symbol = 'vsEth-Debt'
+  const symbol = 'vsETH-Debt'
   const interestRate = parseEther('0')
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[deployer, , user1, user2, treasury] = await ethers.getSigners()
 
-    const syntheticAssetFactory = new SyntheticAsset__factory(deployer)
-    syntheticAsset = await syntheticAssetFactory.deploy()
-    await syntheticAsset.deployed()
+    const syntheticTokenFactory = new SyntheticToken__factory(deployer)
+    syntheticToken = await syntheticTokenFactory.deploy()
+    await syntheticToken.deployed()
 
     controllerMock = await smock.fake('Controller')
     controllerMock.treasury.returns(treasury.address)
@@ -40,9 +40,9 @@ describe('DebtToken', function () {
     debtToken = await debtTokenMockFactory.deploy()
     await debtToken.deployed()
 
-    await debtToken.initialize(name, symbol, 18, controllerMock.address, syntheticAsset.address)
+    await debtToken.initialize(name, symbol, 18, controllerMock.address, syntheticToken.address)
 
-    await syntheticAsset.initialize(
+    await syntheticToken.initialize(
       'Vesper Synth ETH',
       'vsETH',
       18,
@@ -156,7 +156,7 @@ describe('DebtToken', function () {
       await debtToken.connect(controllerMock.wallet).mint(user1.address, principal)
 
       // when
-      await syntheticAsset.updateInterestRate(parseEther('0.02')) // 2%
+      await syntheticToken.updateInterestRate(parseEther('0.02')) // 2%
 
       await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
 
@@ -174,7 +174,7 @@ describe('DebtToken', function () {
       await debtToken.connect(controllerMock.wallet).mint(user1.address, principal)
 
       // when
-      await syntheticAsset.updateInterestRate(parseEther('0'))
+      await syntheticToken.updateInterestRate(parseEther('0'))
 
       await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
 
@@ -192,10 +192,10 @@ describe('DebtToken', function () {
 
       // when
       // 1st year 10% interest + 2nd year 50% interest
-      await syntheticAsset.updateInterestRate(parseEther('0.1')) // 10%
+      await syntheticToken.updateInterestRate(parseEther('0.1')) // 10%
       await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
 
-      await syntheticAsset.updateInterestRate(parseEther('0.5')) // 50%
+      await syntheticToken.updateInterestRate(parseEther('0.5')) // 50%
       await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
 
       // then
@@ -214,11 +214,11 @@ describe('DebtToken', function () {
 
       // when
       // 1st year 10% interest + 2nd year 0% interest
-      await syntheticAsset.updateInterestRate(parseEther('0.1')) // 10%
+      await syntheticToken.updateInterestRate(parseEther('0.1')) // 10%
 
       await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
 
-      await syntheticAsset.updateInterestRate(parseEther('0'))
+      await syntheticToken.updateInterestRate(parseEther('0'))
 
       await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
 
@@ -240,9 +240,9 @@ describe('DebtToken', function () {
       await debtToken.connect(controllerMock.wallet).mint(user1.address, principal)
 
       // when
-      await syntheticAsset.updateInterestRate(parseEther('0.02')) // 2%
+      await syntheticToken.updateInterestRate(parseEther('0.02')) // 2%
       await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
-      await syntheticAsset.accrueInterest()
+      await syntheticToken.accrueInterest()
 
       // then
       const totalDebt = await debtToken.totalSupply()
@@ -255,9 +255,9 @@ describe('DebtToken', function () {
       await debtToken.connect(controllerMock.wallet).mint(user1.address, principal)
 
       // when
-      await syntheticAsset.updateInterestRate(parseEther('0'))
+      await syntheticToken.updateInterestRate(parseEther('0'))
       await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
-      await syntheticAsset.accrueInterest()
+      await syntheticToken.accrueInterest()
 
       // then
       const totalDebt = await debtToken.totalSupply()
@@ -270,13 +270,13 @@ describe('DebtToken', function () {
 
       // when
       // 1st year 10% interest + 2nd year 50% interest
-      await syntheticAsset.updateInterestRate(parseEther('0.1')) // 10%
+      await syntheticToken.updateInterestRate(parseEther('0.1')) // 10%
       await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
-      await syntheticAsset.accrueInterest()
+      await syntheticToken.accrueInterest()
 
-      await syntheticAsset.updateInterestRate(parseEther('0.5')) // 50%
+      await syntheticToken.updateInterestRate(parseEther('0.5')) // 50%
       await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
-      await syntheticAsset.accrueInterest()
+      await syntheticToken.accrueInterest()
 
       // then
       const totalDebt = await debtToken.totalSupply()
@@ -290,13 +290,13 @@ describe('DebtToken', function () {
 
       // when
       // 1st year 10% interest + 2nd year 0% interest
-      await syntheticAsset.updateInterestRate(parseEther('0.1')) // 10%
+      await syntheticToken.updateInterestRate(parseEther('0.1')) // 10%
       await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
-      await syntheticAsset.accrueInterest()
+      await syntheticToken.accrueInterest()
 
-      await syntheticAsset.updateInterestRate(parseEther('0'))
+      await syntheticToken.updateInterestRate(parseEther('0'))
       await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
-      await syntheticAsset.accrueInterest()
+      await syntheticToken.accrueInterest()
 
       // then
       const totalDebt = await debtToken.totalSupply()
@@ -310,13 +310,13 @@ describe('DebtToken', function () {
 
       // when
       // 1st year 0% interest + 2nd year 10% interest
-      await syntheticAsset.updateInterestRate(parseEther('0'))
+      await syntheticToken.updateInterestRate(parseEther('0'))
       await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
-      await syntheticAsset.accrueInterest()
+      await syntheticToken.accrueInterest()
 
-      await syntheticAsset.updateInterestRate(parseEther('0.1')) // 10%
+      await syntheticToken.updateInterestRate(parseEther('0.1')) // 10%
       await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
-      await syntheticAsset.accrueInterest()
+      await syntheticToken.accrueInterest()
 
       // then
       const totalDebt = await debtToken.totalSupply()

@@ -3,7 +3,7 @@
 pragma solidity 0.8.9;
 
 import "./oracle/IMasterOracle.sol";
-import "./ISyntheticAsset.sol";
+import "./ISyntheticToken.sol";
 import "./IDepositToken.sol";
 import "./ITreasury.sol";
 
@@ -11,7 +11,7 @@ import "./ITreasury.sol";
  * @notice Controller interface
  */
 interface IController {
-    function isSyntheticAssetExists(ISyntheticAsset _syntheticAsset) external view returns (bool);
+    function isSyntheticTokenExists(ISyntheticToken _syntheticToken) external view returns (bool);
 
     function isDepositTokenExists(IDepositToken _depositToken) external view returns (bool);
 
@@ -19,11 +19,11 @@ interface IController {
 
     function getDepositTokens() external view returns (address[] memory);
 
-    function getSyntheticAssets() external view returns (address[] memory);
+    function getSyntheticTokens() external view returns (address[] memory);
 
     function debtOf(address _account) external view returns (uint256 _debtInUsd);
 
-    function depositOf(address _account) external view returns (uint256 _depositInUsd, uint256 _mintableLimitInUsd);
+    function depositOf(address _account) external view returns (uint256 _depositInUsd, uint256 _issuableLimitInUsd);
 
     function debtPositionOf(address _account)
         external
@@ -32,13 +32,13 @@ interface IController {
             bool _isHealthy,
             uint256 _depositInUsd,
             uint256 _debtInUsd,
-            uint256 _mintableLimitInUsd,
-            uint256 _mintableInUsd
+            uint256 _issuableLimitInUsd,
+            uint256 _issuableInUsd
         );
 
-    function addSyntheticAsset(address _synthetic) external;
+    function addSyntheticToken(address _synthetic) external;
 
-    function removeSyntheticAsset(ISyntheticAsset _synthetic) external;
+    function removeSyntheticToken(ISyntheticToken _synthetic) external;
 
     function addDepositToken(address _depositToken) external;
 
@@ -50,8 +50,8 @@ interface IController {
         address _onBehalfOf
     ) external;
 
-    function mint(
-        ISyntheticAsset _syntheticAsset,
+    function issue(
+        ISyntheticToken _syntheticToken,
         uint256 _amount,
         address _to
     ) external;
@@ -63,21 +63,21 @@ interface IController {
     ) external;
 
     function repay(
-        ISyntheticAsset _syntheticAsset,
+        ISyntheticToken _syntheticToken,
         address _onBehalfOf,
         uint256 _amount
     ) external;
 
     function liquidate(
-        ISyntheticAsset _syntheticAsset,
+        ISyntheticToken _syntheticToken,
         address _account,
         uint256 _amountToRepay,
         IDepositToken _depositToken
     ) external;
 
     function swap(
-        ISyntheticAsset _syntheticAssetIn,
-        ISyntheticAsset _syntheticAssetOut,
+        ISyntheticToken _syntheticTokenIn,
+        ISyntheticToken _syntheticTokenOut,
         uint256 _amountIn
     ) external returns (uint256 _amountOut);
 
@@ -87,7 +87,7 @@ interface IController {
 
     function updateDepositFee(uint256 _newDepositFee) external;
 
-    function updateMintFee(uint256 _newMintFee) external;
+    function updateIssueFee(uint256 _newIssueFee) external;
 
     function updateWithdrawFee(uint256 _newWithdrawFee) external;
 
@@ -95,9 +95,9 @@ interface IController {
 
     function updateSwapFee(uint256 _newSwapFee) external;
 
-    function updateLiquidatorFee(uint256 _newLiquidatorFee) external;
+    function updateLiquidatorLiquidationFee(uint256 _newLiquidatorLiquidationFee) external;
 
-    function updateLiquidateFee(uint256 _newLiquidateFee) external;
+    function updateProtocolLiquidationFee(uint256 _newProtocolLiquidationFee) external;
 
     function updateMaxLiquidable(uint256 _newMaxLiquidable) external;
 

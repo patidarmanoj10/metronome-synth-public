@@ -24,7 +24,7 @@ export const UpgradableContracts: UpgradableContractsConfig = {
   Controller: {alias: 'Controller', contract: 'Controller', adminContract: 'ControllerUpgrader'},
   Treasury: {alias: 'Treasury', contract: 'Treasury', adminContract: 'TreasuryUpgrader'},
   MetDepositToken: {alias: 'MetDepositToken', contract: 'DepositToken', adminContract: 'DepositTokenUpgrader'},
-  VsEth: {alias: 'VsEth', contract: 'SyntheticAsset', adminContract: 'SyntheticAssetUpgrader'},
+  VsEth: {alias: 'VsEth', contract: 'SyntheticToken', adminContract: 'SyntheticTokenUpgrader'},
   VsEthDebtToken: {alias: 'VsEthDebtToken', contract: 'DebtToken', adminContract: 'DebtTokenUpgrader'},
 }
 

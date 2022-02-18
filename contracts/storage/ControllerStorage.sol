@@ -9,7 +9,7 @@ import "../interface/ITreasury.sol";
 
 abstract contract ControllerStorageV1 is IController {
     /**
-     * @notice The debt floor (in USD) for each synthetic asset
+     * @notice The debt floor (in USD) for each synthetic token
      * This parameters is used to keep incentive for liquidators (i.e. cover gas and provide enough profit)
      */
     uint256 public debtFloorInUsd;
@@ -21,10 +21,10 @@ abstract contract ControllerStorageV1 is IController {
     uint256 public depositFee;
 
     /**
-     * @notice The fee charged when minting a synthetic asset
+     * @notice The fee charged when minting a synthetic token
      * @dev Use 18 decimals (e.g. 1e16 = 1%)
      */
-    uint256 public mintFee;
+    uint256 public issueFee;
 
     /**
      * @notice The fee charged when withdrawing collateral
@@ -39,7 +39,7 @@ abstract contract ControllerStorageV1 is IController {
     uint256 public repayFee;
 
     /**
-     * @notice The fee charged when swapping synthetic assets
+     * @notice The fee charged when swapping synthetic tokens
      * @dev Use 18 decimals (e.g. 1e16 = 1%)
      */
     uint256 public swapFee;
@@ -48,13 +48,13 @@ abstract contract ControllerStorageV1 is IController {
      * @notice The fee charged from liquidated deposit that goes to the liquidator
      * @dev Use 18 decimals (e.g. 1e16 = 1%)
      */
-    uint256 public liquidatorFee;
+    uint256 public liquidatorLiquidationFee;
 
     /**
      * @notice The fee charged when liquidating a position
      * @dev Use 18 decimals (e.g. 1e16 = 1%)
      */
-    uint256 public liquidateFee;
+    uint256 public protocolLiquidationFee;
 
     /**
      * @notice The max percent of the debt allowed to liquidate
@@ -83,9 +83,9 @@ abstract contract ControllerStorageV1 is IController {
     mapping(IERC20 => IDepositToken) public depositTokenOf;
 
     /**
-     * @notice Avaliable synthetic assets
+     * @notice Avaliable synthetic tokens
      */
-    EnumerableSet.AddressSet internal syntheticAssets;
+    EnumerableSet.AddressSet internal syntheticTokens;
 
     /**
      * @notice Per-account deposit tokens (i.e. tokens that user has balance > 0)

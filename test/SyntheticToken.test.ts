@@ -5,8 +5,8 @@ import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
 import {
-  SyntheticAsset,
-  SyntheticAsset__factory,
+  SyntheticToken,
+  SyntheticToken__factory,
   DebtTokenMock,
   DebtTokenMock__factory,
   OracleMock__factory,
@@ -15,18 +15,18 @@ import {
   ControllerMock__factory,
 } from '../typechain'
 
-describe('SyntheticAsset', function () {
+describe('SyntheticToken', function () {
   let deployer: SignerWithAddress
   let governor: SignerWithAddress
   let user: SignerWithAddress
   let treasury: SignerWithAddress
   let controllerMock: ControllerMock
-  let vsAsset: SyntheticAsset
+  let vsAsset: SyntheticToken
   let debtToken: DebtTokenMock
   let oracle: OracleMock
 
   const name = 'Vesper Synth ETH'
-  const symbol = 'vsEth'
+  const symbol = 'vsETH'
   const interestRate = parseEther('0')
 
   beforeEach(async function () {
@@ -46,11 +46,11 @@ describe('SyntheticAsset', function () {
     debtToken = await debtTokenFactory.deploy()
     await debtToken.deployed()
 
-    const syntheticAssetFactory = new SyntheticAsset__factory(deployer)
-    vsAsset = await syntheticAssetFactory.deploy()
+    const syntheticTokenFactory = new SyntheticToken__factory(deployer)
+    vsAsset = await syntheticTokenFactory.deploy()
     await vsAsset.deployed()
 
-    await debtToken.initialize('vsETH Debt', 'vsEth-Debt', 18, controllerMock.address, vsAsset.address)
+    await debtToken.initialize('vsETH Debt', 'vsETH-Debt', 18, controllerMock.address, vsAsset.address)
     await vsAsset.initialize(name, symbol, 18, controllerMock.address, debtToken.address, interestRate)
 
     vsAsset = vsAsset.connect(governor)
@@ -102,7 +102,7 @@ describe('SyntheticAsset', function () {
       const tx = controllerMock.mockCall(vsAsset.address, call)
 
       // then
-      await expect(tx).revertedWith('synthetic-asset-is-inactive')
+      await expect(tx).revertedWith('synthetic-is-inactive')
     })
   })
 
@@ -163,7 +163,7 @@ describe('SyntheticAsset', function () {
     it('should update active flag', async function () {
       expect(await vsAsset.isActive()).eq(true)
       const tx = vsAsset.toggleIsActive()
-      await expect(tx).emit(vsAsset, 'SyntheticAssetActiveUpdated').withArgs(true, false)
+      await expect(tx).emit(vsAsset, 'SyntheticTokenActiveUpdated').withArgs(true, false)
       expect(await vsAsset.isActive()).eq(false)
     })
 

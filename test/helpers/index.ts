@@ -16,7 +16,7 @@ export const BLOCKS_PER_YEAR = 2102400
  * C (colleteral)
  * CR (collateral's collateralization ratio)
  * LIMIT (mintable limit) = SUM(C * CR)
- * FEE = 1e18 + liquidatorFee + liquidateFee
+ * FEE = 1e18 + liquidatorLiquidationFee + protocolLiquidationFee
  * D' (debt after liquidation) = D - X
  * C' (collateral after liquidation) = C - (X * FEE)
  * LIMIT' (mintable limit after liquidation) = LIMIT - (C * CR) + (C' * CR)
@@ -37,13 +37,13 @@ export const getMinLiquidationAmountInUsd = async function (
   accountAddress: string,
   depositToken: DepositToken
 ): Promise<BigNumber> {
-  const {_mintableLimitInUsd, _debtInUsd} = await controller.debtPositionOf(accountAddress)
+  const {_issuableLimitInUsd, _debtInUsd} = await controller.debtPositionOf(accountAddress)
   const fee = parseEther('1')
-    .add(await controller.liquidatorFee())
-    .add(await controller.liquidateFee())
+    .add(await controller.liquidatorLiquidationFee())
+    .add(await controller.protocolLiquidationFee())
   const cr = await depositToken.collateralizationRatio()
 
-  const numerator = _debtInUsd.sub(_mintableLimitInUsd)
+  const numerator = _debtInUsd.sub(_issuableLimitInUsd)
   const denominator = fee.mul('-1').mul(cr).div(parseEther('1')).add(parseEther('1'))
 
   return numerator.mul(parseEther('1')).div(denominator)
@@ -59,7 +59,7 @@ export const getMaxLiquidationAmountInUsd = async function (
   accountAddress: string
 ): Promise<BigNumber> {
   const {_depositInUsd} = await controller.debtPositionOf(accountAddress)
-  const fee = (await controller.liquidatorFee()).add(await controller.liquidateFee())
+  const fee = (await controller.liquidatorLiquidationFee()).add(await controller.protocolLiquidationFee())
 
   const numerator = _depositInUsd
   const denominator = parseEther('1').add(fee)

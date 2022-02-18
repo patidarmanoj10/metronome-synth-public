@@ -20,11 +20,11 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
     string public constant VERSION = "1.0.0";
 
-    /// @notice Emitted when synthetic asset is enabled
-    event SyntheticAssetAdded(address indexed syntheticAsset);
+    /// @notice Emitted when synthetic token is enabled
+    event SyntheticTokenAdded(address indexed syntheticToken);
 
-    /// @notice Emitted when synthetic asset is disabled
-    event SyntheticAssetRemoved(ISyntheticAsset indexed syntheticAsset);
+    /// @notice Emitted when synthetic token is disabled
+    event SyntheticTokenRemoved(ISyntheticToken indexed syntheticToken);
 
     /// @notice Emitted when deposit token is enabled
     event DepositTokenAdded(address indexed depositToken);
@@ -50,33 +50,33 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
         uint256 fee
     );
 
-    /// @notice Emitted when synthetic asset is minted
-    event SyntheticAssetMinted(
+    /// @notice Emitted when synthetic token is issued
+    event SyntheticTokenIssued(
         address indexed account,
         address indexed to,
-        ISyntheticAsset indexed syntheticAsset,
+        ISyntheticToken indexed syntheticToken,
         uint256 amount,
         uint256 fee
     );
 
     /// @notice Emitted when synthetic's debt is repayed
-    event DebtRepayed(address indexed account, ISyntheticAsset indexed syntheticAsset, uint256 amount, uint256 fee);
+    event DebtRepayed(address indexed account, ISyntheticToken indexed syntheticToken, uint256 amount, uint256 fee);
 
     /// @notice Emitted when a position is liquidated
     event PositionLiquidated(
         address indexed liquidator,
         address indexed account,
-        ISyntheticAsset indexed syntheticAsset,
+        ISyntheticToken indexed syntheticToken,
         uint256 amountRepayed,
         uint256 depositSeized,
         uint256 fee
     );
 
-    /// @notice Emitted when synthetic asset is swapped
-    event SyntheticAssetSwapped(
+    /// @notice Emitted when synthetic token is swapped
+    event SyntheticTokenSwapped(
         address indexed account,
-        ISyntheticAsset indexed syntheticAssetIn,
-        ISyntheticAsset indexed syntheticAssetOut,
+        ISyntheticToken indexed syntheticTokenIn,
+        ISyntheticToken indexed syntheticTokenOut,
         uint256 amountIn,
         uint256 amountOut,
         uint256 fee
@@ -85,20 +85,20 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     /// @notice Emitted when debt is refinancied
     event DebtRefinancied(
         address indexed account,
-        ISyntheticAsset syntheticAsset,
+        ISyntheticToken syntheticToken,
         uint256 amountIn,
         uint256 amountOut,
         uint256 fee
     );
 
-    /// @notice Emitted when liquidate fee is updated
+    /// @notice Emitted when protocol liquidation fee is updated
     event DebtFloorUpdated(uint256 oldDebtFloorInUsd, uint256 newDebtFloorInUsd);
 
     /// @notice Emitted when deposit fee is updated
     event DepositFeeUpdated(uint256 oldDepositFee, uint256 newDepositFee);
 
-    /// @notice Emitted when mint fee is updated
-    event MintFeeUpdated(uint256 oldMintFee, uint256 newMintFee);
+    /// @notice Emitted when issue fee is updated
+    event IssueFeeUpdated(uint256 oldIssueFee, uint256 newIssueFee);
 
     /// @notice Emitted when withdraw fee is updated
     event WithdrawFeeUpdated(uint256 oldWithdrawFee, uint256 newWithdrawFee);
@@ -112,14 +112,14 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     /// @notice Emitted when refinance fee is updated
     event RefinanceFeeUpdated(uint256 oldRefinanceFee, uint256 newRefinanceFee);
 
-    /// @notice Emitted when liquidator fee is updated
-    event LiquidatorFeeUpdated(uint256 oldLiquidatorFee, uint256 newLiquidatorFee);
+    /// @notice Emitted when liquidator liquidation fee is updated
+    event LiquidatorLiquidationFeeUpdated(uint256 oldLiquidatorLiquidationFee, uint256 newLiquidatorLiquidationFee);
 
     /// @notice Emitted when maxLiquidable (liquidation cap) is updated
     event MaxLiquidableUpdated(uint256 oldMaxLiquidable, uint256 newMaxLiquidable);
 
-    /// @notice Emitted when liquidate fee is updated
-    event LiquidateFeeUpdated(uint256 oldLiquidateFee, uint256 newLiquidateFee);
+    /// @notice Emitted when protocol liquidation fee is updated
+    event ProtocolLiquidationFeeUpdated(uint256 oldProtocolLiquidationFee, uint256 newProtocolLiquidationFee);
 
     /// @notice Emitted when oracle contract is updated
     event OracleUpdated(IMasterOracle indexed oldOracle, IMasterOracle indexed newOracle);
@@ -139,23 +139,23 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
         repayFee = 3e15; // 0.3%
         swapFee = 6e15; // 0.6%
-        liquidatorFee = 1e17; // 10%
-        liquidateFee = 8e16; // 8%
+        liquidatorLiquidationFee = 1e17; // 10%
+        protocolLiquidationFee = 8e16; // 8%
         maxLiquidable = 1e18; // 100%
     }
 
     /**
-     * @dev Throws if synthetic asset doesn't exist
+     * @dev Throws if synthetic token doesn't exist
      */
-    function _requireSyntheticAssetExists(ISyntheticAsset _syntheticAsset) private view {
-        require(isSyntheticAssetExists(_syntheticAsset), "asset-inexistent");
+    function _requireSyntheticTokenExists(ISyntheticToken _syntheticToken) private view {
+        require(isSyntheticTokenExists(_syntheticToken), "synthetic-inexistent");
     }
 
     /**
-     * @dev Throws if synthetic asset isn't enabled
+     * @dev Throws if synthetic token isn't enabled
      */
-    function _requireSyntheticAssetIsActive(ISyntheticAsset _syntheticAsset) private view {
-        require(_syntheticAsset.isActive(), "asset-inactive");
+    function _requireSyntheticTokenIsActive(ISyntheticToken _syntheticToken) private view {
+        require(_syntheticToken.isActive(), "synthetic-inactive");
     }
 
     /**
@@ -177,20 +177,20 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
      */
     function _requireMsgSenderIsDebtToken() private view {
         IDebtToken _debtToken = IDebtToken(_msgSender());
-        ISyntheticAsset _syntheticAsset = _debtToken.syntheticAsset();
+        ISyntheticToken _syntheticToken = _debtToken.syntheticToken();
         require(
-            syntheticAssets.contains(address(_syntheticAsset)) && _msgSender() == address(_syntheticAsset.debtToken()),
+            syntheticTokens.contains(address(_syntheticToken)) && _msgSender() == address(_syntheticToken.debtToken()),
             "caller-is-not-debt-token"
         );
     }
 
     /**
-     * @notice Get all synthetic assets
+     * @notice Get all synthetic tokens
      * @dev WARNING: This operation will copy the entire storage to memory, which can be quite expensive. This is designed
      * to mostly be used by view accessors that are queried without any gas fees.
      */
-    function getSyntheticAssets() external view override returns (address[] memory) {
-        return syntheticAssets.values();
+    function getSyntheticTokens() external view override returns (address[] memory) {
+        return syntheticTokens.values();
     }
 
     /**
@@ -222,11 +222,11 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
     /**
      * @notice Check if token is part of the synthetic offerings
-     * @param _syntheticAsset Asset to check
+     * @param _syntheticToken Asset to check
      * @return true if exist
      */
-    function isSyntheticAssetExists(ISyntheticAsset _syntheticAsset) public view override returns (bool) {
-        return syntheticAssets.contains(address(_syntheticAsset));
+    function isSyntheticTokenExists(ISyntheticToken _syntheticToken) public view override returns (bool) {
+        return syntheticTokens.contains(address(_syntheticToken));
     }
 
     /**
@@ -240,37 +240,35 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
     /**
      * @notice Get account's debt by querying latest prices from oracles
-     * @dev We can optimize this function by storing an array of which synthetics the account minted avoiding looping all
      * @param _account The account to check
      * @return _debtInUsd The debt value in USD
      */
     function debtOf(address _account) public view override returns (uint256 _debtInUsd) {
         for (uint256 i = 0; i < debtTokensOfAccount.length(_account); ++i) {
             IDebtToken _debtToken = IDebtToken(debtTokensOfAccount.at(_account, i));
-            ISyntheticAsset _syntheticAsset = _debtToken.syntheticAsset();
-            uint256 _amountInUsd = oracle.convertToUsd(_syntheticAsset, _debtToken.balanceOf(_account));
+            ISyntheticToken _syntheticToken = _debtToken.syntheticToken();
+            uint256 _amountInUsd = oracle.convertToUsd(_syntheticToken, _debtToken.balanceOf(_account));
             _debtInUsd += _amountInUsd;
         }
     }
 
     /**
      * @notice Get account's total collateral deposited by querying latest prices from oracles
-     * @dev We can optimize this function by storing an array of which deposit toekns the account deposited avoiding looping all
      * @param _account The account to check
      * @return _depositInUsd The total deposit value in USD among all collaterals
-     * @return _mintableLimitInUsd The max value in USD that can be used to mint synthetic assets
+     * @return _issuableLimitInUsd The max value in USD that can be used to issue synthetic tokens
      */
     function depositOf(address _account)
         public
         view
         override
-        returns (uint256 _depositInUsd, uint256 _mintableLimitInUsd)
+        returns (uint256 _depositInUsd, uint256 _issuableLimitInUsd)
     {
         for (uint256 i = 0; i < depositTokensOfAccount.length(_account); ++i) {
             IDepositToken _depositToken = IDepositToken(depositTokensOfAccount.at(_account, i));
             uint256 _amountInUsd = oracle.convertToUsd(_depositToken, _depositToken.balanceOf(_account));
             _depositInUsd += _amountInUsd;
-            _mintableLimitInUsd += _amountInUsd.wadMul(_depositToken.collateralizationRatio());
+            _issuableLimitInUsd += _amountInUsd.wadMul(_depositToken.collateralizationRatio());
         }
     }
 
@@ -280,8 +278,8 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
      * @return _isHealthy Whether the account's position is healthy
      * @return _depositInUsd The total collateral deposited in USD
      * @return _debtInUsd The total debt in USD
-     * @return _mintableLimitInUsd The max amount of debt (is USD) that can be created (considering collateralization ratios)
-     * @return _mintableInUsd The amount of debt (is USD) that is free (i.e. can be used to mint synthetic assets)
+     * @return _issuableLimitInUsd The max amount of debt (is USD) that can be created (considering collateralization ratios)
+     * @return _issuableInUsd The amount of debt (is USD) that is free (i.e. can be used to issue synthetic tokens)
      */
     function debtPositionOf(address _account)
         public
@@ -291,18 +289,18 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
             bool _isHealthy,
             uint256 _depositInUsd,
             uint256 _debtInUsd,
-            uint256 _mintableLimitInUsd,
-            uint256 _mintableInUsd
+            uint256 _issuableLimitInUsd,
+            uint256 _issuableInUsd
         )
     {
         _debtInUsd = debtOf(_account);
-        (_depositInUsd, _mintableLimitInUsd) = depositOf(_account);
-        _isHealthy = _debtInUsd <= _mintableLimitInUsd;
-        _mintableInUsd = _debtInUsd < _mintableLimitInUsd ? _mintableLimitInUsd - _debtInUsd : 0;
+        (_depositInUsd, _issuableLimitInUsd) = depositOf(_account);
+        _isHealthy = _debtInUsd <= _issuableLimitInUsd;
+        _issuableInUsd = _debtInUsd < _issuableLimitInUsd ? _issuableLimitInUsd - _debtInUsd : 0;
     }
 
     /**
-     * @notice Deposit colleteral and mint vSynth-Collateral (tokenized deposit position)
+     * @notice Deposit colleteral and mint vsCollateral-Deposit (tokenized deposit position)
      * @param _depositToken The collateral tokens to deposit
      * @param _amount The amount of collateral tokens to deposit
      * @param _onBehalfOf The account to deposit to
@@ -338,7 +336,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     }
 
     /**
-     * @notice Burn vSynth-Collateral and withdraw collateral
+     * @notice Burn vsCollateral-Deposit and withdraw collateral
      * @param _amount The amount of collateral to withdraw
      * @param _to The account that will receive withdrawn collateral
      */
@@ -369,64 +367,64 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     }
 
     /**
-     * @notice Lock collateral and mint synthetic asset
-     * @param _syntheticAsset The synthetic asset to mint
+     * @notice Lock collateral and mint synthetic token
+     * @param _syntheticToken The synthetic token to issue
      * @param _amount The amount to mint
      */
-    function mint(
-        ISyntheticAsset _syntheticAsset,
+    function issue(
+        ISyntheticToken _syntheticToken,
         uint256 _amount,
         address _to
     ) external override whenNotShutdown nonReentrant {
         require(_amount > 0, "amount-is-zero");
-        _requireSyntheticAssetExists(_syntheticAsset);
-        _requireSyntheticAssetIsActive(_syntheticAsset);
+        _requireSyntheticTokenExists(_syntheticToken);
+        _requireSyntheticTokenIsActive(_syntheticToken);
 
         address _account = _msgSender();
 
-        _syntheticAsset.accrueInterest();
+        _syntheticToken.accrueInterest();
 
-        (, , , , uint256 _mintableInUsd) = debtPositionOf(_account);
+        (, , , , uint256 _issuableInUsd) = debtPositionOf(_account);
 
-        require(_amount <= oracle.convertFromUsd(_syntheticAsset, _mintableInUsd), "not-enough-collateral");
+        require(_amount <= oracle.convertFromUsd(_syntheticToken, _issuableInUsd), "not-enough-collateral");
 
         if (debtFloorInUsd > 0) {
             require(
-                oracle.convertToUsd(_syntheticAsset, _syntheticAsset.debtToken().balanceOf(_account) + _amount) >=
+                oracle.convertToUsd(_syntheticToken, _syntheticToken.debtToken().balanceOf(_account) + _amount) >=
                     debtFloorInUsd,
                 "debt-lt-floor"
             );
         }
 
-        uint256 _amountToMint = _amount;
+        uint256 _amountToIssue = _amount;
         uint256 _feeAmount;
-        if (mintFee > 0) {
-            _feeAmount = _amount.wadMul(mintFee);
-            _syntheticAsset.mint(address(treasury), _feeAmount);
-            _amountToMint -= _feeAmount;
+        if (issueFee > 0) {
+            _feeAmount = _amount.wadMul(issueFee);
+            _syntheticToken.mint(address(treasury), _feeAmount);
+            _amountToIssue -= _feeAmount;
         }
 
-        _syntheticAsset.mint(_to, _amountToMint);
-        _syntheticAsset.debtToken().mint(_account, _amount);
+        _syntheticToken.mint(_to, _amountToIssue);
+        _syntheticToken.debtToken().mint(_account, _amount);
 
-        emit SyntheticAssetMinted(_account, _to, _syntheticAsset, _amount, _feeAmount);
+        emit SyntheticTokenIssued(_account, _to, _syntheticToken, _amount, _feeAmount);
     }
 
     /**
-     * @notice Send synthetic asset to decrease debt
+     * @notice Send synthetic token to decrease debt
      * @dev The msg.sender is the payer and the account beneficied
-     * @param _syntheticAsset The synthetic asset to burn
+     * @param _syntheticToken The synthetic token to burn
      * @param _onBehalfOf The account that will have debt decreased
-     * @param _amount The amount of synthetic asset to burn
+     * @param _amount The amount of synthetic token to burn
      */
     function repay(
-        ISyntheticAsset _syntheticAsset,
+        ISyntheticToken _syntheticToken,
         address _onBehalfOf,
         uint256 _amount
     ) external override whenNotShutdown nonReentrant {
         require(_amount > 0, "amount-is-zero");
 
-        _syntheticAsset.accrueInterest();
+        _syntheticToken.accrueInterest();
 
         address _payer = _msgSender();
 
@@ -434,33 +432,33 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
         uint256 _feeAmount;
         if (repayFee > 0) {
             _feeAmount = _amount.wadMul(repayFee);
-            _syntheticAsset.seize(_payer, address(treasury), _feeAmount);
+            _syntheticToken.seize(_payer, address(treasury), _feeAmount);
             _amountToRepay -= _feeAmount;
         }
 
         if (debtFloorInUsd > 0) {
             uint256 _newDebtInUsd = oracle.convertToUsd(
-                _syntheticAsset,
-                _syntheticAsset.debtToken().balanceOf(_onBehalfOf) - _amountToRepay
+                _syntheticToken,
+                _syntheticToken.debtToken().balanceOf(_onBehalfOf) - _amountToRepay
             );
             require(_newDebtInUsd == 0 || _newDebtInUsd >= debtFloorInUsd, "debt-lt-floor");
         }
 
-        _syntheticAsset.burn(_payer, _amountToRepay);
-        _syntheticAsset.debtToken().burn(_onBehalfOf, _amountToRepay);
+        _syntheticToken.burn(_payer, _amountToRepay);
+        _syntheticToken.debtToken().burn(_onBehalfOf, _amountToRepay);
 
-        emit DebtRepayed(_onBehalfOf, _syntheticAsset, _amount, _feeAmount);
+        emit DebtRepayed(_onBehalfOf, _syntheticToken, _amount, _feeAmount);
     }
 
     /**
-     * @notice Burn synthetic asset, unlock deposit token and send liquidator fee
-     * @param _syntheticAsset The vsAsset to use for repayment
+     * @notice Burn synthetic token, unlock deposit token and send liquidator liquidation fee
+     * @param _syntheticToken The vsAsset to use for repayment
      * @param _account The account with an unhealty position
-     * @param _amountToRepay The amount to repay in synthetic asset
+     * @param _amountToRepay The amount to repay in synthetic token
      * @param _depositToken The collateral to seize from
      */
     function liquidate(
-        ISyntheticAsset _syntheticAsset,
+        ISyntheticToken _syntheticToken,
         address _account,
         uint256 _amountToRepay,
         IDepositToken _depositToken
@@ -471,17 +469,17 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
         address _liquidator = _msgSender();
         require(_liquidator != _account, "can-not-liquidate-own-position");
 
-        _syntheticAsset.accrueInterest();
+        _syntheticToken.accrueInterest();
 
         require(
-            _amountToRepay.wadDiv(_syntheticAsset.debtToken().balanceOf(_account)) <= maxLiquidable,
+            _amountToRepay.wadDiv(_syntheticToken.debtToken().balanceOf(_account)) <= maxLiquidable,
             "amount-gt-max-liquidable"
         );
 
         if (debtFloorInUsd > 0) {
             uint256 _newDebtInUsd = oracle.convertToUsd(
-                _syntheticAsset,
-                _syntheticAsset.debtToken().balanceOf(_account) - _amountToRepay
+                _syntheticToken,
+                _syntheticToken.debtToken().balanceOf(_account) - _amountToRepay
             );
             require(_newDebtInUsd == 0 || _newDebtInUsd >= debtFloorInUsd, "debt-lt-floor");
         }
@@ -490,105 +488,107 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
         require(!_isHealthy, "position-is-healthy");
 
-        uint256 _amountToRepayInCollateral = oracle.convert(_syntheticAsset, _depositToken, _amountToRepay);
+        uint256 _amountToRepayInCollateral = oracle.convert(_syntheticToken, _depositToken, _amountToRepay);
 
-        uint256 _toProtocol = liquidateFee > 0 ? _amountToRepayInCollateral.wadMul(liquidateFee) : 0;
-        uint256 _toLiquidator = _amountToRepayInCollateral.wadMul(1e18 + liquidatorFee);
+        uint256 _toProtocol = protocolLiquidationFee > 0
+            ? _amountToRepayInCollateral.wadMul(protocolLiquidationFee)
+            : 0;
+        uint256 _toLiquidator = _amountToRepayInCollateral.wadMul(1e18 + liquidatorLiquidationFee);
         uint256 _depositToSeize = _toProtocol + _toLiquidator;
 
         require(_depositToSeize <= _depositToken.balanceOf(_account), "amount-too-high");
 
-        _syntheticAsset.burn(_liquidator, _amountToRepay);
-        _syntheticAsset.debtToken().burn(_account, _amountToRepay);
+        _syntheticToken.burn(_liquidator, _amountToRepay);
+        _syntheticToken.debtToken().burn(_account, _amountToRepay);
         _depositToken.seize(_account, _liquidator, _toLiquidator);
 
         if (_toProtocol > 0) {
             _depositToken.seize(_account, address(treasury), _toProtocol);
         }
 
-        emit PositionLiquidated(_liquidator, _account, _syntheticAsset, _amountToRepay, _depositToSeize, _toProtocol);
+        emit PositionLiquidated(_liquidator, _account, _syntheticToken, _amountToRepay, _depositToSeize, _toProtocol);
     }
 
     /**
-     * @notice Swap synthetic assets
-     * @param _syntheticAssetIn Synthetic asset to sell
-     * @param _syntheticAssetOut Synthetic asset to buy
+     * @notice Swap synthetic tokens
+     * @param _syntheticTokenIn Synthetic token to sell
+     * @param _syntheticTokenOut Synthetic token to buy
      * @param _amountIn Amount to swap
      */
     function swap(
-        ISyntheticAsset _syntheticAssetIn,
-        ISyntheticAsset _syntheticAssetOut,
+        ISyntheticToken _syntheticTokenIn,
+        ISyntheticToken _syntheticTokenOut,
         uint256 _amountIn
     ) external override whenNotShutdown nonReentrant returns (uint256 _amountOut) {
-        _requireSyntheticAssetExists(_syntheticAssetIn);
-        _requireSyntheticAssetExists(_syntheticAssetOut);
-        _requireSyntheticAssetIsActive(_syntheticAssetOut);
+        _requireSyntheticTokenExists(_syntheticTokenIn);
+        _requireSyntheticTokenExists(_syntheticTokenOut);
+        _requireSyntheticTokenIsActive(_syntheticTokenOut);
 
-        _syntheticAssetIn.accrueInterest();
-        _syntheticAssetOut.accrueInterest();
+        _syntheticTokenIn.accrueInterest();
+        _syntheticTokenOut.accrueInterest();
 
         address _account = _msgSender();
 
-        require(_amountIn > 0 && _amountIn <= _syntheticAssetIn.balanceOf(_account), "amount-in-0-or-gt-balance");
+        require(_amountIn > 0 && _amountIn <= _syntheticTokenIn.balanceOf(_account), "amount-in-0-or-gt-balance");
 
-        uint256 _amountOutBeforeFee = oracle.convert(_syntheticAssetIn, _syntheticAssetOut, _amountIn);
+        uint256 _amountOutBeforeFee = oracle.convert(_syntheticTokenIn, _syntheticTokenOut, _amountIn);
 
         if (debtFloorInUsd > 0) {
             uint256 _inNewDebtInUsd = oracle.convertToUsd(
-                _syntheticAssetIn,
-                _syntheticAssetIn.debtToken().balanceOf(_account) - _amountIn
+                _syntheticTokenIn,
+                _syntheticTokenIn.debtToken().balanceOf(_account) - _amountIn
             );
-            require(_inNewDebtInUsd == 0 || _inNewDebtInUsd >= debtFloorInUsd, "asset-in-debt-lt-floor");
+            require(_inNewDebtInUsd == 0 || _inNewDebtInUsd >= debtFloorInUsd, "synthetic-in-debt-lt-floor");
 
             require(
                 oracle.convertToUsd(
-                    _syntheticAssetOut,
-                    _syntheticAssetOut.debtToken().balanceOf(_account) + _amountOutBeforeFee
+                    _syntheticTokenOut,
+                    _syntheticTokenOut.debtToken().balanceOf(_account) + _amountOutBeforeFee
                 ) >= debtFloorInUsd,
-                "asset-out-debt-lt-floor"
+                "synthetic-out-debt-lt-floor"
             );
         }
 
-        _syntheticAssetIn.burn(_account, _amountIn);
-        _syntheticAssetIn.debtToken().burn(_account, _amountIn);
+        _syntheticTokenIn.burn(_account, _amountIn);
+        _syntheticTokenIn.debtToken().burn(_account, _amountIn);
 
         _amountOut = _amountOutBeforeFee;
         uint256 _feeAmount;
         if (swapFee > 0) {
             _feeAmount = _amountOutBeforeFee.wadMul(swapFee);
-            _syntheticAssetOut.mint(address(treasury), _feeAmount);
+            _syntheticTokenOut.mint(address(treasury), _feeAmount);
             _amountOut -= _feeAmount;
         }
 
-        _syntheticAssetOut.mint(_account, _amountOut);
-        _syntheticAssetOut.debtToken().mint(_account, _amountOutBeforeFee);
+        _syntheticTokenOut.mint(_account, _amountOut);
+        _syntheticTokenOut.debtToken().mint(_account, _amountOutBeforeFee);
 
-        emit SyntheticAssetSwapped(_account, _syntheticAssetIn, _syntheticAssetOut, _amountIn, _amountOut, _feeAmount);
+        emit SyntheticTokenSwapped(_account, _syntheticTokenIn, _syntheticTokenOut, _amountIn, _amountOut, _feeAmount);
     }
 
     /**
      * @notice Add synthetic token to vSynth offerings
      */
-    function addSyntheticAsset(address _syntheticAsset) public override onlyGovernor {
-        require(_syntheticAsset != address(0), "address-is-null");
-        require(!syntheticAssets.contains(_syntheticAsset), "asset-exists");
+    function addSyntheticToken(address _syntheticToken) public override onlyGovernor {
+        require(_syntheticToken != address(0), "address-is-null");
+        require(!syntheticTokens.contains(_syntheticToken), "synthetic-exists");
 
-        syntheticAssets.add(_syntheticAsset);
+        syntheticTokens.add(_syntheticToken);
 
-        emit SyntheticAssetAdded(_syntheticAsset);
+        emit SyntheticTokenAdded(_syntheticToken);
     }
 
     /**
      * @notice Remove synthetic token from vSynth offerings
      */
-    function removeSyntheticAsset(ISyntheticAsset _syntheticAsset) external override onlyGovernor {
-        _requireSyntheticAssetExists(_syntheticAsset);
-        require(_syntheticAsset.totalSupply() == 0, "supply-gt-0");
-        require(_syntheticAsset.debtToken().totalSupply() == 0, "asset-with-debt-supply");
+    function removeSyntheticToken(ISyntheticToken _syntheticToken) external override onlyGovernor {
+        _requireSyntheticTokenExists(_syntheticToken);
+        require(_syntheticToken.totalSupply() == 0, "supply-gt-0");
+        require(_syntheticToken.debtToken().totalSupply() == 0, "synthetic-with-debt-supply");
 
-        syntheticAssets.remove(address(_syntheticAsset));
+        syntheticTokens.remove(address(_syntheticToken));
 
-        emit SyntheticAssetRemoved(_syntheticAsset);
+        emit SyntheticTokenRemoved(_syntheticToken);
     }
 
     /**
@@ -678,12 +678,12 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     }
 
     /**
-     * @notice Update mint fee
+     * @notice Update issue fee
      */
-    function updateMintFee(uint256 _newMintFee) external override onlyGovernor {
-        require(_newMintFee <= 1e18, "max-is-100%");
-        emit MintFeeUpdated(mintFee, _newMintFee);
-        mintFee = _newMintFee;
+    function updateIssueFee(uint256 _newIssueFee) external override onlyGovernor {
+        require(_newIssueFee <= 1e18, "max-is-100%");
+        emit IssueFeeUpdated(issueFee, _newIssueFee);
+        issueFee = _newIssueFee;
     }
 
     /**
@@ -714,21 +714,21 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     }
 
     /**
-     * @notice Update liquidator fee
+     * @notice Update liquidator liquidation fee
      */
-    function updateLiquidatorFee(uint256 _newLiquidatorFee) external override onlyGovernor {
-        require(_newLiquidatorFee <= 1e18, "max-is-100%");
-        emit LiquidatorFeeUpdated(liquidatorFee, _newLiquidatorFee);
-        liquidatorFee = _newLiquidatorFee;
+    function updateLiquidatorLiquidationFee(uint256 _newLiquidatorLiquidationFee) external override onlyGovernor {
+        require(_newLiquidatorLiquidationFee <= 1e18, "max-is-100%");
+        emit LiquidatorLiquidationFeeUpdated(liquidatorLiquidationFee, _newLiquidatorLiquidationFee);
+        liquidatorLiquidationFee = _newLiquidatorLiquidationFee;
     }
 
     /**
-     * @notice Update liquidate fee
+     * @notice Update protocol liquidation fee
      */
-    function updateLiquidateFee(uint256 _newLiquidateFee) external override onlyGovernor {
-        require(_newLiquidateFee <= 1e18, "max-is-100%");
-        emit LiquidateFeeUpdated(liquidateFee, _newLiquidateFee);
-        liquidateFee = _newLiquidateFee;
+    function updateProtocolLiquidationFee(uint256 _newProtocolLiquidationFee) external override onlyGovernor {
+        require(_newProtocolLiquidationFee <= 1e18, "max-is-100%");
+        emit ProtocolLiquidationFeeUpdated(protocolLiquidationFee, _newProtocolLiquidationFee);
+        protocolLiquidationFee = _newProtocolLiquidationFee;
     }
 
     /**

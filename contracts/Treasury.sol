@@ -54,10 +54,10 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
             if (_underlyingBalance > 0) _depositToken.underlying().safeTransfer(_newTreasury, _underlyingBalance);
         }
 
-        address[] memory _syntheticAssets = controller.getSyntheticAssets();
+        address[] memory _syntheticTokens = controller.getSyntheticTokens();
 
-        for (uint256 i = 0; i < _syntheticAssets.length; ++i) {
-            IERC20 _vsAsset = IERC20(_syntheticAssets[i]);
+        for (uint256 i = 0; i < _syntheticTokens.length; ++i) {
+            IERC20 _vsAsset = IERC20(_syntheticTokens[i]);
             uint256 _balance = _vsAsset.balanceOf(address(this));
             if (_balance > 0) {
                 _vsAsset.safeTransfer(_newTreasury, _balance);

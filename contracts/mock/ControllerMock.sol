@@ -50,7 +50,7 @@ contract ControllerMock is IController, IGovernable {
         revert("mock-does-not-implement");
     }
 
-    function getSyntheticAssets() external pure override returns (address[] memory) {
+    function getSyntheticTokens() external pure override returns (address[] memory) {
         revert("mock-does-not-implement");
     }
 
@@ -70,23 +70,23 @@ contract ControllerMock is IController, IGovernable {
             bool _isHealthy,
             uint256 _depositInUsd,
             uint256 _debtInUsd,
-            uint256 _mintableLimitInUsd,
-            uint256 _mintableInUsd
+            uint256 _issuableLimitInUsd,
+            uint256 _issuableInUsd
         )
     {
         _isHealthy = true;
         uint256 _deposit = depositToken.balanceOf(_account);
         _depositInUsd = oracle.convertToUsd(depositToken, _deposit);
         _debtInUsd = 0;
-        _mintableLimitInUsd = _depositInUsd;
-        _mintableInUsd = _mintableLimitInUsd;
+        _issuableLimitInUsd = _depositInUsd;
+        _issuableInUsd = _issuableLimitInUsd;
     }
 
-    function addSyntheticAsset(address) external pure override {
+    function addSyntheticToken(address) external pure override {
         revert("mock-does-not-implement");
     }
 
-    function removeSyntheticAsset(ISyntheticAsset) external pure override {
+    function removeSyntheticToken(ISyntheticToken) external pure override {
         revert("mock-does-not-implement");
     }
 
@@ -107,8 +107,8 @@ contract ControllerMock is IController, IGovernable {
         _depositToken.mint(_onBehalfOf, _amount);
     }
 
-    function mint(
-        ISyntheticAsset,
+    function issue(
+        ISyntheticToken,
         uint256,
         address
     ) external pure override {
@@ -125,7 +125,7 @@ contract ControllerMock is IController, IGovernable {
     }
 
     function repay(
-        ISyntheticAsset,
+        ISyntheticToken,
         address,
         uint256
     ) external pure override {
@@ -133,7 +133,7 @@ contract ControllerMock is IController, IGovernable {
     }
 
     function liquidate(
-        ISyntheticAsset,
+        ISyntheticToken,
         address,
         uint256,
         IDepositToken
@@ -142,8 +142,8 @@ contract ControllerMock is IController, IGovernable {
     }
 
     function swap(
-        ISyntheticAsset,
-        ISyntheticAsset,
+        ISyntheticToken,
+        ISyntheticToken,
         uint256
     ) external pure override returns (uint256) {
         revert("mock-does-not-implement");
@@ -161,7 +161,7 @@ contract ControllerMock is IController, IGovernable {
         revert("mock-does-not-implement");
     }
 
-    function updateMintFee(uint256) external pure override {
+    function updateIssueFee(uint256) external pure override {
         revert("mock-does-not-implement");
     }
 
@@ -177,11 +177,11 @@ contract ControllerMock is IController, IGovernable {
         revert("mock-does-not-implement");
     }
 
-    function updateLiquidatorFee(uint256) external pure override {
+    function updateLiquidatorLiquidationFee(uint256) external pure override {
         revert("mock-does-not-implement");
     }
 
-    function updateLiquidateFee(uint256) external pure override {
+    function updateProtocolLiquidationFee(uint256) external pure override {
         revert("mock-does-not-implement");
     }
 
@@ -189,7 +189,7 @@ contract ControllerMock is IController, IGovernable {
         revert("mock-does-not-implement");
     }
 
-    function isSyntheticAssetExists(ISyntheticAsset) external pure override returns (bool) {
+    function isSyntheticTokenExists(ISyntheticToken) external pure override returns (bool) {
         revert("mock-does-not-implement");
     }
 

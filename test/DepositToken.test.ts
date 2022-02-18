@@ -50,7 +50,7 @@ describe('DepositToken', function () {
     controllerMock.oracle.returns(oracle.address)
     controllerMock.governor.returns(governor.address)
 
-    await metDepositToken.initialize(met.address, controllerMock.address, 'vSynth-MET', 18, metCR)
+    await metDepositToken.initialize(met.address, controllerMock.address, 'vsMET-Deposit', 18, metCR)
     metDepositToken = metDepositToken.connect(governor)
 
     await oracle.updateRate(metDepositToken.address, metRate)
@@ -116,18 +116,18 @@ describe('DepositToken', function () {
       const _isHealth = true
       const _depositInUsd = balance.mul(metRate).div(parseEther('1'))
       const _debtInUsd = parseEther('0') // all tokens are unlocked
-      const _mintableLimitInUsd = _depositInUsd.mul(parseEther('1')).div(metCR)
-      const _mintableInUsd = _mintableLimitInUsd.sub(_debtInUsd)
-      return [_isHealth, _depositInUsd, _debtInUsd, _mintableLimitInUsd, _mintableInUsd]
+      const _issuableLimitInUsd = _depositInUsd.mul(parseEther('1')).div(metCR)
+      const _issuableInUsd = _issuableLimitInUsd.sub(_debtInUsd)
+      return [_isHealth, _depositInUsd, _debtInUsd, _issuableLimitInUsd, _issuableInUsd]
     }
 
     const debtPositionOf_returnsAllLocked = (balance: BigNumber) => () => {
       const _isHealth = true
       const _depositInUsd = balance.mul(metRate).div(parseEther('1'))
-      const _mintableLimitInUsd = _depositInUsd.mul(metCR).div(parseEther('1'))
-      const _debtInUsd = _mintableLimitInUsd
-      const _mintableInUsd = parseEther('0') // all tokens are locked
-      return [_isHealth, _depositInUsd, _debtInUsd, _mintableLimitInUsd, _mintableInUsd]
+      const _issuableLimitInUsd = _depositInUsd.mul(metCR).div(parseEther('1'))
+      const _debtInUsd = _issuableLimitInUsd
+      const _issuableInUsd = parseEther('0') // all tokens are locked
+      return [_isHealth, _depositInUsd, _debtInUsd, _issuableLimitInUsd, _issuableInUsd]
     }
 
     beforeEach(async function () {
@@ -159,9 +159,9 @@ describe('DepositToken', function () {
           const _isHealth = true
           const _depositInUsd = parseEther('100')
           const _debtInUsd = parseEther('50')
-          const _mintableLimitInUsd = parseEther('50')
-          const _mintableInUsd = BigNumber.from(0) // no unlocked token
-          return [_isHealth, _depositInUsd, _debtInUsd, _mintableLimitInUsd, _mintableInUsd]
+          const _issuableLimitInUsd = parseEther('50')
+          const _issuableInUsd = BigNumber.from(0) // no unlocked token
+          return [_isHealth, _depositInUsd, _debtInUsd, _issuableLimitInUsd, _issuableInUsd]
         })
 
         const _unlockedDeposit = await metDepositToken.unlockedBalanceOf(user.address)
@@ -181,9 +181,9 @@ describe('DepositToken', function () {
           const _isHealth = true
           const _depositInUsd = amount.mul(metRate).div(parseEther('1'))
           const _debtInUsd = parseEther('0') // all tokens are unlocked
-          const _mintableLimitInUsd = _depositInUsd.mul(metCR).div(parseEther('1'))
-          const _mintableInUsd = _mintableLimitInUsd.sub(_debtInUsd)
-          return [_isHealth, _depositInUsd, _debtInUsd, _mintableLimitInUsd, _mintableInUsd]
+          const _issuableLimitInUsd = _depositInUsd.mul(metCR).div(parseEther('1'))
+          const _issuableInUsd = _issuableLimitInUsd.sub(_debtInUsd)
+          return [_isHealth, _depositInUsd, _debtInUsd, _issuableLimitInUsd, _issuableInUsd]
         })
 
         const _unlockedDeposit = await metDepositToken.unlockedBalanceOf(user.address)

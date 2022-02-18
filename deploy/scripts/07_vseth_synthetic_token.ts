@@ -18,7 +18,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {address: vsEthDebtTokenAddress} = await deterministic(hre, UpgradableContracts.VsEthDebtToken)
   const {deploy} = await deterministic(hre, UpgradableContracts.VsEth)
 
-  const {address: syntheticAssetAddress} = await deploy()
+  const {address: syntheticTokenAddress} = await deploy()
 
   await execute(
     VsEth,
@@ -32,7 +32,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     parseEther('0') // Interest Rate = 0%
   )
 
-  await execute(Controller, {from: deployer, log: true}, 'addSyntheticAsset', syntheticAssetAddress)
+  await execute(Controller, {from: deployer, log: true}, 'addSyntheticToken', syntheticTokenAddress)
 }
 
 export default func

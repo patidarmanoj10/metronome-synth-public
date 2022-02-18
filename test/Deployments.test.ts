@@ -11,17 +11,17 @@ import {
   OracleMock__factory,
   DefaultOracle,
   DefaultOracle__factory,
-  SyntheticAsset,
-  SyntheticAsset__factory,
+  SyntheticToken,
+  SyntheticToken__factory,
   Treasury,
   Treasury__factory,
   TreasuryUpgrader,
   TreasuryUpgrader__factory,
   DepositTokenUpgrader,
-  SyntheticAssetUpgrader,
+  SyntheticTokenUpgrader,
   DebtTokenUpgrader,
   DepositTokenUpgrader__factory,
-  SyntheticAssetUpgrader__factory,
+  SyntheticTokenUpgrader__factory,
   DebtTokenUpgrader__factory,
   UpgraderBase,
   UniswapV3PriceProvider,
@@ -62,8 +62,8 @@ describe('Deployments', function () {
   let treasuryUpgrader: TreasuryUpgrader
   let metDepositToken: DepositToken
   let depositTokenUpgrader: DepositTokenUpgrader
-  let vsEth: SyntheticAsset
-  let syntheticAssetUpgrader: SyntheticAssetUpgrader
+  let vsEth: SyntheticToken
+  let syntheticTokenUpgrader: SyntheticTokenUpgrader
   let vsEthDebtToken: DebtToken
   let debtTokenUpgrader: DebtTokenUpgrader
   let wethGateway: WETHGateway
@@ -91,7 +91,7 @@ describe('Deployments', function () {
       MetDepositToken: {address: metDepositTokenAddress},
       DepositTokenUpgrader: {address: depositTokenUpgraderAddress},
       VsEth: {address: vsEthAddress},
-      SyntheticAssetUpgrader: {address: syntheticAssetUpgraderAddress},
+      SyntheticTokenUpgrader: {address: syntheticTokenUpgraderAddress},
       VsEthDebtToken: {address: vsETHDebtTokenAddress},
       DebtTokenUpgrader: {address: debtTokenUpgraderAddress},
       WETHGateway: {address: wethGatewayAddress},
@@ -116,8 +116,8 @@ describe('Deployments', function () {
     metDepositToken = DepositToken__factory.connect(metDepositTokenAddress, deployer)
     depositTokenUpgrader = DepositTokenUpgrader__factory.connect(depositTokenUpgraderAddress, deployer)
 
-    vsEth = SyntheticAsset__factory.connect(vsEthAddress, deployer)
-    syntheticAssetUpgrader = SyntheticAssetUpgrader__factory.connect(syntheticAssetUpgraderAddress, deployer)
+    vsEth = SyntheticToken__factory.connect(vsEthAddress, deployer)
+    syntheticTokenUpgrader = SyntheticTokenUpgrader__factory.connect(syntheticTokenUpgraderAddress, deployer)
 
     vsEthDebtToken = DebtToken__factory.connect(vsETHDebtTokenAddress, deployer)
     debtTokenUpgrader = DebtTokenUpgrader__factory.connect(debtTokenUpgraderAddress, deployer)
@@ -279,7 +279,7 @@ describe('Deployments', function () {
     })
   })
 
-  describe('SyntheticAsset', function () {
+  describe('SyntheticToken', function () {
     it('vsETH token should have correct params', async function () {
       expect(await vsEth.controller()).eq(controller.address)
       expect(await vsEth.debtToken()).eq(vsEthDebtToken.address)
@@ -289,9 +289,9 @@ describe('Deployments', function () {
 
     it('should upgrade implementation', async function () {
       await upgradeTestcase({
-        newImplfactory: new SyntheticAsset__factory(deployer),
+        newImplfactory: new SyntheticToken__factory(deployer),
         proxy: vsEth,
-        upgrader: syntheticAssetUpgrader,
+        upgrader: syntheticTokenUpgrader,
         expectToFail: false,
       })
     })
@@ -300,7 +300,7 @@ describe('Deployments', function () {
       await upgradeTestcase({
         newImplfactory: new OracleMock__factory(deployer),
         proxy: vsEth,
-        upgrader: syntheticAssetUpgrader,
+        upgrader: syntheticTokenUpgrader,
         expectToFail: true,
       })
     })
