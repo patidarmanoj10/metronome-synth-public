@@ -177,11 +177,11 @@ contract ControllerMock is IController, IGovernable {
         revert("mock-does-not-implement");
     }
 
-    function updateLiquidatorFee(uint256) external pure override {
+    function updateLiquidatorLiquidationFee(uint256) external pure override {
         revert("mock-does-not-implement");
     }
 
-    function updateLiquidateFee(uint256) external pure override {
+    function updateProtocolLiquidationFee(uint256) external pure override {
         revert("mock-does-not-implement");
     }
 

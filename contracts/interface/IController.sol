@@ -95,9 +95,9 @@ interface IController {
 
     function updateSwapFee(uint256 _newSwapFee) external;
 
-    function updateLiquidatorFee(uint256 _newLiquidatorFee) external;
+    function updateLiquidatorLiquidationFee(uint256 _newLiquidatorLiquidationFee) external;
 
-    function updateLiquidateFee(uint256 _newLiquidateFee) external;
+    function updateProtocolLiquidationFee(uint256 _newProtocolLiquidationFee) external;
 
     function updateMaxLiquidable(uint256 _newMaxLiquidable) external;
 

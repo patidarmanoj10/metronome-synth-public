@@ -48,13 +48,13 @@ abstract contract ControllerStorageV1 is IController {
      * @notice The fee charged from liquidated deposit that goes to the liquidator
      * @dev Use 18 decimals (e.g. 1e16 = 1%)
      */
-    uint256 public liquidatorFee;
+    uint256 public liquidatorLiquidationFee;
 
     /**
      * @notice The fee charged when liquidating a position
      * @dev Use 18 decimals (e.g. 1e16 = 1%)
      */
-    uint256 public liquidateFee;
+    uint256 public protocolLiquidationFee;
 
     /**
      * @notice The max percent of the debt allowed to liquidate

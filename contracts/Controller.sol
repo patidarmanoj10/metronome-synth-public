@@ -91,7 +91,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
         uint256 fee
     );
 
-    /// @notice Emitted when liquidate fee is updated
+    /// @notice Emitted when protocol liquidation fee is updated
     event DebtFloorUpdated(uint256 oldDebtFloorInUsd, uint256 newDebtFloorInUsd);
 
     /// @notice Emitted when deposit fee is updated
@@ -112,14 +112,14 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     /// @notice Emitted when refinance fee is updated
     event RefinanceFeeUpdated(uint256 oldRefinanceFee, uint256 newRefinanceFee);
 
-    /// @notice Emitted when liquidator fee is updated
-    event LiquidatorFeeUpdated(uint256 oldLiquidatorFee, uint256 newLiquidatorFee);
+    /// @notice Emitted when liquidator liquidation fee is updated
+    event LiquidatorLiquidationFeeUpdated(uint256 oldLiquidatorLiquidationFee, uint256 newLiquidatorLiquidationFee);
 
     /// @notice Emitted when maxLiquidable (liquidation cap) is updated
     event MaxLiquidableUpdated(uint256 oldMaxLiquidable, uint256 newMaxLiquidable);
 
-    /// @notice Emitted when liquidate fee is updated
-    event LiquidateFeeUpdated(uint256 oldLiquidateFee, uint256 newLiquidateFee);
+    /// @notice Emitted when protocol liquidation fee is updated
+    event ProtocolLiquidationFeeUpdated(uint256 oldProtocolLiquidationFee, uint256 newProtocolLiquidationFee);
 
     /// @notice Emitted when oracle contract is updated
     event OracleUpdated(IMasterOracle indexed oldOracle, IMasterOracle indexed newOracle);
@@ -139,8 +139,8 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
         repayFee = 3e15; // 0.3%
         swapFee = 6e15; // 0.6%
-        liquidatorFee = 1e17; // 10%
-        liquidateFee = 8e16; // 8%
+        liquidatorLiquidationFee = 1e17; // 10%
+        protocolLiquidationFee = 8e16; // 8%
         maxLiquidable = 1e18; // 100%
     }
 
@@ -453,7 +453,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     }
 
     /**
-     * @notice Burn synthetic token, unlock deposit token and send liquidator fee
+     * @notice Burn synthetic token, unlock deposit token and send liquidator liquidation fee
      * @param _syntheticToken The vsAsset to use for repayment
      * @param _account The account with an unhealty position
      * @param _amountToRepay The amount to repay in synthetic token
@@ -492,8 +492,10 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
         uint256 _amountToRepayInCollateral = oracle.convert(_syntheticToken, _depositToken, _amountToRepay);
 
-        uint256 _toProtocol = liquidateFee > 0 ? _amountToRepayInCollateral.wadMul(liquidateFee) : 0;
-        uint256 _toLiquidator = _amountToRepayInCollateral.wadMul(1e18 + liquidatorFee);
+        uint256 _toProtocol = protocolLiquidationFee > 0
+            ? _amountToRepayInCollateral.wadMul(protocolLiquidationFee)
+            : 0;
+        uint256 _toLiquidator = _amountToRepayInCollateral.wadMul(1e18 + liquidatorLiquidationFee);
         uint256 _depositToSeize = _toProtocol + _toLiquidator;
 
         require(_depositToSeize <= _depositToken.balanceOf(_account), "amount-too-high");
@@ -714,21 +716,21 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     }
 
     /**
-     * @notice Update liquidator fee
+     * @notice Update liquidator liquidation fee
      */
-    function updateLiquidatorFee(uint256 _newLiquidatorFee) external override onlyGovernor {
-        require(_newLiquidatorFee <= 1e18, "max-is-100%");
-        emit LiquidatorFeeUpdated(liquidatorFee, _newLiquidatorFee);
-        liquidatorFee = _newLiquidatorFee;
+    function updateLiquidatorLiquidationFee(uint256 _newLiquidatorLiquidationFee) external override onlyGovernor {
+        require(_newLiquidatorLiquidationFee <= 1e18, "max-is-100%");
+        emit LiquidatorLiquidationFeeUpdated(liquidatorLiquidationFee, _newLiquidatorLiquidationFee);
+        liquidatorLiquidationFee = _newLiquidatorLiquidationFee;
     }
 
     /**
-     * @notice Update liquidate fee
+     * @notice Update protocol liquidation fee
      */
-    function updateLiquidateFee(uint256 _newLiquidateFee) external override onlyGovernor {
-        require(_newLiquidateFee <= 1e18, "max-is-100%");
-        emit LiquidateFeeUpdated(liquidateFee, _newLiquidateFee);
-        liquidateFee = _newLiquidateFee;
+    function updateProtocolLiquidationFee(uint256 _newProtocolLiquidationFee) external override onlyGovernor {
+        require(_newProtocolLiquidationFee <= 1e18, "max-is-100%");
+        emit ProtocolLiquidationFeeUpdated(protocolLiquidationFee, _newProtocolLiquidationFee);
+        protocolLiquidationFee = _newProtocolLiquidationFee;
     }
 
     /**
