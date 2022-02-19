@@ -74,6 +74,22 @@ describe('DebtToken', function () {
       await expect(tx).revertedWith('not-controller')
     })
 
+    it('should not remove address(0) from the users array', async function () {
+      // given
+      controllerMock.removeFromDebtTokensOfAccount.reset()
+      expect(await debtToken.balanceOf(user1.address)).eq(0)
+      expect(await debtToken.balanceOf(ethers.constants.AddressZero)).eq(0)
+
+      // when
+      // Note: Set `gasLimit` prevents messing up the calls counter
+      // See more: https://github.com/defi-wonderland/smock/issues/99
+      const gasLimit = 250000
+      await debtToken.connect(controllerMock.wallet).mint(user1.address, parseEther('1'), {gasLimit})
+
+      // then
+      expect(controllerMock.removeFromDebtTokensOfAccount).callCount(0)
+    })
+
     it('should add debt token to user array only if balance was 0 before mint', async function () {
       // given
       controllerMock.addToDebtTokensOfAccount.reset()
@@ -112,6 +128,41 @@ describe('DebtToken', function () {
         const tx = debtToken.connect(user1).mint(user1.address, parseEther('10'))
         await expect(tx).revertedWith('not-controller')
       })
+
+      it('should not add address(0) to the users array', async function () {
+        // given
+        controllerMock.addToDebtTokensOfAccount.reset()
+        expect(await debtToken.balanceOf(user1.address)).eq(amount)
+        expect(await debtToken.balanceOf(ethers.constants.AddressZero)).eq(0)
+
+        // when
+        // Note: Set `gasLimit` prevents messing up the calls counter
+        // See more: https://github.com/defi-wonderland/smock/issues/99
+        const gasLimit = 250000
+        await debtToken.connect(controllerMock.wallet).burn(user1.address, amount, {gasLimit})
+
+        // then
+        expect(controllerMock.addToDebtTokensOfAccount).callCount(0)
+      })
+
+      it('should remove debt token from user array only if burning all', async function () {
+        // given
+        controllerMock.removeFromDebtTokensOfAccount.reset()
+        expect(await debtToken.balanceOf(user1.address)).eq(amount)
+
+        // when
+        // Note: Set `gasLimit` prevents messing up the calls counter
+        // See more: https://github.com/defi-wonderland/smock/issues/99
+        const gasLimit = 250000
+        await debtToken.connect(controllerMock.wallet).burn(user1.address, amount.div('4'), {gasLimit})
+        await debtToken.connect(controllerMock.wallet).burn(user1.address, amount.div('4'), {gasLimit})
+        await debtToken.connect(controllerMock.wallet).burn(user1.address, amount.div('4'), {gasLimit})
+        await debtToken.connect(controllerMock.wallet).burn(user1.address, amount.div('4'), {gasLimit})
+
+        // then
+        expect(await debtToken.balanceOf(user1.address)).eq(0)
+        expect(controllerMock.removeFromDebtTokensOfAccount).callCount(1)
+      })
     })
 
     describe('transfer', function () {
@@ -126,25 +177,6 @@ describe('DebtToken', function () {
         const tx = debtToken.connect(user2).transferFrom(user1.address, user2.address, parseEther('1'))
         await expect(tx).revertedWith('transfer-not-supported')
       })
-    })
-
-    it('should remove debt token from user array only if burning all', async function () {
-      // given
-      controllerMock.removeFromDebtTokensOfAccount.reset()
-      expect(await debtToken.balanceOf(user1.address)).eq(amount)
-
-      // when
-      // Note: Set `gasLimit` prevents messing up the calls counter
-      // See more: https://github.com/defi-wonderland/smock/issues/99
-      const gasLimit = 250000
-      await debtToken.connect(controllerMock.wallet).burn(user1.address, amount.div('4'), {gasLimit})
-      await debtToken.connect(controllerMock.wallet).burn(user1.address, amount.div('4'), {gasLimit})
-      await debtToken.connect(controllerMock.wallet).burn(user1.address, amount.div('4'), {gasLimit})
-      await debtToken.connect(controllerMock.wallet).burn(user1.address, amount.div('4'), {gasLimit})
-
-      // then
-      expect(await debtToken.balanceOf(user1.address)).eq(0)
-      expect(controllerMock.removeFromDebtTokensOfAccount).callCount(1)
     })
   })
 

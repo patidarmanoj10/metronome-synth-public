@@ -620,6 +620,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     /**
      * @notice Add a deposit token to the per-account list
      * @dev This function is called from `DepositToken._beforeTokenTransfer` hook
+     * @dev The caller should ensure to not pass `address(0)` as `_account`
      * @param _account The account address
      */
     function addToDepositTokensOfAccount(address _account) external {
@@ -630,6 +631,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     /**
      * @notice Remove a deposit token from the per-account list
      * @dev This function is called from `DepositToken._afterTokenTransfer` hook
+     * @dev The caller should ensure to not pass `address(0)` as `_account`
      * @param _account The account address
      */
     function removeFromDepositTokensOfAccount(address _account) external {
@@ -640,6 +642,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     /**
      * @notice Add a debt token to the per-account list
      * @dev This function is called from `DebtToken._beforeTokenTransfer` hook
+     * @dev The caller should ensure to not pass `address(0)` as `_account`
      * @param _account The account address
      */
     function addToDebtTokensOfAccount(address _account) external {
@@ -650,6 +653,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     /**
      * @notice Remove a debt token from the per-account list
      * @dev This function is called from `DebtToken._afterTokenTransfer` hook
+     * @dev The caller should ensure to not pass `address(0)` as `_account`
      * @param _account The account address
      */
     function removeFromDebtTokensOfAccount(address _account) external {
