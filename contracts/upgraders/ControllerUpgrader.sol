@@ -19,7 +19,7 @@ contract ControllerUpgrader is UpgraderBase {
         calls[5] = abi.encodeWithSignature("liquidatorLiquidationFee()");
         calls[6] = abi.encodeWithSignature("protocolLiquidationFee()");
         calls[7] = abi.encodeWithSignature("maxLiquidable()");
-        calls[8] = abi.encodeWithSignature("oracle()");
+        calls[8] = abi.encodeWithSignature("masterOracle()");
         calls[9] = abi.encodeWithSignature("treasury()");
     }
 

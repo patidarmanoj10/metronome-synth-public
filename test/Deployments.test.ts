@@ -202,7 +202,7 @@ describe('Deployments', function () {
   describe('Controller', function () {
     it('should have correct params', async function () {
       expect(await controller.treasury()).eq(treasury.address)
-      expect(await controller.oracle()).eq(masterOracle.address)
+      expect(await controller.masterOracle()).eq(masterOracle.address)
       expect(await controller.governor()).eq(deployer.address)
       await controller.connect(governor).acceptGovernorship()
       expect(await controller.governor()).eq(governor.address)

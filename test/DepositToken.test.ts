@@ -47,7 +47,7 @@ describe('DepositToken', function () {
 
     controllerMock = await smock.fake('Controller')
     await setEtherBalance(controllerMock.address, parseEther('10'))
-    controllerMock.oracle.returns(masterOracle.address)
+    controllerMock.masterOracle.returns(masterOracle.address)
     controllerMock.governor.returns(governor.address)
 
     await metDepositToken.initialize(met.address, controllerMock.address, 'vsMET-Deposit', 18, metCR)

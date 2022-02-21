@@ -1872,10 +1872,10 @@ describe('Controller', function () {
     })
   })
 
-  describe('updateOracle', function () {
+  describe('updateMasterOracle', function () {
     it('should revert if not gorvernor', async function () {
       // when
-      const tx = controller.connect(alice.address).updateOracle(ethers.constants.AddressZero)
+      const tx = controller.connect(alice.address).updateMasterOracle(ethers.constants.AddressZero)
 
       // then
       await expect(tx).revertedWith('not-governor')
@@ -1883,10 +1883,10 @@ describe('Controller', function () {
 
     it('should revert if using the same address', async function () {
       // given
-      expect(await controller.oracle()).eq(masterOracle.address)
+      expect(await controller.masterOracle()).eq(masterOracle.address)
 
       // when
-      const tx = controller.updateOracle(masterOracle.address)
+      const tx = controller.updateMasterOracle(masterOracle.address)
 
       // then
       await expect(tx).revertedWith('new-is-same-as-current')
@@ -1894,24 +1894,24 @@ describe('Controller', function () {
 
     it('should revert if address is zero', async function () {
       // when
-      const tx = controller.updateOracle(ethers.constants.AddressZero)
+      const tx = controller.updateMasterOracle(ethers.constants.AddressZero)
 
       // then
       await expect(tx).revertedWith('address-is-null')
     })
 
-    it('should update oracle contract', async function () {
+    it('should update master oracle contract', async function () {
       // given
-      const oldOracle = await controller.oracle()
-      const newOracle = bob.address
-      expect(oldOracle).not.eq(newOracle)
+      const currentMasterOracle = await controller.masterOracle()
+      const newMasterOracle = bob.address
+      expect(currentMasterOracle).not.eq(newMasterOracle)
 
       // when
-      const tx = controller.updateOracle(newOracle)
+      const tx = controller.updateMasterOracle(newMasterOracle)
 
       // then
-      await expect(tx).emit(controller, 'OracleUpdated').withArgs(oldOracle, newOracle)
-      expect(await controller.oracle()).eq(newOracle)
+      await expect(tx).emit(controller, 'MasterOracleUpdated').withArgs(currentMasterOracle, newMasterOracle)
+      expect(await controller.masterOracle()).eq(newMasterOracle)
     })
   })
 

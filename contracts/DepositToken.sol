@@ -180,7 +180,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      */
     function mint(address _to, uint256 _amount) public override onlyController {
         require(isActive, "deposit-token-is-inactive");
-        uint256 _newTotalSupplyInUsd = controller.oracle().convertToUsd(this, totalSupply + _amount);
+        uint256 _newTotalSupplyInUsd = controller.masterOracle().convertToUsd(this, totalSupply + _amount);
         require(_newTotalSupplyInUsd <= maxTotalSupplyInUsd, "surpass-max-total-supply");
         _mint(_to, _amount);
         lastDepositOf[_to] = block.timestamp;
@@ -255,7 +255,10 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
 
         if (_issuableInUsd > 0) {
             uint256 _unlockedInUsd = _issuableInUsd.wadDiv(collateralizationRatio);
-            _unlockedBalance = Math.min(balanceOf[_account], controller.oracle().convertFromUsd(this, _unlockedInUsd));
+            _unlockedBalance = Math.min(
+                balanceOf[_account],
+                controller.masterOracle().convertFromUsd(this, _unlockedInUsd)
+            );
         }
     }
 

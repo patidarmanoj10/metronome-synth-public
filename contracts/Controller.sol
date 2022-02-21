@@ -121,20 +121,20 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     /// @notice Emitted when protocol liquidation fee is updated
     event ProtocolLiquidationFeeUpdated(uint256 oldProtocolLiquidationFee, uint256 newProtocolLiquidationFee);
 
-    /// @notice Emitted when oracle contract is updated
-    event OracleUpdated(IMasterOracle indexed oldOracle, IMasterOracle indexed newOracle);
+    /// @notice Emitted when master oracle contract is updated
+    event MasterOracleUpdated(IMasterOracle indexed oldOracle, IMasterOracle indexed newOracle);
 
     /// @notice Emitted when treasury contract is updated
     event TreasuryUpdated(ITreasury indexed oldTreasury, ITreasury indexed newTreasury);
 
-    function initialize(IMasterOracle _oracle, ITreasury _treasury) public initializer {
+    function initialize(IMasterOracle _masterOracle, ITreasury _treasury) public initializer {
         require(address(_treasury) != address(0), "treasury-is-null");
-        require(address(_oracle) != address(0), "oracle-is-null");
+        require(address(_masterOracle) != address(0), "master-oracle-is-null");
 
         __ReentrancyGuard_init();
         __Governable_init();
 
-        oracle = _oracle;
+        masterOracle = _masterOracle;
         treasury = _treasury;
 
         repayFee = 3e15; // 0.3%
@@ -247,7 +247,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
         for (uint256 i = 0; i < debtTokensOfAccount.length(_account); ++i) {
             IDebtToken _debtToken = IDebtToken(debtTokensOfAccount.at(_account, i));
             ISyntheticToken _syntheticToken = _debtToken.syntheticToken();
-            uint256 _amountInUsd = oracle.convertToUsd(_syntheticToken, _debtToken.balanceOf(_account));
+            uint256 _amountInUsd = masterOracle.convertToUsd(_syntheticToken, _debtToken.balanceOf(_account));
             _debtInUsd += _amountInUsd;
         }
     }
@@ -266,7 +266,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     {
         for (uint256 i = 0; i < depositTokensOfAccount.length(_account); ++i) {
             IDepositToken _depositToken = IDepositToken(depositTokensOfAccount.at(_account, i));
-            uint256 _amountInUsd = oracle.convertToUsd(_depositToken, _depositToken.balanceOf(_account));
+            uint256 _amountInUsd = masterOracle.convertToUsd(_depositToken, _depositToken.balanceOf(_account));
             _depositInUsd += _amountInUsd;
             _issuableLimitInUsd += _amountInUsd.wadMul(_depositToken.collateralizationRatio());
         }
@@ -386,11 +386,11 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
         (, , , , uint256 _issuableInUsd) = debtPositionOf(_account);
 
-        require(_amount <= oracle.convertFromUsd(_syntheticToken, _issuableInUsd), "not-enough-collateral");
+        require(_amount <= masterOracle.convertFromUsd(_syntheticToken, _issuableInUsd), "not-enough-collateral");
 
         if (debtFloorInUsd > 0) {
             require(
-                oracle.convertToUsd(_syntheticToken, _syntheticToken.debtToken().balanceOf(_account) + _amount) >=
+                masterOracle.convertToUsd(_syntheticToken, _syntheticToken.debtToken().balanceOf(_account) + _amount) >=
                     debtFloorInUsd,
                 "debt-lt-floor"
             );
@@ -437,7 +437,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
         }
 
         if (debtFloorInUsd > 0) {
-            uint256 _newDebtInUsd = oracle.convertToUsd(
+            uint256 _newDebtInUsd = masterOracle.convertToUsd(
                 _syntheticToken,
                 _syntheticToken.debtToken().balanceOf(_onBehalfOf) - _amountToRepay
             );
@@ -477,7 +477,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
         );
 
         if (debtFloorInUsd > 0) {
-            uint256 _newDebtInUsd = oracle.convertToUsd(
+            uint256 _newDebtInUsd = masterOracle.convertToUsd(
                 _syntheticToken,
                 _syntheticToken.debtToken().balanceOf(_account) - _amountToRepay
             );
@@ -488,7 +488,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
         require(!_isHealthy, "position-is-healthy");
 
-        uint256 _amountToRepayInCollateral = oracle.convert(_syntheticToken, _depositToken, _amountToRepay);
+        uint256 _amountToRepayInCollateral = masterOracle.convert(_syntheticToken, _depositToken, _amountToRepay);
 
         uint256 _toProtocol = protocolLiquidationFee > 0
             ? _amountToRepayInCollateral.wadMul(protocolLiquidationFee)
@@ -531,17 +531,17 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
         require(_amountIn > 0 && _amountIn <= _syntheticTokenIn.balanceOf(_account), "amount-in-0-or-gt-balance");
 
-        uint256 _amountOutBeforeFee = oracle.convert(_syntheticTokenIn, _syntheticTokenOut, _amountIn);
+        uint256 _amountOutBeforeFee = masterOracle.convert(_syntheticTokenIn, _syntheticTokenOut, _amountIn);
 
         if (debtFloorInUsd > 0) {
-            uint256 _inNewDebtInUsd = oracle.convertToUsd(
+            uint256 _inNewDebtInUsd = masterOracle.convertToUsd(
                 _syntheticTokenIn,
                 _syntheticTokenIn.debtToken().balanceOf(_account) - _amountIn
             );
             require(_inNewDebtInUsd == 0 || _inNewDebtInUsd >= debtFloorInUsd, "synthetic-in-debt-lt-floor");
 
             require(
-                oracle.convertToUsd(
+                masterOracle.convertToUsd(
                     _syntheticTokenOut,
                     _syntheticTokenOut.debtToken().balanceOf(_account) + _amountOutBeforeFee
                 ) >= debtFloorInUsd,
@@ -658,14 +658,15 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     }
 
     /**
-     * @notice Update price oracle contract
+     * @notice Update master oracle contract
      */
-    function updateOracle(IMasterOracle _newOracle) external override onlyGovernor {
-        require(address(_newOracle) != address(0), "address-is-null");
-        require(_newOracle != oracle, "new-is-same-as-current");
+    function updateMasterOracle(IMasterOracle _newMasterOracle) external override onlyGovernor {
+        require(address(_newMasterOracle) != address(0), "address-is-null");
+        IMasterOracle _currentMasterOracle = masterOracle;
+        require(_newMasterOracle != _currentMasterOracle, "new-is-same-as-current");
 
-        emit OracleUpdated(oracle, _newOracle);
-        oracle = _newOracle;
+        emit MasterOracleUpdated(_currentMasterOracle, _newMasterOracle);
+        masterOracle = _newMasterOracle;
     }
 
     /**
