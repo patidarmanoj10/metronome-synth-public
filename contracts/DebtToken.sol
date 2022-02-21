@@ -105,9 +105,6 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
         revert("allowance-not-supported");
     }
 
-    /**
-     * @dev Changes from the OZ original code: hooks removal
-     */
     function _mint(address _account, uint256 _amount) internal virtual {
         require(_account != address(0), "mint-to-the-zero-address");
 
@@ -118,17 +115,15 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
         debtIndexOf[_account] = debtIndex;
         emit Transfer(address(0), _account, _amount);
 
-        _afterTokenTransfer(address(0), _account, _amount);
+        // Note: Commented out because `address(0)` shouldn't have tokens array
+        // _afterTokenTransfer(address(0), _account, _amount);
     }
 
-    /**
-     * @dev Changes from the OZ original code: hooks removal
-     */
     function _burn(address _account, uint256 _amount) internal virtual {
         require(_account != address(0), "burn-from-the-zero-address");
 
-        // Note: Commented out because will never reach the hook implementation at this point
-        // _beforeTokenTransfer(address(0), _account, _amount);
+        // Note: Commented out because `address(0)` shouldn't have tokens array
+        // _beforeTokenTransfer(_account, address(0), _amount);
 
         uint256 accountBalance = balanceOf(_account);
         require(accountBalance >= _amount, "burn-amount-exceeds-balance");

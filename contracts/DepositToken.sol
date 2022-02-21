@@ -121,13 +121,15 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         balanceOf[_account] += _amount;
         emit Transfer(address(0), _account, _amount);
 
-        _afterTokenTransfer(address(0), _account, _amount);
+        // Note: Commented out because `address(0)` shouldn't have tokens array
+        // _afterTokenTransfer(address(0), _account, _amount);
     }
 
     function _burn(address _account, uint256 _amount) internal virtual {
         require(_account != address(0), "burn-from-the-zero-address");
 
-        _beforeTokenTransfer(_account, address(0), _amount);
+        // Note: Commented out because `address(0)` shouldn't have tokens array
+        // _beforeTokenTransfer(_account, address(0), _amount);
 
         uint256 accountBalance = balanceOf[_account];
         require(accountBalance >= _amount, "burn-amount-exceeds-balance");

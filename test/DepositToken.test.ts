@@ -72,6 +72,22 @@ describe('DepositToken', function () {
       expect(await metDepositToken.lastDepositOf(user.address)).eq(lastBlock.timestamp)
     })
 
+    it('should not remove address(0) from the users array', async function () {
+      // given
+      controllerMock.removeFromDepositTokensOfAccount.reset()
+      expect(await metDepositToken.balanceOf(user.address)).eq(0)
+      expect(await metDepositToken.balanceOf(ethers.constants.AddressZero)).eq(0)
+
+      // when
+      // Note: Set `gasLimit` prevents messing up the calls counter
+      // See more: https://github.com/defi-wonderland/smock/issues/99
+      const gasLimit = 250000
+      await metDepositToken.connect(controllerMock.wallet).mint(user.address, parseEther('1'), {gasLimit})
+
+      // then
+      expect(controllerMock.removeFromDepositTokensOfAccount).callCount(0)
+    })
+
     it('should add deposit token to user array only if balance was 0 before mint', async function () {
       // given
       controllerMock.addToDepositTokensOfAccount.reset()
@@ -206,6 +222,22 @@ describe('DepositToken', function () {
       it('should revert if not controller', async function () {
         const tx = metDepositToken.connect(user).burn(user.address, parseEther('10'))
         await expect(tx).revertedWith('not-controller')
+      })
+
+      it('should not add address(0) to the users array', async function () {
+        // given
+        controllerMock.addToDepositTokensOfAccount.reset()
+        expect(await metDepositToken.balanceOf(user.address)).eq(amount)
+        expect(await metDepositToken.balanceOf(ethers.constants.AddressZero)).eq(0)
+
+        // when
+        // Note: Set `gasLimit` prevents messing up the calls counter
+        // See more: https://github.com/defi-wonderland/smock/issues/99
+        const gasLimit = 250000
+        await metDepositToken.connect(controllerMock.wallet).burn(user.address, amount, {gasLimit})
+
+        // then
+        expect(controllerMock.addToDepositTokensOfAccount).callCount(0)
       })
 
       it('should remove deposit token from user array only if burning all', async function () {
