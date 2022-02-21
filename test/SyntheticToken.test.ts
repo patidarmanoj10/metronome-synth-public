@@ -9,8 +9,8 @@ import {
   SyntheticToken__factory,
   DebtTokenMock,
   DebtTokenMock__factory,
-  OracleMock__factory,
-  OracleMock,
+  MasterOracleMock__factory,
+  MasterOracleMock,
   ControllerMock,
   ControllerMock__factory,
 } from '../typechain'
@@ -23,7 +23,7 @@ describe('SyntheticToken', function () {
   let controllerMock: ControllerMock
   let vsAsset: SyntheticToken
   let debtToken: DebtTokenMock
-  let oracle: OracleMock
+  let masterOracleMock: MasterOracleMock
 
   const name = 'Vesper Synth ETH'
   const symbol = 'vsETH'
@@ -33,12 +33,16 @@ describe('SyntheticToken', function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[deployer, governor, user, treasury] = await ethers.getSigners()
 
-    const oracleMock = new OracleMock__factory(deployer)
-    oracle = <OracleMock>await oracleMock.deploy()
-    await oracle.deployed()
+    const masterOracleMockFactory = new MasterOracleMock__factory(deployer)
+    masterOracleMock = <MasterOracleMock>await masterOracleMockFactory.deploy()
+    await masterOracleMock.deployed()
 
     const controllerMockFactory = new ControllerMock__factory(deployer)
-    controllerMock = await controllerMockFactory.deploy(ethers.constants.AddressZero, oracle.address, treasury.address)
+    controllerMock = await controllerMockFactory.deploy(
+      ethers.constants.AddressZero,
+      masterOracleMock.address,
+      treasury.address
+    )
     await controllerMock.deployed()
     await controllerMock.transferGovernorship(governor.address)
 
@@ -55,7 +59,7 @@ describe('SyntheticToken', function () {
 
     vsAsset = vsAsset.connect(governor)
 
-    await oracle.updateRate(vsAsset.address, parseEther('1')) // 1 vsAsset = $1
+    await masterOracleMock.updateRate(vsAsset.address, parseEther('1')) // 1 vsAsset = $1
   })
 
   it('default values', async function () {

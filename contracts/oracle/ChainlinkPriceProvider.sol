@@ -33,41 +33,19 @@ contract ChainlinkPriceProvider is IPriceProvider {
     }
 
     /**
-     * @notice Convert asset's amount to USD
+     * @notice Get asset's USD price
      * @param _assetData The asset's query encoded data
-     * @param _amount The amount to convert
-     * @return _amountInUsd The amount in USD (8 decimals)
+     * @return _priceInUsd The amount in USD (8 decimals)
      * @return _lastUpdatedAt The timestamp of the price used to convert
      */
-    function convertToUsd(bytes memory _assetData, uint256 _amount)
+    function getPriceInUsd(bytes memory _assetData)
         public
         view
         override
-        returns (uint256 _amountInUsd, uint256 _lastUpdatedAt)
+        returns (uint256 _priceInUsd, uint256 _lastUpdatedAt)
     {
-        (address _aggregator, uint256 _decimals) = _decode(_assetData);
-        uint256 _price;
-        (_price, _lastUpdatedAt) = _getPriceOfAsset(_aggregator);
-        _amountInUsd = (_amount * _price) / 10**_decimals;
-    }
-
-    /**
-     * @notice Convert USD to asset's amount
-     * @param _assetData The asset's query encoded data
-     * @param _amountInUsd The amount in USD (8 decimals)
-     * @return _amount The amount to convert
-     * @return _lastUpdatedAt The timestamp of the price used to convert
-     */
-    function convertFromUsd(bytes memory _assetData, uint256 _amountInUsd)
-        public
-        view
-        override
-        returns (uint256 _amount, uint256 _lastUpdatedAt)
-    {
-        (address _aggregator, uint256 _decimals) = _decode(_assetData);
-        uint256 _price;
-        (_price, _lastUpdatedAt) = _getPriceOfAsset(_aggregator);
-        _amount = (_amountInUsd * 10**_decimals) / _price;
+        (address _aggregator, ) = _decode(_assetData);
+        (_priceInUsd, _lastUpdatedAt) = _getPriceOfAsset(_aggregator);
     }
 
     /**
@@ -75,22 +53,4 @@ contract ChainlinkPriceProvider is IPriceProvider {
      */
     // solhint-disable-next-line no-empty-blocks
     function update(bytes memory) external {}
-
-    /**
-     * @notice Convert two assets' amounts
-     * @param _assetInData The input  asset's query encoded data
-     * @param _assetOutData The output asset's query encoded data
-     * @param _amountIn The amount in
-     * @return _amountOut The amout out
-     * @return _lastUpdatedAt The timestamp of the price used to convert
-     */
-    function convert(
-        bytes memory _assetInData,
-        bytes memory _assetOutData,
-        uint256 _amountIn
-    ) public view returns (uint256 _amountOut, uint256 _lastUpdatedAt) {
-        (uint256 _amountInUsd, uint256 _lastUpdatedAt0) = convertToUsd(_assetInData, _amountIn);
-        (_amountOut, _lastUpdatedAt) = convertFromUsd(_assetOutData, _amountInUsd);
-        _lastUpdatedAt = Math.min(_lastUpdatedAt0, _lastUpdatedAt);
-    }
 }

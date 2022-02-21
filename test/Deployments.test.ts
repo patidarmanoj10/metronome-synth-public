@@ -8,7 +8,7 @@ import {
   DebtToken__factory,
   DepositToken,
   DepositToken__factory,
-  OracleMock__factory,
+  DefaultOracleMock__factory,
   DefaultOracle,
   DefaultOracle__factory,
   SyntheticToken,
@@ -191,7 +191,7 @@ describe('Deployments', function () {
 
     it('should fail if implementation breaks storage', async function () {
       await upgradeTestcase({
-        newImplfactory: new OracleMock__factory(deployer),
+        newImplfactory: new DefaultOracleMock__factory(deployer),
         proxy: masterOracle,
         upgrader: masterOracleUpgrader,
         expectToFail: true,
@@ -202,7 +202,7 @@ describe('Deployments', function () {
   describe('Controller', function () {
     it('should have correct params', async function () {
       expect(await controller.treasury()).eq(treasury.address)
-      expect(await controller.oracle()).eq(masterOracle.address)
+      expect(await controller.masterOracle()).eq(masterOracle.address)
       expect(await controller.governor()).eq(deployer.address)
       await controller.connect(governor).acceptGovernorship()
       expect(await controller.governor()).eq(governor.address)
@@ -219,7 +219,7 @@ describe('Deployments', function () {
 
     it('should fail if implementation breaks storage', async function () {
       await upgradeTestcase({
-        newImplfactory: new OracleMock__factory(deployer),
+        newImplfactory: new DefaultOracleMock__factory(deployer),
         proxy: controller,
         upgrader: controllerUpgrader,
         expectToFail: true,
@@ -271,7 +271,7 @@ describe('Deployments', function () {
 
     it('should fail if implementation breaks storage', async function () {
       await upgradeTestcase({
-        newImplfactory: new OracleMock__factory(deployer),
+        newImplfactory: new DefaultOracleMock__factory(deployer),
         proxy: metDepositToken,
         upgrader: depositTokenUpgrader,
         expectToFail: true,
@@ -298,7 +298,7 @@ describe('Deployments', function () {
 
     it('should fail if implementation breaks storage', async function () {
       await upgradeTestcase({
-        newImplfactory: new OracleMock__factory(deployer),
+        newImplfactory: new DefaultOracleMock__factory(deployer),
         proxy: vsEth,
         upgrader: syntheticTokenUpgrader,
         expectToFail: true,
@@ -323,7 +323,7 @@ describe('Deployments', function () {
 
     it('should fail if implementation breaks storage', async function () {
       await upgradeTestcase({
-        newImplfactory: new OracleMock__factory(deployer),
+        newImplfactory: new DefaultOracleMock__factory(deployer),
         proxy: vsEthDebtToken,
         upgrader: debtTokenUpgrader,
         expectToFail: true,

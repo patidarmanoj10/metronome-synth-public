@@ -1,6 +1,5 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
 /* eslint-disable camelcase */
-import {parseEther} from '@ethersproject/units'
+import {parseUnits} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
@@ -11,8 +10,6 @@ import {
   UniswapV2PriceProvider__factory,
   ChainlinkPriceProvider__factory,
   ERC20Mock__factory,
-  PriceProviderMock__factory,
-  PriceProviderMock,
   ERC20Mock,
 } from '../../typechain'
 import {
@@ -23,13 +20,15 @@ import {
   increaseTime,
 } from '../helpers'
 import Address from '../../helpers/address'
+import {BigNumber} from 'ethers'
+import {FakeContract, smock} from '@defi-wonderland/smock'
 
 const {MET_ADDRESS, DAI_ADDRESS, UNISWAP_V3_CROSS_POOL_ORACLE_ADDRESS, WETH_ADDRESS, UNISWAP_V2_ROUTER02_ADDRESS} =
   Address
 
 const {MaxUint256, AddressZero} = ethers.constants
 
-const STALE_PERIOD = MaxUint256.div('2')
+const STALE_PERIOD = BigNumber.from(`${60 * 60 * 24}`) // 24h
 
 const Protocol = {
   NONE: 0,
@@ -45,12 +44,12 @@ describe('DefaultOracle', function () {
   let deployer: SignerWithAddress
   let user: SignerWithAddress
   let oracle: DefaultOracle
-  let mUSD: ERC20Mock
+  let vsUSD: ERC20Mock
   let depositToken: ERC20Mock
   let vsDOGE: ERC20Mock
   let vsETH: ERC20Mock
   let vsBTC: ERC20Mock
-  let priceProviderMock: PriceProviderMock
+  let priceProviderMock: FakeContract
 
   before(enableForking)
 
@@ -62,9 +61,9 @@ describe('DefaultOracle', function () {
 
     const erc20MockFactory = new ERC20Mock__factory(deployer)
 
-    // mUSD
-    mUSD = await erc20MockFactory.deploy('mUSD', 'mUSD', 18)
-    await mUSD.deployed()
+    // vsUSD
+    vsUSD = await erc20MockFactory.deploy('vsUSD', 'vsUSD', 18)
+    await vsUSD.deployed()
 
     // depositToken
     depositToken = await erc20MockFactory.deploy('Tokenized deposit position', 'vsMET-Deposit', 18)
@@ -106,9 +105,7 @@ describe('DefaultOracle', function () {
     await chainlinkPriceProvider.deployed()
 
     // Mock
-    const priceProviderMockFactory = new PriceProviderMock__factory(deployer)
-    priceProviderMock = await priceProviderMockFactory.deploy()
-    await priceProviderMock.deployed()
+    priceProviderMock = await smock.fake('ChainlinkPriceProvider')
 
     // Oracle
     const oracleFactory = new DefaultOracle__factory(deployer)
@@ -119,7 +116,7 @@ describe('DefaultOracle', function () {
     await oracle.setPriceProvider(Protocol.UNISWAP_V2, uniswapV2PriceProvider.address)
     await oracle.setPriceProvider(Protocol.CHAINLINK, chainlinkPriceProvider.address)
 
-    await oracle.addOrUpdateUsdAsset(mUSD.address)
+    await oracle.addOrUpdateUsdAsset(vsUSD.address)
     await oracle.addOrUpdateAssetThatUsesUniswapV3(vsETH.address, WETH_ADDRESS)
     await oracle.addOrUpdateAssetThatUsesUniswapV3(vsETH.address, WETH_ADDRESS)
     await oracle.addOrUpdateAssetThatUsesUniswapV2(depositToken.address, MET_ADDRESS, STALE_PERIOD)
@@ -131,89 +128,35 @@ describe('DefaultOracle', function () {
   })
 
   describe('using latest price (view) functions', function () {
-    describe('convertToUsd', function () {
+    describe('getPriceInUsd', function () {
       it('should convert to USD using no price provider needed', async function () {
-        const _amountInUsd = await oracle.convertToUsd(mUSD.address, parseEther('1'))
-        expect(_amountInUsd).eq(parseEther('1'))
+        const _amountInUsd = await oracle.getPriceInUsd(vsUSD.address)
+        expect(_amountInUsd).eq(parseUnits('1', 8))
       })
 
       it('should convert to USD using UniswapV3 price provider', async function () {
-        const _amountInUsd = await oracle.convertToUsd(vsETH.address, parseEther('1'))
+        const _amountInUsd = await oracle.getPriceInUsd(vsETH.address)
         expect(_amountInUsd).eq('344642503883')
       })
 
       it('should convert to USD using UniswapV2 price provider', async function () {
         await increaseTime(DEFAULT_TWAP_PERIOD)
         await oracle.update(depositToken.address)
-        const _amountInUsd = await oracle.convertToUsd(depositToken.address, parseEther('1'))
+        const _amountInUsd = await oracle.getPriceInUsd(depositToken.address)
         expect(_amountInUsd).eq('480514770')
       })
 
       it('should convert to USD using Chainlink price provider', async function () {
-        const _amountInUsd = await oracle.convertToUsd(vsDOGE.address, parseEther('1'))
+        const _amountInUsd = await oracle.getPriceInUsd(vsDOGE.address)
         expect(_amountInUsd).eq('24128635')
       })
 
       it('should revert when price is outdated', async function () {
         await oracle.setPriceProvider(Protocol.UNISWAP_V2, priceProviderMock.address)
-        await priceProviderMock.setLastUpdatedAt(0)
-        const tx = oracle.convertToUsd(depositToken.address, parseEther('1'))
-        await expect(tx).revertedWith('price-is-invalid'), STALE_PERIOD
-      })
+        priceProviderMock.getPriceInUsd.returns([0, 0])
 
-      it('should revert when price is zero', async function () {
-        await oracle.setPriceProvider(Protocol.UNISWAP_V2, priceProviderMock.address)
-        await priceProviderMock.setAmount(0)
-        const tx = oracle.convertToUsd(depositToken.address, parseEther('1'))
-        await expect(tx).revertedWith('price-is-invalid')
-      })
-    })
-
-    describe('convertFromUsd', function () {
-      it('should convert to USD using no price provider needed', async function () {
-        const _amount = await oracle.convertFromUsd(mUSD.address, parseEther('1'))
-        expect(_amount).eq(parseEther('1'))
-      })
-
-      it('should convert to USD using UniswapV3 price provider', async function () {
-        const _amount = await oracle.convertFromUsd(vsETH.address, '344642503883')
-        expect(_amount).closeTo(parseEther('1'), parseEther('0.000000000001').toNumber())
-      })
-
-      it('should convert to USD using UniswapV2 price provider', async function () {
-        await increaseTime(DEFAULT_TWAP_PERIOD)
-        await oracle.update(depositToken.address)
-        const _amount = await oracle.convertFromUsd(depositToken.address, '480514770')
-        expect(_amount).closeTo(parseEther('1'), parseEther('0.000000001').toNumber())
-      })
-
-      it('should convert to USD using Chainlink price provider', async function () {
-        const _amount = await oracle.convertFromUsd(vsDOGE.address, '24128635')
-        expect(_amount).eq(parseEther('1'))
-      })
-
-      it('should revert when price is outdated', async function () {
-        await oracle.setPriceProvider(Protocol.UNISWAP_V2, priceProviderMock.address)
-        await priceProviderMock.setLastUpdatedAt(0)
-        const tx = oracle.convertFromUsd(depositToken.address, '480514770')
-        await expect(tx).revertedWith('price-is-invalid')
-      })
-
-      it('should indicates when price is zero', async function () {
-        await oracle.setPriceProvider(Protocol.UNISWAP_V2, priceProviderMock.address)
-        await priceProviderMock.setAmount(0)
-        const tx = oracle.convertFromUsd(depositToken.address, '480514770')
-        await expect(tx).revertedWith('price-is-invalid')
-      })
-    })
-
-    describe('convert', function () {
-      it('should convert assets using distinct price providers', async function () {
-        const amountInUsd = '344642503883'
-        const amountInEther = await oracle.convertFromUsd(vsETH.address, amountInUsd)
-        const amountInDoge = await oracle.convert(vsETH.address, vsDOGE.address, amountInEther)
-        const _amountInUsd = await oracle.convertToUsd(vsDOGE.address, amountInDoge)
-        expect(_amountInUsd).closeTo(amountInUsd, 2)
+        const tx = oracle.getPriceInUsd(depositToken.address)
+        await expect(tx).revertedWith('price-is-stale')
       })
     })
   })
@@ -222,14 +165,14 @@ describe('DefaultOracle', function () {
     it('should update price if needed (UniswapV2)', async function () {
       // given
       await oracle.update(depositToken.address)
-      await increaseTime(DEFAULT_TWAP_PERIOD)
-      await expect(oracle.convertFromUsd(depositToken.address, parseEther('1'))).revertedWith('price-is-invalid')
+      await increaseTime(STALE_PERIOD.mul('2'))
+      await expect(oracle.getPriceInUsd(depositToken.address)).revertedWith('price-is-stale')
 
       // when
       await oracle.update(depositToken.address)
 
       // then
-      const amount = await oracle.convertFromUsd(depositToken.address, parseEther('1'))
+      const amount = await oracle.getPriceInUsd(depositToken.address)
       expect(amount).gt(0)
     })
   })
@@ -256,7 +199,7 @@ describe('DefaultOracle', function () {
 
   describe('addOrUpdateUsdAsset', function () {
     it('should revert if not governor', async function () {
-      const tx = oracle.connect(user).addOrUpdateUsdAsset(mUSD.address)
+      const tx = oracle.connect(user).addOrUpdateUsdAsset(vsUSD.address)
       await expect(tx).revertedWith('not-governor')
     })
 
@@ -266,8 +209,8 @@ describe('DefaultOracle', function () {
     })
 
     it('should set an USD asset', async function () {
-      const tx = oracle.addOrUpdateUsdAsset(mUSD.address)
-      await expect(tx).emit(oracle, 'AssetUpdated').withArgs(mUSD.address, Protocol.NONE, '0x', true, MaxUint256)
+      const tx = oracle.addOrUpdateUsdAsset(vsUSD.address)
+      await expect(tx).emit(oracle, 'AssetUpdated').withArgs(vsUSD.address, Protocol.NONE, '0x', true, MaxUint256)
     })
   })
 

@@ -8,8 +8,8 @@ import {
   DepositToken,
   ERC20Mock__factory,
   ERC20Mock,
-  OracleMock__factory,
-  OracleMock,
+  MasterOracleMock__factory,
+  MasterOracleMock,
 } from '../typechain'
 import {HOUR, setEtherBalance} from './helpers'
 import {FakeContract, smock} from '@defi-wonderland/smock'
@@ -24,7 +24,7 @@ describe('DepositToken', function () {
   let met: ERC20Mock
   let controllerMock: FakeContract
   let metDepositToken: DepositToken
-  let oracle: OracleMock
+  let masterOracle: MasterOracleMock
 
   const metRate = parseEther('4') // 1 MET = $4
   const metCR = parseEther('0.5') // 50%
@@ -33,9 +33,9 @@ describe('DepositToken', function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[deployer, governor, user] = await ethers.getSigners()
 
-    const oracleMock = new OracleMock__factory(deployer)
-    oracle = <OracleMock>await oracleMock.deploy()
-    await oracle.deployed()
+    const masterOracleMock = new MasterOracleMock__factory(deployer)
+    masterOracle = <MasterOracleMock>await masterOracleMock.deploy()
+    await masterOracle.deployed()
 
     const metMockFactory = new ERC20Mock__factory(deployer)
     met = await metMockFactory.deploy('Metronome', 'MET', 18)
@@ -47,13 +47,13 @@ describe('DepositToken', function () {
 
     controllerMock = await smock.fake('Controller')
     await setEtherBalance(controllerMock.address, parseEther('10'))
-    controllerMock.oracle.returns(oracle.address)
+    controllerMock.masterOracle.returns(masterOracle.address)
     controllerMock.governor.returns(governor.address)
 
     await metDepositToken.initialize(met.address, controllerMock.address, 'vsMET-Deposit', 18, metCR)
     metDepositToken = metDepositToken.connect(governor)
 
-    await oracle.updateRate(metDepositToken.address, metRate)
+    await masterOracle.updateRate(metDepositToken.address, metRate)
   })
 
   describe('mint', function () {

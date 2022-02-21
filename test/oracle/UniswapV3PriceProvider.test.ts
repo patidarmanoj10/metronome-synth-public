@@ -1,6 +1,4 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
 /* eslint-disable camelcase */
-import {parseEther, parseUnits} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
@@ -44,37 +42,20 @@ describe('UniswapV3PriceProvider', function () {
     await ethers.provider.send('evm_revert', [snapshotId])
   })
 
-  describe('convertToUsd', function () {
-    it('should convert MET to USD', async function () {
-      const {_amountInUsd} = await priceProvider.convertToUsd(encodedMetAddress, parseEther('1'))
-      expect(_amountInUsd).eq('477943235')
+  describe('getPriceInUsd', function () {
+    it('should get MET price', async function () {
+      const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedMetAddress)
+      expect(_priceInUsd).eq('477943235')
     })
 
-    it('should convert WBTC to USD', async function () {
-      const {_amountInUsd} = await priceProvider.convertToUsd(encodedWbtcAddress, parseUnits('1', 8))
-      expect(_amountInUsd).eq('5002893354162')
+    it('should get WBTC price', async function () {
+      const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedWbtcAddress)
+      expect(_priceInUsd).eq('5002893354162')
     })
 
-    it('should convert ETH to USD', async function () {
-      const {_amountInUsd} = await priceProvider.convertToUsd(encodedWethAddress, parseEther('1'))
-      expect(_amountInUsd).eq('344642503883')
-    })
-  })
-
-  describe('convertFromUsd', function () {
-    it('should convert USD to MET', async function () {
-      const {_amount} = await priceProvider.convertFromUsd(encodedMetAddress, '477943236')
-      expect(_amount).closeTo(parseEther('1'), parseEther('0.00000001').toNumber())
-    })
-
-    it('should convert USD to WBTC', async function () {
-      const {_amount} = await priceProvider.convertFromUsd(encodedWbtcAddress, '5002893354162')
-      expect(_amount).closeTo(parseUnits('1', 8), 1)
-    })
-
-    it('should convert ETH to WBTC', async function () {
-      const {_amount} = await priceProvider.convertFromUsd(encodedWethAddress, '344642503883')
-      expect(_amount).closeTo(parseEther('1'), parseEther('0.00000000001').toNumber())
+    it('should get ETH price', async function () {
+      const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedWethAddress)
+      expect(_priceInUsd).eq('344642503883')
     })
   })
 
@@ -101,68 +82,21 @@ describe('UniswapV3PriceProvider', function () {
       await priceProvider.deployed()
     })
 
-    describe('convertToUsd', function () {
-      it('should convert MET to USD', async function () {
-        const {_amountInUsd} = await priceProvider.convertToUsd(encodedMetAddress, parseEther('1'))
-        expect(_amountInUsd).eq('478183500')
+    describe('getPriceInUsd', function () {
+      it('should get MET price', async function () {
+        const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedMetAddress)
+        expect(_priceInUsd).eq('478183500')
       })
 
-      it('should convert WBTC to USD', async function () {
-        const {_amountInUsd} = await priceProvider.convertToUsd(encodedWbtcAddress, parseUnits('1', 8))
-        expect(_amountInUsd).eq('5005408534500')
+      it('should get WBTC price', async function () {
+        const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedWbtcAddress)
+        expect(_priceInUsd).eq('5005408534500')
       })
 
-      it('should convert ETH to USD', async function () {
-        const {_amountInUsd} = await priceProvider.convertToUsd(encodedWethAddress, parseEther('1'))
-        expect(_amountInUsd).eq('344815771200')
+      it('should get ETH price', async function () {
+        const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedWethAddress)
+        expect(_priceInUsd).eq('344815771200')
       })
-    })
-
-    describe('convertFromUsd', function () {
-      it('should convert USD to MET', async function () {
-        const {_amount} = await priceProvider.convertFromUsd(encodedMetAddress, '478183500')
-        expect(_amount).closeTo(parseEther('1'), parseEther('0.0000001').toNumber())
-      })
-
-      it('should convert USD to WBTC', async function () {
-        const {_amount} = await priceProvider.convertFromUsd(encodedWbtcAddress, '5002893354162')
-        expect(_amount).closeTo(parseUnits('1', 8), parseUnits('0.001', 8).toNumber())
-      })
-
-      it('should convert ETH to WBTC', async function () {
-        const {_amount} = await priceProvider.convertFromUsd(encodedWethAddress, '344815771200')
-        expect(_amount).closeTo(parseEther('1'), parseEther('0.00000001').toNumber())
-      })
-    })
-  })
-
-  describe('convert', function () {
-    it('should get ETH->Token price', async function () {
-      const tokenIn = encodedWethAddress
-      const tokenOut = encodedMetAddress
-      const amountIn = parseEther('1') // 1 ETH
-      const {_amountOut} = await priceProvider.convert(tokenIn, tokenOut, amountIn)
-
-      // @ts-ignore
-      expect(_amountOut).closeTo(parseEther('721'), parseEther('0.1'))
-    })
-
-    it('should get Token->ETH price', async function () {
-      const tokenIn = encodedWbtcAddress
-      const tokenOut = encodedWethAddress
-      const amountIn = parseUnits('1', 8) // 1 BTC
-      const {_amountOut} = await priceProvider.convert(tokenIn, tokenOut, amountIn)
-      // @ts-ignore
-      expect(_amountOut).closeTo(parseEther('14.5'), parseEther('0.05'))
-    })
-
-    it('should get Token->Token price', async function () {
-      const tokenIn = encodedWbtcAddress
-      const tokenOut = encodedMetAddress
-      const amountIn = parseUnits('1', 8) // 1 BTC
-      const {_amountOut} = await priceProvider.convert(tokenIn, tokenOut, amountIn)
-      // @ts-ignore
-      expect(_amountOut).closeTo(parseEther('10467.5'), parseEther('0.05'))
     })
   })
 })

@@ -13,7 +13,7 @@ import {
 } from '../../../typechain'
 import {enableForking, disableForking} from '../../helpers'
 import Address from '../../../helpers/address'
-import {parseEther} from 'ethers/lib/utils'
+import {parseUnits} from 'ethers/lib/utils'
 
 const {DAI_ADDRESS, ADAI_ADDRESS} = Address
 
@@ -50,15 +50,8 @@ describe('ATokenOracle', function () {
     await ethers.provider.send('evm_revert', [snapshotId])
   })
 
-  it('convertToUsd', async function () {
-    const amount = parseEther('1')
-    const price = await ibOracle.convertToUsd(aDAI.address, amount)
-    expect(price).eq(amount)
-  })
-
-  it('convertFromUsd', async function () {
-    const amount = parseEther('1')
-    const price = await ibOracle.convertFromUsd(aDAI.address, amount)
-    expect(price).eq(amount)
+  it('getPriceInUsd', async function () {
+    const price = await ibOracle.getPriceInUsd(aDAI.address)
+    expect(price).eq(parseUnits('1', 8))
   })
 })

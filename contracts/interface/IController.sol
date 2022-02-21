@@ -81,7 +81,7 @@ interface IController {
         uint256 _amountIn
     ) external returns (uint256 _amountOut);
 
-    function updateOracle(IMasterOracle _newOracle) external;
+    function updateMasterOracle(IMasterOracle _newOracle) external;
 
     function updateDebtFloor(uint256 _newDebtFloorInUsd) external;
 
@@ -105,7 +105,7 @@ interface IController {
 
     function treasury() external view returns (ITreasury);
 
-    function oracle() external view returns (IMasterOracle);
+    function masterOracle() external view returns (IMasterOracle);
 
     function addToDepositTokensOfAccount(address _account) external;
 

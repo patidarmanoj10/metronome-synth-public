@@ -12,8 +12,8 @@ import {
   ControllerMock__factory,
   IWETH,
   IWETH__factory,
-  OracleMock,
-  OracleMock__factory,
+  MasterOracleMock,
+  MasterOracleMock__factory,
   WETHGateway,
   WETHGateway__factory,
 } from '../typechain'
@@ -27,7 +27,7 @@ describe('WETHGateway', function () {
   let user: SignerWithAddress
   let weth: IWETH
   let wethDepositToken: DepositToken
-  let oracleMock: OracleMock
+  let masterOracleMock: MasterOracleMock
   let controllerMock: ControllerMock
   let wethGateway: WETHGateway
   let tokenMock: ERC20Mock
@@ -42,9 +42,9 @@ describe('WETHGateway', function () {
 
     weth = IWETH__factory.connect(WETH_ADDRESS, deployer)
 
-    const oracleMockFactory = new OracleMock__factory(deployer)
-    oracleMock = await oracleMockFactory.deploy()
-    await oracleMock.deployed()
+    const masterOracleMockFactory = new MasterOracleMock__factory(deployer)
+    masterOracleMock = await masterOracleMockFactory.deploy()
+    await masterOracleMock.deployed()
 
     const depositTokenFactory = new DepositToken__factory(deployer)
     wethDepositToken = await depositTokenFactory.deploy()
@@ -53,7 +53,7 @@ describe('WETHGateway', function () {
     const controllerMockFactory = new ControllerMock__factory(deployer)
     controllerMock = await controllerMockFactory.deploy(
       wethDepositToken.address,
-      oracleMock.address,
+      masterOracleMock.address,
       ethers.constants.AddressZero
     )
     await controllerMock.deployed()
@@ -68,7 +68,7 @@ describe('WETHGateway', function () {
     tokenMock = await erc20MockFactory.deploy('Name', 'SYMBOL', 18)
     await tokenMock.deployed()
 
-    await oracleMock.updateRate(wethDepositToken.address, parseEther('1'))
+    await masterOracleMock.updateRate(wethDepositToken.address, parseEther('1'))
   })
 
   it('should not receive ETH if sender is not WETH contract', async function () {

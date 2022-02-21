@@ -173,7 +173,10 @@ contract SyntheticToken is Manageable, SyntheticTokenStorageV1 {
      */
     function mint(address _to, uint256 _amount) public override onlyController {
         require(isActive, "synthetic-is-inactive");
-        uint256 _newTotalSupplyInUsd = controller.oracle().convertToUsd(IERC20(address(this)), totalSupply + _amount);
+        uint256 _newTotalSupplyInUsd = controller.masterOracle().convertToUsd(
+            IERC20(address(this)),
+            totalSupply + _amount
+        );
         require(_newTotalSupplyInUsd <= maxTotalSupplyInUsd, "surpass-max-total-supply");
         _mint(_to, _amount);
     }

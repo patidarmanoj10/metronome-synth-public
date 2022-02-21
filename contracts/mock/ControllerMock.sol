@@ -13,16 +13,16 @@ import "../interface/IGovernable.sol";
 contract ControllerMock is IController, IGovernable {
     ITreasury public treasury;
     IDepositToken public depositToken;
-    IMasterOracle public oracle;
+    IMasterOracle public masterOracle;
     address public governor;
 
     constructor(
         IDepositToken _depositToken,
-        IMasterOracle _oracle,
+        IMasterOracle _masterOracle,
         ITreasury _treasury
     ) {
         depositToken = _depositToken;
-        oracle = _oracle;
+        masterOracle = _masterOracle;
         treasury = _treasury;
     }
 
@@ -76,7 +76,7 @@ contract ControllerMock is IController, IGovernable {
     {
         _isHealthy = true;
         uint256 _deposit = depositToken.balanceOf(_account);
-        _depositInUsd = oracle.convertToUsd(depositToken, _deposit);
+        _depositInUsd = masterOracle.convertToUsd(depositToken, _deposit);
         _debtInUsd = 0;
         _issuableLimitInUsd = _depositInUsd;
         _issuableInUsd = _issuableLimitInUsd;
@@ -149,7 +149,7 @@ contract ControllerMock is IController, IGovernable {
         revert("mock-does-not-implement");
     }
 
-    function updateOracle(IMasterOracle) external pure {
+    function updateMasterOracle(IMasterOracle) external pure {
         revert("mock-does-not-implement");
     }
 
