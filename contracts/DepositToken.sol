@@ -265,7 +265,9 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @return _lockedBalance The locked amount
      */
     function lockedBalanceOf(address _account) public view override returns (uint256 _lockedBalance) {
-        return balanceOf[_account] - unlockedBalanceOf(_account);
+        unchecked {
+            return balanceOf[_account] - unlockedBalanceOf(_account);
+        }
     }
 
     /**
