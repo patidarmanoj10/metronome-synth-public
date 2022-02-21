@@ -67,6 +67,19 @@ describe('MasterOracle', function () {
       await expect(tx).revertedWith('not-governor')
     })
 
+    it('should revert if arrays have invalid length', async function () {
+      const tx1 = masterOracle.addOrUpdate([vsDOGE.address, vsBTC.address], [defaultOracle.address])
+      await expect(tx1).revertedWith('invalid-arrays-length')
+
+      const tx2 = masterOracle.addOrUpdate([], [])
+      await expect(tx2).revertedWith('invalid-arrays-length')
+    })
+
+    it('should revert an asset is null', async function () {
+      const tx1 = masterOracle.addOrUpdate([AddressZero], [defaultOracle.address])
+      await expect(tx1).revertedWith('an-asset-has-null-address')
+    })
+
     it('should add new oracle', async function () {
       // given
       expect(await masterOracle.oracles(vsDOGE.address)).eq(AddressZero)
@@ -98,6 +111,12 @@ describe('MasterOracle', function () {
     it('should revert if not governor', async function () {
       const tx = masterOracle.connect(user).setDefaultOracle(btcOracle.address)
       await expect(tx).revertedWith('not-governor')
+    })
+
+    it('should revert if setting same address as current', async function () {
+      const current = await masterOracle.defaultOracle()
+      const tx = masterOracle.setDefaultOracle(current)
+      await expect(tx).revertedWith('new-oracle-is-same-as-current')
     })
 
     it('should update the default oracle', async function () {

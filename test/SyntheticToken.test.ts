@@ -142,6 +142,12 @@ describe('SyntheticToken', function () {
       expect(await vsAsset.maxTotalSupplyInUsd()).eq(after)
     })
 
+    it('should revert if using the current value', async function () {
+      const currentMaxTotalSupplyInUsd = await vsAsset.maxTotalSupplyInUsd()
+      const tx = vsAsset.updateMaxTotalSupplyInUsd(currentMaxTotalSupplyInUsd)
+      await expect(tx).revertedWith('new-same-as-current')
+    })
+
     it('should revert if not governor', async function () {
       const tx = vsAsset.connect(user).updateMaxTotalSupplyInUsd(parseEther('10'))
       await expect(tx).revertedWith('not-governor')
@@ -155,6 +161,12 @@ describe('SyntheticToken', function () {
       const tx = vsAsset.updateInterestRate(after)
       await expect(tx).emit(vsAsset, 'InterestRateUpdated').withArgs(before, after)
       expect(await vsAsset.interestRate()).eq(after)
+    })
+
+    it('should revert if using the current value', async function () {
+      const currentInterestRate = await vsAsset.interestRate()
+      const tx = vsAsset.updateInterestRate(currentInterestRate)
+      await expect(tx).revertedWith('new-same-as-current')
     })
 
     it('should revert if not governor', async function () {

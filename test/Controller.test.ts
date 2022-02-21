@@ -103,7 +103,7 @@ async function fixture() {
   await vsDoge.initialize('Vesper Synth DOGE', 'vsDOGE', 18, controller.address, vsDogeDebtToken.address, interestRate)
 
   await controller.initialize(masterOracleMock.address, treasury.address)
-  await controller.updateLiquidatorLiquidationFee(liquidatorLiquidationFee)
+  expect(await controller.liquidatorLiquidationFee()).eq(liquidatorLiquidationFee)
   await controller.addDepositToken(metDepositToken.address)
   await controller.addSyntheticToken(vsEth.address)
   await controller.addDepositToken(daiDepositToken.address)
@@ -1766,46 +1766,6 @@ describe('Controller', function () {
     })
   })
 
-  describe('updateMaxLiquidable', function () {
-    it('should revert if caller is not governor', async function () {
-      // when
-      const tx = controller.connect(alice.address).updateMaxLiquidable(parseEther('1'))
-
-      // then
-      await expect(tx).revertedWith('not-governor')
-    })
-
-    it('should revert if using the current value', async function () {
-      // when
-      const maxLiquidable = await controller.maxLiquidable()
-      const tx = controller.updateMaxLiquidable(maxLiquidable)
-
-      // then
-      await expect(tx).revertedWith('new-is-same-as-current')
-    })
-
-    it('should revert if max liquidable > 100%', async function () {
-      // when
-      const maxLiquidable = parseEther('1').add('1')
-      const tx = controller.updateMaxLiquidable(maxLiquidable)
-
-      // then
-      await expect(tx).revertedWith('max-is-100%')
-    })
-
-    it('should update max liquidable param', async function () {
-      // given
-      const currentMaxLiquidable = await controller.maxLiquidable()
-      const newMaxLiquidable = currentMaxLiquidable.div('2')
-
-      // when
-      const tx = controller.updateMaxLiquidable(newMaxLiquidable)
-
-      // then
-      await expect(tx).emit(controller, 'MaxLiquidableUpdated').withArgs(currentMaxLiquidable, newMaxLiquidable)
-    })
-  })
-
   describe('whitelisting', function () {
     describe('addSyntheticToken', function () {
       it('should revert if not governor', async function () {
@@ -1889,7 +1849,7 @@ describe('Controller', function () {
       const tx = controller.updateMasterOracle(masterOracle.address)
 
       // then
-      await expect(tx).revertedWith('new-is-same-as-current')
+      await expect(tx).revertedWith('new-same-as-current')
     })
 
     it('should revert if address is zero', async function () {
@@ -2109,6 +2069,368 @@ describe('Controller', function () {
         // when
         expect(await controller.getDebtTokensOfAccount(alice.address)).deep.eq([])
       })
+    })
+  })
+
+  describe('updateDepositFee', function () {
+    it('should revert if caller is not governor', async function () {
+      // when
+      const tx = controller.connect(alice.address).updateDepositFee(parseEther('1'))
+
+      // then
+      await expect(tx).revertedWith('not-governor')
+    })
+
+    it('should revert if using the current value', async function () {
+      // when
+      const depositFee = await controller.depositFee()
+      const tx = controller.updateDepositFee(depositFee)
+
+      // then
+      await expect(tx).revertedWith('new-same-as-current')
+    })
+
+    it('should revert if deposit fee > 100%', async function () {
+      // when
+      const newDepositFee = parseEther('1').add('1')
+      const tx = controller.updateDepositFee(newDepositFee)
+
+      // then
+      await expect(tx).revertedWith('max-is-100%')
+    })
+
+    it('should update deposit fee param', async function () {
+      // given
+      const currentDepositFee = await controller.depositFee()
+      const newDepositFee = parseEther('0.01')
+      expect(newDepositFee).not.eq(currentDepositFee)
+
+      // when
+      const tx = controller.updateDepositFee(newDepositFee)
+
+      // then
+      await expect(tx).emit(controller, 'DepositFeeUpdated').withArgs(currentDepositFee, newDepositFee)
+    })
+  })
+
+  describe('updateIssueFee', function () {
+    it('should revert if caller is not governor', async function () {
+      // when
+      const tx = controller.connect(alice.address).updateIssueFee(parseEther('1'))
+
+      // then
+      await expect(tx).revertedWith('not-governor')
+    })
+
+    it('should revert if using the current value', async function () {
+      // when
+      const issueFee = await controller.issueFee()
+      const tx = controller.updateIssueFee(issueFee)
+
+      // then
+      await expect(tx).revertedWith('new-same-as-current')
+    })
+
+    it('should revert if issue fee > 100%', async function () {
+      // when
+      const newIssueFee = parseEther('1').add('1')
+      const tx = controller.updateIssueFee(newIssueFee)
+
+      // then
+      await expect(tx).revertedWith('max-is-100%')
+    })
+
+    it('should update issue fee param', async function () {
+      // given
+      const currentIssueFee = await controller.issueFee()
+      const newIssueFee = parseEther('0.01')
+      expect(newIssueFee).not.eq(currentIssueFee)
+
+      // when
+      const tx = controller.updateIssueFee(newIssueFee)
+
+      // then
+      await expect(tx).emit(controller, 'IssueFeeUpdated').withArgs(currentIssueFee, newIssueFee)
+    })
+  })
+
+  describe('updateWithdrawFee', function () {
+    it('should revert if caller is not governor', async function () {
+      // when
+      const tx = controller.connect(alice.address).updateWithdrawFee(parseEther('1'))
+
+      // then
+      await expect(tx).revertedWith('not-governor')
+    })
+
+    it('should revert if using the current value', async function () {
+      // when
+      const withdrawFee = await controller.withdrawFee()
+      const tx = controller.updateWithdrawFee(withdrawFee)
+
+      // then
+      await expect(tx).revertedWith('new-same-as-current')
+    })
+
+    it('should revert if withdraw fee > 100%', async function () {
+      // when
+      const newWithdrawFee = parseEther('1').add('1')
+      const tx = controller.updateWithdrawFee(newWithdrawFee)
+
+      // then
+      await expect(tx).revertedWith('max-is-100%')
+    })
+
+    it('should update withdraw fee param', async function () {
+      // given
+      const currentWithdrawFee = await controller.withdrawFee()
+      const newWithdrawFee = parseEther('0.01')
+      expect(newWithdrawFee).not.eq(currentWithdrawFee)
+
+      // when
+      const tx = controller.updateWithdrawFee(newWithdrawFee)
+
+      // then
+      await expect(tx).emit(controller, 'WithdrawFeeUpdated').withArgs(currentWithdrawFee, newWithdrawFee)
+    })
+  })
+
+  describe('updateRepayFee', function () {
+    it('should revert if caller is not governor', async function () {
+      // when
+      const tx = controller.connect(alice.address).updateRepayFee(parseEther('1'))
+
+      // then
+      await expect(tx).revertedWith('not-governor')
+    })
+
+    it('should revert if using the current value', async function () {
+      // when
+      const repayFee = await controller.repayFee()
+      const tx = controller.updateRepayFee(repayFee)
+
+      // then
+      await expect(tx).revertedWith('new-same-as-current')
+    })
+
+    it('should revert if repay fee > 100%', async function () {
+      // when
+      const newRepayFee = parseEther('1').add('1')
+      const tx = controller.updateRepayFee(newRepayFee)
+
+      // then
+      await expect(tx).revertedWith('max-is-100%')
+    })
+
+    it('should update repay fee param', async function () {
+      // given
+      const currentRepayFee = await controller.repayFee()
+      const newRepayFee = parseEther('0.01')
+      expect(newRepayFee).not.eq(currentRepayFee)
+
+      // when
+      const tx = controller.updateRepayFee(newRepayFee)
+
+      // then
+      await expect(tx).emit(controller, 'RepayFeeUpdated').withArgs(currentRepayFee, newRepayFee)
+    })
+  })
+
+  describe('updateSwapFee', function () {
+    it('should revert if caller is not governor', async function () {
+      // when
+      const tx = controller.connect(alice.address).updateSwapFee(parseEther('1'))
+
+      // then
+      await expect(tx).revertedWith('not-governor')
+    })
+
+    it('should revert if using the current value', async function () {
+      // when
+      const swapFee = await controller.swapFee()
+      const tx = controller.updateSwapFee(swapFee)
+
+      // then
+      await expect(tx).revertedWith('new-same-as-current')
+    })
+
+    it('should revert if swap fee > 100%', async function () {
+      // when
+      const newSwapFee = parseEther('1').add('1')
+      const tx = controller.updateSwapFee(newSwapFee)
+
+      // then
+      await expect(tx).revertedWith('max-is-100%')
+    })
+
+    it('should update swap fee param', async function () {
+      // given
+      const currentSwapFee = await controller.swapFee()
+      const newSwapFee = parseEther('0.01')
+      expect(newSwapFee).not.eq(currentSwapFee)
+
+      // when
+      const tx = controller.updateSwapFee(newSwapFee)
+
+      // then
+      await expect(tx).emit(controller, 'SwapFeeUpdated').withArgs(currentSwapFee, newSwapFee)
+    })
+  })
+
+  describe('updateLiquidatorLiquidationFee', function () {
+    it('should revert if caller is not governor', async function () {
+      // when
+      const tx = controller.connect(alice.address).updateLiquidatorLiquidationFee(parseEther('1'))
+
+      // then
+      await expect(tx).revertedWith('not-governor')
+    })
+
+    it('should revert if using the current value', async function () {
+      // when
+      const newLiquidatorLiquidationFee = await controller.liquidatorLiquidationFee()
+      const tx = controller.updateLiquidatorLiquidationFee(newLiquidatorLiquidationFee)
+
+      // then
+      await expect(tx).revertedWith('new-same-as-current')
+    })
+
+    it('should revert if liquidator liquidation fee > 100%', async function () {
+      // when
+      const newLiquidatorLiquidationFee = parseEther('1').add('1')
+      const tx = controller.updateLiquidatorLiquidationFee(newLiquidatorLiquidationFee)
+
+      // then
+      await expect(tx).revertedWith('max-is-100%')
+    })
+
+    it('should update liquidator liquidation fee param', async function () {
+      // given
+      const currentLiquidatorLiquidationFee = await controller.liquidatorLiquidationFee()
+      const newLiquidatorLiquidationFee = parseEther('0.01')
+      expect(newLiquidatorLiquidationFee).not.eq(currentLiquidatorLiquidationFee)
+
+      // when
+      const tx = controller.updateLiquidatorLiquidationFee(newLiquidatorLiquidationFee)
+
+      // then
+      await expect(tx)
+        .emit(controller, 'LiquidatorLiquidationFeeUpdated')
+        .withArgs(currentLiquidatorLiquidationFee, newLiquidatorLiquidationFee)
+    })
+  })
+
+  describe('updateProtocolLiquidationFee', function () {
+    it('should revert if caller is not governor', async function () {
+      // when
+      const tx = controller.connect(alice.address).updateProtocolLiquidationFee(parseEther('1'))
+
+      // then
+      await expect(tx).revertedWith('not-governor')
+    })
+
+    it('should revert if using the current value', async function () {
+      // when
+      const newProtocolLiquidationFee = await controller.protocolLiquidationFee()
+      const tx = controller.updateProtocolLiquidationFee(newProtocolLiquidationFee)
+
+      // then
+      await expect(tx).revertedWith('new-same-as-current')
+    })
+
+    it('should revert if protocol liquidation fee > 100%', async function () {
+      // when
+      const newProtocolLiquidationFee = parseEther('1').add('1')
+      const tx = controller.updateProtocolLiquidationFee(newProtocolLiquidationFee)
+
+      // then
+      await expect(tx).revertedWith('max-is-100%')
+    })
+
+    it('should update protocol liquidation fee param', async function () {
+      // given
+      const currentProtocolLiquidationFee = await controller.protocolLiquidationFee()
+      const newProtocolLiquidationFee = parseEther('0.01')
+      expect(newProtocolLiquidationFee).not.eq(currentProtocolLiquidationFee)
+
+      // when
+      const tx = controller.updateProtocolLiquidationFee(newProtocolLiquidationFee)
+
+      // then
+      await expect(tx)
+        .emit(controller, 'ProtocolLiquidationFeeUpdated')
+        .withArgs(currentProtocolLiquidationFee, newProtocolLiquidationFee)
+    })
+  })
+
+  describe('updateMaxLiquidable', function () {
+    it('should revert if caller is not governor', async function () {
+      // when
+      const tx = controller.connect(alice.address).updateMaxLiquidable(parseEther('1'))
+
+      // then
+      await expect(tx).revertedWith('not-governor')
+    })
+
+    it('should revert if using the current value', async function () {
+      // when
+      const maxLiquidable = await controller.maxLiquidable()
+      const tx = controller.updateMaxLiquidable(maxLiquidable)
+
+      // then
+      await expect(tx).revertedWith('new-same-as-current')
+    })
+
+    it('should revert if max liquidable > 100%', async function () {
+      // when
+      const maxLiquidable = parseEther('1').add('1')
+      const tx = controller.updateMaxLiquidable(maxLiquidable)
+
+      // then
+      await expect(tx).revertedWith('max-is-100%')
+    })
+
+    it('should update max liquidable param', async function () {
+      // given
+      const currentMaxLiquidable = await controller.maxLiquidable()
+      const newMaxLiquidable = currentMaxLiquidable.div('2')
+
+      // when
+      const tx = controller.updateMaxLiquidable(newMaxLiquidable)
+
+      // then
+      await expect(tx).emit(controller, 'MaxLiquidableUpdated').withArgs(currentMaxLiquidable, newMaxLiquidable)
+    })
+  })
+
+  describe('updateDebtFloor', function () {
+    it('should revert if caller is not governor', async function () {
+      // when
+      const tx = controller.connect(alice.address).updateDebtFloor(parseEther('1'))
+
+      // then
+      await expect(tx).revertedWith('not-governor')
+    })
+
+    it('should revert if using the current value', async function () {
+      // when
+      const debtFloorInUsd = await controller.debtFloorInUsd()
+      const tx = controller.updateDebtFloor(debtFloorInUsd)
+
+      // then
+      await expect(tx).revertedWith('new-same-as-current')
+    })
+
+    it('should update debt floor param', async function () {
+      // given
+      const currentDebtFloorInUsd = await controller.debtFloorInUsd()
+      const newDebtFloorInUsd = parseEther('100')
+
+      // when
+      const tx = controller.updateDebtFloor(newDebtFloorInUsd)
+
+      // then
+      await expect(tx).emit(controller, 'DebtFloorUpdated').withArgs(currentDebtFloorInUsd, newDebtFloorInUsd)
     })
   })
 })
