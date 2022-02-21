@@ -52,7 +52,7 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
      * @notice Transfer all funds to another contract
      * @dev This function can become too expensive depending on the length of the arrays
      */
-    function migrateTo(address _newTreasury) external onlyController {
+    function migrateTo(address _newTreasury) external override onlyController {
         address[] memory _depositTokens = controller.getDepositTokens();
 
         for (uint256 i = 0; i < _depositTokens.length; ++i) {

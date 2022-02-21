@@ -76,12 +76,12 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
         return interestRate / BLOCKS_PER_YEAR;
     }
 
-    function transfer(address recipient, uint256 amount) public virtual override returns (bool) {
+    function transfer(address recipient, uint256 amount) external override returns (bool) {
         _transfer(_msgSender(), recipient, amount);
         return true;
     }
 
-    function approve(address spender, uint256 amount) public virtual override returns (bool) {
+    function approve(address spender, uint256 amount) external override returns (bool) {
         _approve(_msgSender(), spender, amount);
         return true;
     }
@@ -90,7 +90,7 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
         address sender,
         address recipient,
         uint256 amount
-    ) public virtual override returns (bool) {
+    ) external override returns (bool) {
         _transfer(sender, recipient, amount);
 
         uint256 currentAllowance = allowance[sender][_msgSender()];
@@ -102,12 +102,12 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
         return true;
     }
 
-    function increaseAllowance(address spender, uint256 addedValue) public virtual returns (bool) {
+    function increaseAllowance(address spender, uint256 addedValue) external returns (bool) {
         _approve(_msgSender(), spender, allowance[_msgSender()][spender] + addedValue);
         return true;
     }
 
-    function decreaseAllowance(address spender, uint256 subtractedValue) public virtual returns (bool) {
+    function decreaseAllowance(address spender, uint256 subtractedValue) external returns (bool) {
         uint256 currentAllowance = allowance[_msgSender()][spender];
         require(currentAllowance >= subtractedValue, "decreased-allowance-below-zero");
         unchecked {
@@ -121,11 +121,9 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
         address sender,
         address recipient,
         uint256 amount
-    ) internal virtual {
+    ) private {
         require(sender != address(0), "transfer-from-the-zero-address");
         require(recipient != address(0), "transfer-to-the-zero-address");
-
-        _beforeTokenTransfer(sender, recipient, amount);
 
         uint256 senderBalance = balanceOf[sender];
         require(senderBalance >= amount, "transfer-amount-exceeds-balance");
@@ -135,28 +133,20 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
         balanceOf[recipient] += amount;
 
         emit Transfer(sender, recipient, amount);
-
-        _afterTokenTransfer(sender, recipient, amount);
     }
 
-    function _mint(address account, uint256 amount) internal virtual onlyIfSyntheticTokenIsActive {
+    function _mint(address account, uint256 amount) private onlyIfSyntheticTokenIsActive {
         require(account != address(0), "mint-to-the-zero-address");
         uint256 _newTotalSupplyInUsd = controller.masterOracle().convertToUsd(this, totalSupply + amount);
         require(_newTotalSupplyInUsd <= maxTotalSupplyInUsd, "surpass-max-total-supply");
 
-        _beforeTokenTransfer(address(0), account, amount);
-
         totalSupply += amount;
         balanceOf[account] += amount;
         emit Transfer(address(0), account, amount);
-
-        _afterTokenTransfer(address(0), account, amount);
     }
 
-    function _burn(address account, uint256 amount) internal virtual {
+    function _burn(address account, uint256 amount) private {
         require(account != address(0), "burn-from-the-zero-address");
-
-        _beforeTokenTransfer(account, address(0), amount);
 
         uint256 accountBalance = balanceOf[account];
         require(accountBalance >= amount, "burn-amount-exceeds-balance");
@@ -166,33 +156,19 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
         totalSupply -= amount;
 
         emit Transfer(account, address(0), amount);
-
-        _afterTokenTransfer(account, address(0), amount);
     }
 
     function _approve(
         address owner,
         address spender,
         uint256 amount
-    ) internal virtual {
+    ) private {
         require(owner != address(0), "approve-from-the-zero-address");
         require(spender != address(0), "approve-to-the-zero-address");
 
         allowance[owner][spender] = amount;
         emit Approval(owner, spender, amount);
     }
-
-    function _beforeTokenTransfer(
-        address from,
-        address to,
-        uint256 amount // solhint-disable-next-line no-empty-blocks
-    ) internal virtual {}
-
-    function _afterTokenTransfer(
-        address from,
-        address to,
-        uint256 amount // solhint-disable-next-line no-empty-blocks
-    ) internal virtual {}
 
     /**
      * @notice Lock collateral and mint synthetic token
@@ -285,7 +261,7 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
      * @param _to The account to mint to
      * @param _amount The amount to mint
      */
-    function mint(address _to, uint256 _amount) public override onlyController {
+    function mint(address _to, uint256 _amount) external override onlyController {
         _mint(_to, _amount);
     }
 
@@ -294,7 +270,7 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
      * @param _from The account to burn from
      * @param _amount The amount to burn
      */
-    function burn(address _from, uint256 _amount) public override onlyController {
+    function burn(address _from, uint256 _amount) external override onlyController {
         _burn(_from, _amount);
     }
 
@@ -321,7 +297,7 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
     /**
      * @notice Update interest rate (APR)
      */
-    function updateInterestRate(uint256 _newInterestRate) public override onlyGovernor {
+    function updateInterestRate(uint256 _newInterestRate) external onlyGovernor {
         accrueInterest();
         uint256 _currentInterestRate = interestRate;
         require(_newInterestRate != _currentInterestRate, "new-same-as-current");
