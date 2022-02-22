@@ -3,20 +3,21 @@
 pragma solidity 0.8.9;
 
 import "./dependencies/openzeppelin/utils/Context.sol";
+import "./interface/IPausable.sol";
 import "./access/Governable.sol";
 
 /**
  * @dev Contract module which allows children to implement an emergency stop
  * mechanism that can be triggered by an authorized account.
  */
-abstract contract Pausable is Governable {
+abstract contract Pausable is IPausable, Governable {
     event Paused(address account);
     event Shutdown(address account);
     event Unpaused(address account);
     event Open(address account);
 
-    bool public paused;
-    bool public stopEverything;
+    bool public override paused;
+    bool public override everythingStopped;
 
     modifier whenNotPaused() {
         require(!paused, "paused");
@@ -28,12 +29,12 @@ abstract contract Pausable is Governable {
     }
 
     modifier whenNotShutdown() {
-        require(!stopEverything, "shutdown");
+        require(!everythingStopped, "shutdown");
         _;
     }
 
     modifier whenShutdown() {
-        require(stopEverything, "not-shutdown");
+        require(everythingStopped, "not-shutdown");
         _;
     }
 
@@ -51,14 +52,14 @@ abstract contract Pausable is Governable {
 
     /// @dev Shutdown contract operations, if not already shutdown.
     function shutdown() external virtual whenNotShutdown onlyGovernor {
-        stopEverything = true;
+        everythingStopped = true;
         paused = true;
         emit Shutdown(_msgSender());
     }
 
     /// @dev Open contract operations, if contract is in shutdown state
     function open() external virtual whenShutdown onlyGovernor {
-        stopEverything = false;
+        everythingStopped = false;
         emit Open(_msgSender());
     }
 }

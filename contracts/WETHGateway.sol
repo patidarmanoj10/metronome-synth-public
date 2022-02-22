@@ -24,21 +24,14 @@ contract WETHGateway is Governable, IWETHGateway {
     }
 
     /**
-     * @notice Authorize the Controller contract to receive WETH tokens
-     * @param _controller The Controller contract
-     */
-    function authorizeController(address _controller) external onlyGovernor {
-        weth.safeApprove(_controller, type(uint256).max);
-    }
-
-    /**
      * @notice deposits WETH as collateral using native ETH. A corresponding amount of the deposit token is minted.
      * @param _controller The Controller contract
      */
     function depositETH(IController _controller) external payable override {
         weth.deposit{value: msg.value}();
         IDepositToken _depositToken = _controller.depositTokenOf(weth);
-        _controller.deposit(_depositToken, msg.value, msg.sender);
+        weth.safeApprove(address(_depositToken), msg.value);
+        _depositToken.deposit(msg.value, msg.sender);
     }
 
     /**
@@ -49,7 +42,7 @@ contract WETHGateway is Governable, IWETHGateway {
     function withdrawETH(IController _controller, uint256 _amount) external override {
         IDepositToken _depositToken = _controller.depositTokenOf(weth);
         _depositToken.safeTransferFrom(msg.sender, address(this), _amount);
-        _controller.withdraw(_depositToken, _amount, address(this));
+        _depositToken.withdraw(_amount, address(this));
         weth.withdraw(_amount);
         Address.sendValue(payable(msg.sender), _amount);
     }

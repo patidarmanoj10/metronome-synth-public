@@ -1,7 +1,6 @@
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
 import Address from '../../helpers/address'
-import {deterministic, UpgradableContracts} from '../helpers'
 
 const {WETH_ADDRESS} = Address
 
@@ -18,9 +17,6 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     args: [WETH_ADDRESS],
   })
 
-  const {address: controllerAddress} = await deterministic(hre, UpgradableContracts.Controller)
-
-  await execute(WETHGateway, {from: deployer, log: true}, 'authorizeController', controllerAddress)
   await execute(WETHGateway, {from: deployer, log: true}, 'transferGovernorship', governor)
 }
 

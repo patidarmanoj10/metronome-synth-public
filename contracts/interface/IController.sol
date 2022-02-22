@@ -3,6 +3,7 @@
 pragma solidity 0.8.9;
 
 import "./oracle/IMasterOracle.sol";
+import "./IPausable.sol";
 import "./ISyntheticToken.sol";
 import "./IDepositToken.sol";
 import "./ITreasury.sol";
@@ -10,7 +11,15 @@ import "./ITreasury.sol";
 /**
  * @notice Controller interface
  */
-interface IController {
+interface IController is IPausable {
+    function debtFloorInUsd() external returns (uint256);
+
+    function depositFee() external returns (uint256);
+
+    function issueFee() external returns (uint256);
+
+    function withdrawFee() external returns (uint256);
+
     function isSyntheticTokenExists(ISyntheticToken _syntheticToken) external view returns (bool);
 
     function isDepositTokenExists(IDepositToken _depositToken) external view returns (bool);
@@ -44,20 +53,8 @@ interface IController {
 
     function removeDepositToken(IDepositToken _depositToken) external;
 
-    function deposit(
-        IDepositToken _depositToken,
-        uint256 _amount,
-        address _onBehalfOf
-    ) external;
-
     function issue(
         ISyntheticToken _syntheticToken,
-        uint256 _amount,
-        address _to
-    ) external;
-
-    function withdraw(
-        IDepositToken _depositToken,
         uint256 _amount,
         address _to
     ) external;

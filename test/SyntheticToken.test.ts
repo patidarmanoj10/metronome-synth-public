@@ -45,6 +45,7 @@ describe('SyntheticToken', function () {
     )
     await controllerMock.deployed()
     await controllerMock.transferGovernorship(governor.address)
+    await controllerMock.updateTreasury(treasury.address, false)
 
     const debtTokenFactory = new DebtTokenMock__factory(deployer)
     debtToken = await debtTokenFactory.deploy()
@@ -56,8 +57,6 @@ describe('SyntheticToken', function () {
 
     await debtToken.initialize('vsETH Debt', 'vsETH-Debt', 18, controllerMock.address, vsAsset.address)
     await vsAsset.initialize(name, symbol, 18, controllerMock.address, debtToken.address, interestRate)
-
-    vsAsset = vsAsset.connect(governor)
 
     await masterOracleMock.updateRate(vsAsset.address, parseEther('1')) // 1 vsAsset = $1
   })

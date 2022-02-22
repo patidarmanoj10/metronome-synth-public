@@ -2,6 +2,7 @@
 
 pragma solidity 0.8.9;
 
+import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import "./dependencies/openzeppelin/utils/math/Math.sol";
 import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./lib/WadRayMath.sol";
@@ -13,6 +14,7 @@ import "./storage/DepositTokenStorage.sol";
  */
 
 contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
+    using SafeERC20 for IERC20;
     using WadRayMath for uint256;
 
     string public constant VERSION = "1.0.0";
@@ -29,6 +31,12 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     /// @notice Emitted when max total supply is updated
     event MaxTotalSupplyUpdated(uint256 oldMaxTotalSupplyInUsd, uint256 newMaxTotalSupplyInUsd);
 
+    /// @notice Emitted when collateral is deposited
+    event CollateralDeposited(address indexed from, address indexed account, uint256 amount, uint256 fee);
+
+    /// @notice Emitted when collateral is withdrawn
+    event CollateralWithdrawn(address indexed account, address indexed to, uint256 amount, uint256 fee);
+
     /**
      * @dev Throws if minimum deposit time haven't passed
      */
@@ -43,6 +51,14 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     modifier onlyIfNotLocked(address _account, uint256 _amount) {
         uint256 _unlockedDeposit = unlockedBalanceOf(_account);
         require(_unlockedDeposit >= _amount, "not-enough-free-balance");
+        _;
+    }
+
+    /**
+     * @dev Throws if deposit token doesn't exist
+     */
+    modifier onlyIfDepositTokenExists() {
+        require(controller.isDepositTokenExists(this), "collateral-inexistent");
         _;
     }
 
@@ -94,7 +110,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         address sender,
         address recipient,
         uint256 _amount
-    ) internal virtual nonReentrant {
+    ) internal virtual {
         require(sender != address(0), "transfer-from-the-zero-address");
         require(recipient != address(0), "transfer-to-the-zero-address");
 
@@ -114,6 +130,11 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
 
     function _mint(address _account, uint256 _amount) internal virtual {
         require(_account != address(0), "mint-to-the-zero-address");
+
+        require(isActive, "deposit-token-is-inactive");
+        uint256 _newTotalSupplyInUsd = controller.masterOracle().convertToUsd(this, totalSupply + _amount);
+        require(_newTotalSupplyInUsd <= maxTotalSupplyInUsd, "surpass-max-total-supply");
+        lastDepositOf[_account] = block.timestamp;
 
         _beforeTokenTransfer(address(0), _account, _amount);
 
@@ -176,16 +197,85 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     }
 
     /**
+     * @notice Deposit colleteral and mint vsCollateral-Deposit (tokenized deposit position)
+     * @param _amount The amount of collateral tokens to deposit
+     * @param _onBehalfOf The account to deposit to
+     */
+    function deposit(uint256 _amount, address _onBehalfOf)
+        external
+        override
+        whenNotPaused
+        nonReentrant
+        onlyIfDepositTokenExists
+    {
+        require(_amount > 0, "amount-is-zero");
+        require(isActive, "collateral-inactive");
+
+        address _sender = _msgSender();
+        ITreasury _treasury = controller.treasury();
+
+        uint256 _balanceBefore = underlying.balanceOf(address(_treasury));
+
+        underlying.safeTransferFrom(_sender, address(_treasury), _amount);
+
+        _amount = underlying.balanceOf(address(_treasury)) - _balanceBefore;
+
+        uint256 _depositFee = controller.depositFee();
+        uint256 _amountToDeposit = _amount;
+        uint256 _feeAmount;
+        if (_depositFee > 0) {
+            _feeAmount = _amount.wadMul(_depositFee);
+            _mint(address(_treasury), _feeAmount);
+            _amountToDeposit -= _feeAmount;
+        }
+
+        _mint(_onBehalfOf, _amountToDeposit);
+
+        emit CollateralDeposited(_sender, _onBehalfOf, _amount, _feeAmount);
+    }
+
+    /**
+     * @notice Burn vsCollateral-Deposit and withdraw collateral
+     * @param _amount The amount of collateral to withdraw
+     * @param _to The account that will receive withdrawn collateral
+     */
+    function withdraw(uint256 _amount, address _to)
+        external
+        override
+        whenNotShutdown
+        nonReentrant
+        onlyIfDepositTokenExists
+    {
+        require(_amount > 0, "amount-is-zero");
+
+        address _account = _msgSender();
+
+        require(_amount <= unlockedBalanceOf(_account), "amount-gt-unlocked");
+
+        ITreasury _treasury = controller.treasury();
+
+        uint256 _withdrawFee = controller.withdrawFee();
+        uint256 _amountToWithdraw = _amount;
+        uint256 _feeAmount;
+        if (_withdrawFee > 0) {
+            _feeAmount = _amount.wadMul(_withdrawFee);
+            _transfer(_account, address(_treasury), _feeAmount);
+            _amountToWithdraw -= _feeAmount;
+        }
+
+        _burnForWithdraw(_account, _amountToWithdraw);
+        _treasury.pull(underlying, _to, _amountToWithdraw);
+
+        emit CollateralWithdrawn(_account, _to, _amount, _feeAmount);
+    }
+
+    /**
      * @notice Mint deposit token when an account deposits collateral
      * @param _to The account to mint to
      * @param _amount The amount to mint
      */
     function mint(address _to, uint256 _amount) public override onlyController {
-        require(isActive, "deposit-token-is-inactive");
-        uint256 _newTotalSupplyInUsd = controller.masterOracle().convertToUsd(this, totalSupply + _amount);
-        require(_newTotalSupplyInUsd <= maxTotalSupplyInUsd, "surpass-max-total-supply");
         _mint(_to, _amount);
-        lastDepositOf[_to] = block.timestamp;
     }
 
     /**
@@ -193,10 +283,8 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @param _from The account to burn from
      * @param _amount The amount to burn
      */
-    function burnForWithdraw(address _from, uint256 _amount)
-        public
-        override
-        onlyController
+    function _burnForWithdraw(address _from, uint256 _amount)
+        private
         onlyIfNotLocked(_from, _amount)
         onlyIfMinDepositTimePassed(_from)
     {

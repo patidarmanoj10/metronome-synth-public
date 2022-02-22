@@ -35,6 +35,16 @@ abstract contract Manageable is Context, Initializable {
         _;
     }
 
+    modifier whenNotPaused() {
+        require(!controller.paused(), "paused");
+        _;
+    }
+
+    modifier whenNotShutdown() {
+        require(!controller.everythingStopped(), "not-shutdown");
+        _;
+    }
+
     function governor() public view returns (address _governor) {
         _governor = IGovernable(address(controller)).governor();
     }
