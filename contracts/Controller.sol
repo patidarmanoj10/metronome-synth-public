@@ -32,18 +32,6 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     /// @notice Emitted when deposit token is disabled
     event DepositTokenRemoved(IDepositToken indexed depositToken);
 
-    /// @notice Emitted when synthetic token is issued
-    event SyntheticTokenIssued(
-        address indexed account,
-        address indexed to,
-        ISyntheticToken indexed syntheticToken,
-        uint256 amount,
-        uint256 fee
-    );
-
-    /// @notice Emitted when synthetic's debt is repayed
-    event DebtRepayed(address indexed account, ISyntheticToken indexed syntheticToken, uint256 amount, uint256 fee);
-
     /// @notice Emitted when a position is liquidated
     event PositionLiquidated(
         address indexed liquidator,
@@ -276,95 +264,6 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
         (_depositInUsd, _issuableLimitInUsd) = depositOf(_account);
         _isHealthy = _debtInUsd <= _issuableLimitInUsd;
         _issuableInUsd = _debtInUsd < _issuableLimitInUsd ? _issuableLimitInUsd - _debtInUsd : 0;
-    }
-
-    /**
-     * @notice Lock collateral and mint synthetic token
-     * @param _syntheticToken The synthetic token to issue
-     * @param _amount The amount to mint
-     */
-    function issue(
-        ISyntheticToken _syntheticToken,
-        uint256 _amount,
-        address _to
-    )
-        external
-        override
-        whenNotShutdown
-        nonReentrant
-        onlyIfSyntheticTokenExists(_syntheticToken)
-        onlyIfSyntheticTokenIsActive(_syntheticToken)
-    {
-        require(_amount > 0, "amount-is-zero");
-
-        address _account = _msgSender();
-
-        _syntheticToken.accrueInterest();
-
-        (, , , , uint256 _issuableInUsd) = debtPositionOf(_account);
-
-        require(_amount <= masterOracle.convertFromUsd(_syntheticToken, _issuableInUsd), "not-enough-collateral");
-
-        if (debtFloorInUsd > 0) {
-            require(
-                masterOracle.convertToUsd(_syntheticToken, _syntheticToken.debtToken().balanceOf(_account) + _amount) >=
-                    debtFloorInUsd,
-                "debt-lt-floor"
-            );
-        }
-
-        uint256 _amountToIssue = _amount;
-        uint256 _feeAmount;
-        if (issueFee > 0) {
-            _feeAmount = _amount.wadMul(issueFee);
-            _syntheticToken.mint(address(treasury), _feeAmount);
-            _amountToIssue -= _feeAmount;
-        }
-
-        _syntheticToken.mint(_to, _amountToIssue);
-        _syntheticToken.debtToken().mint(_account, _amount);
-
-        emit SyntheticTokenIssued(_account, _to, _syntheticToken, _amount, _feeAmount);
-    }
-
-    /**
-     * @notice Send synthetic token to decrease debt
-     * @dev The msg.sender is the payer and the account beneficied
-     * @param _syntheticToken The synthetic token to burn
-     * @param _onBehalfOf The account that will have debt decreased
-     * @param _amount The amount of synthetic token to burn
-     */
-    function repay(
-        ISyntheticToken _syntheticToken,
-        address _onBehalfOf,
-        uint256 _amount
-    ) external override whenNotShutdown nonReentrant {
-        require(_amount > 0, "amount-is-zero");
-
-        _syntheticToken.accrueInterest();
-
-        address _payer = _msgSender();
-
-        uint256 _amountToRepay = _amount;
-        uint256 _feeAmount;
-        if (repayFee > 0) {
-            _feeAmount = _amount.wadMul(repayFee);
-            _syntheticToken.seize(_payer, address(treasury), _feeAmount);
-            _amountToRepay -= _feeAmount;
-        }
-
-        if (debtFloorInUsd > 0) {
-            uint256 _newDebtInUsd = masterOracle.convertToUsd(
-                _syntheticToken,
-                _syntheticToken.debtToken().balanceOf(_onBehalfOf) - _amountToRepay
-            );
-            require(_newDebtInUsd == 0 || _newDebtInUsd >= debtFloorInUsd, "debt-lt-floor");
-        }
-
-        _syntheticToken.burn(_payer, _amountToRepay);
-        _syntheticToken.debtToken().burn(_onBehalfOf, _amountToRepay);
-
-        emit DebtRepayed(_onBehalfOf, _syntheticToken, _amount, _feeAmount);
     }
 
     /**

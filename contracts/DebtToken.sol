@@ -15,9 +15,17 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
     string public constant VERSION = "1.0.0";
 
     /**
+     * @dev Throws if caller isn't authorized
+     */
+    modifier onlyIfAuthorized() {
+        require(msg.sender == address(controller) || msg.sender == address(syntheticToken), "not-authorized");
+        _;
+    }
+
+    /**
      * @dev Throws if the caller isn't the synthetic token
      */
-    modifier onlySyntheticToken() {
+    modifier onlyIfSyntheticToken() {
         require(_msgSender() == address(syntheticToken), "not-synthetic-token");
         _;
     }
@@ -163,7 +171,7 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
      * @param _to The account to mint to
      * @param _amount The amount to mint
      */
-    function mint(address _to, uint256 _amount) public override onlyController {
+    function mint(address _to, uint256 _amount) public override onlyIfAuthorized {
         _mint(_to, _amount);
     }
 
@@ -172,7 +180,7 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
      * @param _from The account to burn from
      * @param _amount The amount to burn
      */
-    function burn(address _from, uint256 _amount) public override onlyController {
+    function burn(address _from, uint256 _amount) public override onlyIfAuthorized {
         _burn(_from, _amount);
     }
 
@@ -221,7 +229,7 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
      * @notice Accrue interest over debt supply
      * @return _interestAmountAccrued The total amount of debt tokens accrued
      */
-    function accrueInterest() external override onlySyntheticToken returns (uint256 _interestAmountAccrued) {
+    function accrueInterest() external override onlyIfSyntheticToken returns (uint256 _interestAmountAccrued) {
         uint256 _debtIndex;
         uint256 _currentBlockNumber;
 

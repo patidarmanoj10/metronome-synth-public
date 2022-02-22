@@ -62,6 +62,14 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         _;
     }
 
+    /**
+     * @dev Throws if deposit token isn't enabled
+     */
+    modifier onlyIfDepositTokenIsActive() {
+        require(isActive, "deposit-token-is-inactive");
+        _;
+    }
+
     function initialize(
         IERC20 _underlying,
         IController _controller,
@@ -128,10 +136,9 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         _afterTokenTransfer(sender, recipient, _amount);
     }
 
-    function _mint(address _account, uint256 _amount) internal virtual {
+    function _mint(address _account, uint256 _amount) internal virtual onlyIfDepositTokenIsActive {
         require(_account != address(0), "mint-to-the-zero-address");
 
-        require(isActive, "deposit-token-is-inactive");
         uint256 _newTotalSupplyInUsd = controller.masterOracle().convertToUsd(this, totalSupply + _amount);
         require(_newTotalSupplyInUsd <= maxTotalSupplyInUsd, "surpass-max-total-supply");
         lastDepositOf[_account] = block.timestamp;
@@ -206,10 +213,10 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         override
         whenNotPaused
         nonReentrant
+        onlyIfDepositTokenIsActive
         onlyIfDepositTokenExists
     {
         require(_amount > 0, "amount-is-zero");
-        require(isActive, "collateral-inactive");
 
         address _sender = _msgSender();
         ITreasury _treasury = controller.treasury();

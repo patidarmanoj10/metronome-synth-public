@@ -20,6 +20,8 @@ interface IController is IPausable {
 
     function withdrawFee() external returns (uint256);
 
+    function repayFee() external returns (uint256);
+
     function isSyntheticTokenExists(ISyntheticToken _syntheticToken) external view returns (bool);
 
     function isDepositTokenExists(IDepositToken _depositToken) external view returns (bool);
@@ -52,18 +54,6 @@ interface IController is IPausable {
     function addDepositToken(address _depositToken) external;
 
     function removeDepositToken(IDepositToken _depositToken) external;
-
-    function issue(
-        ISyntheticToken _syntheticToken,
-        uint256 _amount,
-        address _to
-    ) external;
-
-    function repay(
-        ISyntheticToken _syntheticToken,
-        address _onBehalfOf,
-        uint256 _amount
-    ) external;
 
     function liquidate(
         ISyntheticToken _syntheticToken,

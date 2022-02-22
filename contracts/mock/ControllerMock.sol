@@ -110,22 +110,6 @@ contract ControllerMock is IController, Governable, Pausable {
         revert("mock-does-not-implement");
     }
 
-    function issue(
-        ISyntheticToken,
-        uint256,
-        address
-    ) external pure override {
-        revert("mock-does-not-implement");
-    }
-
-    function repay(
-        ISyntheticToken,
-        address,
-        uint256
-    ) external pure override {
-        revert("mock-does-not-implement");
-    }
-
     function liquidate(
         ISyntheticToken,
         address,
@@ -155,16 +139,16 @@ contract ControllerMock is IController, Governable, Pausable {
         depositFee = _newDepositFee;
     }
 
-    function updateIssueFee(uint256) external pure override {
-        revert("mock-does-not-implement");
+    function updateIssueFee(uint256 _newIssueFee) external override {
+        issueFee = _newIssueFee;
     }
 
     function updateWithdrawFee(uint256) external pure override {
         revert("mock-does-not-implement");
     }
 
-    function updateRepayFee(uint256) external pure override {
-        revert("mock-does-not-implement");
+    function updateRepayFee(uint256 _newRepayFee) external override {
+        repayFee = _newRepayFee;
     }
 
     function updateSwapFee(uint256) external pure override {
@@ -183,8 +167,8 @@ contract ControllerMock is IController, Governable, Pausable {
         revert("mock-does-not-implement");
     }
 
-    function isSyntheticTokenExists(ISyntheticToken) external pure override returns (bool) {
-        revert("mock-does-not-implement");
+    function isSyntheticTokenExists(ISyntheticToken _syntheticToken) external view override returns (bool) {
+        return address(_syntheticToken) == address(syntheticToken);
     }
 
     function isDepositTokenExists(IDepositToken) external pure override returns (bool) {

@@ -2,16 +2,42 @@
 
 pragma solidity 0.8.9;
 
+import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./access/Manageable.sol";
+import "./lib/WadRayMath.sol";
 import "./storage/SyntheticTokenStorage.sol";
 
 /**
  * @title Synthetic Token contract
  */
-contract SyntheticToken is Manageable, SyntheticTokenStorageV1 {
+contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 {
+    using WadRayMath for uint256;
+
     string public constant VERSION = "1.0.0";
 
     uint256 public constant BLOCKS_PER_YEAR = 2336000;
+
+    /// @notice Emitted when synthetic token is issued
+    event SyntheticTokenIssued(address indexed account, address indexed to, uint256 amount, uint256 fee);
+
+    /// @notice Emitted when synthetic's debt is repayed
+    event DebtRepayed(address indexed account, uint256 amount, uint256 fee);
+
+    /**
+     * @dev Throws if synthetic token doesn't exist
+     */
+    modifier onlyIfSyntheticTokenExists() {
+        require(controller.isSyntheticTokenExists(this), "synthetic-inexistent");
+        _;
+    }
+
+    /**
+     * @dev Throws if synthetic token isn't enabled
+     */
+    modifier onlyIfSyntheticTokenIsActive() {
+        require(isActive, "synthetic-inactive");
+        _;
+    }
 
     function initialize(
         string memory _name,
@@ -113,8 +139,10 @@ contract SyntheticToken is Manageable, SyntheticTokenStorageV1 {
         _afterTokenTransfer(sender, recipient, amount);
     }
 
-    function _mint(address account, uint256 amount) internal virtual {
+    function _mint(address account, uint256 amount) internal virtual onlyIfSyntheticTokenIsActive {
         require(account != address(0), "mint-to-the-zero-address");
+        uint256 _newTotalSupplyInUsd = controller.masterOracle().convertToUsd(this, totalSupply + amount);
+        require(_newTotalSupplyInUsd <= maxTotalSupplyInUsd, "surpass-max-total-supply");
 
         _beforeTokenTransfer(address(0), account, amount);
 
@@ -167,17 +195,97 @@ contract SyntheticToken is Manageable, SyntheticTokenStorageV1 {
     ) internal virtual {}
 
     /**
+     * @notice Lock collateral and mint synthetic token
+     * @param _amount The amount to mint
+     */
+    function issue(uint256 _amount, address _to)
+        external
+        override
+        whenNotShutdown
+        nonReentrant
+        onlyIfSyntheticTokenExists
+        onlyIfSyntheticTokenIsActive
+    {
+        require(_amount > 0, "amount-is-zero");
+
+        address _account = _msgSender();
+
+        accrueInterest();
+
+        (, , , , uint256 _issuableInUsd) = controller.debtPositionOf(_account);
+
+        IMasterOracle _masterOracle = controller.masterOracle();
+
+        require(_amount <= _masterOracle.convertFromUsd(this, _issuableInUsd), "not-enough-collateral");
+
+        uint256 _debtFloorInUsd = controller.debtFloorInUsd();
+
+        if (_debtFloorInUsd > 0) {
+            require(
+                _masterOracle.convertToUsd(this, debtToken.balanceOf(_account) + _amount) >= _debtFloorInUsd,
+                "debt-lt-floor"
+            );
+        }
+
+        uint256 _issueFee = controller.issueFee();
+        uint256 _amountToIssue = _amount;
+        uint256 _feeAmount;
+        if (_issueFee > 0) {
+            _feeAmount = _amount.wadMul(_issueFee);
+            _mint(address(controller.treasury()), _feeAmount);
+            _amountToIssue -= _feeAmount;
+        }
+
+        _mint(_to, _amountToIssue);
+        debtToken.mint(_account, _amount);
+
+        emit SyntheticTokenIssued(_account, _to, _amount, _feeAmount);
+    }
+
+    /**
+     * @notice Send synthetic token to decrease debt
+     * @dev The msg.sender is the payer and the account beneficied
+     * @param _onBehalfOf The account that will have debt decreased
+     * @param _amount The amount of synthetic token to burn
+     */
+    function repay(address _onBehalfOf, uint256 _amount) external override whenNotShutdown nonReentrant {
+        require(_amount > 0, "amount-is-zero");
+
+        accrueInterest();
+
+        address _payer = _msgSender();
+
+        uint256 _repayFee = controller.repayFee();
+        uint256 _amountToRepay = _amount;
+        uint256 _feeAmount;
+        if (_repayFee > 0) {
+            _feeAmount = _amount.wadMul(_repayFee);
+            _transfer(_payer, address(controller.treasury()), _feeAmount);
+            _amountToRepay -= _feeAmount;
+        }
+
+        uint256 _debtFloorInUsd = controller.debtFloorInUsd();
+
+        if (_debtFloorInUsd > 0) {
+            uint256 _newDebtInUsd = controller.masterOracle().convertToUsd(
+                this,
+                debtToken.balanceOf(_onBehalfOf) - _amountToRepay
+            );
+            require(_newDebtInUsd == 0 || _newDebtInUsd >= _debtFloorInUsd, "debt-lt-floor");
+        }
+
+        _burn(_payer, _amountToRepay);
+        debtToken.burn(_onBehalfOf, _amountToRepay);
+
+        emit DebtRepayed(_onBehalfOf, _amount, _feeAmount);
+    }
+
+    /**
      * @notice Mint synthetic token
      * @param _to The account to mint to
      * @param _amount The amount to mint
      */
     function mint(address _to, uint256 _amount) public override onlyController {
-        require(isActive, "synthetic-is-inactive");
-        uint256 _newTotalSupplyInUsd = controller.masterOracle().convertToUsd(
-            IERC20(address(this)),
-            totalSupply + _amount
-        );
-        require(_newTotalSupplyInUsd <= maxTotalSupplyInUsd, "surpass-max-total-supply");
         _mint(_to, _amount);
     }
 
@@ -188,21 +296,6 @@ contract SyntheticToken is Manageable, SyntheticTokenStorageV1 {
      */
     function burn(address _from, uint256 _amount) public override onlyController {
         _burn(_from, _amount);
-    }
-
-    /**
-     * @notice Seize tokens
-     * @dev Same as _transfer
-     * @param _from The account to seize from
-     * @param _to The beneficiary account
-     * @param _amount The amount to seize
-     */
-    function seize(
-        address _from,
-        address _to,
-        uint256 _amount
-    ) public override onlyController {
-        _transfer(_from, _to, _amount);
     }
 
     /**

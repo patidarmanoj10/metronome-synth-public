@@ -4,7 +4,14 @@ import {parseEther} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import chai, {expect} from 'chai'
 import {ethers} from 'hardhat'
-import {DebtTokenMock, DebtTokenMock__factory, SyntheticToken, SyntheticToken__factory} from '../typechain'
+import {
+  DebtTokenMock,
+  DebtTokenMock__factory,
+  MasterOracleMock,
+  MasterOracleMock__factory,
+  SyntheticToken,
+  SyntheticToken__factory,
+} from '../typechain'
 import {setEtherBalance} from './helpers'
 import {FakeContract, smock} from '@defi-wonderland/smock'
 import {BigNumber} from 'ethers'
@@ -21,6 +28,7 @@ describe('DebtToken', function () {
   let treasury: SignerWithAddress
   let debtToken: DebtTokenMock
   let syntheticToken: SyntheticToken
+  let masterOracleMock: MasterOracleMock
 
   const name = 'vsETH Debt'
   const symbol = 'vsETH-Debt'
@@ -34,9 +42,14 @@ describe('DebtToken', function () {
     syntheticToken = await syntheticTokenFactory.deploy()
     await syntheticToken.deployed()
 
+    const masterOracleMockFactory = new MasterOracleMock__factory(deployer)
+    masterOracleMock = <MasterOracleMock>await masterOracleMockFactory.deploy()
+    await masterOracleMock.deployed()
+
     controllerMock = await smock.fake('Controller')
     controllerMock.treasury.returns(treasury.address)
     controllerMock.governor.returns(deployer.address)
+    controllerMock.masterOracle.returns(masterOracleMock.address)
     await setEtherBalance(controllerMock.address, parseEther('10'))
 
     const debtTokenMockFactory = new DebtTokenMock__factory(deployer)
@@ -56,6 +69,7 @@ describe('DebtToken', function () {
 
     // eslint-disable-next-line new-cap
     BLOCKS_PER_YEAR = await syntheticToken.BLOCKS_PER_YEAR()
+    await masterOracleMock.updateRate(syntheticToken.address, parseEther('4000')) // 1 vsETH = $4,000
   })
 
   it('default values', async function () {
@@ -75,9 +89,9 @@ describe('DebtToken', function () {
       expect(await debtToken.balanceOf(user1.address)).eq(amount)
     })
 
-    it('should revert if not controller', async function () {
+    it('should revert if not authorized', async function () {
       const tx = debtToken.connect(user1).mint(user1.address, parseEther('10'))
-      await expect(tx).revertedWith('not-controller')
+      await expect(tx).revertedWith('not-authorized')
     })
 
     it('should not remove address(0) from the users array', async function () {
@@ -130,9 +144,9 @@ describe('DebtToken', function () {
         expect(await debtToken.balanceOf(user1.address)).eq(0)
       })
 
-      it('should revert if not controller', async function () {
+      it('should revert if not authorized', async function () {
         const tx = debtToken.connect(user1).mint(user1.address, parseEther('10'))
-        await expect(tx).revertedWith('not-controller')
+        await expect(tx).revertedWith('not-authorized')
       })
 
       it('should not add address(0) to the users array', async function () {
