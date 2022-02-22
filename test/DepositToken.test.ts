@@ -385,21 +385,142 @@ describe('DepositToken', function () {
 
     describe('updateCollateralizationRatio', function () {
       it('should update collateralization ratio', async function () {
-        const before = await metDepositToken.collateralizationRatio()
-        const after = before.mul('2')
-        const tx = metDepositToken.updateCollateralizationRatio(after)
-        await expect(tx).emit(metDepositToken, 'CollateralizationRatioUpdated').withArgs(before, after)
-        expect(await metDepositToken.collateralizationRatio()).eq(after)
+        // given
+        const currentCollateralizationRatio = await metDepositToken.collateralizationRatio()
+
+        // when
+        const newCollateralizationRatio = currentCollateralizationRatio.mul('2')
+        const tx = metDepositToken.updateCollateralizationRatio(newCollateralizationRatio)
+
+        // then
+        await expect(tx)
+          .emit(metDepositToken, 'CollateralizationRatioUpdated')
+          .withArgs(currentCollateralizationRatio, newCollateralizationRatio)
+        expect(await metDepositToken.collateralizationRatio()).eq(newCollateralizationRatio)
+      })
+
+      it('should revert if using the current value', async function () {
+        // given
+        const currentCollateralizationRatio = await metDepositToken.collateralizationRatio()
+
+        // when
+        const tx = metDepositToken.updateCollateralizationRatio(currentCollateralizationRatio)
+
+        // then
+        await expect(tx).revertedWith('new-same-as-current')
       })
 
       it('should revert if not governor', async function () {
+        // when
         const tx = metDepositToken.connect(user).updateCollateralizationRatio(parseEther('10'))
+
+        // then
         await expect(tx).revertedWith('not-governor')
       })
 
       it('should revert if > 100%', async function () {
+        // when
         const tx = metDepositToken.updateCollateralizationRatio(parseEther('1').add('1'))
+
+        // then
         await expect(tx).revertedWith('collaterization-ratio-gt-100%')
+      })
+    })
+
+    describe('updateMinDepositTime', function () {
+      it('should update min deposit time', async function () {
+        // given
+        const currentMinDepositTime = await metDepositToken.minDepositTime()
+        const newMinDepositTime = '10'
+        expect(newMinDepositTime).not.eq(currentMinDepositTime)
+
+        // when
+
+        // then
+        const tx = metDepositToken.updateMinDepositTime(newMinDepositTime)
+        await expect(tx)
+          .emit(metDepositToken, 'MinDepositTimeUpdated')
+          .withArgs(currentMinDepositTime, newMinDepositTime)
+        expect(await metDepositToken.minDepositTime()).eq(newMinDepositTime)
+      })
+
+      it('should revert if using the current value', async function () {
+        // given
+        const currentMinDepositTime = await metDepositToken.minDepositTime()
+
+        // then
+        const tx = metDepositToken.updateMinDepositTime(currentMinDepositTime)
+
+        // then
+        await expect(tx).revertedWith('new-same-as-current')
+      })
+
+      it('should revert if not governor', async function () {
+        // when
+        const tx = metDepositToken.connect(user).updateMinDepositTime('10')
+
+        // then
+        await expect(tx).revertedWith('not-governor')
+      })
+    })
+
+    describe('updateMaxTotalSupplyInUsd', function () {
+      it('should update max total supply', async function () {
+        // given
+        const currentMaxTotalSupplyInUsd = await metDepositToken.maxTotalSupplyInUsd()
+        const newMaxTotalSupplyInUsd = currentMaxTotalSupplyInUsd.div('2')
+        expect(newMaxTotalSupplyInUsd).not.eq(currentMaxTotalSupplyInUsd)
+
+        // when
+        const tx = metDepositToken.updateMaxTotalSupplyInUsd(newMaxTotalSupplyInUsd)
+
+        // then
+        await expect(tx)
+          .emit(metDepositToken, 'MaxTotalSupplyUpdated')
+          .withArgs(currentMaxTotalSupplyInUsd, newMaxTotalSupplyInUsd)
+        expect(await metDepositToken.maxTotalSupplyInUsd()).eq(newMaxTotalSupplyInUsd)
+      })
+
+      it('should revert if using the current value', async function () {
+        // given
+        const currentMaxTotalSupplyInUsd = await metDepositToken.maxTotalSupplyInUsd()
+
+        // then
+        const tx = metDepositToken.updateMaxTotalSupplyInUsd(currentMaxTotalSupplyInUsd)
+
+        // then
+        await expect(tx).revertedWith('new-same-as-current')
+      })
+
+      it('should revert if not governor', async function () {
+        // when
+        const tx = metDepositToken.connect(user).updateMaxTotalSupplyInUsd('10')
+
+        // then
+        await expect(tx).revertedWith('not-governor')
+      })
+    })
+
+    describe('toggleIsActive', function () {
+      it('should update min deposit time', async function () {
+        // given
+        const currentIsActive = await metDepositToken.isActive()
+        const expectedIsActive = !currentIsActive
+
+        // when
+        const tx = metDepositToken.toggleIsActive()
+
+        // then
+        await expect(tx).emit(metDepositToken, 'DepositTokenActiveUpdated').withArgs(currentIsActive, expectedIsActive)
+        expect(await metDepositToken.isActive()).eq(expectedIsActive)
+      })
+
+      it('should revert if not governor', async function () {
+        // when
+        const tx = metDepositToken.connect(user).toggleIsActive()
+
+        // then
+        await expect(tx).revertedWith('not-governor')
       })
     })
   })

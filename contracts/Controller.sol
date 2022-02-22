@@ -667,7 +667,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     function updateMasterOracle(IMasterOracle _newMasterOracle) external override onlyGovernor {
         require(address(_newMasterOracle) != address(0), "address-is-null");
         IMasterOracle _currentMasterOracle = masterOracle;
-        require(_newMasterOracle != _currentMasterOracle, "new-is-same-as-current");
+        require(_newMasterOracle != _currentMasterOracle, "new-same-as-current");
 
         emit MasterOracleUpdated(_currentMasterOracle, _newMasterOracle);
         masterOracle = _newMasterOracle;
@@ -678,7 +678,9 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
      */
     function updateDepositFee(uint256 _newDepositFee) external override onlyGovernor {
         require(_newDepositFee <= 1e18, "max-is-100%");
-        emit DepositFeeUpdated(depositFee, _newDepositFee);
+        uint256 _currentDepositFee = depositFee;
+        require(_newDepositFee != _currentDepositFee, "new-same-as-current");
+        emit DepositFeeUpdated(_currentDepositFee, _newDepositFee);
         depositFee = _newDepositFee;
     }
 
@@ -687,7 +689,9 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
      */
     function updateIssueFee(uint256 _newIssueFee) external override onlyGovernor {
         require(_newIssueFee <= 1e18, "max-is-100%");
-        emit IssueFeeUpdated(issueFee, _newIssueFee);
+        uint256 _currentIssueFee = issueFee;
+        require(_newIssueFee != _currentIssueFee, "new-same-as-current");
+        emit IssueFeeUpdated(_currentIssueFee, _newIssueFee);
         issueFee = _newIssueFee;
     }
 
@@ -696,7 +700,9 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
      */
     function updateWithdrawFee(uint256 _newWithdrawFee) external override onlyGovernor {
         require(_newWithdrawFee <= 1e18, "max-is-100%");
-        emit WithdrawFeeUpdated(withdrawFee, _newWithdrawFee);
+        uint256 _currentWithdrawFee = withdrawFee;
+        require(_newWithdrawFee != _currentWithdrawFee, "new-same-as-current");
+        emit WithdrawFeeUpdated(_currentWithdrawFee, _newWithdrawFee);
         withdrawFee = _newWithdrawFee;
     }
 
@@ -705,7 +711,9 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
      */
     function updateRepayFee(uint256 _newRepayFee) external override onlyGovernor {
         require(_newRepayFee <= 1e18, "max-is-100%");
-        emit RepayFeeUpdated(repayFee, _newRepayFee);
+        uint256 _currentRepayFee = repayFee;
+        require(_newRepayFee != _currentRepayFee, "new-same-as-current");
+        emit RepayFeeUpdated(_currentRepayFee, _newRepayFee);
         repayFee = _newRepayFee;
     }
 
@@ -714,7 +722,9 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
      */
     function updateSwapFee(uint256 _newSwapFee) external override onlyGovernor {
         require(_newSwapFee <= 1e18, "max-is-100%");
-        emit SwapFeeUpdated(swapFee, _newSwapFee);
+        uint256 _currentSwapFee = swapFee;
+        require(_newSwapFee != _currentSwapFee, "new-same-as-current");
+        emit SwapFeeUpdated(_currentSwapFee, _newSwapFee);
         swapFee = _newSwapFee;
     }
 
@@ -723,7 +733,9 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
      */
     function updateLiquidatorLiquidationFee(uint256 _newLiquidatorLiquidationFee) external override onlyGovernor {
         require(_newLiquidatorLiquidationFee <= 1e18, "max-is-100%");
-        emit LiquidatorLiquidationFeeUpdated(liquidatorLiquidationFee, _newLiquidatorLiquidationFee);
+        uint256 _currentLiquidatorLiquidationFee = liquidatorLiquidationFee;
+        require(_newLiquidatorLiquidationFee != _currentLiquidatorLiquidationFee, "new-same-as-current");
+        emit LiquidatorLiquidationFeeUpdated(_currentLiquidatorLiquidationFee, _newLiquidatorLiquidationFee);
         liquidatorLiquidationFee = _newLiquidatorLiquidationFee;
     }
 
@@ -732,7 +744,9 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
      */
     function updateProtocolLiquidationFee(uint256 _newProtocolLiquidationFee) external override onlyGovernor {
         require(_newProtocolLiquidationFee <= 1e18, "max-is-100%");
-        emit ProtocolLiquidationFeeUpdated(protocolLiquidationFee, _newProtocolLiquidationFee);
+        uint256 _currentProtocolLiquidationFee = protocolLiquidationFee;
+        require(_newProtocolLiquidationFee != _currentProtocolLiquidationFee, "new-same-as-current");
+        emit ProtocolLiquidationFeeUpdated(_currentProtocolLiquidationFee, _newProtocolLiquidationFee);
         protocolLiquidationFee = _newProtocolLiquidationFee;
     }
 
@@ -740,9 +754,10 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
      * @notice Update maxLiquidable (liquidation cap)
      */
     function updateMaxLiquidable(uint256 _newMaxLiquidable) external override onlyGovernor {
-        require(_newMaxLiquidable != maxLiquidable, "new-is-same-as-current");
         require(_newMaxLiquidable <= 1e18, "max-is-100%");
-        emit MaxLiquidableUpdated(maxLiquidable, _newMaxLiquidable);
+        uint256 _currentMaxLiquidable = maxLiquidable;
+        require(_newMaxLiquidable != _currentMaxLiquidable, "new-same-as-current");
+        emit MaxLiquidableUpdated(_currentMaxLiquidable, _newMaxLiquidable);
         maxLiquidable = _newMaxLiquidable;
     }
 
@@ -750,7 +765,9 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
      * @notice Update debt floor
      */
     function updateDebtFloor(uint256 _newDebtFloorInUsd) external override onlyGovernor {
-        emit DebtFloorUpdated(debtFloorInUsd, _newDebtFloorInUsd);
+        uint256 _currentDebtFloorInUsd = debtFloorInUsd;
+        require(_newDebtFloorInUsd != _currentDebtFloorInUsd, "new-same-as-current");
+        emit DebtFloorUpdated(_currentDebtFloorInUsd, _newDebtFloorInUsd);
         debtFloorInUsd = _newDebtFloorInUsd;
     }
 

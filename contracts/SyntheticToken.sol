@@ -210,7 +210,9 @@ contract SyntheticToken is Manageable, SyntheticTokenStorageV1 {
      * @param _newMaxTotalSupplyInUsd The new max total supply (in USD)
      */
     function updateMaxTotalSupplyInUsd(uint256 _newMaxTotalSupplyInUsd) public override onlyGovernor {
-        emit MaxTotalSupplyUpdated(maxTotalSupplyInUsd, _newMaxTotalSupplyInUsd);
+        uint256 _currentMaxTotalSupplyInUsd = maxTotalSupplyInUsd;
+        require(_newMaxTotalSupplyInUsd != _currentMaxTotalSupplyInUsd, "new-same-as-current");
+        emit MaxTotalSupplyUpdated(_currentMaxTotalSupplyInUsd, _newMaxTotalSupplyInUsd);
         maxTotalSupplyInUsd = _newMaxTotalSupplyInUsd;
     }
 
@@ -218,8 +220,9 @@ contract SyntheticToken is Manageable, SyntheticTokenStorageV1 {
      * @notice Enable/Disable the Synthetic Token
      */
     function toggleIsActive() public override onlyGovernor {
-        emit SyntheticTokenActiveUpdated(isActive, !isActive);
-        isActive = !isActive;
+        bool _isActive = isActive;
+        emit SyntheticTokenActiveUpdated(_isActive, !_isActive);
+        isActive = !_isActive;
     }
 
     /**
@@ -227,7 +230,9 @@ contract SyntheticToken is Manageable, SyntheticTokenStorageV1 {
      */
     function updateInterestRate(uint256 _newInterestRate) public override onlyGovernor {
         accrueInterest();
-        emit InterestRateUpdated(interestRate, _newInterestRate);
+        uint256 _currentInterestRate = interestRate;
+        require(_newInterestRate != _currentInterestRate, "new-same-as-current");
+        emit InterestRateUpdated(_currentInterestRate, _newInterestRate);
         interestRate = _newInterestRate;
     }
 

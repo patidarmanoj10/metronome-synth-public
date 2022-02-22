@@ -185,7 +185,13 @@ describe('DefaultOracle', function () {
 
     it('should revert if address is null', async function () {
       const tx = oracle.setPriceProvider(Protocol.CHAINLINK, AddressZero)
-      await expect(tx).revertedWith('price-provider-address-null')
+      await expect(tx).revertedWith('provider-address-null')
+    })
+
+    it('should revert if using the current value', async function () {
+      const currentProvider = await oracle.providerByProtocol(Protocol.CHAINLINK)
+      const tx = oracle.setPriceProvider(Protocol.CHAINLINK, currentProvider)
+      await expect(tx).revertedWith('new-same-as-current')
     })
 
     it('should update price provider', async function () {

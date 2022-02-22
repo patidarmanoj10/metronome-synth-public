@@ -204,10 +204,9 @@ describe('DebtToken', function () {
     it('should not accrue interest if rate is 0', async function () {
       // given
       await debtToken.connect(controllerMock.wallet).mint(user1.address, principal)
+      expect(await syntheticToken.interestRate()).eq(0)
 
       // when
-      await syntheticToken.updateInterestRate(parseEther('0'))
-
       await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
 
       // then
@@ -285,9 +284,9 @@ describe('DebtToken', function () {
     it('should not accrue interest if rate is 0', async function () {
       // given
       await debtToken.connect(controllerMock.wallet).mint(user1.address, principal)
+      expect(await syntheticToken.interestRate()).eq(0)
 
       // when
-      await syntheticToken.updateInterestRate(parseEther('0'))
       await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
       await syntheticToken.accrueInterest()
 
@@ -339,10 +338,10 @@ describe('DebtToken', function () {
     it('should not accrue interest backwards after changing interest rate from 0', async function () {
       // given
       await debtToken.connect(controllerMock.wallet).mint(user1.address, principal)
+      expect(await syntheticToken.interestRate()).eq(0)
 
       // when
       // 1st year 0% interest + 2nd year 10% interest
-      await syntheticToken.updateInterestRate(parseEther('0'))
       await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
       await syntheticToken.accrueInterest()
 

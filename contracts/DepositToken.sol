@@ -296,7 +296,9 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      */
     function updateCollateralizationRatio(uint128 _newCollateralizationRatio) public override onlyGovernor {
         require(_newCollateralizationRatio <= 1e18, "collaterization-ratio-gt-100%");
-        emit CollateralizationRatioUpdated(collateralizationRatio, _newCollateralizationRatio);
+        uint256 _currentCollateralizationRatio = collateralizationRatio;
+        require(_newCollateralizationRatio != _currentCollateralizationRatio, "new-same-as-current");
+        emit CollateralizationRatioUpdated(_currentCollateralizationRatio, _newCollateralizationRatio);
         collateralizationRatio = _newCollateralizationRatio;
     }
 
@@ -304,8 +306,9 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @notice Update minimum deposit time
      */
     function updateMinDepositTime(uint256 _newMinDepositTime) public onlyGovernor {
-        require(_newMinDepositTime != minDepositTime, "new-value-is-same-as-current");
-        emit MinDepositTimeUpdated(minDepositTime, _newMinDepositTime);
+        uint256 _currentMinDepositTime = minDepositTime;
+        require(_newMinDepositTime != _currentMinDepositTime, "new-same-as-current");
+        emit MinDepositTimeUpdated(_currentMinDepositTime, _newMinDepositTime);
         minDepositTime = _newMinDepositTime;
     }
 
@@ -314,7 +317,9 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @param _newMaxTotalSupplyInUsd The new max total supply
      */
     function updateMaxTotalSupplyInUsd(uint256 _newMaxTotalSupplyInUsd) public override onlyGovernor {
-        emit MaxTotalSupplyUpdated(maxTotalSupplyInUsd, _newMaxTotalSupplyInUsd);
+        uint256 _currentMaxTotalSupplyInUsd = maxTotalSupplyInUsd;
+        require(_newMaxTotalSupplyInUsd != _currentMaxTotalSupplyInUsd, "new-same-as-current");
+        emit MaxTotalSupplyUpdated(_currentMaxTotalSupplyInUsd, _newMaxTotalSupplyInUsd);
         maxTotalSupplyInUsd = _newMaxTotalSupplyInUsd;
     }
 
@@ -322,7 +327,8 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @notice Enable/Disable the Deposit Token
      */
     function toggleIsActive() public override onlyGovernor {
-        emit DepositTokenActiveUpdated(isActive, !isActive);
-        isActive = !isActive;
+        bool _isActive = isActive;
+        emit DepositTokenActiveUpdated(_isActive, !_isActive);
+        isActive = !_isActive;
     }
 }

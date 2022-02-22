@@ -79,9 +79,11 @@ contract DefaultOracle is IOracle, Governable {
      * @param _priceProvider The price provider protocol
      */
     function setPriceProvider(Protocol _protocol, IPriceProvider _priceProvider) external onlyGovernor {
-        require(address(_priceProvider) != address(0), "price-provider-address-null");
-        emit PriceProviderUpdated(_protocol, providerByProtocol[_protocol], _priceProvider);
+        require(address(_priceProvider) != address(0), "provider-address-null");
+        IPriceProvider _currentPriceProvider = providerByProtocol[_protocol];
+        require(_priceProvider != _currentPriceProvider, "new-same-as-current");
         providerByProtocol[_protocol] = _priceProvider;
+        emit PriceProviderUpdated(_protocol, _currentPriceProvider, _priceProvider);
     }
 
     /**

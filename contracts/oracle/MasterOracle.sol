@@ -24,12 +24,12 @@ contract MasterOracle is Initializable, IMasterOracle, Governable {
     /**
      * @notice Event emitted when the default oracle is updated
      */
-    event DefaultOracleUpdated(address oldOracle, address newOracle);
+    event DefaultOracleUpdated(IOracle oldOracle, IOracle newOracle);
 
     /**
      * @notice Event emitted when a asset's oracle is updated
      */
-    event OracleUpdated(address asset, address oldOracle, address newOracle);
+    event OracleUpdated(address asset, IOracle oldOracle, IOracle newOracle);
 
     function initialize(
         address[] memory _assets,
@@ -46,14 +46,18 @@ contract MasterOracle is Initializable, IMasterOracle, Governable {
      * @notice Sets `_oracles` for `_assets`.
      * @param _assets The ERC20 asset addresses to link to `_oracles`.
      * @param _oracles The `IOracle` contracts to be assigned to `_assets`.
+     * @dev We allow null address inside of the `_oracles` array in order to turn off oracle for a given asset
      */
     function _updateOracles(address[] memory _assets, IOracle[] memory _oracles) private {
         require(_assets.length == _oracles.length, "invalid-arrays-length");
 
         for (uint256 i = 0; i < _assets.length; i++) {
             address _asset = _assets[i];
+            require(_asset != address(0), "an-asset-has-null-address");
+            IOracle _currentOracle = oracles[_asset];
             IOracle _newOracle = _oracles[i];
-            emit OracleUpdated(_asset, address(oracles[_asset]), address(_newOracle));
+            require(_newOracle != _currentOracle, "a-new-oracle-same-as-current");
+            emit OracleUpdated(_asset, _currentOracle, _newOracle);
             oracles[_asset] = _newOracle;
         }
     }
@@ -70,11 +74,14 @@ contract MasterOracle is Initializable, IMasterOracle, Governable {
 
     /**
      * @notice Update the default oracle contract
-     * @param _newOracle The new default oracle contract
+     * @param _newDefaultOracle The new default oracle contract
+     * @dev We allow null address in order to turn off the default oracle
      */
-    function setDefaultOracle(IOracle _newOracle) external onlyGovernor {
-        emit DefaultOracleUpdated(address(defaultOracle), address(_newOracle));
-        defaultOracle = _newOracle;
+    function setDefaultOracle(IOracle _newDefaultOracle) external onlyGovernor {
+        IOracle _currentDefaultOracle = defaultOracle;
+        require(_newDefaultOracle != _currentDefaultOracle, "new-oracle-is-same-as-current");
+        emit DefaultOracleUpdated(_currentDefaultOracle, _newDefaultOracle);
+        defaultOracle = _newDefaultOracle;
     }
 
     /**
