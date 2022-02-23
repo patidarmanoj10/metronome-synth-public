@@ -104,4 +104,17 @@ abstract contract UpgraderBase is ProxyAdmin {
             require(_before == _after, "an-address-simple-field-failed");
         }
     }
+
+    function _checkBooleanResults(
+        bytes[] memory _beforeResults,
+        bytes[] memory _afterResults,
+        uint256 _from,
+        uint256 _to
+    ) internal pure {
+        for (uint256 i = _from; i <= _to; ++i) {
+            bool _before = abi.decode(_beforeResults[i], (bool));
+            bool _after = abi.decode(_afterResults[i], (bool));
+            require(_before == _after, "an-address-simple-field-failed");
+        }
+    }
 }

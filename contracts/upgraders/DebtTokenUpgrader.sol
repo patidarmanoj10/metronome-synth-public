@@ -10,16 +10,20 @@ contract DebtTokenUpgrader is UpgraderBase {
     }
 
     function _calls() internal pure override returns (bytes[] memory calls) {
-        calls = new bytes[](4);
+        calls = new bytes[](7);
         calls[0] = abi.encodeWithSignature("totalSupply()");
-        calls[1] = abi.encodeWithSignature("decimals()");
-        calls[2] = abi.encodeWithSignature("name()");
-        calls[3] = abi.encodeWithSignature("symbol()");
+        calls[1] = abi.encodeWithSignature("lastBlockAccrued()");
+        calls[2] = abi.encodeWithSignature("debtIndex()");
+        calls[3] = abi.encodeWithSignature("decimals()");
+        calls[4] = abi.encodeWithSignature("name()");
+        calls[5] = abi.encodeWithSignature("symbol()");
+        calls[6] = abi.encodeWithSignature("syntheticToken()");
     }
 
     function _checkResults(bytes[] memory _beforeResults, bytes[] memory _afterResults) internal pure override {
-        _checkUint256Results(_beforeResults, _afterResults, 0, 0);
-        _checkUint8Results(_beforeResults, _afterResults, 1, 1);
-        _checkStringResults(_beforeResults, _afterResults, 2, 3);
+        _checkUint256Results(_beforeResults, _afterResults, 0, 2);
+        _checkUint8Results(_beforeResults, _afterResults, 3, 3);
+        _checkStringResults(_beforeResults, _afterResults, 4, 5);
+        _checkAddressResults(_beforeResults, _afterResults, 6, 6);
     }
 }
