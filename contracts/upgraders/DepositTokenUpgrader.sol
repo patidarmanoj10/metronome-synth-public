@@ -10,7 +10,7 @@ contract DepositTokenUpgrader is UpgraderBase {
     }
 
     function _calls() internal pure override returns (bytes[] memory calls) {
-        calls = new bytes[](8);
+        calls = new bytes[](9);
         calls[0] = abi.encodeWithSignature("name()");
         calls[1] = abi.encodeWithSignature("symbol()");
         calls[2] = abi.encodeWithSignature("decimals()");
@@ -19,6 +19,7 @@ contract DepositTokenUpgrader is UpgraderBase {
         calls[5] = abi.encodeWithSignature("maxTotalSupplyInUsd()");
         calls[6] = abi.encodeWithSignature("collateralizationRatio()");
         calls[7] = abi.encodeWithSignature("underlying()");
+        calls[8] = abi.encodeWithSignature("isActive()");
     }
 
     function _checkResults(bytes[] memory _beforeResults, bytes[] memory _afterResults) internal pure override {
@@ -26,5 +27,6 @@ contract DepositTokenUpgrader is UpgraderBase {
         _checkUint8Results(_beforeResults, _afterResults, 2, 2);
         _checkUint256Results(_beforeResults, _afterResults, 3, 6);
         _checkAddressResults(_beforeResults, _afterResults, 7, 7);
+        _checkBooleanResults(_beforeResults, _afterResults, 8, 8);
     }
 }
