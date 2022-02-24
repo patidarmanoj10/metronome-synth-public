@@ -7,23 +7,32 @@
 
 pragma solidity 0.8.9;
 
+import "../lib/WadRayMath.sol";
+import "../Pausable.sol";
 import "../interface/IController.sol";
-import "../interface/IGovernable.sol";
+import "../access/Governable.sol";
 
-contract ControllerMock is IController, IGovernable {
+contract ControllerMock is IController, Governable, Pausable {
+    using WadRayMath for uint256;
+
     ITreasury public treasury;
+    ISyntheticToken public syntheticToken;
     IDepositToken public depositToken;
     IMasterOracle public masterOracle;
-    address public governor;
+    uint256 public issueFee;
+    uint256 public depositFee;
+    uint256 public repayFee;
+    uint256 public withdrawFee;
+    uint256 public debtFloorInUsd;
 
     constructor(
         IDepositToken _depositToken,
         IMasterOracle _masterOracle,
-        ITreasury _treasury
+        ISyntheticToken _syntheticToken
     ) {
         depositToken = _depositToken;
         masterOracle = _masterOracle;
-        treasury = _treasury;
+        syntheticToken = _syntheticToken;
     }
 
     function mockCall(address _to, bytes memory _data) public {
@@ -54,8 +63,11 @@ contract ControllerMock is IController, IGovernable {
         revert("mock-does-not-implement");
     }
 
-    function debtOf(address) external pure override returns (uint256) {
-        revert("mock-does-not-implement");
+    function debtOf(address _account) public view override returns (uint256 _debtInUsd) {
+        if (address(syntheticToken) != address(0)) {
+            uint256 _debtBalance = syntheticToken.debtToken().balanceOf(_account);
+            return masterOracle.convertToUsd(syntheticToken, _debtBalance);
+        }
     }
 
     function depositOf(address) external pure override returns (uint256, uint256) {
@@ -77,9 +89,9 @@ contract ControllerMock is IController, IGovernable {
         _isHealthy = true;
         uint256 _deposit = depositToken.balanceOf(_account);
         _depositInUsd = masterOracle.convertToUsd(depositToken, _deposit);
-        _debtInUsd = 0;
-        _issuableLimitInUsd = _depositInUsd;
-        _issuableInUsd = _issuableLimitInUsd;
+        _debtInUsd = debtOf(_account);
+        _issuableLimitInUsd = _depositInUsd.wadMul(depositToken.collateralizationRatio());
+        _issuableInUsd = _debtInUsd < _issuableLimitInUsd ? _issuableLimitInUsd - _debtInUsd : 0;
     }
 
     function addSyntheticToken(address) external pure override {
@@ -95,40 +107,6 @@ contract ControllerMock is IController, IGovernable {
     }
 
     function removeDepositToken(IDepositToken) external pure override {
-        revert("mock-does-not-implement");
-    }
-
-    function deposit(
-        IDepositToken _depositToken,
-        uint256 _amount,
-        address _onBehalfOf
-    ) external override {
-        _depositToken.underlying().transferFrom(msg.sender, address(this), _amount);
-        _depositToken.mint(_onBehalfOf, _amount);
-    }
-
-    function issue(
-        ISyntheticToken,
-        uint256,
-        address
-    ) external pure override {
-        revert("mock-does-not-implement");
-    }
-
-    function withdraw(
-        IDepositToken _depositToken,
-        uint256 _amount,
-        address _to
-    ) external override {
-        _depositToken.burn(msg.sender, _amount);
-        _depositToken.underlying().transfer(_to, _amount);
-    }
-
-    function repay(
-        ISyntheticToken,
-        address,
-        uint256
-    ) external pure override {
         revert("mock-does-not-implement");
     }
 
@@ -149,28 +127,28 @@ contract ControllerMock is IController, IGovernable {
         revert("mock-does-not-implement");
     }
 
-    function updateMasterOracle(IMasterOracle) external pure {
-        revert("mock-does-not-implement");
+    function updateMasterOracle(IMasterOracle _newMasterOracle) external {
+        masterOracle = _newMasterOracle;
     }
 
-    function updateDebtFloor(uint256) external pure override {
-        revert("mock-does-not-implement");
+    function updateDebtFloor(uint256 _newDebtFloorInUsd) external override {
+        debtFloorInUsd = _newDebtFloorInUsd;
     }
 
-    function updateDepositFee(uint256) external pure override {
-        revert("mock-does-not-implement");
+    function updateDepositFee(uint256 _newDepositFee) external override {
+        depositFee = _newDepositFee;
     }
 
-    function updateIssueFee(uint256) external pure override {
-        revert("mock-does-not-implement");
+    function updateIssueFee(uint256 _newIssueFee) external override {
+        issueFee = _newIssueFee;
     }
 
     function updateWithdrawFee(uint256) external pure override {
         revert("mock-does-not-implement");
     }
 
-    function updateRepayFee(uint256) external pure override {
-        revert("mock-does-not-implement");
+    function updateRepayFee(uint256 _newRepayFee) external override {
+        repayFee = _newRepayFee;
     }
 
     function updateSwapFee(uint256) external pure override {
@@ -189,24 +167,20 @@ contract ControllerMock is IController, IGovernable {
         revert("mock-does-not-implement");
     }
 
-    function isSyntheticTokenExists(ISyntheticToken) external pure override returns (bool) {
-        revert("mock-does-not-implement");
+    function isSyntheticTokenExists(ISyntheticToken _syntheticToken) external view override returns (bool) {
+        return address(_syntheticToken) == address(syntheticToken);
     }
 
     function isDepositTokenExists(IDepositToken) external pure override returns (bool) {
-        revert("mock-does-not-implement");
+        return true;
     }
 
-    function updateTreasury(ITreasury, bool) external pure override {
-        revert("mock-does-not-implement");
+    function updateTreasury(ITreasury _treasury, bool) external override {
+        treasury = _treasury;
     }
 
     function depositTokenOf(IERC20) external view override returns (IDepositToken) {
         return depositToken;
-    }
-
-    function transferGovernorship(address _governor) public override {
-        governor = _governor;
     }
 
     function addToDepositTokensOfAccount(address) external pure override {}

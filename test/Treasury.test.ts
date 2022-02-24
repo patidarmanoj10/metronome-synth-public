@@ -34,9 +34,9 @@ describe('Treasury', function () {
       await met.transfer(treasury.address, amount)
     })
 
-    it('should revert if not controller', async function () {
+    it('should revert if not authorized', async function () {
       const tx = treasury.connect(user).pull(met.address, user.address, 0)
-      await expect(tx).revertedWith('not-controller')
+      await expect(tx).reverted
     })
 
     it('should revert if amount == 0', async function () {

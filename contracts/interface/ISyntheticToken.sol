@@ -27,11 +27,9 @@ interface ISyntheticToken is IERC20, IERC20Metadata {
 
     function updateInterestRate(uint256 _newInterestRate) external;
 
-    function seize(
-        address _from,
-        address _to,
-        uint256 _amount
-    ) external;
+    function issue(uint256 _amount, address _to) external;
+
+    function repay(address _onBehalfOf, uint256 _amount) external;
 
     function accrueInterest() external;
 }

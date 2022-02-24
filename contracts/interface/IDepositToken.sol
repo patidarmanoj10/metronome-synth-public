@@ -18,9 +18,11 @@ interface IDepositToken is IERC20, IERC20Metadata {
 
     function lastDepositOf(address _account) external view returns (uint256);
 
-    function mint(address _to, uint256 _amount) external;
+    function deposit(uint256 _amount, address _onBehalfOf) external;
 
-    function burnForWithdraw(address _to, uint256 _amount) external;
+    function withdraw(uint256 _amount, address _to) external;
+
+    function mint(address _to, uint256 _amount) external;
 
     function burn(address _from, uint256 _amount) external;
 
