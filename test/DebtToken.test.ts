@@ -5,10 +5,13 @@ import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import chai, {expect} from 'chai'
 import {ethers} from 'hardhat'
 import {DebtTokenMock, DebtTokenMock__factory, SyntheticToken, SyntheticToken__factory} from '../typechain'
-import {BLOCKS_PER_YEAR, setEtherBalance} from './helpers'
+import {setEtherBalance} from './helpers'
 import {FakeContract, smock} from '@defi-wonderland/smock'
+import {BigNumber} from 'ethers'
 
 chai.use(smock.matchers)
+
+let BLOCKS_PER_YEAR: BigNumber
 
 describe('DebtToken', function () {
   let deployer: SignerWithAddress
@@ -50,6 +53,9 @@ describe('DebtToken', function () {
       debtToken.address,
       interestRate
     )
+
+    // eslint-disable-next-line new-cap
+    BLOCKS_PER_YEAR = await syntheticToken.BLOCKS_PER_YEAR()
   })
 
   it('default values', async function () {

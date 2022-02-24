@@ -11,7 +11,7 @@ import "./storage/SyntheticTokenStorage.sol";
 contract SyntheticToken is Manageable, SyntheticTokenStorageV1 {
     string public constant VERSION = "1.0.0";
 
-    uint256 public constant BLOCKS_PER_YEAR = 2102400;
+    uint256 public constant BLOCKS_PER_YEAR = 2336000;
 
     function initialize(
         string memory _name,
