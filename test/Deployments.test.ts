@@ -40,12 +40,16 @@ import {
   MasterOracle,
   MasterOracleUpgrader__factory,
   MasterOracleUpgrader,
+  RewardsDistributor,
+  RewardsDistributorUpgrader,
+  RewardsDistributorUpgrader__factory,
+  RewardsDistributor__factory,
 } from '../typechain'
 import {disableForking, enableForking} from './helpers'
 import Address from '../helpers/address'
 import {parseEther} from 'ethers/lib/utils'
 
-const {MET_ADDRESS, WETH_ADDRESS} = Address
+const {MET_ADDRESS, WETH_ADDRESS, VSP_ADDRESS} = Address
 
 describe('Deployments', function () {
   let deployer: SignerWithAddress
@@ -67,6 +71,8 @@ describe('Deployments', function () {
   let vsEthDebtToken: DebtToken
   let debtTokenUpgrader: DebtTokenUpgrader
   let wethGateway: WETHGateway
+  let rewardsDistributor: RewardsDistributor
+  let rewardsDistributorUpgrader: RewardsDistributorUpgrader
 
   // Note: Enabling fork to be able to use MultiCall contract
   before(enableForking)
@@ -95,6 +101,8 @@ describe('Deployments', function () {
       VsEthDebtToken: {address: vsETHDebtTokenAddress},
       DebtTokenUpgrader: {address: debtTokenUpgraderAddress},
       WETHGateway: {address: wethGatewayAddress},
+      VspRewardsDistributor: {address: rewardsDistributorAddress},
+      RewardsDistributorUpgrader: {address: rewardsDistributorUpgraderAddress},
     } = await deployments.fixture()
 
     uniswapV3PriceProvider = UniswapV3PriceProvider__factory.connect(uniswapV3PriceProviderAddress, deployer)
@@ -121,6 +129,12 @@ describe('Deployments', function () {
 
     vsEthDebtToken = DebtToken__factory.connect(vsETHDebtTokenAddress, deployer)
     debtTokenUpgrader = DebtTokenUpgrader__factory.connect(debtTokenUpgraderAddress, deployer)
+
+    rewardsDistributor = RewardsDistributor__factory.connect(rewardsDistributorAddress, deployer)
+    rewardsDistributorUpgrader = RewardsDistributorUpgrader__factory.connect(
+      rewardsDistributorUpgraderAddress,
+      deployer
+    )
   })
 
   const upgradeTestcase = async function ({
@@ -326,6 +340,32 @@ describe('Deployments', function () {
         newImplfactory: new DefaultOracleMock__factory(deployer),
         proxy: vsEthDebtToken,
         upgrader: debtTokenUpgrader,
+        expectToFail: true,
+      })
+    })
+  })
+
+  describe('RewardsDistributor', function () {
+    it('should have correct params', async function () {
+      expect(await rewardsDistributor.controller()).eq(controller.address)
+      expect(await rewardsDistributor.rewardToken()).eq(VSP_ADDRESS)
+      expect(await rewardsDistributor.governor()).eq(deployer.address)
+    })
+
+    it('should upgrade implementation', async function () {
+      await upgradeTestcase({
+        newImplfactory: new RewardsDistributor__factory(deployer),
+        proxy: rewardsDistributor,
+        upgrader: rewardsDistributorUpgrader,
+        expectToFail: false,
+      })
+    })
+
+    it('should fail if implementation breaks storage', async function () {
+      await upgradeTestcase({
+        newImplfactory: new DefaultOracleMock__factory(deployer),
+        proxy: rewardsDistributor,
+        upgrader: rewardsDistributorUpgrader,
         expectToFail: true,
       })
     })

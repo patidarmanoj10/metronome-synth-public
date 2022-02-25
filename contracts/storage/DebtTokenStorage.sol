@@ -31,5 +31,5 @@ abstract contract DebtTokenStorageV1 is IDebtToken {
     /**
      * @notice Accumulator of the total earned interest rate since the beginning
      */
-    uint256 public debtIndex;
+    uint256 public override debtIndex;
 }

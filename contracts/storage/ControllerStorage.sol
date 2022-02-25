@@ -6,6 +6,7 @@ import "../dependencies/openzeppelin/utils/structs/EnumerableSet.sol";
 import "../lib/MappedEnumerableSet.sol";
 import "../interface/IController.sol";
 import "../interface/ITreasury.sol";
+import "../interface/IRewardsDistributor.sol";
 
 abstract contract ControllerStorageV1 is IController {
     /**
@@ -96,4 +97,9 @@ abstract contract ControllerStorageV1 is IController {
      * @notice Per-account debt tokens (i.e. tokens that user has balance > 0)
      */
     MappedEnumerableSet.AddressSet internal debtTokensOfAccount;
+
+    /**
+     * @notice RewardsDistributor contracts
+     */
+    IRewardsDistributor[] internal rewardsDistributors;
 }
