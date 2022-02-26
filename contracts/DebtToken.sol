@@ -59,7 +59,7 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
     /**
      * @notice Get the updated (principal + interest) user's debt
      */
-    function balanceOf(address _account) public view virtual override returns (uint256) {
+    function balanceOf(address _account) public view override returns (uint256) {
         if (principalOf[_account] == 0) {
             return 0;
         }
@@ -73,21 +73,21 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
     function transfer(
         address, /*recipient*/
         uint256 /*amount*/
-    ) public virtual override returns (bool) {
+    ) external pure override returns (bool) {
         revert("transfer-not-supported");
     }
 
     function allowance(
         address, /*owner*/
         address /*spender*/
-    ) public view virtual override returns (uint256) {
+    ) external pure override returns (uint256) {
         revert("allowance-not-supported");
     }
 
     function approve(
         address, /*spender*/
         uint256 /*amount*/
-    ) public virtual override returns (bool) {
+    ) external pure override returns (bool) {
         revert("approval-not-supported");
     }
 
@@ -95,43 +95,39 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
         address, /*sender*/
         address, /*recipient*/
         uint256 /*amount*/
-    ) public virtual override returns (bool) {
+    ) external pure override returns (bool) {
         revert("transfer-not-supported");
     }
 
     function increaseAllowance(
         address, /*spender*/
         uint256 /*addedValue*/
-    ) public virtual returns (bool) {
+    ) external pure returns (bool) {
         revert("allowance-not-supported");
     }
 
     function decreaseAllowance(
         address, /*spender*/
         uint256 /*subtractedValue*/
-    ) public virtual returns (bool) {
+    ) external pure returns (bool) {
         revert("allowance-not-supported");
     }
 
-    function _mint(address _account, uint256 _amount) internal virtual {
+    function _mint(address _account, uint256 _amount) private {
         require(_account != address(0), "mint-to-the-zero-address");
 
-        _beforeTokenTransfer(address(0), _account, _amount);
+        uint256 _accountBalance = balanceOf(_account);
 
         totalSupply_ += _amount;
         principalOf[_account] += _amount;
         debtIndexOf[_account] = debtIndex;
         emit Transfer(address(0), _account, _amount);
 
-        // Note: Commented out because `address(0)` shouldn't have tokens array
-        // _afterTokenTransfer(address(0), _account, _amount);
+        _addToDebtTokensOfRecipientIfNeeded(_account, _accountBalance);
     }
 
-    function _burn(address _account, uint256 _amount) internal virtual {
+    function _burn(address _account, uint256 _amount) private {
         require(_account != address(0), "burn-from-the-zero-address");
-
-        // Note: Commented out because `address(0)` shouldn't have tokens array
-        // _beforeTokenTransfer(_account, address(0), _amount);
 
         uint256 accountBalance = balanceOf(_account);
         require(accountBalance >= _amount, "burn-amount-exceeds-balance");
@@ -143,26 +139,18 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
 
         emit Transfer(_account, address(0), _amount);
 
-        _afterTokenTransfer(_account, address(0), _amount);
+        _removeFromDebtTokensOfSenderIfNeeded(_account, balanceOf(_account));
     }
 
-    function _beforeTokenTransfer(
-        address, /*_from*/
-        address _to,
-        uint256 /*_amount*/
-    ) internal virtual {
-        if (balanceOf(_to) == 0) {
-            controller.addToDebtTokensOfAccount(_to);
+    function _addToDebtTokensOfRecipientIfNeeded(address _recipient, uint256 _recipientBalanceBefore) private {
+        if (_recipientBalanceBefore == 0) {
+            controller.addToDebtTokensOfAccount(_recipient);
         }
     }
 
-    function _afterTokenTransfer(
-        address _from,
-        address, /* _to*/
-        uint256 /*_amount*/
-    ) internal virtual {
-        if (balanceOf(_from) == 0) {
-            controller.removeFromDebtTokensOfAccount(_from);
+    function _removeFromDebtTokensOfSenderIfNeeded(address _sender, uint256 _senderBalanceAfter) private {
+        if (_senderBalanceAfter == 0) {
+            controller.removeFromDebtTokensOfAccount(_sender);
         }
     }
 
@@ -171,7 +159,7 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
      * @param _to The account to mint to
      * @param _amount The amount to mint
      */
-    function mint(address _to, uint256 _amount) public override onlyIfAuthorized {
+    function mint(address _to, uint256 _amount) external override onlyIfAuthorized {
         _mint(_to, _amount);
     }
 
@@ -180,7 +168,7 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
      * @param _from The account to burn from
      * @param _amount The amount to burn
      */
-    function burn(address _from, uint256 _amount) public override onlyIfAuthorized {
+    function burn(address _from, uint256 _amount) external override onlyIfAuthorized {
         _burn(_from, _amount);
     }
 

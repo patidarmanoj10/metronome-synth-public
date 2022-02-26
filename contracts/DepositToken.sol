@@ -94,17 +94,17 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         collateralizationRatio = _collateralizationRatio;
     }
 
-    function approve(address spender, uint256 _amount) public virtual override returns (bool) {
+    function approve(address spender, uint256 _amount) external override returns (bool) {
         _approve(_msgSender(), spender, _amount);
         return true;
     }
 
-    function increaseAllowance(address spender, uint256 addedValue) public virtual returns (bool) {
+    function increaseAllowance(address spender, uint256 addedValue) external returns (bool) {
         _approve(_msgSender(), spender, allowance[_msgSender()][spender] + addedValue);
         return true;
     }
 
-    function decreaseAllowance(address spender, uint256 subtractedValue) public virtual returns (bool) {
+    function decreaseAllowance(address spender, uint256 subtractedValue) external returns (bool) {
         uint256 currentAllowance = allowance[_msgSender()][spender];
         require(currentAllowance >= subtractedValue, "decreased-allowance-below-zero");
         unchecked {
@@ -118,11 +118,9 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         address sender,
         address recipient,
         uint256 _amount
-    ) internal virtual {
+    ) private {
         require(sender != address(0), "transfer-from-the-zero-address");
         require(recipient != address(0), "transfer-to-the-zero-address");
-
-        _beforeTokenTransfer(sender, recipient, _amount);
 
         uint256 senderBalance = balanceOf[sender];
         require(senderBalance >= _amount, "transfer-amount-exceeds-balance");
@@ -133,31 +131,26 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
 
         emit Transfer(sender, recipient, _amount);
 
-        _afterTokenTransfer(sender, recipient, _amount);
+        _addToDepositTokensOfRecipientIfNeeded(recipient, balanceOf[recipient] - _amount);
+        _removeFromDepositTokensOfSenderIfNeeded(sender, balanceOf[sender]);
     }
 
-    function _mint(address _account, uint256 _amount) internal virtual onlyIfDepositTokenIsActive {
+    function _mint(address _account, uint256 _amount) private onlyIfDepositTokenIsActive {
         require(_account != address(0), "mint-to-the-zero-address");
 
         uint256 _newTotalSupplyInUsd = controller.masterOracle().convertToUsd(this, totalSupply + _amount);
         require(_newTotalSupplyInUsd <= maxTotalSupplyInUsd, "surpass-max-total-supply");
         lastDepositOf[_account] = block.timestamp;
 
-        _beforeTokenTransfer(address(0), _account, _amount);
-
         totalSupply += _amount;
         balanceOf[_account] += _amount;
         emit Transfer(address(0), _account, _amount);
 
-        // Note: Commented out because `address(0)` shouldn't have tokens array
-        // _afterTokenTransfer(address(0), _account, _amount);
+        _addToDepositTokensOfRecipientIfNeeded(_account, balanceOf[_account] - _amount);
     }
 
-    function _burn(address _account, uint256 _amount) internal virtual {
+    function _burn(address _account, uint256 _amount) private {
         require(_account != address(0), "burn-from-the-zero-address");
-
-        // Note: Commented out because `address(0)` shouldn't have tokens array
-        // _beforeTokenTransfer(_account, address(0), _amount);
 
         uint256 accountBalance = balanceOf[_account];
         require(accountBalance >= _amount, "burn-amount-exceeds-balance");
@@ -168,14 +161,14 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
 
         emit Transfer(_account, address(0), _amount);
 
-        _afterTokenTransfer(_account, address(0), _amount);
+        _removeFromDepositTokensOfSenderIfNeeded(_account, balanceOf[_account]);
     }
 
     function _approve(
         address _owner,
         address _spender,
         uint256 _amount
-    ) internal virtual {
+    ) private {
         require(_owner != address(0), "approve-from-the-zero-address");
         require(_spender != address(0), "approve-to-the-zero-address");
 
@@ -183,23 +176,15 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         emit Approval(_owner, _spender, _amount);
     }
 
-    function _beforeTokenTransfer(
-        address, /*_from*/
-        address _to,
-        uint256 /*_amount*/
-    ) internal virtual {
-        if (balanceOf[_to] == 0) {
-            controller.addToDepositTokensOfAccount(_to);
+    function _addToDepositTokensOfRecipientIfNeeded(address _recipient, uint256 _recipientBalanceBefore) private {
+        if (_recipientBalanceBefore == 0) {
+            controller.addToDepositTokensOfAccount(_recipient);
         }
     }
 
-    function _afterTokenTransfer(
-        address _from,
-        address, /*_to*/
-        uint256 /*_amount*/
-    ) internal virtual {
-        if (balanceOf[_from] == 0) {
-            controller.removeFromDepositTokensOfAccount(_from);
+    function _removeFromDepositTokensOfSenderIfNeeded(address _sender, uint256 _senderBalanceAfter) private {
+        if (_senderBalanceAfter == 0) {
+            controller.removeFromDepositTokensOfAccount(_sender);
         }
     }
 
@@ -281,7 +266,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @param _to The account to mint to
      * @param _amount The amount to mint
      */
-    function mint(address _to, uint256 _amount) public override onlyController {
+    function mint(address _to, uint256 _amount) external override onlyController {
         _mint(_to, _amount);
     }
 
@@ -303,7 +288,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @param _from The account to burn from
      * @param _amount The amount to burn
      */
-    function burn(address _from, uint256 _amount) public override onlyController {
+    function burn(address _from, uint256 _amount) external override onlyController {
         _burn(_from, _amount);
     }
 
@@ -321,7 +306,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         _transfer(_sender, _recipient, _amount);
     }
 
-    function transfer(address _to, uint256 _amount) public override returns (bool) {
+    function transfer(address _to, uint256 _amount) external override returns (bool) {
         _transferWithChecks(_msgSender(), _to, _amount);
         return true;
     }
@@ -330,7 +315,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         address _sender,
         address _recipient,
         uint256 _amount
-    ) public override returns (bool) {
+    ) external override returns (bool) {
         _transferWithChecks(_sender, _recipient, _amount);
 
         uint256 currentAllowance = allowance[_sender][_msgSender()];
@@ -364,7 +349,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @param _account The account to check
      * @return _lockedBalance The locked amount
      */
-    function lockedBalanceOf(address _account) public view override returns (uint256 _lockedBalance) {
+    function lockedBalanceOf(address _account) external view override returns (uint256 _lockedBalance) {
         unchecked {
             return balanceOf[_account] - unlockedBalanceOf(_account);
         }
@@ -381,7 +366,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         address _from,
         address _to,
         uint256 _amount
-    ) public override onlyController {
+    ) external override onlyController {
         _transfer(_from, _to, _amount);
     }
 
@@ -389,7 +374,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @notice Update collateralization ratio
      * @param _newCollateralizationRatio The new CR value
      */
-    function updateCollateralizationRatio(uint128 _newCollateralizationRatio) public override onlyGovernor {
+    function updateCollateralizationRatio(uint128 _newCollateralizationRatio) external override onlyGovernor {
         require(_newCollateralizationRatio <= 1e18, "collaterization-ratio-gt-100%");
         uint256 _currentCollateralizationRatio = collateralizationRatio;
         require(_newCollateralizationRatio != _currentCollateralizationRatio, "new-same-as-current");

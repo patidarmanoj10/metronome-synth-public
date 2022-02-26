@@ -389,7 +389,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     /**
      * @notice Add synthetic token to vSynth offerings
      */
-    function addSyntheticToken(address _syntheticToken) public override onlyGovernor {
+    function addSyntheticToken(address _syntheticToken) external override onlyGovernor {
         require(_syntheticToken != address(0), "address-is-null");
         require(!syntheticTokens.contains(_syntheticToken), "synthetic-exists");
 
@@ -418,7 +418,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     /**
      * @notice Add deposit token (i.e. collateral) to vSynth
      */
-    function addDepositToken(address _depositToken) public override onlyGovernor {
+    function addDepositToken(address _depositToken) external override onlyGovernor {
         require(_depositToken != address(0), "address-is-null");
         require(!depositTokens.contains(_depositToken), "deposit-token-exists");
 
