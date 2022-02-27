@@ -11,6 +11,8 @@ interface IDebtToken is IERC20, IERC20Metadata {
 
     function accrueInterest() external returns (uint256 _interestAmountAccrued);
 
+    function debtIndex() external returns (uint256 _debtIndex);
+
     function mint(address _to, uint256 _amount) external;
 
     function burn(address _from, uint256 _amount) external;

@@ -1819,4 +1819,47 @@ describe('Controller', function () {
       await expect(tx).emit(controller, 'DebtFloorUpdated').withArgs(currentDebtFloorInUsd, newDebtFloorInUsd)
     })
   })
+
+  describe('addRewardsDistributor', function () {
+    it('should revert if caller is not governor', async function () {
+      // when
+      const tx = controller.connect(alice.address).addRewardsDistributor(ethers.constants.AddressZero)
+
+      // then
+      await expect(tx).revertedWith('not-governor')
+    })
+
+    it('should revert if null', async function () {
+      // when
+      const tx = controller.addRewardsDistributor(ethers.constants.AddressZero)
+
+      // then
+      await expect(tx).revertedWith('address-is-null')
+    })
+
+    it('should revert if already added', async function () {
+      // given
+      await controller.addRewardsDistributor(alice.address)
+
+      // when
+      const tx = controller.addRewardsDistributor(alice.address)
+
+      // then
+      await expect(tx).revertedWith('contract-already-added')
+    })
+
+    it('should add a rewards distributor', async function () {
+      // given
+      const before = await controller.getRewardsDistributors()
+      expect(before).deep.eq([])
+
+      // when
+      const tx = controller.addRewardsDistributor(alice.address)
+
+      // then
+      await expect(tx).emit(controller, 'RewardsDistributorAdded').withArgs(alice.address)
+      const after = await controller.getRewardsDistributors()
+      expect(after).deep.eq([alice.address])
+    })
+  })
 })

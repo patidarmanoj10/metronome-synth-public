@@ -13,7 +13,7 @@ import {
   SyntheticToken__factory,
 } from '../typechain'
 import {setEtherBalance} from './helpers'
-import {FakeContract, smock} from '@defi-wonderland/smock'
+import {FakeContract, MockContract, smock} from '@defi-wonderland/smock'
 import {BigNumber} from 'ethers'
 
 chai.use(smock.matchers)
@@ -29,6 +29,7 @@ describe('DebtToken', function () {
   let debtToken: DebtTokenMock
   let syntheticToken: SyntheticToken
   let masterOracleMock: MasterOracleMock
+  let rewardsDistributorMock: MockContract
 
   const name = 'vsETH Debt'
   const symbol = 'vsETH-Debt'
@@ -51,6 +52,11 @@ describe('DebtToken', function () {
     controllerMock.governor.returns(deployer.address)
     controllerMock.masterOracle.returns(masterOracleMock.address)
     await setEtherBalance(controllerMock.address, parseEther('10'))
+
+    const rewardsDistributorMockFactory = await smock.mock('RewardsDistributor')
+    rewardsDistributorMock = await rewardsDistributorMockFactory.deploy()
+    controllerMock.getRewardsDistributors.returns([rewardsDistributorMock.address])
+    rewardsDistributorMock.controller.returns(controllerMock.address)
 
     const debtTokenMockFactory = new DebtTokenMock__factory(deployer)
     debtToken = await debtTokenMockFactory.deploy()
@@ -126,6 +132,20 @@ describe('DebtToken', function () {
       // then
       expect(controllerMock.addToDebtTokensOfAccount).callCount(1)
     })
+
+    it('should trigger rewards update', async function () {
+      // given
+      rewardsDistributorMock.updateBeforeMintOrBurn.reset()
+
+      // when
+      await debtToken.connect(controllerMock.wallet).mint(user1.address, parseEther('1'))
+
+      // then
+      // FIX-ME: Actual count is 1
+      // See more: https://github.com/defi-wonderland/smock/issues/85
+      expect(rewardsDistributorMock.updateBeforeMintOrBurn).callCount(3)
+      expect(rewardsDistributorMock.updateBeforeMintOrBurn.getCall(0).args[1]).eq(user1.address)
+    })
   })
 
   describe('when some token was minted', function () {
@@ -182,6 +202,20 @@ describe('DebtToken', function () {
         // then
         expect(await debtToken.balanceOf(user1.address)).eq(0)
         expect(controllerMock.removeFromDebtTokensOfAccount).callCount(1)
+      })
+
+      it('should trigger rewards update', async function () {
+        // given
+        rewardsDistributorMock.updateBeforeMintOrBurn.reset()
+
+        // when
+        await debtToken.connect(controllerMock.wallet).burn(user1.address, amount)
+
+        // then
+        // FIX-ME: Actual count is 1
+        // See more: https://github.com/defi-wonderland/smock/issues/85
+        expect(rewardsDistributorMock.updateBeforeMintOrBurn).callCount(12)
+        expect(rewardsDistributorMock.updateBeforeMintOrBurn.getCall(0).args[1]).eq(user1.address)
       })
     })
 

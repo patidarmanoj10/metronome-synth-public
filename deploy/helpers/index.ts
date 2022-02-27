@@ -17,6 +17,7 @@ interface UpgradableContractsConfig {
   MetDepositToken: ContractConfig
   VsEth: ContractConfig
   VsEthDebtToken: ContractConfig
+  VspRewardsDistributor: ContractConfig
 }
 
 export const UpgradableContracts: UpgradableContractsConfig = {
@@ -26,6 +27,11 @@ export const UpgradableContracts: UpgradableContractsConfig = {
   MetDepositToken: {alias: 'MetDepositToken', contract: 'DepositToken', adminContract: 'DepositTokenUpgrader'},
   VsEth: {alias: 'VsEth', contract: 'SyntheticToken', adminContract: 'SyntheticTokenUpgrader'},
   VsEthDebtToken: {alias: 'VsEthDebtToken', contract: 'DebtToken', adminContract: 'DebtTokenUpgrader'},
+  VspRewardsDistributor: {
+    alias: 'VspRewardsDistributor',
+    contract: 'RewardsDistributor',
+    adminContract: 'RewardsDistributorUpgrader',
+  },
 }
 
 const updateMulticallIfNeeded = async (

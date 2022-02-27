@@ -30,6 +30,18 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
         _;
     }
 
+    /**
+     * @notice Update reward contracts' states
+     * @dev Should be called before balance changes (i.e. mint/burn)
+     */
+    modifier updateRewardsBeforeMintOrBurn(address _account) {
+        IRewardsDistributor[] memory _rewardsDistributors = controller.getRewardsDistributors();
+        for (uint256 i = 0; i < _rewardsDistributors.length; i++) {
+            _rewardsDistributors[i].updateBeforeMintOrBurn(syntheticToken, _account);
+        }
+        _;
+    }
+
     function initialize(
         string memory _name,
         string memory _symbol,
@@ -113,7 +125,7 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
         revert("allowance-not-supported");
     }
 
-    function _mint(address _account, uint256 _amount) private {
+    function _mint(address _account, uint256 _amount) private updateRewardsBeforeMintOrBurn(_account) {
         require(_account != address(0), "mint-to-the-zero-address");
 
         uint256 _accountBalance = balanceOf(_account);
@@ -126,7 +138,7 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
         _addToDebtTokensOfRecipientIfNeeded(_account, _accountBalance);
     }
 
-    function _burn(address _account, uint256 _amount) private {
+    function _burn(address _account, uint256 _amount) private updateRewardsBeforeMintOrBurn(_account) {
         require(_account != address(0), "burn-from-the-zero-address");
 
         uint256 accountBalance = balanceOf(_account);

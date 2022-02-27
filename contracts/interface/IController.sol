@@ -7,6 +7,7 @@ import "./IPausable.sol";
 import "./ISyntheticToken.sol";
 import "./IDepositToken.sol";
 import "./ITreasury.sol";
+import "./IRewardsDistributor.sol";
 
 /**
  * @notice Controller interface
@@ -31,6 +32,8 @@ interface IController is IPausable {
     function getDepositTokens() external view returns (address[] memory);
 
     function getSyntheticTokens() external view returns (address[] memory);
+
+    function getRewardsDistributors() external view returns (IRewardsDistributor[] memory);
 
     function debtOf(address _account) external view returns (uint256 _debtInUsd);
 
@@ -105,4 +108,6 @@ interface IController is IPausable {
     function getDepositTokensOfAccount(address _account) external view returns (address[] memory);
 
     function getDebtTokensOfAccount(address _account) external view returns (address[] memory);
+
+    function addRewardsDistributor(IRewardsDistributor _distributor) external;
 }

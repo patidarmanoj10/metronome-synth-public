@@ -12,7 +12,6 @@ import "./storage/DepositTokenStorage.sol";
 /**
  * @title Represents the users' deposits
  */
-
 contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     using SafeERC20 for IERC20;
     using WadRayMath for uint256;
@@ -59,6 +58,30 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      */
     modifier onlyIfDepositTokenExists() {
         require(controller.isDepositTokenExists(this), "collateral-inexistent");
+        _;
+    }
+
+    /**
+     * @notice Update reward contracts' states
+     * @dev Should be called before balance changes (i.e. mint/burn)
+     */
+    modifier updateRewardsBeforeMintOrBurn(address _account) {
+        IRewardsDistributor[] memory _rewardsDistributors = controller.getRewardsDistributors();
+        for (uint256 i = 0; i < _rewardsDistributors.length; i++) {
+            _rewardsDistributors[i].updateBeforeMintOrBurn(this, _account);
+        }
+        _;
+    }
+
+    /**
+     * @notice Update reward contracts' states
+     * @dev Should be called before balance changes (i.e. transfer)
+     */
+    modifier updateRewardsBeforeTransfer(address _sender, address _recipient) {
+        IRewardsDistributor[] memory _rewardsDistributors = controller.getRewardsDistributors();
+        for (uint256 i = 0; i < _rewardsDistributors.length; i++) {
+            _rewardsDistributors[i].updateBeforeTransfer(this, _sender, _recipient);
+        }
         _;
     }
 
@@ -115,27 +138,31 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     }
 
     function _transfer(
-        address sender,
-        address recipient,
+        address _sender,
+        address _recipient,
         uint256 _amount
-    ) private {
-        require(sender != address(0), "transfer-from-the-zero-address");
-        require(recipient != address(0), "transfer-to-the-zero-address");
+    ) private updateRewardsBeforeTransfer(_sender, _recipient) {
+        require(_sender != address(0), "transfer-from-the-zero-address");
+        require(_recipient != address(0), "transfer-to-the-zero-address");
 
-        uint256 senderBalance = balanceOf[sender];
-        require(senderBalance >= _amount, "transfer-amount-exceeds-balance");
+        uint256 _senderBalance = balanceOf[_sender];
+        require(_senderBalance >= _amount, "transfer-amount-exceeds-balance");
         unchecked {
-            balanceOf[sender] = senderBalance - _amount;
+            balanceOf[_sender] = _senderBalance - _amount;
         }
-        balanceOf[recipient] += _amount;
+        balanceOf[_recipient] += _amount;
 
-        emit Transfer(sender, recipient, _amount);
+        emit Transfer(_sender, _recipient, _amount);
 
-        _addToDepositTokensOfRecipientIfNeeded(recipient, balanceOf[recipient] - _amount);
-        _removeFromDepositTokensOfSenderIfNeeded(sender, balanceOf[sender]);
+        _addToDepositTokensOfRecipientIfNeeded(_recipient, balanceOf[_recipient] - _amount);
+        _removeFromDepositTokensOfSenderIfNeeded(_sender, balanceOf[_sender]);
     }
 
-    function _mint(address _account, uint256 _amount) private onlyIfDepositTokenIsActive {
+    function _mint(address _account, uint256 _amount)
+        private
+        onlyIfDepositTokenIsActive
+        updateRewardsBeforeMintOrBurn(_account)
+    {
         require(_account != address(0), "mint-to-the-zero-address");
 
         uint256 _newTotalSupplyInUsd = controller.masterOracle().convertToUsd(this, totalSupply + _amount);
@@ -149,13 +176,13 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         _addToDepositTokensOfRecipientIfNeeded(_account, balanceOf[_account] - _amount);
     }
 
-    function _burn(address _account, uint256 _amount) private {
+    function _burn(address _account, uint256 _amount) private updateRewardsBeforeMintOrBurn(_account) {
         require(_account != address(0), "burn-from-the-zero-address");
 
-        uint256 accountBalance = balanceOf[_account];
-        require(accountBalance >= _amount, "burn-amount-exceeds-balance");
+        uint256 _accountBalance = balanceOf[_account];
+        require(_accountBalance >= _amount, "burn-amount-exceeds-balance");
         unchecked {
-            balanceOf[_account] = accountBalance - _amount;
+            balanceOf[_account] = _accountBalance - _amount;
         }
         totalSupply -= _amount;
 

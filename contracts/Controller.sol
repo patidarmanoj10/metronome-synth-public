@@ -97,6 +97,9 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     /// @notice Emitted when treasury contract is updated
     event TreasuryUpdated(ITreasury indexed oldTreasury, ITreasury indexed newTreasury);
 
+    /// @notice Emitted when rewards distributor contract is added
+    event RewardsDistributorAdded(IRewardsDistributor _distributor);
+
     /**
      * @dev Throws if synthetic token doesn't exist
      */
@@ -185,6 +188,13 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
      */
     function getDebtTokensOfAccount(address _account) external view override returns (address[] memory) {
         return debtTokensOfAccount.values(_account);
+    }
+
+    /**
+     * @notice Get all rewards distributors
+     */
+    function getRewardsDistributors() external view override returns (IRewardsDistributor[] memory) {
+        return rewardsDistributors;
     }
 
     /**
@@ -608,5 +618,18 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
         emit TreasuryUpdated(treasury, _newTreasury);
         treasury = _newTreasury;
+    }
+
+    /**
+     * @notice Add a RewardsDistributor contract
+     */
+    function addRewardsDistributor(IRewardsDistributor _distributor) external override onlyGovernor {
+        require(address(_distributor) != address(0), "address-is-null");
+
+        for (uint256 i = 0; i < rewardsDistributors.length; i++)
+            require(_distributor != rewardsDistributors[i], "contract-already-added");
+
+        rewardsDistributors.push(_distributor);
+        emit RewardsDistributorAdded(_distributor);
     }
 }

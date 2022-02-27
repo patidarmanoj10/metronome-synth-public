@@ -198,4 +198,15 @@ contract ControllerMock is IController, Governable, Pausable {
     function getDebtTokensOfAccount(address) external pure override returns (address[] memory) {
         revert("mock-does-not-implement");
     }
+
+    function addRewardsDistributor(IRewardsDistributor) external pure override {
+        revert("mock-does-not-implement");
+    }
+
+    function getRewardsDistributors()
+        external
+        pure
+        override
+        returns (IRewardsDistributor[] memory _rewardsDistributors)
+    {}
 }
