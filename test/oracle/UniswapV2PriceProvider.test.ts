@@ -6,12 +6,13 @@ import {UniswapV2PriceProvider, UniswapV2PriceProvider__factory} from '../../typ
 import {DEFAULT_TWAP_PERIOD, enableForking, disableForking, increaseTime} from '../helpers'
 import Address from '../../helpers/address'
 
-const {MET_ADDRESS, DAI_ADDRESS, USDC_ADDRESS, WETH_ADDRESS, UNISWAP_V2_ROUTER02_ADDRESS, WBTC_ADDRESS} = Address
+const {MET_ADDRESS, DAI_ADDRESS, USDC_ADDRESS, NATIVE_TOKEN_ADDRESS, UNISWAP_V2_ROUTER02_ADDRESS, WBTC_ADDRESS} =
+  Address
 
 const abi = new ethers.utils.AbiCoder()
 const encodedMetAddress = abi.encode(['address'], [MET_ADDRESS])
 const encodedWbtcAddress = abi.encode(['address'], [WBTC_ADDRESS])
-const encodedWethAddress = abi.encode(['address'], [WETH_ADDRESS])
+const encodedWethAddress = abi.encode(['address'], [NATIVE_TOKEN_ADDRESS])
 
 describe('UniswapV2PriceProvider', function () {
   let snapshotId: string

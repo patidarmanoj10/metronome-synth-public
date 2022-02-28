@@ -23,8 +23,13 @@ import Address from '../../helpers/address'
 import {BigNumber} from 'ethers'
 import {FakeContract, smock} from '@defi-wonderland/smock'
 
-const {MET_ADDRESS, DAI_ADDRESS, UNISWAP_V3_CROSS_POOL_ORACLE_ADDRESS, WETH_ADDRESS, UNISWAP_V2_ROUTER02_ADDRESS} =
-  Address
+const {
+  MET_ADDRESS,
+  DAI_ADDRESS,
+  UNISWAP_V3_CROSS_POOL_ORACLE_ADDRESS,
+  NATIVE_TOKEN_ADDRESS,
+  UNISWAP_V2_ROUTER02_ADDRESS,
+} = Address
 
 const {MaxUint256, AddressZero} = ethers.constants
 
@@ -117,8 +122,8 @@ describe('DefaultOracle', function () {
     await oracle.setPriceProvider(Protocol.CHAINLINK, chainlinkPriceProvider.address)
 
     await oracle.addOrUpdateUsdAsset(vsUSD.address)
-    await oracle.addOrUpdateAssetThatUsesUniswapV3(vsETH.address, WETH_ADDRESS)
-    await oracle.addOrUpdateAssetThatUsesUniswapV3(vsETH.address, WETH_ADDRESS)
+    await oracle.addOrUpdateAssetThatUsesUniswapV3(vsETH.address, NATIVE_TOKEN_ADDRESS)
+    await oracle.addOrUpdateAssetThatUsesUniswapV3(vsETH.address, NATIVE_TOKEN_ADDRESS)
     await oracle.addOrUpdateAssetThatUsesUniswapV2(depositToken.address, MET_ADDRESS, STALE_PERIOD)
     await oracle.addOrUpdateAssetThatUsesChainlink(vsDOGE.address, CHAINLINK_DOGE_AGGREGATOR_ADDRESS, STALE_PERIOD)
   })

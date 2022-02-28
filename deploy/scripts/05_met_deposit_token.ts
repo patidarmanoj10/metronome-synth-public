@@ -1,41 +1,15 @@
-import {HardhatRuntimeEnvironment} from 'hardhat/types'
-import {DeployFunction} from 'hardhat-deploy/types'
-import {UpgradableContracts, deterministic} from '../helpers'
+import {buildDepositDeployFunction} from '../helpers'
 import Address from '../../helpers/address'
 import {parseEther} from 'ethers/lib/utils'
 
-const {MET_ADDRESS} = Address
-const {
-  MetDepositToken: {alias: MetDepositToken},
-  Controller: {alias: Controller},
-} = UpgradableContracts
+const {MET_ADDRESS: underlyingAddress} = Address
 
-const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
-  const {getNamedAccounts, deployments} = hre
-  const {execute} = deployments
-  const {deployer} = await getNamedAccounts()
-
-  const {address: controllerAddress} = await deterministic(hre, UpgradableContracts.Controller)
-  const {deploy} = await deterministic(hre, UpgradableContracts.MetDepositToken)
-
-  const {address: depositTokenAddress} = await deploy()
-
-  const symbol = 'vsMET-Deposit'
-  const decimals = 18 // Same as MET
-
-  await execute(
-    MetDepositToken,
-    {from: deployer, log: true},
-    'initialize',
-    MET_ADDRESS,
-    controllerAddress,
-    symbol,
-    decimals,
-    parseEther('0.67') // CR = 67%
-  )
-
-  await execute(Controller, {from: deployer, log: true}, 'addDepositToken', depositTokenAddress)
-}
+const func = buildDepositDeployFunction({
+  underlyingAddress,
+  underlyingSymbol: 'MET',
+  underlyingDecimals: 18,
+  collateralizationRatio: parseEther('0.67'), // 67%
+  oracle: {function: 'addOrUpdateAssetThatUsesUniswapV3', args: [underlyingAddress]},
+})
 
 export default func
-func.tags = [MetDepositToken]

@@ -1,4 +1,5 @@
-import {DeployResult} from 'hardhat-deploy/types'
+import {BigNumber} from 'ethers'
+import {DeployFunction, DeployResult} from 'hardhat-deploy/types'
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import Address from '../../helpers/address'
 
@@ -14,9 +15,9 @@ interface UpgradableContractsConfig {
   MasterOracle: ContractConfig
   Controller: ContractConfig
   Treasury: ContractConfig
-  MetDepositToken: ContractConfig
-  VsEth: ContractConfig
-  VsEthDebtToken: ContractConfig
+  DepositToken: ContractConfig
+  SyntheticToken: ContractConfig
+  DebtToken: ContractConfig
   VspRewardsDistributor: ContractConfig
 }
 
@@ -24,9 +25,9 @@ export const UpgradableContracts: UpgradableContractsConfig = {
   MasterOracle: {alias: 'MasterOracle', contract: 'MasterOracle', adminContract: 'MasterOracleUpgrader'},
   Controller: {alias: 'Controller', contract: 'Controller', adminContract: 'ControllerUpgrader'},
   Treasury: {alias: 'Treasury', contract: 'Treasury', adminContract: 'TreasuryUpgrader'},
-  MetDepositToken: {alias: 'MetDepositToken', contract: 'DepositToken', adminContract: 'DepositTokenUpgrader'},
-  VsEth: {alias: 'VsEth', contract: 'SyntheticToken', adminContract: 'SyntheticTokenUpgrader'},
-  VsEthDebtToken: {alias: 'VsEthDebtToken', contract: 'DebtToken', adminContract: 'DebtTokenUpgrader'},
+  DepositToken: {alias: '', contract: 'DepositToken', adminContract: 'DepositTokenUpgrader'},
+  SyntheticToken: {alias: '', contract: 'SyntheticToken', adminContract: 'SyntheticTokenUpgrader'},
+  DebtToken: {alias: '', contract: 'DebtToken', adminContract: 'DebtTokenUpgrader'},
   VspRewardsDistributor: {
     alias: 'VspRewardsDistributor',
     contract: 'RewardsDistributor',
@@ -88,4 +89,146 @@ export const deterministic = async (
   }
 
   return {address, implementationAddress, deploy}
+}
+
+const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1)
+
+interface OracleProps {
+  function:
+    | 'addOrUpdateAssetThatUsesChainlink'
+    | 'addOrUpdateAssetThatUsesUniswapV2'
+    | 'addOrUpdateAssetThatUsesUniswapV3'
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  args: any[]
+}
+
+interface SyntheticDeployFunctionProps {
+  name: string
+  symbol: string
+  decimals: number
+  interestRate: BigNumber
+  oracle: OracleProps
+}
+
+export const buildSyntheticDeployFunction = ({
+  name,
+  symbol,
+  decimals,
+  interestRate,
+  oracle,
+}: SyntheticDeployFunctionProps): DeployFunction => {
+  const debtAlias = `${capitalize(symbol)}Debt`
+  const syntheticAlias = `${capitalize(symbol)}Synthetic`
+
+  const deployFunction: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
+    const {getNamedAccounts, deployments} = hre
+    const {execute} = deployments
+    const {deployer} = await getNamedAccounts()
+
+    const {address: controllerAddress} = await deterministic(hre, UpgradableContracts.Controller)
+    const {deploy: deployDebt} = await deterministic(hre, {
+      ...UpgradableContracts.DebtToken,
+      alias: debtAlias,
+    })
+
+    const {deploy: deploySynthetic} = await deterministic(hre, {
+      ...UpgradableContracts.SyntheticToken,
+      alias: syntheticAlias,
+    })
+
+    const {address: debtTokenAddress} = await deployDebt()
+
+    const {address: syntheticTokenAddress} = await deploySynthetic()
+
+    await execute(
+      debtAlias,
+      {from: deployer, log: true},
+      'initialize',
+      `${name}-Debt`,
+      `${symbol}-Debt`,
+      decimals,
+      controllerAddress,
+      syntheticTokenAddress
+    )
+
+    await execute(
+      syntheticAlias,
+      {from: deployer, log: true},
+      'initialize',
+      name,
+      symbol,
+      decimals,
+      controllerAddress,
+      debtTokenAddress,
+      interestRate
+    )
+
+    await execute(
+      UpgradableContracts.Controller.alias,
+      {from: deployer, log: true},
+      'addSyntheticToken',
+      syntheticTokenAddress
+    )
+
+    await execute('DefaultOracle', {from: deployer, log: true}, oracle.function, syntheticTokenAddress, ...oracle.args)
+  }
+
+  deployFunction.tags = [syntheticAlias]
+
+  return deployFunction
+}
+
+interface DepositDeployFunctionProps {
+  underlyingAddress: string
+  underlyingSymbol: string
+  underlyingDecimals: number
+  collateralizationRatio: BigNumber
+  oracle: OracleProps
+}
+
+export const buildDepositDeployFunction = ({
+  underlyingAddress,
+  underlyingSymbol,
+  underlyingDecimals,
+  collateralizationRatio,
+  oracle,
+}: DepositDeployFunctionProps): DeployFunction => {
+  const alias = `${underlyingSymbol}DepositToken`
+  const symbol = `vs${underlyingSymbol}-Deposit`
+
+  const deployFunction: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
+    const {getNamedAccounts, deployments} = hre
+    const {execute} = deployments
+    const {deployer} = await getNamedAccounts()
+
+    const {address: controllerAddress} = await deterministic(hre, UpgradableContracts.Controller)
+
+    const {deploy} = await deterministic(hre, {...UpgradableContracts.DepositToken, alias})
+
+    const {address: depositTokenAddress} = await deploy()
+
+    await execute(
+      alias,
+      {from: deployer, log: true},
+      'initialize',
+      underlyingAddress,
+      controllerAddress,
+      symbol,
+      underlyingDecimals,
+      collateralizationRatio
+    )
+
+    await execute(
+      UpgradableContracts.Controller.alias,
+      {from: deployer, log: true},
+      'addDepositToken',
+      depositTokenAddress
+    )
+
+    await execute('DefaultOracle', {from: deployer, log: true}, oracle.function, depositTokenAddress, ...oracle.args)
+  }
+
+  deployFunction.tags = [alias]
+
+  return deployFunction
 }

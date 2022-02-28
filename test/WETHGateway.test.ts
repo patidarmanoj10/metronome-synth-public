@@ -22,7 +22,7 @@ import {
 import {disableForking, enableForking} from './helpers'
 import Address from '../helpers/address'
 
-const {WETH_ADDRESS} = Address
+const {NATIVE_TOKEN_ADDRESS} = Address
 
 describe('WETHGateway', function () {
   let deployer: SignerWithAddress
@@ -43,7 +43,7 @@ describe('WETHGateway', function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[deployer, user] = await ethers.getSigners()
 
-    weth = IWETH__factory.connect(WETH_ADDRESS, deployer)
+    weth = IWETH__factory.connect(NATIVE_TOKEN_ADDRESS, deployer)
 
     const masterOracleMockFactory = new MasterOracleMock__factory(deployer)
     masterOracleMock = await masterOracleMockFactory.deploy()
@@ -66,10 +66,10 @@ describe('WETHGateway', function () {
     await controllerMock.deployed()
 
     const wethGatewayFactory = new WETHGateway__factory(deployer)
-    wethGateway = await wethGatewayFactory.deploy(WETH_ADDRESS)
+    wethGateway = await wethGatewayFactory.deploy(NATIVE_TOKEN_ADDRESS)
     await wethGateway.deployed()
 
-    await wethDepositToken.initialize(WETH_ADDRESS, controllerMock.address, 'vETH-Deposit', 18, parseEther('1'))
+    await wethDepositToken.initialize(NATIVE_TOKEN_ADDRESS, controllerMock.address, 'vETH-Deposit', 18, parseEther('1'))
 
     const erc20MockFactory = new ERC20Mock__factory(deployer)
     tokenMock = await erc20MockFactory.deploy('Name', 'SYMBOL', 18)

@@ -49,7 +49,7 @@ import {disableForking, enableForking} from './helpers'
 import Address from '../helpers/address'
 import {parseEther} from 'ethers/lib/utils'
 
-const {MET_ADDRESS, WETH_ADDRESS, VSP_ADDRESS} = Address
+const {MET_ADDRESS, NATIVE_TOKEN_ADDRESS, VSP_ADDRESS} = Address
 
 describe('Deployments', function () {
   let deployer: SignerWithAddress
@@ -66,9 +66,9 @@ describe('Deployments', function () {
   let treasuryUpgrader: TreasuryUpgrader
   let metDepositToken: DepositToken
   let depositTokenUpgrader: DepositTokenUpgrader
-  let vsEth: SyntheticToken
+  let vsETH: SyntheticToken
   let syntheticTokenUpgrader: SyntheticTokenUpgrader
-  let vsEthDebtToken: DebtToken
+  let vsETHDebt: DebtToken
   let debtTokenUpgrader: DebtTokenUpgrader
   let wethGateway: WETHGateway
   let rewardsDistributor: RewardsDistributor
@@ -94,11 +94,11 @@ describe('Deployments', function () {
       ControllerUpgrader: {address: controllerUpgraderAddress},
       Treasury: {address: treasuryAddress},
       TreasuryUpgrader: {address: treasuryUpgraderAddress},
-      MetDepositToken: {address: metDepositTokenAddress},
+      METDepositToken: {address: metDepositTokenAddress},
       DepositTokenUpgrader: {address: depositTokenUpgraderAddress},
-      VsEth: {address: vsEthAddress},
+      VsETHSynthetic: {address: vsEthAddress},
       SyntheticTokenUpgrader: {address: syntheticTokenUpgraderAddress},
-      VsEthDebtToken: {address: vsETHDebtTokenAddress},
+      VsETHDebt: {address: vsETHDebtTokenAddress},
       DebtTokenUpgrader: {address: debtTokenUpgraderAddress},
       WETHGateway: {address: wethGatewayAddress},
       VspRewardsDistributor: {address: rewardsDistributorAddress},
@@ -124,10 +124,10 @@ describe('Deployments', function () {
     metDepositToken = DepositToken__factory.connect(metDepositTokenAddress, deployer)
     depositTokenUpgrader = DepositTokenUpgrader__factory.connect(depositTokenUpgraderAddress, deployer)
 
-    vsEth = SyntheticToken__factory.connect(vsEthAddress, deployer)
+    vsETH = SyntheticToken__factory.connect(vsEthAddress, deployer)
     syntheticTokenUpgrader = SyntheticTokenUpgrader__factory.connect(syntheticTokenUpgraderAddress, deployer)
 
-    vsEthDebtToken = DebtToken__factory.connect(vsETHDebtTokenAddress, deployer)
+    vsETHDebt = DebtToken__factory.connect(vsETHDebtTokenAddress, deployer)
     debtTokenUpgrader = DebtTokenUpgrader__factory.connect(debtTokenUpgraderAddress, deployer)
 
     rewardsDistributor = RewardsDistributor__factory.connect(rewardsDistributorAddress, deployer)
@@ -259,7 +259,7 @@ describe('Deployments', function () {
 
   describe('WETHGateway', function () {
     it('should have correct params', async function () {
-      expect(await wethGateway.weth()).eq(WETH_ADDRESS)
+      expect(await wethGateway.weth()).eq(NATIVE_TOKEN_ADDRESS)
 
       expect(await controller.governor()).eq(deployer.address)
       await defaultOracle.connect(governor).acceptGovernorship()
@@ -295,16 +295,16 @@ describe('Deployments', function () {
 
   describe('SyntheticToken', function () {
     it('vsETH token should have correct params', async function () {
-      expect(await vsEth.controller()).eq(controller.address)
-      expect(await vsEth.debtToken()).eq(vsEthDebtToken.address)
-      expect(await vsEth.governor()).eq(deployer.address)
-      expect(await vsEth.interestRate()).eq(parseEther('0'))
+      expect(await vsETH.controller()).eq(controller.address)
+      expect(await vsETH.debtToken()).eq(vsETHDebt.address)
+      expect(await vsETH.governor()).eq(deployer.address)
+      expect(await vsETH.interestRate()).eq(parseEther('0'))
     })
 
     it('should upgrade implementation', async function () {
       await upgradeTestcase({
         newImplfactory: new SyntheticToken__factory(deployer),
-        proxy: vsEth,
+        proxy: vsETH,
         upgrader: syntheticTokenUpgrader,
         expectToFail: false,
       })
@@ -313,7 +313,7 @@ describe('Deployments', function () {
     it('should fail if implementation breaks storage', async function () {
       await upgradeTestcase({
         newImplfactory: new DefaultOracleMock__factory(deployer),
-        proxy: vsEth,
+        proxy: vsETH,
         upgrader: syntheticTokenUpgrader,
         expectToFail: true,
       })
@@ -322,14 +322,14 @@ describe('Deployments', function () {
 
   describe('DebtToken', function () {
     it('vsETH debt token should have correct params', async function () {
-      expect(await vsEthDebtToken.controller()).eq(controller.address)
-      expect(await vsEthDebtToken.governor()).eq(deployer.address)
+      expect(await vsETHDebt.controller()).eq(controller.address)
+      expect(await vsETHDebt.governor()).eq(deployer.address)
     })
 
     it('should upgrade implementation', async function () {
       await upgradeTestcase({
         newImplfactory: new DebtToken__factory(deployer),
-        proxy: vsEthDebtToken,
+        proxy: vsETHDebt,
         upgrader: debtTokenUpgrader,
         expectToFail: false,
       })
@@ -338,7 +338,7 @@ describe('Deployments', function () {
     it('should fail if implementation breaks storage', async function () {
       await upgradeTestcase({
         newImplfactory: new DefaultOracleMock__factory(deployer),
-        proxy: vsEthDebtToken,
+        proxy: vsETHDebt,
         upgrader: debtTokenUpgrader,
         expectToFail: true,
       })
