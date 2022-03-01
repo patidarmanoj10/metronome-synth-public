@@ -51,30 +51,42 @@ const updateMulticallIfNeeded = async (
 
 export const deterministic = async (
   hre: HardhatRuntimeEnvironment,
-  contractConfig: ContractConfig
+  contractConfig: ContractConfig,
+  salt?: string
 ): Promise<{
   address: string
   implementationAddress?: string | undefined
   deploy(): Promise<DeployResult>
 }> => {
   const {
-    deployments: {deterministic: wrappedDeterministic},
+    deployments: {deterministic: wrappedDeterministic, getOrNull},
     getNamedAccounts,
   } = hre
+
   const {deployer} = await getNamedAccounts()
   const {alias, contract, adminContract} = contractConfig
+
+  const upgrader = await getOrNull(adminContract)
+
+  const viaAdminContract = !upgrader
+    ? adminContract
+    : {
+        name: adminContract,
+      }
+
   const {
     address,
     implementationAddress,
     deploy: deployContract,
   } = await wrappedDeterministic(alias, {
-    contract: contract || alias,
+    contract,
     from: deployer,
     log: true,
     proxy: {
       proxyContract: 'OpenZeppelinTransparentProxy',
-      viaAdminContract: adminContract,
+      viaAdminContract,
     },
+    salt,
   })
 
   const deploy = async (): Promise<DeployResult> => {
@@ -98,6 +110,7 @@ interface OracleProps {
     | 'addOrUpdateAssetThatUsesChainlink'
     | 'addOrUpdateAssetThatUsesUniswapV2'
     | 'addOrUpdateAssetThatUsesUniswapV3'
+    | 'addOrUpdateUsdAsset'
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   args: any[]
 }
@@ -108,6 +121,7 @@ interface SyntheticDeployFunctionProps {
   decimals: number
   interestRate: BigNumber
   oracle: OracleProps
+  salt: string
 }
 
 export const buildSyntheticDeployFunction = ({
@@ -116,6 +130,7 @@ export const buildSyntheticDeployFunction = ({
   decimals,
   interestRate,
   oracle,
+  salt,
 }: SyntheticDeployFunctionProps): DeployFunction => {
   const debtAlias = `${capitalize(symbol)}Debt`
   const syntheticAlias = `${capitalize(symbol)}Synthetic`
@@ -126,15 +141,23 @@ export const buildSyntheticDeployFunction = ({
     const {deployer} = await getNamedAccounts()
 
     const {address: controllerAddress} = await deterministic(hre, UpgradableContracts.Controller)
-    const {deploy: deployDebt} = await deterministic(hre, {
-      ...UpgradableContracts.DebtToken,
-      alias: debtAlias,
-    })
+    const {deploy: deployDebt} = await deterministic(
+      hre,
+      {
+        ...UpgradableContracts.DebtToken,
+        alias: debtAlias,
+      },
+      salt
+    )
 
-    const {deploy: deploySynthetic} = await deterministic(hre, {
-      ...UpgradableContracts.SyntheticToken,
-      alias: syntheticAlias,
-    })
+    const {deploy: deploySynthetic} = await deterministic(
+      hre,
+      {
+        ...UpgradableContracts.SyntheticToken,
+        alias: syntheticAlias,
+      },
+      salt
+    )
 
     const {address: debtTokenAddress} = await deployDebt()
 
@@ -184,6 +207,7 @@ interface DepositDeployFunctionProps {
   underlyingDecimals: number
   collateralizationRatio: BigNumber
   oracle: OracleProps
+  salt: string
 }
 
 export const buildDepositDeployFunction = ({
@@ -192,6 +216,7 @@ export const buildDepositDeployFunction = ({
   underlyingDecimals,
   collateralizationRatio,
   oracle,
+  salt,
 }: DepositDeployFunctionProps): DeployFunction => {
   const alias = `${underlyingSymbol}DepositToken`
   const symbol = `vs${underlyingSymbol}-Deposit`
@@ -203,7 +228,7 @@ export const buildDepositDeployFunction = ({
 
     const {address: controllerAddress} = await deterministic(hre, UpgradableContracts.Controller)
 
-    const {deploy} = await deterministic(hre, {...UpgradableContracts.DepositToken, alias})
+    const {deploy} = await deterministic(hre, {...UpgradableContracts.DepositToken, alias}, salt)
 
     const {address: depositTokenAddress} = await deploy()
 

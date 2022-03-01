@@ -10,6 +10,7 @@ const func = buildDepositDeployFunction({
   underlyingDecimals: 18,
   collateralizationRatio: parseEther('0.67'), // 67%
   oracle: {function: 'addOrUpdateAssetThatUsesUniswapV3', args: [underlyingAddress]},
+  salt: '0x01',
 })
 
 export default func
