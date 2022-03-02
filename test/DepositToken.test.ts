@@ -2,7 +2,7 @@
 import {parseEther} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import chai, {expect} from 'chai'
-import {ethers, network} from 'hardhat'
+import {ethers} from 'hardhat'
 import {
   DepositToken__factory,
   DepositToken,
@@ -13,7 +13,7 @@ import {
   Treasury,
   Treasury__factory,
 } from '../typechain'
-import {HOUR, increaseTime, setEtherBalance} from './helpers'
+import {HOUR, increaseTime, setEtherBalance, toUSD} from './helpers'
 import {FakeContract, MockContract, smock} from '@defi-wonderland/smock'
 import {BigNumber} from 'ethers'
 
@@ -31,7 +31,7 @@ describe('DepositToken', function () {
   let masterOracle: MasterOracleMock
   let rewardsDistributorMock: MockContract
 
-  const metRate = parseEther('4') // 1 MET = $4
+  const metPrice = toUSD('4') // 1 MET = $4
   const metCR = parseEther('0.5') // 50%
 
   beforeEach(async function () {
@@ -73,7 +73,7 @@ describe('DepositToken', function () {
     await metDepositToken.initialize(met.address, controllerMock.address, 'vsMET-Deposit', 18, metCR)
     metDepositToken = metDepositToken.connect(governor)
 
-    await masterOracle.updateRate(metDepositToken.address, metRate)
+    await masterOracle.updatePrice(metDepositToken.address, metPrice)
     await treasury.initialize(controllerMock.address)
   })
 
@@ -129,7 +129,7 @@ describe('DepositToken', function () {
     it('should revert if surpass max total supply', async function () {
       // given
       expect(await metDepositToken.totalSupply()).eq(0)
-      const maxInUsd = parseEther('400') // 100 MET
+      const maxInUsd = toUSD('400') // 100 MET
       await metDepositToken.updateMaxTotalSupplyInUsd(maxInUsd)
 
       // when
@@ -165,7 +165,7 @@ describe('DepositToken', function () {
 
     const debtPositionOf_returnsAllUnlocked = (balance: BigNumber) => () => {
       const _isHealth = true
-      const _depositInUsd = balance.mul(metRate).div(parseEther('1'))
+      const _depositInUsd = balance.mul(metPrice).div(parseEther('1'))
       const _debtInUsd = parseEther('0') // all tokens are unlocked
       const _issuableLimitInUsd = _depositInUsd.mul(parseEther('1')).div(metCR)
       const _issuableInUsd = _issuableLimitInUsd.sub(_debtInUsd)
@@ -174,7 +174,7 @@ describe('DepositToken', function () {
 
     const debtPositionOf_returnsAllLocked = (balance: BigNumber) => () => {
       const _isHealth = true
-      const _depositInUsd = balance.mul(metRate).div(parseEther('1'))
+      const _depositInUsd = balance.mul(metPrice).div(parseEther('1'))
       const _issuableLimitInUsd = _depositInUsd.mul(metCR).div(parseEther('1'))
       const _debtInUsd = _issuableLimitInUsd
       const _issuableInUsd = parseEther('0') // all tokens are locked

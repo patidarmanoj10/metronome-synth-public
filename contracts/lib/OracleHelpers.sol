@@ -5,7 +5,7 @@ pragma solidity >=0.6.2;
 import "../dependencies/openzeppelin/token/ERC20/extensions/IERC20Metadata.sol";
 
 library OracleHelpers {
-    uint8 public constant USD_DECIMALS = 8;
+    uint8 public constant USD_DECIMALS = 18;
 
     function normalizeUsdOutput(address _usdToken, uint256 _amountInUsd) internal view returns (uint256) {
         uint256 _usdTokenDecimals = IERC20Metadata(_usdToken).decimals();

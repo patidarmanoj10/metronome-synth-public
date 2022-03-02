@@ -3,8 +3,9 @@ import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
 import {UniswapV2PriceProvider, UniswapV2PriceProvider__factory} from '../../typechain'
-import {DEFAULT_TWAP_PERIOD, enableForking, disableForking, increaseTime} from '../helpers'
+import {DEFAULT_TWAP_PERIOD, enableForking, disableForking, increaseTime, toUSD} from '../helpers'
 import Address from '../../helpers/address'
+import {parseEther} from 'ethers/lib/utils'
 
 const {MET_ADDRESS, DAI_ADDRESS, USDC_ADDRESS, WETH_ADDRESS, UNISWAP_V2_ROUTER02_ADDRESS, WBTC_ADDRESS} = Address
 
@@ -45,17 +46,17 @@ describe('UniswapV2PriceProvider', function () {
   describe('getPriceInUsd', function () {
     it('should get MET price', async function () {
       const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedMetAddress)
-      expect(_priceInUsd).eq('480514770')
+      expect(_priceInUsd).closeTo(toUSD('4.8051477'), toUSD('0.0000001'))
     })
 
     it('should get WBTC price', async function () {
       const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedWbtcAddress)
-      expect(_priceInUsd).eq('5018624222484')
+      expect(_priceInUsd).closeTo(toUSD('50186.24222484'), toUSD('0.0000001'))
     })
 
     it('should get ETH price', async function () {
       const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedWethAddress)
-      expect(_priceInUsd).eq('344975562440')
+      expect(_priceInUsd).closeTo(toUSD('3449.7556244'), toUSD('0.0000001'))
     })
   })
 
@@ -170,17 +171,17 @@ describe('UniswapV2PriceProvider', function () {
     describe('getPriceInUsd', function () {
       it('should get MET price', async function () {
         const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedMetAddress)
-        expect(_priceInUsd).eq('482300500')
+        expect(_priceInUsd).eq(toUSD('4.823005'))
       })
 
       it('should get WBTC price', async function () {
         const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedWbtcAddress)
-        expect(_priceInUsd).eq('5037275432900')
+        expect(_priceInUsd).eq(toUSD('50372.754329'))
       })
 
       it('should get ETH price', async function () {
         const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedWethAddress)
-        expect(_priceInUsd).eq('346257629300')
+        expect(_priceInUsd).eq(toUSD('3462.576293'))
       })
     })
   })

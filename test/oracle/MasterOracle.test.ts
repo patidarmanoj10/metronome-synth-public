@@ -11,11 +11,12 @@ import {
   DefaultOracleMock__factory,
   DefaultOracleMock,
 } from '../../typechain'
+import {toUSD} from '../helpers'
 
 const {AddressZero} = ethers.constants
 
-const btcPrice = parseUnits('40000', 8) // 1 BTC : $40,000
-const ethPrice = parseUnits('4000', 8) // 1 ETH : $4,000
+const btcPrice = toUSD('40000') // 1 BTC : $40,000
+const ethPrice = toUSD('4000') // 1 ETH : $4,000
 
 const ONE_BTC = parseUnits('1', 8)
 const ONE_ETH = parseEther('1')
@@ -57,8 +58,8 @@ describe('MasterOracle', function () {
     await masterOracle.deployed()
     await masterOracle.initialize([vsBTC.address], [btcOracle.address], defaultOracle.address)
 
-    await btcOracle.updateRate(vsBTC.address, btcPrice)
-    await defaultOracle.updateRate(vsETH.address, ethPrice)
+    await btcOracle.updatePrice(vsBTC.address, btcPrice)
+    await defaultOracle.updatePrice(vsETH.address, ethPrice)
   })
 
   describe('addOrUpdate', function () {
@@ -164,6 +165,12 @@ describe('MasterOracle', function () {
       const tx = masterOracle.convertToUsd(vsDOGE.address, parseEther('1'))
       await expect(tx).revertedWith('asset-without-oracle')
     })
+
+    it('should convert to from minimum ETH amount (1 wei)', async function () {
+      const amountIn = '1'
+      const amountOut = await masterOracle.convertToUsd(vsETH.address, amountIn)
+      expect(amountOut).eq(ethPrice.div(toUSD('1')))
+    })
   })
 
   describe('convertFromUsd', function () {
@@ -196,6 +203,12 @@ describe('MasterOracle', function () {
       await masterOracle.setDefaultOracle(AddressZero)
       const tx = masterOracle.convertFromUsd(vsDOGE.address, parseEther('1'))
       await expect(tx).revertedWith('asset-without-oracle')
+    })
+
+    it('should convert from minimum USD amount ($1 wei)', async function () {
+      const amountIn = '1'
+      const amountOut = await masterOracle.convertFromUsd(vsETH.address, amountIn)
+      expect(amountOut).eq(parseEther('1').div(ethPrice))
     })
   })
 

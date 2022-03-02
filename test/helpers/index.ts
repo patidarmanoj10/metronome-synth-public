@@ -1,5 +1,5 @@
 import {BigNumber} from '@ethersproject/bignumber'
-import {parseEther} from '@ethersproject/units'
+import {parseEther, parseUnits} from '@ethersproject/units'
 import {ethers, network} from 'hardhat'
 import {Controller, DepositToken} from '../../typechain'
 
@@ -99,3 +99,5 @@ export const setEtherBalance = async (address: string, value: BigNumber): Promis
     params: [address, ethers.utils.hexStripZeros(value.toHexString())],
   })
 }
+
+export const toUSD = (amount: string): BigNumber => parseUnits(amount, 18)

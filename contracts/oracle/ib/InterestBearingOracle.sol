@@ -21,7 +21,7 @@ abstract contract InterestBearingOracle is IOracle, Governable {
     /**
      * @notice Get asset's USD price
      * @param _asset The asset's to get price from
-     * @return _priceInUsd The amount in USD (8 decimals)
+     * @return _priceInUsd The amount in USD (18 decimals)
      */
     function getPriceInUsd(IERC20 _asset) external view returns (uint256 _priceInUsd) {
         address _underlyingAddress = _getUnderlyingAsset(_asset);

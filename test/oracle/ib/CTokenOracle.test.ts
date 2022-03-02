@@ -10,9 +10,8 @@ import {
   ICToken,
   ICToken__factory,
 } from '../../../typechain'
-import {enableForking, disableForking} from '../../helpers'
+import {enableForking, disableForking, toUSD} from '../../helpers'
 import Address from '../../../helpers/address'
-import {parseUnits} from 'ethers/lib/utils'
 
 const {DAI_ADDRESS, CDAI_ADDRESS} = Address
 
@@ -51,6 +50,6 @@ describe('CTokenOracle', function () {
 
   it('getPriceInUsd', async function () {
     const price = await ibOracle.getPriceInUsd(cDAI.address)
-    expect(price).eq(parseUnits('1', 8))
+    expect(price).eq(toUSD('1'))
   })
 })
