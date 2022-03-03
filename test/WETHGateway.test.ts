@@ -19,7 +19,7 @@ import {
   Treasury__factory,
   Treasury,
 } from '../typechain'
-import {disableForking, enableForking} from './helpers'
+import {disableForking, enableForking, toUSD} from './helpers'
 import Address from '../helpers/address'
 
 const {NATIVE_TOKEN_ADDRESS} = Address
@@ -28,7 +28,7 @@ describe('WETHGateway', function () {
   let deployer: SignerWithAddress
   let user: SignerWithAddress
   let weth: IWETH
-  let wethDepositToken: DepositToken
+  let vsdETH: DepositToken
   let treasury: Treasury
   let masterOracleMock: MasterOracleMock
   let controllerMock: ControllerMock
@@ -50,8 +50,8 @@ describe('WETHGateway', function () {
     await masterOracleMock.deployed()
 
     const depositTokenFactory = new DepositToken__factory(deployer)
-    wethDepositToken = await depositTokenFactory.deploy()
-    await wethDepositToken.deployed()
+    vsdETH = await depositTokenFactory.deploy()
+    await vsdETH.deployed()
 
     const treasuryFactory = new Treasury__factory(deployer)
     treasury = await treasuryFactory.deploy()
@@ -59,7 +59,7 @@ describe('WETHGateway', function () {
 
     const controllerMockFactory = new ControllerMock__factory(deployer)
     controllerMock = await controllerMockFactory.deploy(
-      wethDepositToken.address,
+      vsdETH.address,
       masterOracleMock.address,
       ethers.constants.AddressZero
     )
@@ -69,14 +69,14 @@ describe('WETHGateway', function () {
     wethGateway = await wethGatewayFactory.deploy(NATIVE_TOKEN_ADDRESS)
     await wethGateway.deployed()
 
-    await wethDepositToken.initialize(NATIVE_TOKEN_ADDRESS, controllerMock.address, 'vETH-Deposit', 18, parseEther('1'))
+    await vsdETH.initialize(NATIVE_TOKEN_ADDRESS, controllerMock.address, 'vsdETH', 18, parseEther('1'))
 
     const erc20MockFactory = new ERC20Mock__factory(deployer)
     tokenMock = await erc20MockFactory.deploy('Name', 'SYMBOL', 18)
     await tokenMock.deployed()
 
     await controllerMock.updateTreasury(treasury.address, true)
-    await masterOracleMock.updatePrice(wethDepositToken.address, parseEther('1'))
+    await masterOracleMock.updatePrice(vsdETH.address, toUSD('1'))
     await treasury.initialize(controllerMock.address)
   })
 
@@ -95,7 +95,7 @@ describe('WETHGateway', function () {
       // Note: Each expect below re-runs the transaction (Refs: https://github.com/EthWorks/Waffle/issues/569)
       await expect(tx).changeEtherBalances([user, weth], [value.mul('-1'), value])
       await expect(tx).changeTokenBalance(weth, treasury, value)
-      await expect(tx).changeTokenBalance(wethDepositToken, user, value)
+      await expect(tx).changeTokenBalance(vsdETH, user, value)
     })
   })
 
@@ -103,7 +103,7 @@ describe('WETHGateway', function () {
     beforeEach(async function () {
       const value = parseEther('100')
       await wethGateway.connect(user).depositETH(controllerMock.address, {value})
-      await wethDepositToken.connect(user).approve(wethGateway.address, value)
+      await vsdETH.connect(user).approve(wethGateway.address, value)
     })
 
     it('should withdraw ETH from Controller', async function () {
@@ -115,7 +115,7 @@ describe('WETHGateway', function () {
       // Note: Each expect below re-runs the transaction (Refs: https://github.com/EthWorks/Waffle/issues/569)
       await expect(tx).changeEtherBalances([weth, user], [amount.mul('-1'), amount])
       await expect(tx).changeTokenBalance(weth, treasury, amount.mul('-1'))
-      await expect(tx).changeTokenBalance(wethDepositToken, user, amount.mul('-1'))
+      await expect(tx).changeTokenBalance(vsdETH, user, amount.mul('-1'))
     })
   })
 

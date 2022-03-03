@@ -72,7 +72,7 @@ describe('DefaultOracle', function () {
     await vsUSD.deployed()
 
     // depositToken
-    depositToken = await erc20MockFactory.deploy('Tokenized deposit position', 'vsMET-Deposit', 18)
+    depositToken = await erc20MockFactory.deploy('Tokenized deposit position', 'vsdMET', 18)
     await depositToken.deployed()
 
     // vsDOGE

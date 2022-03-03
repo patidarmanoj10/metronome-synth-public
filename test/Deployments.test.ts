@@ -65,8 +65,8 @@ describe('Deployments', function () {
   let treasury: Treasury
   let treasuryUpgrader: TreasuryUpgrader
   let depositTokenUpgrader: DepositTokenUpgrader
-  let metDepositToken: DepositToken
-  let daiDepositToken: DepositToken
+  let vsdMET: DepositToken
+  let vsdDAI: DepositToken
   let syntheticTokenUpgrader: SyntheticTokenUpgrader
   let vsETH: SyntheticToken
   let vsUSD: SyntheticToken
@@ -128,8 +128,8 @@ describe('Deployments', function () {
     wethGateway = WETHGateway__factory.connect(wethGatewayAddress, deployer)
 
     depositTokenUpgrader = DepositTokenUpgrader__factory.connect(depositTokenUpgraderAddress, deployer)
-    metDepositToken = DepositToken__factory.connect(metDepositTokenAddress, deployer)
-    daiDepositToken = DepositToken__factory.connect(daiDepositTokenAddress, deployer)
+    vsdMET = DepositToken__factory.connect(metDepositTokenAddress, deployer)
+    vsdDAI = DepositToken__factory.connect(daiDepositTokenAddress, deployer)
 
     syntheticTokenUpgrader = SyntheticTokenUpgrader__factory.connect(syntheticTokenUpgraderAddress, deployer)
     vsETH = SyntheticToken__factory.connect(vsETHAddress, deployer)
@@ -279,15 +279,15 @@ describe('Deployments', function () {
   describe('DepositToken', function () {
     describe('MET DepositToken', function () {
       it('token should have correct params', async function () {
-        expect(await metDepositToken.controller()).eq(controller.address)
-        expect(await metDepositToken.underlying()).eq(MET_ADDRESS)
-        expect(await metDepositToken.governor()).eq(deployer.address)
+        expect(await vsdMET.controller()).eq(controller.address)
+        expect(await vsdMET.underlying()).eq(MET_ADDRESS)
+        expect(await vsdMET.governor()).eq(deployer.address)
       })
 
       it('should upgrade implementation', async function () {
         await upgradeTestcase({
           newImplfactory: new DepositToken__factory(deployer),
-          proxy: metDepositToken,
+          proxy: vsdMET,
           upgrader: depositTokenUpgrader,
           expectToFail: false,
         })
@@ -296,7 +296,7 @@ describe('Deployments', function () {
       it('should fail if implementation breaks storage', async function () {
         await upgradeTestcase({
           newImplfactory: new DefaultOracleMock__factory(deployer),
-          proxy: metDepositToken,
+          proxy: vsdMET,
           upgrader: depositTokenUpgrader,
           expectToFail: true,
         })
@@ -305,15 +305,15 @@ describe('Deployments', function () {
 
     describe('DAI DepositToken', function () {
       it('token should have correct params', async function () {
-        expect(await daiDepositToken.controller()).eq(controller.address)
-        expect(await daiDepositToken.underlying()).eq(DAI_ADDRESS)
-        expect(await daiDepositToken.governor()).eq(deployer.address)
+        expect(await vsdDAI.controller()).eq(controller.address)
+        expect(await vsdDAI.underlying()).eq(DAI_ADDRESS)
+        expect(await vsdDAI.governor()).eq(deployer.address)
       })
 
       it('should upgrade implementation', async function () {
         await upgradeTestcase({
           newImplfactory: new DepositToken__factory(deployer),
-          proxy: daiDepositToken,
+          proxy: vsdDAI,
           upgrader: depositTokenUpgrader,
           expectToFail: false,
         })
@@ -322,7 +322,7 @@ describe('Deployments', function () {
       it('should fail if implementation breaks storage', async function () {
         await upgradeTestcase({
           newImplfactory: new DefaultOracleMock__factory(deployer),
-          proxy: daiDepositToken,
+          proxy: vsdDAI,
           upgrader: depositTokenUpgrader,
           expectToFail: true,
         })
