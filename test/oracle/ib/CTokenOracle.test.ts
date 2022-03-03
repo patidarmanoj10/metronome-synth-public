@@ -3,7 +3,7 @@ import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
 import {
-  ATokenOracle,
+  CTokenOracle,
   CTokenOracle__factory,
   DefaultOracle,
   DefaultOracle__factory,
@@ -19,7 +19,7 @@ describe('CTokenOracle', function () {
   let snapshotId: string
   let deployer: SignerWithAddress
   let underlyingOracle: DefaultOracle
-  let ibOracle: ATokenOracle
+  let ibOracle: CTokenOracle
   let cDAI: ICToken
 
   before(enableForking)
@@ -50,6 +50,6 @@ describe('CTokenOracle', function () {
 
   it('getPriceInUsd', async function () {
     const price = await ibOracle.getPriceInUsd(cDAI.address)
-    expect(price).eq(toUSD('1'))
+    expect(price).closeTo(toUSD('0.021'), toUSD('0.001')) // 1 cDAI ~= $0.021
   })
 })

@@ -14,4 +14,13 @@ contract CTokenOracle is InterestBearingOracle {
     function _getUnderlyingAsset(IERC20 _asset) internal view override returns (address _underlying) {
         return ICToken(address(_asset)).underlying();
     }
+
+    function _toUnderlyingAmount(IERC20 _asset, uint256 _underlyingAmount)
+        internal
+        view
+        override
+        returns (uint256 _amount)
+    {
+        return (_underlyingAmount * ICToken(address(_asset)).exchangeRateStored()) / 1e18;
+    }
 }

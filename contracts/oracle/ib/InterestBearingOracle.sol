@@ -25,7 +25,9 @@ abstract contract InterestBearingOracle is IOracle, Governable {
      */
     function getPriceInUsd(IERC20 _asset) external view returns (uint256 _priceInUsd) {
         address _underlyingAddress = _getUnderlyingAsset(_asset);
-        _priceInUsd = underlyingOracle.getPriceInUsd(IERC20(_underlyingAddress));
+        uint256 _underlyinPriceInUsd = underlyingOracle.getPriceInUsd(IERC20(_underlyingAddress));
+        // cToken has 8 decimals
+        _priceInUsd = (_underlyinPriceInUsd * _toUnderlyingAmount(_asset, 1e8)) / 1e18;
     }
 
     /**
@@ -34,4 +36,10 @@ abstract contract InterestBearingOracle is IOracle, Governable {
      * @return _underlying The IB token underlying
      */
     function _getUnderlyingAsset(IERC20 _asset) internal view virtual returns (address _underlying);
+
+    function _toUnderlyingAmount(IERC20 _asset, uint256 _underlyingAmount)
+        internal
+        view
+        virtual
+        returns (uint256 _amount);
 }
