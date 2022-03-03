@@ -2,25 +2,33 @@
 
 pragma solidity 0.8.9;
 
-import "./InterestBearingOracle.sol";
 import "../../interface/external/ICToken.sol";
+import "../../interface/oracle/IOracle.sol";
+import "../../access/Governable.sol";
 
 /**
  * @title Oracle for `CTokens`
  */
-contract CTokenOracle is InterestBearingOracle {
-    constructor(IOracle _underlyingOracle) InterestBearingOracle(_underlyingOracle) {}
+contract CTokenOracle is IOracle, Governable {
+    uint256 public constant ONE_CTOKEN = 1e8;
+    /**
+     * @notice The oracle that resolves the price of underlying token
+     */
+    IOracle public underlyingOracle;
 
-    function _getUnderlyingAsset(IERC20 _asset) internal view override returns (address _underlying) {
-        return ICToken(address(_asset)).underlying();
+    constructor(IOracle _underlyingOracle) {
+        underlyingOracle = _underlyingOracle;
     }
 
-    function _toUnderlyingAmount(IERC20 _asset, uint256 _underlyingAmount)
-        internal
-        view
-        override
-        returns (uint256 _amount)
-    {
-        return (_underlyingAmount * ICToken(address(_asset)).exchangeRateStored()) / 1e18;
+    /**
+     * @notice Get cToken's USD price
+     * @param _asset The asset's to get price from
+     * @return _priceInUsd The amount in USD (18 decimals)
+     */
+    function getPriceInUsd(IERC20 _asset) external view returns (uint256 _priceInUsd) {
+        address _underlyingAddress = ICToken(address(_asset)).underlying();
+        uint256 _underlyinPriceInUsd = underlyingOracle.getPriceInUsd(IERC20(_underlyingAddress));
+        uint256 _underlyingAmount = (ONE_CTOKEN * ICToken(address(_asset)).exchangeRateStored()) / 1e18;
+        _priceInUsd = (_underlyinPriceInUsd * _underlyingAmount) / 1e18;
     }
 }
