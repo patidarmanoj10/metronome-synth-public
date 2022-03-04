@@ -34,7 +34,8 @@ contract RewardsDistributor is Manageable, RewardsDistributorStorageV1 {
     modifier onlyIfDistributorExists() {
         bool _distributorAdded = false;
         IRewardsDistributor[] memory _rewardsDistributors = controller.getRewardsDistributors();
-        for (uint256 i = 0; i < _rewardsDistributors.length; i++) {
+        uint256 _length = _rewardsDistributors.length;
+        for (uint256 i = 0; i < _length; i++) {
             if (_rewardsDistributors[i] == this) _distributorAdded = true;
         }
         require(_distributorAdded, "distributor-not-added");
@@ -178,17 +179,19 @@ contract RewardsDistributor is Manageable, RewardsDistributorStorageV1 {
      * @notice Claim tokens accrued by the accounts in the specified tokens
      */
     function claimRewards(address[] memory _accounts, IERC20[] memory _tokens) public {
-        for (uint256 i = 0; i < _tokens.length; i++) {
+        uint256 _accountsLength = _accounts.length;
+        uint256 _tokensLength = _tokens.length;
+        for (uint256 i = 0; i < _tokensLength; i++) {
             IERC20 _token = _tokens[i];
 
             if (tokenStates[_token].index > 0) {
                 _updateTokenIndex(_token);
-                for (uint256 j = 0; j < _accounts.length; j++) {
+                for (uint256 j = 0; j < _accountsLength; j++) {
                     _updateTokensAccruedOf(_token, _accounts[j]);
                 }
             }
         }
-        for (uint256 j = 0; j < _accounts.length; j++) {
+        for (uint256 j = 0; j < _accountsLength; j++) {
             tokensAccruedOf[_accounts[j]] = _transferRewardToken(_accounts[j], tokensAccruedOf[_accounts[j]]);
         }
     }
@@ -229,9 +232,10 @@ contract RewardsDistributor is Manageable, RewardsDistributorStorageV1 {
      * @notice Update token speeds
      */
     function updateTokenSpeeds(IERC20[] memory _tokens, uint256[] memory _speeds) external onlyGovernor {
-        require(_tokens.length == _speeds.length, "invalid-input");
+        uint256 _tokensLength = _tokens.length;
+        require(_tokensLength == _speeds.length, "invalid-input");
 
-        for (uint256 i = 0; i < _tokens.length; ++i) {
+        for (uint256 i = 0; i < _tokensLength; ++i) {
             _updateTokenSpeed(_tokens[i], _speeds[i]);
         }
     }

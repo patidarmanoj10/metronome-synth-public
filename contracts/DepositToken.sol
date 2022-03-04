@@ -79,7 +79,8 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      */
     modifier updateRewardsBeforeTransfer(address _sender, address _recipient) {
         IRewardsDistributor[] memory _rewardsDistributors = controller.getRewardsDistributors();
-        for (uint256 i = 0; i < _rewardsDistributors.length; i++) {
+        uint256 _length = _rewardsDistributors.length;
+        for (uint256 i = 0; i < _length; i++) {
             _rewardsDistributors[i].updateBeforeTransfer(this, _sender, _recipient);
         }
         _;

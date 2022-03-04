@@ -49,9 +49,10 @@ contract MasterOracle is Initializable, IMasterOracle, Governable {
      * @dev We allow null address inside of the `_oracles` array in order to turn off oracle for a given asset
      */
     function _updateOracles(address[] memory _assets, IOracle[] memory _oracles) private {
-        require(_assets.length == _oracles.length, "invalid-arrays-length");
+        uint256 _assetsLength = _assets.length;
+        require(_assetsLength == _oracles.length, "invalid-arrays-length");
 
-        for (uint256 i = 0; i < _assets.length; i++) {
+        for (uint256 i = 0; i < _assetsLength; i++) {
             address _asset = _assets[i];
             require(_asset != address(0), "an-asset-has-null-address");
             IOracle _currentOracle = oracles[_asset];

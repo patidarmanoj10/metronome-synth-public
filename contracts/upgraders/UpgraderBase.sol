@@ -41,8 +41,9 @@ abstract contract UpgraderBase is ProxyAdmin {
         internal
         returns (bytes[] memory results)
     {
-        IMulticall.Call[] memory calls = new IMulticall.Call[](_callDatas.length);
-        for (uint256 i = 0; i < _callDatas.length; i++) {
+        uint256 _length = _callDatas.length;
+        IMulticall.Call[] memory calls = new IMulticall.Call[](_length);
+        for (uint256 i = 0; i < _length; i++) {
             calls[i].target = address(_proxy);
             calls[i].callData = _callDatas[i];
         }
