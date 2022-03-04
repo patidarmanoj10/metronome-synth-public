@@ -170,7 +170,7 @@ contract DefaultOracle is IOracle, Governable {
      * @param _asset The asset to update
      */
     // solhint-disable-next-line no-empty-blocks
-    function update(IERC20 _asset) public {
+    function update(IERC20 _asset) external {
         if (assets[_asset].protocol != Protocol.NONE) {
             _priceProviderOfAsset(_asset).update(_dataOfAsset(_asset));
         }

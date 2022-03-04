@@ -97,7 +97,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     function initialize(
         IERC20 _underlying,
         IController _controller,
-        string memory _symbol,
+        string calldata _symbol,
         uint8 _decimals,
         uint128 _collateralizationRatio
     ) public initializer {
@@ -413,7 +413,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     /**
      * @notice Update minimum deposit time
      */
-    function updateMinDepositTime(uint256 _newMinDepositTime) public onlyGovernor {
+    function updateMinDepositTime(uint256 _newMinDepositTime) external onlyGovernor {
         uint256 _currentMinDepositTime = minDepositTime;
         require(_newMinDepositTime != _currentMinDepositTime, "new-same-as-current");
         emit MinDepositTimeUpdated(_currentMinDepositTime, _newMinDepositTime);
@@ -424,7 +424,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @notice Update max total supply
      * @param _newMaxTotalSupplyInUsd The new max total supply
      */
-    function updateMaxTotalSupplyInUsd(uint256 _newMaxTotalSupplyInUsd) public override onlyGovernor {
+    function updateMaxTotalSupplyInUsd(uint256 _newMaxTotalSupplyInUsd) external override onlyGovernor {
         uint256 _currentMaxTotalSupplyInUsd = maxTotalSupplyInUsd;
         require(_newMaxTotalSupplyInUsd != _currentMaxTotalSupplyInUsd, "new-same-as-current");
         emit MaxTotalSupplyUpdated(_currentMaxTotalSupplyInUsd, _newMaxTotalSupplyInUsd);
@@ -434,7 +434,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     /**
      * @notice Enable/Disable the Deposit Token
      */
-    function toggleIsActive() public override onlyGovernor {
+    function toggleIsActive() external override onlyGovernor {
         bool _isActive = isActive;
         emit DepositTokenActiveUpdated(_isActive, !_isActive);
         isActive = !_isActive;

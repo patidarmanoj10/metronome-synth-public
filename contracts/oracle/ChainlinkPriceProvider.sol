@@ -28,7 +28,7 @@ contract ChainlinkPriceProvider is IPriceProvider {
      * @return _aggregator The aggregator contract address
      * @return _decimals The asset's decimals
      */
-    function _decode(bytes memory _assetData) private pure returns (address _aggregator, uint8 _decimals) {
+    function _decode(bytes calldata _assetData) private pure returns (address _aggregator, uint8 _decimals) {
         (_aggregator, _decimals) = abi.decode(_assetData, (address, uint8));
     }
 
@@ -38,8 +38,8 @@ contract ChainlinkPriceProvider is IPriceProvider {
      * @return _priceInUsd The amount in USD (8 decimals)
      * @return _lastUpdatedAt The timestamp of the price used to convert
      */
-    function getPriceInUsd(bytes memory _assetData)
-        public
+    function getPriceInUsd(bytes calldata _assetData)
+        external
         view
         override
         returns (uint256 _priceInUsd, uint256 _lastUpdatedAt)
@@ -52,5 +52,5 @@ contract ChainlinkPriceProvider is IPriceProvider {
      * @dev This function is here just to follow IPriceProvider
      */
     // solhint-disable-next-line no-empty-blocks
-    function update(bytes memory) external {}
+    function update(bytes calldata) external {}
 }

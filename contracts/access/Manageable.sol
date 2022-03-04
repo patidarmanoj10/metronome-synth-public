@@ -53,7 +53,7 @@ abstract contract Manageable is Context, Initializable {
      * @notice Update Controller contract
      * @param _controller The new Controller contract
      */
-    function setController(IController _controller) public onlyGovernor {
+    function setController(IController _controller) external onlyGovernor {
         require(address(_controller) != address(0), "new-controller-address-is-zero");
         controller = _controller;
     }

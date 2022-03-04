@@ -231,7 +231,7 @@ contract RewardsDistributor is Manageable, RewardsDistributorStorageV1 {
     /**
      * @notice Update token speeds
      */
-    function updateTokenSpeeds(IERC20[] memory _tokens, uint256[] memory _speeds) external onlyGovernor {
+    function updateTokenSpeeds(IERC20[] calldata _tokens, uint256[] calldata _speeds) external onlyGovernor {
         uint256 _tokensLength = _tokens.length;
         require(_tokensLength == _speeds.length, "invalid-input");
 

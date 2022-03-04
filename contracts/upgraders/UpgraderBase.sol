@@ -28,7 +28,7 @@ abstract contract UpgraderBase is ProxyAdmin {
     function upgradeAndCall(
         TransparentUpgradeableProxy _proxy,
         address _implementation,
-        bytes memory _data
+        bytes calldata _data
     ) public payable override onlyOwner {
         bytes[] memory calls = _calls();
         bytes[] memory beforeResults = _aggregate(_proxy, calls);

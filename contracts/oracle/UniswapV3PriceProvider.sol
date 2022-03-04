@@ -52,7 +52,7 @@ contract UniswapV3PriceProvider is IPriceProvider, Governable {
      * @notice Update TWAP period
      * @param _newTwapPeriod The new period
      */
-    function updateTwapPeriod(uint32 _newTwapPeriod) public onlyGovernor {
+    function updateTwapPeriod(uint32 _newTwapPeriod) external onlyGovernor {
         emit TwapPeriodUpdated(twapPeriod, _newTwapPeriod);
         twapPeriod = _newTwapPeriod;
     }
@@ -62,7 +62,7 @@ contract UniswapV3PriceProvider is IPriceProvider, Governable {
      * @param _encodedTokenAddress The asset's encoded address
      * @return _token The asset's address
      */
-    function _decode(bytes memory _encodedTokenAddress) private pure returns (address _token) {
+    function _decode(bytes calldata _encodedTokenAddress) private pure returns (address _token) {
         _token = abi.decode(_encodedTokenAddress, (address));
     }
 
@@ -72,8 +72,8 @@ contract UniswapV3PriceProvider is IPriceProvider, Governable {
      * @return _priceInUsd The amount in USD (8 decimals)
      * @return _lastUpdatedAt The timestamp of the price used to convert
      */
-    function getPriceInUsd(bytes memory _encodedTokenAddress)
-        public
+    function getPriceInUsd(bytes calldata _encodedTokenAddress)
+        external
         view
         override
         returns (uint256 _priceInUsd, uint256 _lastUpdatedAt)
@@ -92,5 +92,5 @@ contract UniswapV3PriceProvider is IPriceProvider, Governable {
      * @dev This function is here just to follow IPriceProvider
      */
     // solhint-disable-next-line no-empty-blocks
-    function update(bytes memory) external {}
+    function update(bytes calldata) external {}
 }

@@ -89,7 +89,7 @@ contract UniswapV2PriceProvider is IPriceProvider, Governable {
      * @notice Update TWAP period
      * @param _newTwapPeriod The new period
      */
-    function updateTwapPeriod(uint256 _newTwapPeriod) public onlyGovernor {
+    function updateTwapPeriod(uint256 _newTwapPeriod) external onlyGovernor {
         emit TwapPeriodUpdated(twapPeriod, _newTwapPeriod);
         twapPeriod = _newTwapPeriod;
     }
@@ -163,7 +163,7 @@ contract UniswapV2PriceProvider is IPriceProvider, Governable {
         return true;
     }
 
-    function _decode(bytes memory _encodedTokenAddress) private pure returns (address _token) {
+    function _decode(bytes calldata _encodedTokenAddress) private pure returns (address _token) {
         _token = abi.decode(_encodedTokenAddress, (address));
     }
 
@@ -173,7 +173,7 @@ contract UniswapV2PriceProvider is IPriceProvider, Governable {
      * @dev This function also update the default USDTOKEN:WETH pair
      * @param _encodedTokenAddress The asset's encoded address
      */
-    function update(bytes memory _encodedTokenAddress) public override {
+    function update(bytes calldata _encodedTokenAddress) external override {
         address _token = _decode(_encodedTokenAddress);
 
         if (!_hasOracleData(_token)) {
@@ -213,8 +213,8 @@ contract UniswapV2PriceProvider is IPriceProvider, Governable {
      * @return _priceInUsd The amount in USD (8 decimals)
      * @return _lastUpdatedAt The timestamp of the price used to convert
      */
-    function getPriceInUsd(bytes memory _encodedTokenAddress)
-        public
+    function getPriceInUsd(bytes calldata _encodedTokenAddress)
+        external
         view
         override
         returns (uint256 _priceInUsd, uint256 _lastUpdatedAt)

@@ -8,5 +8,5 @@ interface IMulticall {
         bytes callData;
     }
 
-    function aggregate(Call[] memory calls) external returns (uint256 blockNumber, bytes[] memory returnData);
+    function aggregate(Call[] calldata calls) external returns (uint256 blockNumber, bytes[] memory returnData);
 }
