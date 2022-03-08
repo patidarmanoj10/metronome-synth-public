@@ -36,7 +36,8 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
      */
     modifier updateRewardsBeforeMintOrBurn(address _account) {
         IRewardsDistributor[] memory _rewardsDistributors = controller.getRewardsDistributors();
-        for (uint256 i = 0; i < _rewardsDistributors.length; i++) {
+        uint256 _length = _rewardsDistributors.length;
+        for (uint256 i = 0; i < _length; i++) {
             _rewardsDistributors[i].updateBeforeMintOrBurn(syntheticToken, _account);
         }
         _;

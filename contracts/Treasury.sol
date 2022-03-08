@@ -54,8 +54,9 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
      */
     function migrateTo(address _newTreasury) external override onlyController {
         address[] memory _depositTokens = controller.getDepositTokens();
+        uint256 _depositTokensLength = _depositTokens.length;
 
-        for (uint256 i = 0; i < _depositTokens.length; ++i) {
+        for (uint256 i = 0; i < _depositTokensLength; ++i) {
             IDepositToken _depositToken = IDepositToken(_depositTokens[i]);
 
             uint256 _balance = _depositToken.balanceOf(address(this));
@@ -66,8 +67,9 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
         }
 
         address[] memory _syntheticTokens = controller.getSyntheticTokens();
+        uint256 _syntheticTokensLength = _syntheticTokens.length;
 
-        for (uint256 i = 0; i < _syntheticTokens.length; ++i) {
+        for (uint256 i = 0; i < _syntheticTokensLength; ++i) {
             IERC20 _vsAsset = IERC20(_syntheticTokens[i]);
             uint256 _balance = _vsAsset.balanceOf(address(this));
             if (_balance > 0) {

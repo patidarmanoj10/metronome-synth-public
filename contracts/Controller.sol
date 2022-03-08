@@ -221,7 +221,8 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
      * @return _debtInUsd The debt value in USD
      */
     function debtOf(address _account) public view override returns (uint256 _debtInUsd) {
-        for (uint256 i = 0; i < debtTokensOfAccount.length(_account); ++i) {
+        uint256 _length = debtTokensOfAccount.length(_account);
+        for (uint256 i = 0; i < _length; ++i) {
             IDebtToken _debtToken = IDebtToken(debtTokensOfAccount.at(_account, i));
             ISyntheticToken _syntheticToken = _debtToken.syntheticToken();
             uint256 _amountInUsd = masterOracle.convertToUsd(_syntheticToken, _debtToken.balanceOf(_account));
@@ -241,7 +242,8 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
         override
         returns (uint256 _depositInUsd, uint256 _issuableLimitInUsd)
     {
-        for (uint256 i = 0; i < depositTokensOfAccount.length(_account); ++i) {
+        uint256 _length = depositTokensOfAccount.length(_account);
+        for (uint256 i = 0; i < _length; ++i) {
             IDepositToken _depositToken = IDepositToken(depositTokensOfAccount.at(_account, i));
             uint256 _amountInUsd = masterOracle.convertToUsd(_depositToken, _depositToken.balanceOf(_account));
             _depositInUsd += _amountInUsd;
