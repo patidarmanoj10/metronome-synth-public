@@ -342,7 +342,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         address _sender,
         address _recipient,
         uint256 _amount
-    ) external override returns (bool) {
+    ) external override nonReentrant returns (bool) {
         _transferWithChecks(_sender, _recipient, _amount);
 
         uint256 currentAllowance = allowance[_sender][_msgSender()];
