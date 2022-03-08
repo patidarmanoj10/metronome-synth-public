@@ -40,8 +40,8 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
     }
 
     function initialize(
-        string memory _name,
-        string memory _symbol,
+        string calldata _name,
+        string calldata _symbol,
         uint8 _decimals,
         IController _controller,
         IDebtToken _debtToken,
@@ -72,7 +72,7 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
     /// @notice Emitted when interest rate is updated
     event InterestRateUpdated(uint256 oldInterestRate, uint256 newInterestRate);
 
-    function interestRatePerBlock() public view virtual override returns (uint256) {
+    function interestRatePerBlock() external view virtual override returns (uint256) {
         return interestRate / BLOCKS_PER_YEAR;
     }
 
@@ -278,7 +278,7 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
      * @notice Update max total supply (in USD)
      * @param _newMaxTotalSupplyInUsd The new max total supply (in USD)
      */
-    function updateMaxTotalSupplyInUsd(uint256 _newMaxTotalSupplyInUsd) public override onlyGovernor {
+    function updateMaxTotalSupplyInUsd(uint256 _newMaxTotalSupplyInUsd) external override onlyGovernor {
         uint256 _currentMaxTotalSupplyInUsd = maxTotalSupplyInUsd;
         require(_newMaxTotalSupplyInUsd != _currentMaxTotalSupplyInUsd, "new-same-as-current");
         emit MaxTotalSupplyUpdated(_currentMaxTotalSupplyInUsd, _newMaxTotalSupplyInUsd);
@@ -288,7 +288,7 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
     /**
      * @notice Enable/Disable the Synthetic Token
      */
-    function toggleIsActive() public override onlyGovernor {
+    function toggleIsActive() external override onlyGovernor {
         bool _isActive = isActive;
         emit SyntheticTokenActiveUpdated(_isActive, !_isActive);
         isActive = !_isActive;

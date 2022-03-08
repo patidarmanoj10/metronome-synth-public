@@ -187,7 +187,7 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
 
     /**
      * @notice Get current block number
-     * @dev Having this temporarilty as virtual for make test easier since for now hardhat doesn't support mine several blocks
+     * @dev Having this temporarily as virtual for make test easier since for now hardhat doesn't support mine several blocks
      * See more: https://github.com/nomiclabs/hardhat/issues/1112
      */
     function getBlockNumber() public view virtual returns (uint256 _blockNumber) {

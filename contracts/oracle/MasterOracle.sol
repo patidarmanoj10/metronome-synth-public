@@ -32,8 +32,8 @@ contract MasterOracle is Initializable, IMasterOracle, Governable {
     event OracleUpdated(address asset, IOracle oldOracle, IOracle newOracle);
 
     function initialize(
-        address[] memory _assets,
-        IOracle[] memory _oracles,
+        address[] calldata _assets,
+        IOracle[] calldata _oracles,
         IOracle _defaultOracle
     ) external initializer {
         __Governable_init();
@@ -48,7 +48,7 @@ contract MasterOracle is Initializable, IMasterOracle, Governable {
      * @param _oracles The `IOracle` contracts to be assigned to `_assets`.
      * @dev We allow null address inside of the `_oracles` array in order to turn off oracle for a given asset
      */
-    function _updateOracles(address[] memory _assets, IOracle[] memory _oracles) private {
+    function _updateOracles(address[] calldata _assets, IOracle[] calldata _oracles) private {
         uint256 _assetsLength = _assets.length;
         require(_assetsLength == _oracles.length, "invalid-arrays-length");
 
