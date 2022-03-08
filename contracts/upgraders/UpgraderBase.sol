@@ -10,6 +10,8 @@ abstract contract UpgraderBase is ProxyAdmin {
     address public multicall = 0xeefBa1e63905eF1D7ACbA5a8513c70307C1cE441;
 
     function updateMulticall(address _multicall) public onlyOwner {
+        require(_multicall != address(0), "address-is-null");
+        require(_multicall != multicall, "new-same-as-current");
         multicall = _multicall;
     }
 
