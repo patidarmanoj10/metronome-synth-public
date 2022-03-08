@@ -1346,16 +1346,16 @@ describe('Controller', function () {
         expect(await controller.getDepositTokensOfAccount(alice.address)).deep.eq([depositToken.address])
       })
 
-      it('should not add same deposit token twice', async function () {
+      it('should revert when trying to add same deposit token twice', async function () {
         // given
         expect(await controller.getDepositTokensOfAccount(alice.address)).deep.eq([])
 
         // then
         await controller.connect(depositToken.wallet).addToDepositTokensOfAccount(alice.address)
-        await controller.connect(depositToken.wallet).addToDepositTokensOfAccount(alice.address)
+        const tx = controller.connect(depositToken.wallet).addToDepositTokensOfAccount(alice.address)
 
         // when
-        expect(await controller.getDepositTokensOfAccount(alice.address)).deep.eq([depositToken.address])
+        await expect(tx).revertedWith('deposit-token-exists')
       })
     })
 
@@ -1418,16 +1418,16 @@ describe('Controller', function () {
         expect(await controller.getDebtTokensOfAccount(alice.address)).deep.eq([debtToken.address])
       })
 
-      it('should not add same debt token twice', async function () {
+      it('should revert when trying to add same debt token twice', async function () {
         // given
         expect(await controller.getDebtTokensOfAccount(alice.address)).deep.eq([])
 
         // then
         await controller.connect(debtToken.wallet).addToDebtTokensOfAccount(alice.address)
-        await controller.connect(debtToken.wallet).addToDebtTokensOfAccount(alice.address)
+        const tx = controller.connect(debtToken.wallet).addToDebtTokensOfAccount(alice.address)
 
         // when
-        expect(await controller.getDebtTokensOfAccount(alice.address)).deep.eq([debtToken.address])
+        await expect(tx).revertedWith('debt-token-exists')
       })
     })
 

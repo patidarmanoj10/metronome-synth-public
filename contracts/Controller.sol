@@ -401,9 +401,8 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
      */
     function addSyntheticToken(address _syntheticToken) external override onlyGovernor {
         require(_syntheticToken != address(0), "address-is-null");
-        require(!syntheticTokens.contains(_syntheticToken), "synthetic-exists");
 
-        syntheticTokens.add(_syntheticToken);
+        require(syntheticTokens.add(_syntheticToken), "synthetic-exists");
 
         emit SyntheticTokenAdded(_syntheticToken);
     }
@@ -420,7 +419,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
         require(_syntheticToken.totalSupply() == 0, "supply-gt-0");
         require(_syntheticToken.debtToken().totalSupply() == 0, "synthetic-with-debt-supply");
 
-        syntheticTokens.remove(address(_syntheticToken));
+        require(syntheticTokens.remove(address(_syntheticToken)), "synthetic-doesnt-exist");
 
         emit SyntheticTokenRemoved(_syntheticToken);
     }
@@ -430,9 +429,8 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
      */
     function addDepositToken(address _depositToken) external override onlyGovernor {
         require(_depositToken != address(0), "address-is-null");
-        require(!depositTokens.contains(_depositToken), "deposit-token-exists");
 
-        depositTokens.add(_depositToken);
+        require(depositTokens.add(_depositToken), "deposit-token-exists");
         depositTokenOf[IDepositToken(_depositToken).underlying()] = IDepositToken(_depositToken);
 
         emit DepositTokenAdded(_depositToken);
@@ -449,8 +447,8 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     {
         require(_depositToken.totalSupply() == 0, "supply-gt-0");
 
+        require(depositTokens.remove(address(_depositToken)), "deposit-token-doesnt-exist");
         delete depositTokenOf[_depositToken.underlying()];
-        depositTokens.remove(address(_depositToken));
 
         emit DepositTokenRemoved(_depositToken);
     }
@@ -463,7 +461,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
      */
     function addToDepositTokensOfAccount(address _account) external {
         require(depositTokens.contains(_msgSender()), "caller-is-not-deposit-token");
-        depositTokensOfAccount.add(_account, _msgSender());
+        require(depositTokensOfAccount.add(_account, _msgSender()), "deposit-token-exists");
     }
 
     /**
@@ -474,7 +472,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
      */
     function removeFromDepositTokensOfAccount(address _account) external {
         require(depositTokens.contains(_msgSender()), "caller-is-not-deposit-token");
-        depositTokensOfAccount.remove(_account, _msgSender());
+        require(depositTokensOfAccount.remove(_account, _msgSender()), "deposit-token-doesnt-exist");
     }
 
     /**
@@ -484,7 +482,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
      * @param _account The account address
      */
     function addToDebtTokensOfAccount(address _account) external onlyIfMsgSenderIsDebtToken {
-        debtTokensOfAccount.add(_account, _msgSender());
+        require(debtTokensOfAccount.add(_account, _msgSender()), "debt-token-exists");
     }
 
     /**
@@ -494,7 +492,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
      * @param _account The account address
      */
     function removeFromDebtTokensOfAccount(address _account) external onlyIfMsgSenderIsDebtToken {
-        debtTokensOfAccount.remove(_account, _msgSender());
+        require(debtTokensOfAccount.remove(_account, _msgSender()), "debt-token-doesnt-exist");
     }
 
     /**
