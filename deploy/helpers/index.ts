@@ -219,7 +219,7 @@ export const buildDepositDeployFunction = ({
   salt,
 }: DepositDeployFunctionProps): DeployFunction => {
   const alias = `${underlyingSymbol}DepositToken`
-  const symbol = `vs${underlyingSymbol}-Deposit`
+  const symbol = `vsd${underlyingSymbol}`
 
   const deployFunction: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     const {getNamedAccounts, deployments} = hre
@@ -230,7 +230,7 @@ export const buildDepositDeployFunction = ({
 
     const {deploy} = await deterministic(hre, {...UpgradableContracts.DepositToken, alias}, salt)
 
-    const {address: depositTokenAddress} = await deploy()
+    const {address: vsdAddress} = await deploy()
 
     await execute(
       alias,
@@ -243,14 +243,9 @@ export const buildDepositDeployFunction = ({
       collateralizationRatio
     )
 
-    await execute(
-      UpgradableContracts.Controller.alias,
-      {from: deployer, log: true},
-      'addDepositToken',
-      depositTokenAddress
-    )
+    await execute(UpgradableContracts.Controller.alias, {from: deployer, log: true}, 'addDepositToken', vsdAddress)
 
-    await execute('DefaultOracle', {from: deployer, log: true}, oracle.function, depositTokenAddress, ...oracle.args)
+    await execute('DefaultOracle', {from: deployer, log: true}, oracle.function, vsdAddress, ...oracle.args)
   }
 
   deployFunction.tags = [alias]
