@@ -1,13 +1,10 @@
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
-import {UpgradableContracts, deterministic} from '../helpers'
 import Address from '../../helpers/address'
 
-const {MET_ADDRESS, WETH_ADDRESS, UNISWAP_V2_ROUTER02_ADDRESS, UNISWAP_V3_CROSS_POOL_ORACLE_ADDRESS, DAI_ADDRESS} =
-  Address
+const {UNISWAP_V2_ROUTER02_ADDRESS, UNISWAP_V3_CROSS_POOL_ORACLE_ADDRESS, DAI_ADDRESS} = Address
 
 const TWAP_PERIOD = 60 * 60 * 2 // 2 hours
-const STALE_PERIOD = 60 * 15 // 15 minutes
 
 const DefaultOracle = 'DefaultOracle'
 
@@ -70,27 +67,6 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     'setPriceProvider',
     CHAINLINK,
     chainlinkPriceProvider.address
-  )
-
-  await execute(DefaultOracle, {from: deployer, log: true}, 'addOrUpdateUsdAsset', DAI_ADDRESS)
-
-  const {address: vsEthAddress} = await deterministic(hre, UpgradableContracts.VsEth)
-  await execute(
-    DefaultOracle,
-    {from: deployer, log: true},
-    'addOrUpdateAssetThatUsesUniswapV2',
-    vsEthAddress,
-    WETH_ADDRESS,
-    STALE_PERIOD
-  )
-
-  const {address: metDepositTokenAddress} = await deterministic(hre, UpgradableContracts.MetDepositToken)
-  await execute(
-    DefaultOracle,
-    {from: deployer, log: true},
-    'addOrUpdateAssetThatUsesUniswapV3',
-    metDepositTokenAddress,
-    MET_ADDRESS
   )
 }
 

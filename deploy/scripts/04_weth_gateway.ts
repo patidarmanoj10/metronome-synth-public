@@ -2,7 +2,7 @@ import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
 import Address from '../../helpers/address'
 
-const {WETH_ADDRESS} = Address
+const {NATIVE_TOKEN_ADDRESS} = Address
 
 const WETHGateway = 'WETHGateway'
 
@@ -14,7 +14,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   await deploy(WETHGateway, {
     from: deployer,
     log: true,
-    args: [WETH_ADDRESS],
+    args: [NATIVE_TOKEN_ADDRESS],
   })
 
   await execute(WETHGateway, {from: deployer, log: true}, 'transferGovernorship', governor)

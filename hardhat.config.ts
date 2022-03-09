@@ -12,29 +12,35 @@ import dotenv from 'dotenv'
 
 dotenv.config()
 
+const accounts = process.env.MNEMONIC ? {mnemonic: process.env.MNEMONIC} : undefined
+
 const config: HardhatUserConfig = {
   defaultNetwork: 'hardhat',
   networks: {
     localhost: {
       saveDeployments: true,
+      accounts,
     },
     hardhat: {
-      // Note: No need to fork yet
+      // Note: Forking is being made from those test suites that need it
       // forking: {
       //   url: process.env.NODE_URL,
       //   blockNumber: process.env.BLOCK_NUMBER ? parseInt(process.env.BLOCK_NUMBER) : undefined,
       // },
       saveDeployments: true,
+      accounts,
     },
     mainnet: {
       url: process.env.NODE_URL,
       chainId: 1,
       gas: 6700000,
+      accounts,
     },
-    polygon: {
+    avalanche: {
       url: process.env.NODE_URL,
-      chainId: 137,
-      gas: 11700000,
+      chainId: 43114,
+      gas: 8000000,
+      accounts,
     },
   },
   paths: {
