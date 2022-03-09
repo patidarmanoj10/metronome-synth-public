@@ -88,7 +88,7 @@ contract MasterOracle is Initializable, IMasterOracle, Governable {
     /**
      * @notice Get asset's USD price
      * @param _asset The asset's address
-     * @return _priceInUsd The USD price (8 decimals)
+     * @return _priceInUsd The USD price (18 decimals)
      */
     function _getPriceInUsd(IERC20 _asset) private view returns (uint256 _priceInUsd) {
         IOracle _oracle = oracles[address(_asset)];
@@ -108,7 +108,7 @@ contract MasterOracle is Initializable, IMasterOracle, Governable {
      * @notice Convert asset's amount to USD
      * @param _asset The asset's address
      * @param _amount The amount to convert
-     * @return _amountInUsd The amount in USD (8 decimals)
+     * @return _amountInUsd The amount in USD (18 decimals)
      */
     function convertToUsd(IERC20 _asset, uint256 _amount) public view returns (uint256 _amountInUsd) {
         uint256 _priceInUsd = _getPriceInUsd(_asset);
@@ -118,7 +118,7 @@ contract MasterOracle is Initializable, IMasterOracle, Governable {
     /**
      * @notice Convert USD to asset's amount
      * @param _asset The asset's address
-     * @param _amountInUsd The amount in USD (8 decimals)
+     * @param _amountInUsd The amount in USD (18 decimals)
      * @return _amount The converted amount
      */
     function convertFromUsd(IERC20 _asset, uint256 _amountInUsd) public view returns (uint256 _amount) {

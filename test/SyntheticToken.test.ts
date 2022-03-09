@@ -18,6 +18,7 @@ import {
   DepositToken__factory,
   DepositToken,
 } from '../typechain'
+import {toUSD} from './helpers'
 
 describe('SyntheticToken', function () {
   let deployer: SignerWithAddress
@@ -77,8 +78,8 @@ describe('SyntheticToken', function () {
     await debtToken.initialize('vsETH Debt', 'vsETH-Debt', 18, controllerMock.address, vsAsset.address)
     await vsAsset.initialize(name, symbol, 18, controllerMock.address, debtToken.address, interestRate)
 
-    await masterOracleMock.updateRate(vsAsset.address, parseEther('1')) // 1 vsAsset = $1
-    await masterOracleMock.updateRate(metDepositToken.address, parseEther('1')) // 1 collateralToken = $1
+    await masterOracleMock.updatePrice(vsAsset.address, toUSD('1')) // 1 vsAsset = $1
+    await masterOracleMock.updatePrice(metDepositToken.address, toUSD('1')) // 1 collateralToken = $1
   })
 
   it('default values', async function () {
@@ -363,7 +364,6 @@ describe('SyntheticToken', function () {
           const {_depositInUsd: depositInUsdAfter} = await controllerMock.debtPositionOf(user.address)
           const lockedCollateralAfter = await metDepositToken.lockedBalanceOf(user.address)
           const expectedLockedCollateralAfter = lockedCollateralBefore.mul(repayFee).div(parseEther('1'))
-          // @ts-ignore
           expect(lockedCollateralAfter).closeTo(expectedLockedCollateralAfter, parseEther('0.000000001'))
           expect(depositInUsdAfter).eq(depositInUsdBefore)
         })
@@ -391,7 +391,6 @@ describe('SyntheticToken', function () {
             .div('2')
             .mul(parseEther('1').add(repayFee))
             .div(parseEther('1'))
-          // @ts-ignore
           expect(lockedDepositAfter).closeTo(expectedlockedDepositAfter, parseEther('0.000000001'))
           expect(depositInUsdAfter).eq(depositInUsdBefore)
         })
@@ -416,11 +415,12 @@ describe('SyntheticToken', function () {
     it('should revert if surpass max total supply', async function () {
       // given
       expect(await vsAsset.totalSupply()).eq(0)
-      const max = parseEther('100')
-      await vsAsset.updateMaxTotalSupplyInUsd(max)
+      const maxInUsd = toUSD('100')
+      await vsAsset.updateMaxTotalSupplyInUsd(maxInUsd)
 
       // when
-      const call = vsAsset.interface.encodeFunctionData('mint', [user.address, max.add('1')])
+      const maxAmount = parseEther('100')
+      const call = vsAsset.interface.encodeFunctionData('mint', [user.address, maxAmount.add(parseEther('0.00000007'))])
       const tx = controllerMock.mockCall(vsAsset.address, call)
 
       // then
@@ -542,10 +542,9 @@ describe('SyntheticToken', function () {
       const debtOfUser = await debtToken.balanceOf(user.address)
       const creditOfUser = await vsAsset.balanceOf(user.address)
       const creditOfTreasury = await vsAsset.balanceOf(treasury.address)
-      // @ts-ignore
+
       expect(totalDebt).closeTo(parseEther('110'), parseEther('0.01'))
       expect(totalCredit).eq(totalDebt)
-      // @ts-ignore
       expect(totalDebt).closeTo(debtOfUser, parseEther('0.000001'))
       expect(creditOfUser).eq(pricipal)
       expect(totalCredit).eq(creditOfUser.add(creditOfTreasury))

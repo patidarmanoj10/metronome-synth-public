@@ -69,7 +69,7 @@ contract UniswapV3PriceProvider is IPriceProvider, Governable {
     /**
      * @notice Get asset's USD price
      * @param _encodedTokenAddress The asset's encoded address
-     * @return _priceInUsd The amount in USD (8 decimals)
+     * @return _priceInUsd The amount in USD (18 decimals)
      * @return _lastUpdatedAt The timestamp of the price used to convert
      */
     function getPriceInUsd(bytes calldata _encodedTokenAddress)

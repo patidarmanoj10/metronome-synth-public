@@ -6,18 +6,18 @@ import "../dependencies/openzeppelin/token/ERC20/extensions/IERC20Metadata.sol";
 import "../interface/oracle/IMasterOracle.sol";
 
 contract MasterOracleMock is IMasterOracle {
-    mapping(IERC20 => uint256) public rates;
+    mapping(IERC20 => uint256) public prices;
 
-    function updateRate(IERC20 _asset, uint256 _rate) external {
-        rates[_asset] = _rate;
+    function updatePrice(IERC20 _asset, uint256 _price) external {
+        prices[_asset] = _price;
     }
 
     function convertToUsd(IERC20 _asset, uint256 _amount) public view override returns (uint256 _amountInUsd) {
-        _amountInUsd = (_amount * rates[_asset]) / 10**IERC20Metadata(address(_asset)).decimals();
+        _amountInUsd = (_amount * prices[_asset]) / 10**IERC20Metadata(address(_asset)).decimals();
     }
 
     function convertFromUsd(IERC20 _asset, uint256 _amountInUsd) public view override returns (uint256 _amount) {
-        _amount = (_amountInUsd * 10**IERC20Metadata(address(_asset)).decimals()) / rates[_asset];
+        _amount = (_amountInUsd * 10**IERC20Metadata(address(_asset)).decimals()) / prices[_asset];
     }
 
     function convert(

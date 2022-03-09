@@ -1,6 +1,7 @@
 /* eslint-disable camelcase */
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
+import {parseEther} from 'ethers/lib/utils'
 import {ethers} from 'hardhat'
 import {ChainlinkPriceProvider, ChainlinkPriceProvider__factory} from '../../typechain'
 import {
@@ -9,6 +10,7 @@ import {
   CHAINLINK_ETH_AGGREGATOR_ADDRESS,
   enableForking,
   disableForking,
+  toUSD,
 } from '../helpers'
 
 const abi = new ethers.utils.AbiCoder()
@@ -41,17 +43,17 @@ describe('ChainlinkPriceProvider', function () {
   describe('getPriceInUsd ', function () {
     it('should get DOGE price', async function () {
       const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedDogeData)
-      expect(_priceInUsd).eq('24128635')
+      expect(_priceInUsd).eq(toUSD('0.24128635'))
     })
 
     it('should get BTC price', async function () {
       const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedBtcData)
-      expect(_priceInUsd).eq('5024100000000')
+      expect(_priceInUsd).eq(toUSD('50241'))
     })
 
     it('should get ETH price', async function () {
       const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedEthData)
-      expect(_priceInUsd).eq('346104760640')
+      expect(_priceInUsd).eq(toUSD('3461.0476064'))
     })
   })
 })

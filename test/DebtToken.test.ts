@@ -75,7 +75,7 @@ describe('DebtToken', function () {
 
     // eslint-disable-next-line new-cap
     BLOCKS_PER_YEAR = await syntheticToken.BLOCKS_PER_YEAR()
-    await masterOracleMock.updateRate(syntheticToken.address, parseEther('4000')) // 1 vsETH = $4,000
+    await masterOracleMock.updatePrice(syntheticToken.address, parseEther('4000')) // 1 vsETH = $4,000
   })
 
   it('default values', async function () {
@@ -250,7 +250,6 @@ describe('DebtToken', function () {
       const debtOfUser = await debtToken.balanceOf(user1.address)
       const totalDebt = await debtToken.totalSupply()
 
-      // @ts-ignore
       expect(debtOfUser).closeTo(parseEther('102'), parseEther('0.0001'))
       expect(totalDebt).eq(debtOfUser)
     })
@@ -287,9 +286,7 @@ describe('DebtToken', function () {
       const debtOfUser = await debtToken.balanceOf(user1.address)
       const totalDebt = await debtToken.totalSupply()
 
-      // @ts-ignore
       expect(debtOfUser).closeTo(parseEther('165'), parseEther('0.001'))
-      // @ts-ignore
       expect(totalDebt).closeTo(debtOfUser, parseEther('0.00000001'))
     })
 
@@ -311,7 +308,6 @@ describe('DebtToken', function () {
       const debtOfUser = await debtToken.balanceOf(user1.address)
       const totalDebt = await debtToken.totalSupply()
 
-      // @ts-ignore
       expect(debtOfUser).closeTo(parseEther('110'), parseEther('0.1'))
       expect(totalDebt).eq(debtOfUser)
     })
@@ -331,7 +327,6 @@ describe('DebtToken', function () {
 
       // then
       const totalDebt = await debtToken.totalSupply()
-      // @ts-ignore
       expect(totalDebt).closeTo(parseEther('102'), parseEther('0.0001'))
     })
 
@@ -365,7 +360,6 @@ describe('DebtToken', function () {
 
       // then
       const totalDebt = await debtToken.totalSupply()
-      // @ts-ignore
       expect(totalDebt).closeTo(parseEther('165'), parseEther('0.001'))
     })
 
@@ -385,7 +379,6 @@ describe('DebtToken', function () {
 
       // then
       const totalDebt = await debtToken.totalSupply()
-      // @ts-ignore
       expect(totalDebt).closeTo(parseEther('110'), parseEther('0.1'))
     })
 
@@ -405,7 +398,6 @@ describe('DebtToken', function () {
 
       // then
       const totalDebt = await debtToken.totalSupply()
-      // @ts-ignore
       expect(totalDebt).closeTo(parseEther('110'), parseEther('0.1'))
     })
   })

@@ -7,13 +7,13 @@ pragma solidity 0.8.9;
 import "../interface/oracle/IOracle.sol";
 
 contract DefaultOracleMock is IOracle {
-    mapping(IERC20 => uint256) public rates;
+    mapping(IERC20 => uint256) public prices;
 
-    function updateRate(IERC20 _asset, uint256 _rate) external {
-        rates[_asset] = _rate;
+    function updatePrice(IERC20 _asset, uint256 _price) external {
+        prices[_asset] = _price;
     }
 
     function getPriceInUsd(IERC20 _asset) public view override returns (uint256 _priceInUsd) {
-        return rates[_asset];
+        return prices[_asset];
     }
 }

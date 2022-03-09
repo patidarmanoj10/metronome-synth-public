@@ -11,7 +11,7 @@ import "../interface/oracle/IPriceProvider.sol";
  * @title Oracle contract that encapsulates 3rd-party protocols' oracles
  */
 contract DefaultOracle is IOracle, Governable {
-    uint256 public constant ONE_USD = 1e8;
+    uint256 public constant ONE_USD = 1 ether;
 
     /**
      * @notice The supported protocols
@@ -179,7 +179,7 @@ contract DefaultOracle is IOracle, Governable {
     /**
      * @notice Get asset's USD price
      * @param _asset The asset's to get price from
-     * @return _priceInUsd The amount in USD (8 decimals)
+     * @return _priceInUsd The amount in USD (18 decimals)
      */
     function getPriceInUsd(IERC20 _asset)
         external

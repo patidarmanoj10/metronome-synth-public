@@ -11,9 +11,8 @@ import {
   IAToken,
   IAToken__factory,
 } from '../../../typechain'
-import {enableForking, disableForking} from '../../helpers'
+import {enableForking, disableForking, toUSD} from '../../helpers'
 import Address from '../../../helpers/address'
-import {parseUnits} from 'ethers/lib/utils'
 
 const {DAI_ADDRESS, ADAI_ADDRESS} = Address
 
@@ -52,6 +51,6 @@ describe('ATokenOracle', function () {
 
   it('getPriceInUsd', async function () {
     const price = await ibOracle.getPriceInUsd(aDAI.address)
-    expect(price).eq(parseUnits('1', 8))
+    expect(price).eq(toUSD('1'))
   })
 })

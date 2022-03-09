@@ -76,7 +76,7 @@ describe('WETHGateway', function () {
     await tokenMock.deployed()
 
     await controllerMock.updateTreasury(treasury.address, true)
-    await masterOracleMock.updateRate(wethDepositToken.address, parseEther('1'))
+    await masterOracleMock.updatePrice(wethDepositToken.address, parseEther('1'))
     await treasury.initialize(controllerMock.address)
   })
 

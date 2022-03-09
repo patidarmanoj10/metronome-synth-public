@@ -19,7 +19,7 @@ contract ChainlinkPriceProvider is IPriceProvider {
      */
     function _getPriceOfAsset(address _aggregator) private view returns (uint256, uint256) {
         (, int256 _price, , uint256 _lastUpdatedAt, ) = AggregatorV3Interface(_aggregator).latestRoundData();
-        return (SafeCast.toUint256(_price), _lastUpdatedAt);
+        return (SafeCast.toUint256(_price) * 1e10, _lastUpdatedAt);
     }
 
     /**
@@ -35,7 +35,7 @@ contract ChainlinkPriceProvider is IPriceProvider {
     /**
      * @notice Get asset's USD price
      * @param _assetData The asset's query encoded data
-     * @return _priceInUsd The amount in USD (8 decimals)
+     * @return _priceInUsd The amount in USD (18 decimals)
      * @return _lastUpdatedAt The timestamp of the price used to convert
      */
     function getPriceInUsd(bytes calldata _assetData)

@@ -18,6 +18,7 @@ import {
   enableForking,
   disableForking,
   increaseTime,
+  toUSD,
 } from '../helpers'
 import Address from '../../helpers/address'
 import {BigNumber} from 'ethers'
@@ -131,24 +132,24 @@ describe('DefaultOracle', function () {
     describe('getPriceInUsd', function () {
       it('should convert to USD using no price provider needed', async function () {
         const _amountInUsd = await oracle.getPriceInUsd(vsUSD.address)
-        expect(_amountInUsd).eq(parseUnits('1', 8))
+        expect(_amountInUsd).eq(toUSD('1'))
       })
 
       it('should convert to USD using UniswapV3 price provider', async function () {
         const _amountInUsd = await oracle.getPriceInUsd(vsETH.address)
-        expect(_amountInUsd).eq('344642503883')
+        expect(_amountInUsd).closeTo(toUSD('3446.42503883'), toUSD('0.000001'))
       })
 
       it('should convert to USD using UniswapV2 price provider', async function () {
         await increaseTime(DEFAULT_TWAP_PERIOD)
         await oracle.update(depositToken.address)
         const _amountInUsd = await oracle.getPriceInUsd(depositToken.address)
-        expect(_amountInUsd).eq('480514770')
+        expect(_amountInUsd).closeTo(toUSD('4.80514770'), toUSD('0.000001'))
       })
 
       it('should convert to USD using Chainlink price provider', async function () {
         const _amountInUsd = await oracle.getPriceInUsd(vsDOGE.address)
-        expect(_amountInUsd).eq('24128635')
+        expect(_amountInUsd).closeTo(toUSD('0.24128635'), toUSD('0.000001'))
       })
 
       it('should revert when price is outdated', async function () {
