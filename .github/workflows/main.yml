@@ -4,6 +4,7 @@ on:
     paths:
       - "test/*.ts"
       - "contracts/**/*.sol"
+      - "deploy/**/*.ts"
       - package*.json
 
 jobs:
