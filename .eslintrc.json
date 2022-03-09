@@ -2,7 +2,7 @@
   "extends": ["bloq", "plugin:@typescript-eslint/recommended"],
   "overrides": [
     {
-      "files": ["test/*.ts", "test/*/*.ts"],
+      "files": ["test/*.ts", "test/*/*.ts", ".solcover.js"],
       "extends": ["bloq/mocha"],
       "globals": {
         "artifacts": false,
