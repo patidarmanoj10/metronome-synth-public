@@ -36,7 +36,10 @@ contract RewardsDistributor is Manageable, RewardsDistributorStorageV1 {
         IRewardsDistributor[] memory _rewardsDistributors = controller.getRewardsDistributors();
         uint256 _length = _rewardsDistributors.length;
         for (uint256 i = 0; i < _length; i++) {
-            if (_rewardsDistributors[i] == this) _distributorAdded = true;
+            if (_rewardsDistributors[i] == this) {
+                _distributorAdded = true;
+                break;
+            }
         }
         require(_distributorAdded, "distributor-not-added");
         _;
