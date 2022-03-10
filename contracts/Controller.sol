@@ -361,39 +361,21 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
         address _account = _msgSender();
 
-        require(_amountIn > 0 && _amountIn <= _syntheticTokenIn.balanceOf(_account), "amount-in-0-or-gt-balance");
-
-        uint256 _amountOutBeforeFee = masterOracle.convert(_syntheticTokenIn, _syntheticTokenOut, _amountIn);
-
-        if (debtFloorInUsd > 0) {
-            uint256 _inNewDebtInUsd = masterOracle.convertToUsd(
-                _syntheticTokenIn,
-                _syntheticTokenIn.debtToken().balanceOf(_account) - _amountIn
-            );
-            require(_inNewDebtInUsd == 0 || _inNewDebtInUsd >= debtFloorInUsd, "synthetic-in-debt-lt-floor");
-
-            require(
-                masterOracle.convertToUsd(
-                    _syntheticTokenOut,
-                    _syntheticTokenOut.debtToken().balanceOf(_account) + _amountOutBeforeFee
-                ) >= debtFloorInUsd,
-                "synthetic-out-debt-lt-floor"
-            );
-        }
+        require(_amountIn > 0, "amount-in-is-0");
+        require(_amountIn <= _syntheticTokenIn.balanceOf(_account), "amount-in-gt-balance");
 
         _syntheticTokenIn.burn(_account, _amountIn);
-        _syntheticTokenIn.debtToken().burn(_account, _amountIn);
 
-        _amountOut = _amountOutBeforeFee;
+        _amountOut = masterOracle.convert(_syntheticTokenIn, _syntheticTokenOut, _amountIn);
+
         uint256 _feeAmount;
         if (swapFee > 0) {
-            _feeAmount = _amountOutBeforeFee.wadMul(swapFee);
+            _feeAmount = _amountOut.wadMul(swapFee);
             _syntheticTokenOut.mint(address(treasury), _feeAmount);
             _amountOut -= _feeAmount;
         }
 
         _syntheticTokenOut.mint(_account, _amountOut);
-        _syntheticTokenOut.debtToken().mint(_account, _amountOutBeforeFee);
 
         emit SyntheticTokenSwapped(_account, _syntheticTokenIn, _syntheticTokenOut, _amountIn, _amountOut, _feeAmount);
     }

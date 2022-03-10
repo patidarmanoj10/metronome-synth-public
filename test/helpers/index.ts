@@ -1,7 +1,8 @@
 import {BigNumber} from '@ethersproject/bignumber'
-import {parseEther} from '@ethersproject/units'
+import {parseEther, parseUnits} from '@ethersproject/units'
+import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {ethers, network} from 'hardhat'
-import {Controller, DepositToken, IERC20} from '../../typechain'
+import {Controller, DepositToken} from '../../typechain'
 import Address from '../../helpers/address'
 
 const {hexlify, solidityKeccak256, zeroPad, getAddress} = ethers.utils
@@ -143,4 +144,13 @@ export const setTokenBalance = async (token: string, targetAddress: string, bala
   // Hack the balance by directly setting the EVM storage
   await ethers.provider.send('hardhat_setStorageAt', [token, index, value])
   await ethers.provider.send('evm_mine', [])
+}
+
+export const impersonateAccount = async (address: string): Promise<SignerWithAddress> => {
+  await network.provider.request({method: 'hardhat_impersonateAccount', params: [address]})
+  await network.provider.request({
+    method: 'hardhat_setBalance',
+    params: [address, ethers.utils.hexStripZeros(parseEther('1000000').toHexString())],
+  })
+  return await ethers.getSigner(address)
 }
