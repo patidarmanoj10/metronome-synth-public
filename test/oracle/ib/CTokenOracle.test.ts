@@ -3,7 +3,7 @@ import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
 import {
-  ATokenOracle,
+  CTokenOracle,
   CTokenOracle__factory,
   DefaultOracle,
   DefaultOracle__factory,
@@ -13,14 +13,15 @@ import {
 import {enableForking, disableForking, toUSD} from '../../helpers'
 import Address from '../../../helpers/address'
 
-const {DAI_ADDRESS, CDAI_ADDRESS} = Address
+const {DAI_ADDRESS, CDAI_ADDRESS, USDC_ADDRESS, CUSDC_ADDRESS} = Address
 
 describe('CTokenOracle', function () {
   let snapshotId: string
   let deployer: SignerWithAddress
   let underlyingOracle: DefaultOracle
-  let ibOracle: ATokenOracle
+  let ibOracle: CTokenOracle
   let cDAI: ICToken
+  let cUSDC: ICToken
 
   before(enableForking)
 
@@ -34,22 +35,29 @@ describe('CTokenOracle', function () {
     underlyingOracle = await underlyingOracleFactory.deploy()
     await underlyingOracle.deployed()
 
-    // Note: mocking DAI price always to 1
+    // Note: mocking DAI/USDC prices always to 1
     await underlyingOracle.addOrUpdateUsdAsset(DAI_ADDRESS)
+    await underlyingOracle.addOrUpdateUsdAsset(USDC_ADDRESS)
 
     const ibOracleFactory = new CTokenOracle__factory(deployer)
     ibOracle = await ibOracleFactory.deploy(underlyingOracle.address)
     await ibOracle.deployed()
 
     cDAI = ICToken__factory.connect(CDAI_ADDRESS, deployer)
+    cUSDC = ICToken__factory.connect(CUSDC_ADDRESS, deployer)
   })
 
   afterEach(async function () {
     await ethers.provider.send('evm_revert', [snapshotId])
   })
 
-  it('getPriceInUsd', async function () {
+  it('getPriceInUsd (18 decimals underlying)', async function () {
     const price = await ibOracle.getPriceInUsd(cDAI.address)
-    expect(price).eq(toUSD('1'))
+    expect(price).closeTo(toUSD('0.021'), toUSD('0.001')) // 1 cDAI ~= $0.021
+  })
+
+  it('getPriceInUsd (6 decimals underlying)', async function () {
+    const price = await ibOracle.getPriceInUsd(cUSDC.address)
+    expect(price).closeTo(toUSD('0.022'), toUSD('0.001')) // 1 cUSDC ~= $0.021
   })
 })
