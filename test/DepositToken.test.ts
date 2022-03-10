@@ -153,9 +153,8 @@ describe('DepositToken', function () {
       await metDepositToken.connect(controllerMock.wallet).mint(alice.address, parseEther('100'))
 
       // then
-      // FIX-ME: Actual count is 1
-      // See more: https://github.com/defi-wonderland/smock/issues/85
-      expect(rewardsDistributorMock.updateBeforeMintOrBurn).callCount(3)
+      // Note: Use `callCount` instead (Refs: https://github.com/defi-wonderland/smock/issues/85)
+      expect(rewardsDistributorMock.updateBeforeMintOrBurn).called
       expect(rewardsDistributorMock.updateBeforeMintOrBurn.getCall(0).args[1]).eq(alice.address)
     })
   })
@@ -325,9 +324,8 @@ describe('DepositToken', function () {
         await metDepositToken.connect(alice).withdraw(parseEther('1'), alice.address)
 
         // then
-        // FIX-ME: Actual count is 1
-        // See more: https://github.com/defi-wonderland/smock/issues/85
-        expect(rewardsDistributorMock.updateBeforeMintOrBurn).callCount(12)
+        // Note: Use `callCount` instead (Refs: https://github.com/defi-wonderland/smock/issues/85)
+        expect(rewardsDistributorMock.updateBeforeMintOrBurn).called
         expect(rewardsDistributorMock.updateBeforeMintOrBurn.getCall(0).args[1]).eq(alice.address)
       })
     })
@@ -450,9 +448,8 @@ describe('DepositToken', function () {
         await metDepositToken.connect(alice).deposit(parseEther('1'), alice.address)
 
         // then
-        // FIX-ME: Actual count is 1
-        // See more: https://github.com/defi-wonderland/smock/issues/85
-        expect(rewardsDistributorMock.updateBeforeMintOrBurn).callCount(12)
+        // Note: Use `callCount` instead (Refs: https://github.com/defi-wonderland/smock/issues/85)
+        expect(rewardsDistributorMock.updateBeforeMintOrBurn).called
         expect(rewardsDistributorMock.updateBeforeMintOrBurn.getCall(0).args[1]).eq(alice.address)
       })
     })
@@ -511,9 +508,8 @@ describe('DepositToken', function () {
         await metDepositToken.connect(controllerMock.wallet).burn(alice.address, depositedAmount)
 
         // then
-        // FIX-ME: Actual count is 1
-        // See more: https://github.com/defi-wonderland/smock/issues/85
-        expect(rewardsDistributorMock.updateBeforeMintOrBurn).callCount(12)
+        // Note: Use `callCount` instead (Refs: https://github.com/defi-wonderland/smock/issues/85)
+        expect(rewardsDistributorMock.updateBeforeMintOrBurn).called
         expect(rewardsDistributorMock.updateBeforeMintOrBurn.getCall(0).args[1]).eq(alice.address)
       })
     })
@@ -589,9 +585,8 @@ describe('DepositToken', function () {
         await metDepositToken.connect(alice).transfer(bob.address, depositedAmount)
 
         // then
-        // FIX-ME: Actual count is 1
-        // See more: https://github.com/defi-wonderland/smock/issues/85
-        expect(rewardsDistributorMock.updateBeforeTransfer).callCount(13)
+        // Note: Use `callCount` instead (Refs: https://github.com/defi-wonderland/smock/issues/85)
+        expect(rewardsDistributorMock.updateBeforeTransfer).called
         expect(rewardsDistributorMock.updateBeforeTransfer.getCall(0).args[1]).eq(alice.address)
         expect(rewardsDistributorMock.updateBeforeTransfer.getCall(0).args[2]).eq(bob.address)
       })
@@ -643,9 +638,8 @@ describe('DepositToken', function () {
         await metDepositToken.connect(deployer).transferFrom(alice.address, bob.address, depositedAmount)
 
         // then
-        // FIX-ME: Actual count is 1
-        // See more: https://github.com/defi-wonderland/smock/issues/85
-        expect(rewardsDistributorMock.updateBeforeTransfer).callCount(13)
+        // Note: Use `callCount` instead (Refs: https://github.com/defi-wonderland/smock/issues/85)
+        expect(rewardsDistributorMock.updateBeforeTransfer).called
         expect(rewardsDistributorMock.updateBeforeTransfer.getCall(0).args[1]).eq(alice.address)
         expect(rewardsDistributorMock.updateBeforeTransfer.getCall(0).args[2]).eq(bob.address)
       })
@@ -678,9 +672,8 @@ describe('DepositToken', function () {
         await metDepositToken.connect(controllerMock.wallet).seize(alice.address, bob.address, parseEther('1'))
 
         // then
-        // FIX-ME: Actual count is 1
-        // See more: https://github.com/defi-wonderland/smock/issues/85
-        expect(rewardsDistributorMock.updateBeforeTransfer).callCount(3)
+        // Note: Use `callCount` instead (Refs: https://github.com/defi-wonderland/smock/issues/85)
+        expect(rewardsDistributorMock.updateBeforeTransfer).called
         expect(rewardsDistributorMock.updateBeforeTransfer.getCall(0).args[1]).eq(alice.address)
         expect(rewardsDistributorMock.updateBeforeTransfer.getCall(0).args[2]).eq(bob.address)
       })

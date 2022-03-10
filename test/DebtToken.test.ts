@@ -141,9 +141,8 @@ describe('DebtToken', function () {
       await debtToken.connect(controllerMock.wallet).mint(user1.address, parseEther('1'))
 
       // then
-      // FIX-ME: Actual count is 1
-      // See more: https://github.com/defi-wonderland/smock/issues/85
-      expect(rewardsDistributorMock.updateBeforeMintOrBurn).callCount(3)
+      // Note: Use `callCount` instead (Refs: https://github.com/defi-wonderland/smock/issues/85)
+      expect(rewardsDistributorMock.updateBeforeMintOrBurn).called
       expect(rewardsDistributorMock.updateBeforeMintOrBurn.getCall(0).args[1]).eq(user1.address)
     })
   })
@@ -212,9 +211,8 @@ describe('DebtToken', function () {
         await debtToken.connect(controllerMock.wallet).burn(user1.address, amount)
 
         // then
-        // FIX-ME: Actual count is 1
-        // See more: https://github.com/defi-wonderland/smock/issues/85
-        expect(rewardsDistributorMock.updateBeforeMintOrBurn).callCount(12)
+        // Note: Use `callCount` instead (Refs: https://github.com/defi-wonderland/smock/issues/85)
+        expect(rewardsDistributorMock.updateBeforeMintOrBurn).called
         expect(rewardsDistributorMock.updateBeforeMintOrBurn.getCall(0).args[1]).eq(user1.address)
       })
     })

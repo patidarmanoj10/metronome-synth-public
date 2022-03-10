@@ -82,6 +82,9 @@ const config: HardhatUserConfig = {
   },
   mocha: {
     timeout: 200000,
+    // Note: We can enable parallelism here instead of using the `--parallel`
+    // flag on npm script but it would make coverage to fail
+    // parallel: true
   },
 }
 
