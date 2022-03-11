@@ -19,10 +19,13 @@ import {
   Treasury__factory,
   Treasury,
 } from '../typechain'
-import {disableForking, enableForking, toUSD} from './helpers'
+import {disableForking, enableForking} from './helpers'
 import Address from '../helpers/address'
+import {toUSD} from '../helpers'
 
 const {NATIVE_TOKEN_ADDRESS} = Address
+
+const {MaxUint256} = ethers.constants
 
 describe('WETHGateway', function () {
   let deployer: SignerWithAddress
@@ -69,7 +72,7 @@ describe('WETHGateway', function () {
     wethGateway = await wethGatewayFactory.deploy(NATIVE_TOKEN_ADDRESS)
     await wethGateway.deployed()
 
-    await vsdETH.initialize(NATIVE_TOKEN_ADDRESS, controllerMock.address, 'vsdETH', 18, parseEther('1'))
+    await vsdETH.initialize(NATIVE_TOKEN_ADDRESS, controllerMock.address, 'vsdETH', 18, parseEther('1'), MaxUint256)
 
     const erc20MockFactory = new ERC20Mock__factory(deployer)
     tokenMock = await erc20MockFactory.deploy('Name', 'SYMBOL', 18)

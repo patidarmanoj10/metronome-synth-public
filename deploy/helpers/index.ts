@@ -130,6 +130,7 @@ interface SyntheticDeployFunctionProps {
   symbol: string
   decimals: number
   interestRate: BigNumber
+  maxTotalSupplyInUsd: BigNumber
   oracle: OracleChainlinkProps | OracleUniV2Props | OracleUniV3Props | OracleUSDPegProps
   salt: string
 }
@@ -139,6 +140,7 @@ export const buildSyntheticDeployFunction = ({
   symbol,
   decimals,
   interestRate,
+  maxTotalSupplyInUsd,
   oracle,
   salt,
 }: SyntheticDeployFunctionProps): DeployFunction => {
@@ -193,7 +195,8 @@ export const buildSyntheticDeployFunction = ({
       decimals,
       controllerAddress,
       debtTokenAddress,
-      interestRate
+      interestRate,
+      maxTotalSupplyInUsd
     )
 
     await execute(
@@ -217,6 +220,7 @@ interface DepositDeployFunctionProps {
   underlyingSymbol: string
   underlyingDecimals: number
   collateralizationRatio: BigNumber
+  maxTotalSupplyInUsd: BigNumber
   oracle: OracleChainlinkProps | OracleUniV2Props | OracleUniV3Props | OracleUSDPegProps
   salt: string
 }
@@ -226,6 +230,7 @@ export const buildDepositDeployFunction = ({
   underlyingSymbol,
   underlyingDecimals,
   collateralizationRatio,
+  maxTotalSupplyInUsd,
   oracle,
   salt,
 }: DepositDeployFunctionProps): DeployFunction => {
@@ -251,7 +256,8 @@ export const buildDepositDeployFunction = ({
       controllerAddress,
       symbol,
       underlyingDecimals,
-      collateralizationRatio
+      collateralizationRatio,
+      maxTotalSupplyInUsd
     )
 
     await execute(UpgradableContracts.Controller.alias, {from: deployer, log: true}, 'addDepositToken', vsdAddress)

@@ -10,8 +10,9 @@ import {
   ICToken,
   ICToken__factory,
 } from '../../../typechain'
-import {enableForking, disableForking, toUSD} from '../../helpers'
+import {enableForking, disableForking} from '../../helpers'
 import Address from '../../../helpers/address'
+import {toUSD} from '../../../helpers'
 
 const {DAI_ADDRESS, CDAI_ADDRESS, USDC_ADDRESS, CUSDC_ADDRESS} = Address
 

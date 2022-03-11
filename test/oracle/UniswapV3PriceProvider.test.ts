@@ -3,8 +3,9 @@ import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
 import {UniswapV3PriceProvider, UniswapV3PriceProvider__factory} from '../../typechain'
-import {DEFAULT_TWAP_PERIOD, enableForking, disableForking, toUSD} from '../helpers'
+import {DEFAULT_TWAP_PERIOD, enableForking, disableForking} from '../helpers'
 import Address from '../../helpers/address'
+import {toUSD} from '../../helpers'
 
 const {
   MET_ADDRESS,

@@ -10,8 +10,8 @@ import {
   CHAINLINK_ETH_AGGREGATOR_ADDRESS,
   enableForking,
   disableForking,
-  toUSD,
 } from '../helpers'
+import {toUSD} from '../../helpers'
 
 const abi = new ethers.utils.AbiCoder()
 const encodedDogeData = abi.encode(['address', 'uint256'], [CHAINLINK_DOGE_AGGREGATOR_ADDRESS, 18])

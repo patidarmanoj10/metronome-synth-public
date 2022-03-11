@@ -99,7 +99,8 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         IController _controller,
         string calldata _symbol,
         uint8 _decimals,
-        uint128 _collateralizationRatio
+        uint128 _collateralizationRatio,
+        uint256 _maxTotalSupplyInUsd
     ) public initializer {
         require(address(_underlying) != address(0), "underlying-is-null");
         require(address(_controller) != address(0), "controller-address-is-zero");
@@ -112,10 +113,10 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         symbol = _symbol;
         underlying = _underlying;
         minDepositTime = 0;
-        maxTotalSupplyInUsd = type(uint256).max;
         isActive = true;
         decimals = _decimals;
         collateralizationRatio = _collateralizationRatio;
+        maxTotalSupplyInUsd = _maxTotalSupplyInUsd;
     }
 
     function approve(address spender, uint256 _amount) external override returns (bool) {

@@ -45,7 +45,8 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
         uint8 _decimals,
         IController _controller,
         IDebtToken _debtToken,
-        uint256 _interestRate
+        uint256 _interestRate,
+        uint256 _maxTotalSupplyInUsd
     ) public initializer {
         require(address(_debtToken) != address(0), "debt-token-is-null");
         require(_decimals == _debtToken.decimals(), "debt-decimals-is-not-the-same");
@@ -58,9 +59,9 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
         symbol = _symbol;
         decimals = _decimals;
         debtToken = _debtToken;
-        maxTotalSupplyInUsd = type(uint256).max;
         isActive = true;
         interestRate = _interestRate;
+        maxTotalSupplyInUsd = _maxTotalSupplyInUsd;
     }
 
     /// @notice Emitted when max total supply is updated
