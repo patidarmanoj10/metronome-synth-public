@@ -105,14 +105,24 @@ export const deterministic = async (
 
 const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1)
 
-interface OracleProps {
-  function:
-    | 'addOrUpdateAssetThatUsesChainlink'
-    | 'addOrUpdateAssetThatUsesUniswapV2'
-    | 'addOrUpdateAssetThatUsesUniswapV3'
-    | 'addOrUpdateUsdAsset'
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  args: any[]
+interface OracleChainlinkProps {
+  function: 'addOrUpdateAssetThatUsesChainlink'
+  args: {aggregator: string; stalePeriod: number}
+}
+
+interface OracleUniV2Props {
+  function: 'addOrUpdateAssetThatUsesUniswapV2'
+  args: {underlying: string; stalePeriod: number}
+}
+
+interface OracleUniV3Props {
+  function: 'addOrUpdateAssetThatUsesUniswapV3'
+  args: {underlying: string}
+}
+
+interface OracleUSDPegProps {
+  function: 'addOrUpdateUsdAsset'
+  args?: Record<string, never>
 }
 
 interface SyntheticDeployFunctionProps {
@@ -120,7 +130,7 @@ interface SyntheticDeployFunctionProps {
   symbol: string
   decimals: number
   interestRate: BigNumber
-  oracle: OracleProps
+  oracle: OracleChainlinkProps | OracleUniV2Props | OracleUniV3Props | OracleUSDPegProps
   salt: string
 }
 
@@ -193,7 +203,8 @@ export const buildSyntheticDeployFunction = ({
       syntheticTokenAddress
     )
 
-    await execute('DefaultOracle', {from: deployer, log: true}, oracle.function, syntheticTokenAddress, ...oracle.args)
+    const oracleArgs = [syntheticTokenAddress, ...Object.values(oracle.args || {})]
+    await execute('DefaultOracle', {from: deployer, log: true}, oracle.function, ...oracleArgs)
   }
 
   deployFunction.tags = [syntheticAlias]
@@ -206,7 +217,7 @@ interface DepositDeployFunctionProps {
   underlyingSymbol: string
   underlyingDecimals: number
   collateralizationRatio: BigNumber
-  oracle: OracleProps
+  oracle: OracleChainlinkProps | OracleUniV2Props | OracleUniV3Props | OracleUSDPegProps
   salt: string
 }
 
@@ -245,7 +256,8 @@ export const buildDepositDeployFunction = ({
 
     await execute(UpgradableContracts.Controller.alias, {from: deployer, log: true}, 'addDepositToken', vsdAddress)
 
-    await execute('DefaultOracle', {from: deployer, log: true}, oracle.function, vsdAddress, ...oracle.args)
+    const oracleArgs = [vsdAddress, ...Object.values(oracle.args || {})]
+    await execute('DefaultOracle', {from: deployer, log: true}, oracle.function, ...oracleArgs)
   }
 
   deployFunction.tags = [alias]

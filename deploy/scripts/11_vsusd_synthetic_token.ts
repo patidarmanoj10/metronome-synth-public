@@ -6,7 +6,7 @@ const func = buildSyntheticDeployFunction({
   symbol: 'vsUSD',
   decimals: 18,
   interestRate: parseEther('0'), // 0%
-  oracle: {function: 'addOrUpdateUsdAsset', args: []},
+  oracle: {function: 'addOrUpdateUsdAsset'},
   salt: '0x02',
 })
 
