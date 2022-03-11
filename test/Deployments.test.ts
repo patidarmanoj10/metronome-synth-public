@@ -32,8 +32,8 @@ import {
   UniswapV3PriceProvider__factory,
   Controller,
   Controller__factory,
-  WETHGateway,
-  WETHGateway__factory,
+  NativeTokenGateway,
+  NativeTokenGateway__factory,
   ControllerUpgrader,
   ControllerUpgrader__factory,
   MasterOracle__factory,
@@ -69,7 +69,7 @@ describe('Deployments', function () {
   let debtTokenUpgrader: DebtTokenUpgrader
   let vsBTCDebt: DebtToken
   let vsUSDDebt: DebtToken
-  let wethGateway: WETHGateway
+  let wethGateway: NativeTokenGateway
 
   // Note: Enabling fork to be able to use MultiCall contract
   before(enableForking)
@@ -100,7 +100,7 @@ describe('Deployments', function () {
       DebtTokenUpgrader: {address: debtTokenUpgraderAddress},
       VsBTCDebt: {address: vsBTCDebtTokenAddress},
       VsUSDDebt: {address: vsUSDDebtTokenAddress},
-      WETHGateway: {address: wethGatewayAddress},
+      NativeTokenGateway: {address: wethGatewayAddress},
     } = await deployments.fixture()
 
     uniswapV3PriceProvider = UniswapV3PriceProvider__factory.connect(uniswapV3PriceProviderAddress, deployer)
@@ -120,7 +120,7 @@ describe('Deployments', function () {
     treasury = Treasury__factory.connect(treasuryAddress, deployer)
     treasuryUpgrader = TreasuryUpgrader__factory.connect(treasuryUpgraderAddress, deployer)
 
-    wethGateway = WETHGateway__factory.connect(wethGatewayAddress, deployer)
+    wethGateway = NativeTokenGateway__factory.connect(wethGatewayAddress, deployer)
 
     depositTokenUpgrader = DepositTokenUpgrader__factory.connect(depositTokenUpgraderAddress, deployer)
     vsdUSDC = DepositToken__factory.connect(usdcDepositTokenAddress, deployer)
@@ -255,9 +255,9 @@ describe('Deployments', function () {
     })
   })
 
-  describe('WETHGateway', function () {
+  describe('NativeTokenGateway', function () {
     it('should have correct params', async function () {
-      expect(await wethGateway.weth()).eq(NATIVE_TOKEN_ADDRESS)
+      expect(await wethGateway.nativeToken()).eq(NATIVE_TOKEN_ADDRESS)
 
       expect(await controller.governor()).eq(deployer.address)
       await defaultOracle.connect(governor).acceptGovernorship()
