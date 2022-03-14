@@ -2,7 +2,8 @@ import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
 import Address from '../../helpers/address'
 
-const {UNISWAP_V2_ROUTER02_ADDRESS, UNISWAP_V3_CROSS_POOL_ORACLE_ADDRESS, DAI_ADDRESS} = Address
+const {UNISWAP_V2_LIKE_ROUTER_ADDRESS, NATIVE_TOKEN_ADDRESS, UNISWAP_V3_CROSS_POOL_ORACLE_ADDRESS, DAI_ADDRESS} =
+  Address
 
 const TWAP_PERIOD = 60 * 60 * 2 // 2 hours
 
@@ -28,10 +29,10 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     args: [UNISWAP_V3_CROSS_POOL_ORACLE_ADDRESS, DAI_ADDRESS, TWAP_PERIOD],
   })
 
-  const uniswapV2PriceProvider = await deploy('UniswapV2PriceProvider', {
+  const uniswapV2LikePriceProvider = await deploy('UniswapV2LikePriceProvider', {
     from: deployer,
     log: true,
-    args: [UNISWAP_V2_ROUTER02_ADDRESS, DAI_ADDRESS, TWAP_PERIOD],
+    args: [UNISWAP_V2_LIKE_ROUTER_ADDRESS, NATIVE_TOKEN_ADDRESS, DAI_ADDRESS, TWAP_PERIOD],
   })
 
   const chainlinkPriceProvider = await deploy('ChainlinkPriceProvider', {
@@ -59,7 +60,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     {from: deployer, log: true},
     'setPriceProvider',
     UNISWAP_V2,
-    uniswapV2PriceProvider.address
+    uniswapV2LikePriceProvider.address
   )
   await execute(
     DefaultOracle,

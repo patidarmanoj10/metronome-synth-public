@@ -2,25 +2,32 @@
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
-import {UniswapV2PriceProvider, UniswapV2PriceProvider__factory} from '../../typechain'
+import {UniswapV2LikePriceProvider, UniswapV2LikePriceProvider__factory} from '../../typechain'
 import {DEFAULT_TWAP_PERIOD, enableForking, disableForking, increaseTime, toUSD} from '../helpers'
 import Address from '../../helpers/address'
-import {parseEther} from 'ethers/lib/utils'
 
-const {MET_ADDRESS, DAI_ADDRESS, USDC_ADDRESS, NATIVE_TOKEN_ADDRESS, UNISWAP_V2_ROUTER02_ADDRESS, WBTC_ADDRESS} =
-  Address
+const {
+  NATIVE_TOKEN_ADDRESS,
+  MIM_ADDRESS,
+  LINK_ADDRESS,
+  DAI_ADDRESS,
+  USDC_ADDRESS,
+  WETH_ADDRESS,
+  UNISWAP_V2_LIKE_ROUTER_ADDRESS,
+  WBTC_ADDRESS,
+} = Address
 
 const abi = new ethers.utils.AbiCoder()
-const encodedMetAddress = abi.encode(['address'], [MET_ADDRESS])
+const encodedLinkAddress = abi.encode(['address'], [LINK_ADDRESS])
 const encodedWbtcAddress = abi.encode(['address'], [WBTC_ADDRESS])
-const encodedWethAddress = abi.encode(['address'], [NATIVE_TOKEN_ADDRESS])
+const encodedWethAddress = abi.encode(['address'], [WETH_ADDRESS])
 
-describe('UniswapV2PriceProvider', function () {
+describe('UniswapV2LikePriceProvider', function () {
   let snapshotId: string
   let deployer: SignerWithAddress
   let user: SignerWithAddress
-  let priceProviderFactory: UniswapV2PriceProvider__factory
-  let priceProvider: UniswapV2PriceProvider
+  let priceProviderFactory: UniswapV2LikePriceProvider__factory
+  let priceProvider: UniswapV2LikePriceProvider
 
   before(enableForking)
 
@@ -30,12 +37,17 @@ describe('UniswapV2PriceProvider', function () {
     snapshotId = await ethers.provider.send('evm_snapshot', [])
     ;[deployer, user] = await ethers.getSigners()
 
-    priceProviderFactory = new UniswapV2PriceProvider__factory(deployer)
-    priceProvider = await priceProviderFactory.deploy(UNISWAP_V2_ROUTER02_ADDRESS, DAI_ADDRESS, DEFAULT_TWAP_PERIOD)
+    priceProviderFactory = new UniswapV2LikePriceProvider__factory(deployer)
+    priceProvider = await priceProviderFactory.deploy(
+      UNISWAP_V2_LIKE_ROUTER_ADDRESS,
+      NATIVE_TOKEN_ADDRESS,
+      DAI_ADDRESS,
+      DEFAULT_TWAP_PERIOD
+    )
     await priceProvider.deployed()
 
     await increaseTime(DEFAULT_TWAP_PERIOD)
-    await priceProvider.update(encodedMetAddress)
+    await priceProvider.update(encodedLinkAddress)
     await priceProvider.update(encodedWbtcAddress)
     await priceProvider.update(encodedWethAddress)
   })
@@ -45,9 +57,9 @@ describe('UniswapV2PriceProvider', function () {
   })
 
   describe('getPriceInUsd', function () {
-    it('should get MET price', async function () {
-      const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedMetAddress)
-      expect(_priceInUsd).closeTo(toUSD('4.8051477'), toUSD('0.0000001'))
+    it('should get LINK price', async function () {
+      const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedLinkAddress)
+      expect(_priceInUsd).closeTo(toUSD('26.96669831'), toUSD('0.0000001'))
     })
 
     it('should get WBTC price', async function () {
@@ -85,15 +97,14 @@ describe('UniswapV2PriceProvider', function () {
 
       it('should add oracle data if token does not exist', async function () {
         // given
-        const VSP_TOKEN_ADDRESS = '0x1b40183EFB4Dd766f11bDa7A7c3AD8982e998421'
-        expect((await priceProvider.oracleDataOf(VSP_TOKEN_ADDRESS)).blockTimestampLast).eq(0)
+        expect((await priceProvider.oracleDataOf(MIM_ADDRESS)).blockTimestampLast).eq(0)
 
         // when
-        const encodedTokenAddress = abi.encode(['address'], [VSP_TOKEN_ADDRESS])
+        const encodedTokenAddress = abi.encode(['address'], [MIM_ADDRESS])
         await priceProvider.update(encodedTokenAddress)
 
         // then
-        expect((await priceProvider.oracleDataOf(VSP_TOKEN_ADDRESS)).blockTimestampLast).not.eq(0)
+        expect((await priceProvider.oracleDataOf(MIM_ADDRESS)).blockTimestampLast).not.eq(0)
       })
 
       it('should update token price', async function () {
@@ -126,15 +137,14 @@ describe('UniswapV2PriceProvider', function () {
       it('should add oracle data if token does not exist', async function () {
         // given
         await increaseTime(DEFAULT_TWAP_PERIOD)
-        const VSP_TOKEN_ADDRESS = '0x1b40183EFB4Dd766f11bDa7A7c3AD8982e998421'
-        expect((await priceProvider.oracleDataOf(VSP_TOKEN_ADDRESS)).blockTimestampLast).eq(0)
+        expect((await priceProvider.oracleDataOf(MIM_ADDRESS)).blockTimestampLast).eq(0)
 
         // when
-        const encodedTokenAddress = abi.encode(['address'], [VSP_TOKEN_ADDRESS])
+        const encodedTokenAddress = abi.encode(['address'], [MIM_ADDRESS])
         await priceProvider.update(encodedTokenAddress)
 
         // then
-        expect((await priceProvider.oracleDataOf(VSP_TOKEN_ADDRESS)).blockTimestampLast).not.eq(0)
+        expect((await priceProvider.oracleDataOf(MIM_ADDRESS)).blockTimestampLast).not.eq(0)
         // should update usd token oracle data too
         const {timestamp} = await ethers.provider.getBlock('latest')
         expect((await priceProvider.oracleDataOf(DAI_ADDRESS)).blockTimestampLast).eq(timestamp)
@@ -161,18 +171,23 @@ describe('UniswapV2PriceProvider', function () {
 
   describe('when using USDC as USD token', function () {
     beforeEach(async function () {
-      priceProvider = await priceProviderFactory.deploy(UNISWAP_V2_ROUTER02_ADDRESS, USDC_ADDRESS, DEFAULT_TWAP_PERIOD)
+      priceProvider = await priceProviderFactory.deploy(
+        UNISWAP_V2_LIKE_ROUTER_ADDRESS,
+        NATIVE_TOKEN_ADDRESS,
+        USDC_ADDRESS,
+        DEFAULT_TWAP_PERIOD
+      )
       await priceProvider.deployed()
 
-      await priceProvider.update(encodedMetAddress)
+      await priceProvider.update(encodedLinkAddress)
       await priceProvider.update(encodedWbtcAddress)
       await priceProvider.update(encodedWethAddress)
     })
 
     describe('getPriceInUsd', function () {
-      it('should get MET price', async function () {
-        const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedMetAddress)
-        expect(_priceInUsd).eq(toUSD('4.823005'))
+      it('should get LINK price', async function () {
+        const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedLinkAddress)
+        expect(_priceInUsd).eq(toUSD('27.066917'))
       })
 
       it('should get WBTC price', async function () {

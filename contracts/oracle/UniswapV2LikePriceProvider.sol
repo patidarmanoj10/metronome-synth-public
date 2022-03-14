@@ -3,10 +3,10 @@
 pragma solidity 0.8.9;
 
 import "../dependencies/openzeppelin/utils/math/Math.sol";
+import "../dependencies/uniswap/v2-core/interfaces/IUniswapV2Factory.sol";
 import "../dependencies/uniswap/v2-core/interfaces/IUniswapV2Pair.sol";
 import "../dependencies/uniswap/lib/libraries/FixedPoint.sol";
 import "../dependencies/uniswap/v2-periphery/libraries/UniswapV2OracleLibrary.sol";
-import "../dependencies/uniswap/v2-periphery/libraries/UniswapV2Library.sol";
 import "../dependencies/uniswap/v2-periphery/interfaces/IUniswapV2Router02.sol";
 import "../access/Governable.sol";
 import "../interface/oracle/IPriceProvider.sol";
@@ -18,21 +18,20 @@ import "../lib/OracleHelpers.sol";
  */
 // fixed window oracle that recomputes the average price for the entire period once every period
 // note that the price average is only guaranteed to be over at least 1 period, but may be over a longer period
-contract UniswapV2PriceProvider is IPriceProvider, Governable {
+contract UniswapV2LikePriceProvider is IPriceProvider, Governable {
     using FixedPoint for *;
 
     /**
-     * @notice The Uniswap-like factory contract
+     * @notice The UniswapV2-like factory contract
      * @dev The address isn't hardcoded because we may want to deploy to other chains
      */
-    address public immutable factory;
+    IUniswapV2Factory public immutable factory;
 
     /**
-     * @notice The WETH-like contract
-     * @dev The address isn't hardcoded because we may want to deploy to other chains
+     * @notice The WETH-like token
      */
     // solhint-disable-next-line var-name-mixedcase
-    address public immutable WETH;
+    address public immutable NATIVE_TOKEN;
 
     /**
      * @notice The USD token (stable coin) to use to convert amounts to/from USD
@@ -48,7 +47,7 @@ contract UniswapV2PriceProvider is IPriceProvider, Governable {
 
     /**
      * @notice Data of pair's oracle
-     * @dev We have a default USDTOKEN:WETH pair and TOKEN:WETH for each tracked token
+     * @dev We have a default USD_TOKEN:NATIVE_TOKEN pair and TOKEN:NATIVE_TOKEN for each tracked token
      */
     struct PairOracleData {
         address token0;
@@ -71,6 +70,7 @@ contract UniswapV2PriceProvider is IPriceProvider, Governable {
 
     constructor(
         IUniswapV2Router02 _router,
+        address _nativeToken,
         address _usdToken,
         uint256 _twapPeriod
     ) {
@@ -79,8 +79,8 @@ contract UniswapV2PriceProvider is IPriceProvider, Governable {
 
         usdToken = _usdToken;
         twapPeriod = _twapPeriod;
-        WETH = _router.WETH();
-        factory = _router.factory();
+        NATIVE_TOKEN = _nativeToken;
+        factory = IUniswapV2Factory(_router.factory());
 
         _addOracleForEthAnd(_usdToken);
     }
@@ -99,19 +99,19 @@ contract UniswapV2PriceProvider is IPriceProvider, Governable {
      * @param _token The key token of a pair
      */
     function _hasOracleData(address _token) private view returns (bool) {
-        if (_token == WETH) return true;
+        if (_token == NATIVE_TOKEN) return true;
         return oracleDataOf[_token].blockTimestampLast != 0;
     }
 
     /**
      * @notice Add a oracle pair
-     * @dev Will add a TOKEN:WETH pair
+     * @dev Will add a TOKEN:NATIVE_TOKEN pair
      * @param _token The token to add
      */
     function _addOracleForEthAnd(address _token) private {
         if (_hasOracleData(_token)) return;
 
-        IUniswapV2Pair _pair = IUniswapV2Pair(UniswapV2Library.pairFor(factory, WETH, _token));
+        IUniswapV2Pair _pair = IUniswapV2Pair(factory.getPair(NATIVE_TOKEN, _token));
 
         (uint112 _reserve0, uint112 _reserve1, uint32 _blockTimestampLast) = _pair.getReserves();
 
@@ -134,11 +134,11 @@ contract UniswapV2PriceProvider is IPriceProvider, Governable {
      * @return true if price was updated or false if TWAP period hasn't elapsed yet
      */
     function _updateIfNeeded(address _token) private returns (bool) {
-        if (_token == WETH) return false;
+        if (_token == NATIVE_TOKEN) return false;
 
         PairOracleData storage _pairOracle = oracleDataOf[_token];
 
-        address _pair = UniswapV2Library.pairFor(factory, _pairOracle.token0, _pairOracle.token1);
+        address _pair = factory.getPair(_pairOracle.token0, _pairOracle.token1);
 
         (uint256 price0Cumulative, uint256 price1Cumulative, uint32 blockTimestamp) = UniswapV2OracleLibrary
             .currentCumulativePrices(_pair);
@@ -170,7 +170,7 @@ contract UniswapV2PriceProvider is IPriceProvider, Governable {
     /**
      * @notice Update a oracle pair's price
      * @dev Will create the pair if it doesn't exist
-     * @dev This function also update the default USDTOKEN:WETH pair
+     * @dev This function also update the default USD_TOKEN:NATIVE_TOKEN pair
      * @param _encodedTokenAddress The asset's encoded address
      */
     function update(bytes calldata _encodedTokenAddress) external override {
@@ -222,8 +222,8 @@ contract UniswapV2PriceProvider is IPriceProvider, Governable {
         address _token = _decode(_encodedTokenAddress);
         uint256 _decimals = IERC20Metadata(_token).decimals();
         uint256 _amount = 10**_decimals;
-        uint256 _ethAmount = _token == WETH ? _amount : _getAmountOut(_token, _token, _amount);
-        _priceInUsd = OracleHelpers.normalizeUsdOutput(usdToken, _getAmountOut(usdToken, WETH, _ethAmount));
+        uint256 _ethAmount = _token == NATIVE_TOKEN ? _amount : _getAmountOut(_token, _token, _amount);
+        _priceInUsd = OracleHelpers.normalizeUsdOutput(usdToken, _getAmountOut(usdToken, NATIVE_TOKEN, _ethAmount));
         _lastUpdatedAt = oracleDataOf[usdToken].blockTimestampLast;
     }
 }

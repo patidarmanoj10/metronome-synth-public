@@ -7,7 +7,7 @@ import {
   DefaultOracle,
   DefaultOracle__factory,
   UniswapV3PriceProvider__factory,
-  UniswapV2PriceProvider__factory,
+  UniswapV2LikePriceProvider__factory,
   ChainlinkPriceProvider__factory,
   ERC20Mock__factory,
   ERC20Mock,
@@ -29,7 +29,7 @@ const {
   DAI_ADDRESS,
   UNISWAP_V3_CROSS_POOL_ORACLE_ADDRESS,
   NATIVE_TOKEN_ADDRESS,
-  UNISWAP_V2_ROUTER02_ADDRESS,
+  UNISWAP_V2_LIKE_ROUTER_ADDRESS,
 } = Address
 
 const {MaxUint256, AddressZero} = ethers.constants
@@ -97,13 +97,14 @@ describe('DefaultOracle', function () {
     await uniswapV3PriceProvider.deployed()
 
     // Uniswap V2
-    const uniswapV2PriceProviderFactory = new UniswapV2PriceProvider__factory(deployer)
-    const uniswapV2PriceProvider = await uniswapV2PriceProviderFactory.deploy(
-      UNISWAP_V2_ROUTER02_ADDRESS,
+    const uniswapV2LikePriceProviderFactory = new UniswapV2LikePriceProvider__factory(deployer)
+    const uniswapV2LikePriceProvider = await uniswapV2LikePriceProviderFactory.deploy(
+      UNISWAP_V2_LIKE_ROUTER_ADDRESS,
+      NATIVE_TOKEN_ADDRESS,
       DAI_ADDRESS,
       DEFAULT_TWAP_PERIOD
     )
-    await uniswapV2PriceProvider.deployed()
+    await uniswapV2LikePriceProvider.deployed()
 
     // Chainlink
     const chainlinkPriceProviderFactory = new ChainlinkPriceProvider__factory(deployer)
@@ -119,11 +120,10 @@ describe('DefaultOracle', function () {
     await oracle.deployed()
 
     await oracle.setPriceProvider(Protocol.UNISWAP_V3, uniswapV3PriceProvider.address)
-    await oracle.setPriceProvider(Protocol.UNISWAP_V2, uniswapV2PriceProvider.address)
+    await oracle.setPriceProvider(Protocol.UNISWAP_V2, uniswapV2LikePriceProvider.address)
     await oracle.setPriceProvider(Protocol.CHAINLINK, chainlinkPriceProvider.address)
 
     await oracle.addOrUpdateUsdAsset(vsUSD.address)
-    await oracle.addOrUpdateAssetThatUsesUniswapV3(vsETH.address, NATIVE_TOKEN_ADDRESS)
     await oracle.addOrUpdateAssetThatUsesUniswapV3(vsETH.address, NATIVE_TOKEN_ADDRESS)
     await oracle.addOrUpdateAssetThatUsesUniswapV2(depositToken.address, MET_ADDRESS, STALE_PERIOD)
     await oracle.addOrUpdateAssetThatUsesChainlink(vsDOGE.address, CHAINLINK_DOGE_AGGREGATOR_ADDRESS, STALE_PERIOD)

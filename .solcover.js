@@ -27,7 +27,6 @@ module.exports = {
     'dependencies/uniswap/v2-core/interfaces/IUniswapV2Pair.sol',
     'dependencies/uniswap/v2-periphery/interfaces/IUniswapV2Router01.sol',
     'dependencies/uniswap/v2-periphery/interfaces/IUniswapV2Router02.sol',
-    'dependencies/uniswap/v2-periphery/libraries/UniswapV2Library.sol',
     'dependencies/uniswap/v2-periphery/libraries/UniswapV2OracleLibrary.sol',
     'mock/ControllerMock.sol',
     'mock/DebtTokenMock.sol',
