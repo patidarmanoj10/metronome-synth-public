@@ -1,7 +1,7 @@
-import {buildDepositDeployFunction} from '../helpers'
-import Address from '../../helpers/address'
+import {buildDepositDeployFunction} from '../../helpers'
+import Address from '../../../helpers/address'
 import {parseEther} from 'ethers/lib/utils'
-import {toUSD} from '../../helpers'
+import {toUSD} from '../../../helpers'
 
 const {DAI_ADDRESS, DAI_USD_CHAINLINK_AGGREGATOR_ADDRESS} = Address
 

@@ -1,6 +1,6 @@
 import {parseEther} from 'ethers/lib/utils'
-import {toUSD} from '../../helpers'
-import {buildSyntheticDeployFunction} from '../helpers'
+import {toUSD} from '../../../helpers'
+import {buildSyntheticDeployFunction} from '../../helpers'
 
 const func = buildSyntheticDeployFunction({
   name: 'Vesper Synth USD',

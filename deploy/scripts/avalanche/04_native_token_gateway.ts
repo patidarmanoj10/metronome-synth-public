@@ -1,6 +1,6 @@
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
-import Address from '../../helpers/address'
+import Address from '../../../helpers/address'
 
 const {NATIVE_TOKEN_ADDRESS} = Address
 

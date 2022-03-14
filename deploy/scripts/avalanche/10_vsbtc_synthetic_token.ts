@@ -1,7 +1,7 @@
 import {parseEther} from 'ethers/lib/utils'
-import {buildSyntheticDeployFunction} from '../helpers'
-import Address from '../../helpers/address'
-import {toUSD} from '../../helpers'
+import {buildSyntheticDeployFunction} from '../../helpers'
+import Address from '../../../helpers/address'
+import {toUSD} from '../../../helpers'
 
 const {BTC_USD_CHAINLINK_AGGREGATOR_ADDRESS} = Address
 
