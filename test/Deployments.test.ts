@@ -24,12 +24,8 @@ import {
   SyntheticTokenUpgrader__factory,
   DebtTokenUpgrader__factory,
   UpgraderBase,
-  UniswapV3PriceProvider,
-  UniswapV2LikePriceProvider,
   ChainlinkPriceProvider,
   ChainlinkPriceProvider__factory,
-  UniswapV2LikePriceProvider__factory,
-  UniswapV3PriceProvider__factory,
   Controller,
   Controller__factory,
   NativeTokenGateway,
@@ -50,8 +46,6 @@ const {USDC_ADDRESS, NATIVE_TOKEN_ADDRESS, WAVAX_ADDRESS} = Address
 describe('Deployments', function () {
   let deployer: SignerWithAddress
   let governor: SignerWithAddress
-  let uniswapV3PriceProvider: UniswapV3PriceProvider
-  let uniswapV2LikePriceProvider: UniswapV2LikePriceProvider
   let chainlinkPriceProvider: ChainlinkPriceProvider
   let defaultOracle: DefaultOracle
   let masterOracle: MasterOracle
@@ -81,8 +75,6 @@ describe('Deployments', function () {
     ;[deployer, governor] = await ethers.getSigners()
 
     const {
-      UniswapV3PriceProvider: {address: uniswapV3PriceProviderAddress},
-      UniswapV2LikePriceProvider: {address: uniswapV2LikePriceProviderAddress},
       ChainlinkPriceProvider: {address: chainlinkPriceProviderAddress},
       DefaultOracle: {address: defaultOracleAddress},
       MasterOracle: {address: masterOracleAddress},
@@ -103,11 +95,6 @@ describe('Deployments', function () {
       NativeTokenGateway: {address: wethGatewayAddress},
     } = await deployments.fixture()
 
-    uniswapV3PriceProvider = UniswapV3PriceProvider__factory.connect(uniswapV3PriceProviderAddress, deployer)
-    uniswapV2LikePriceProvider = UniswapV2LikePriceProvider__factory.connect(
-      uniswapV2LikePriceProviderAddress,
-      deployer
-    )
     chainlinkPriceProvider = ChainlinkPriceProvider__factory.connect(chainlinkPriceProviderAddress, deployer)
     defaultOracle = DefaultOracle__factory.connect(defaultOracleAddress, deployer)
 
@@ -174,8 +161,6 @@ describe('Deployments', function () {
         CHAINLINK: 3,
       }
 
-      expect(await defaultOracle.providerByProtocol(Protocol.UNISWAP_V3)).eq(uniswapV3PriceProvider.address)
-      expect(await defaultOracle.providerByProtocol(Protocol.UNISWAP_V2)).eq(uniswapV2LikePriceProvider.address)
       expect(await defaultOracle.providerByProtocol(Protocol.CHAINLINK)).eq(chainlinkPriceProvider.address)
 
       expect(await defaultOracle.governor()).eq(deployer.address)

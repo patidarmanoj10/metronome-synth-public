@@ -15,7 +15,7 @@ const func = buildDepositDeployFunction({
     function: 'addOrUpdateAssetThatUsesChainlink',
     args: {
       aggregator: AVAX_USD_CHAINLINK_AGGREGATOR_ADDRESS,
-      stalePeriod: 60 * 5, // 5m - The AVAX's heartbeat on Avalanche is 2m
+      stalePeriod: 60 * 60 * 6, // 6h
     },
   },
   salt: '0x02',

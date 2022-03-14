@@ -60,17 +60,17 @@ describe('UniswapV2LikePriceProvider', function () {
   describe('getPriceInUsd', function () {
     it('should get LINK price', async function () {
       const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedLinkAddress)
-      expect(_priceInUsd).closeTo(toUSD('26.96669831'), toUSD('0.0000001'))
+      expect(_priceInUsd).closeTo(toUSD('13.08898148'), toUSD('0.0000001'))
     })
 
     it('should get WBTC price', async function () {
       const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedWbtcAddress)
-      expect(_priceInUsd).closeTo(toUSD('50186.24222484'), toUSD('0.0000001'))
+      expect(_priceInUsd).closeTo(toUSD('38893.89154814'), toUSD('0.0000001'))
     })
 
     it('should get ETH price', async function () {
       const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedWethAddress)
-      expect(_priceInUsd).closeTo(toUSD('3449.7556244'), toUSD('0.0000001'))
+      expect(_priceInUsd).closeTo(toUSD('2566.9129679'), toUSD('0.0000001'))
     })
   })
 
@@ -188,17 +188,17 @@ describe('UniswapV2LikePriceProvider', function () {
     describe('getPriceInUsd', function () {
       it('should get LINK price', async function () {
         const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedLinkAddress)
-        expect(_priceInUsd).eq(toUSD('27.066917'))
+        expect(_priceInUsd).eq(toUSD('13.063278'))
       })
 
       it('should get WBTC price', async function () {
         const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedWbtcAddress)
-        expect(_priceInUsd).eq(toUSD('50372.754329'))
+        expect(_priceInUsd).eq(toUSD('38817.513939'))
       })
 
       it('should get ETH price', async function () {
         const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedWethAddress)
-        expect(_priceInUsd).eq(toUSD('3462.576293'))
+        expect(_priceInUsd).eq(toUSD('2561.87221'))
       })
     })
   })

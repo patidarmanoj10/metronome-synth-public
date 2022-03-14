@@ -1,12 +1,13 @@
 import {BigNumber} from '@ethersproject/bignumber'
 import {parseEther} from '@ethersproject/units'
 import {ethers, network} from 'hardhat'
-import {Controller, DepositToken} from '../../typechain'
+import {Controller, DepositToken, IERC20} from '../../typechain'
+import Address from '../../helpers/address'
+
+const {hexlify, solidityKeccak256, zeroPad, getAddress} = ethers.utils
 
 export const HOUR = BigNumber.from(60 * 60)
-export const CHAINLINK_ETH_AGGREGATOR_ADDRESS = '0x5f4ec3df9cbd43714fe2740f5e3616155c5b8419'
-export const CHAINLINK_BTC_AGGREGATOR_ADDRESS = '0xf4030086522a5beea4988f8ca5b36dbc97bee88c'
-export const CHAINLINK_DOGE_AGGREGATOR_ADDRESS = '0x2465cefd3b488be410b941b1d4b2767088e2a028'
+export const DOGE_USD_CHAINLINK_AGGREGATOR_ADDRESS = '0x2465cefd3b488be410b941b1d4b2767088e2a028'
 export const DEFAULT_TWAP_PERIOD = HOUR.mul('2')
 
 /**
@@ -98,4 +99,48 @@ export const setEtherBalance = async (address: string, value: BigNumber): Promis
     method: 'hardhat_setBalance',
     params: [address, ethers.utils.hexStripZeros(value.toHexString())],
   })
+}
+
+const getBalancesSlot = (token: string) => {
+  // Slot number mapping for a token. Prepared using utility https://github.com/kendricktan/slot20
+  const slots: {
+    [chainId: number]: {
+      [key: string]: number
+    }
+  } = {
+    [1]: {
+      [Address.WAVAX_ADDRESS]: 5,
+      [Address.WETH_ADDRESS]: 3,
+      [Address.USDC_ADDRESS]: 9,
+      [Address.DAI_ADDRESS]: 2,
+      [Address.USDT_ADDRESS]: 2,
+    },
+    [43114]: {
+      [Address.WAVAX_ADDRESS]: 3,
+      [Address.WETH_ADDRESS]: 0,
+      [Address.USDC_ADDRESS]: 0,
+      [Address.DAI_ADDRESS]: 0,
+      [Address.USDT_ADDRESS]: 0,
+    },
+  }
+
+  // only use checksum address
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  return slots[network.config.chainId!][getAddress(token)]
+}
+
+export const setTokenBalance = async (token: string, targetAddress: string, balance: BigNumber): Promise<void> => {
+  const slot = getBalancesSlot(token)
+  if (slot === undefined) {
+    throw new Error(`Missing slot configuration for token ${token}`)
+  }
+
+  // reason: https://github.com/nomiclabs/hardhat/issues/1585 comments
+  const index = hexlify(solidityKeccak256(['uint256', 'uint256'], [targetAddress, slot])).replace('0x0', '0x')
+
+  const value = hexlify(zeroPad(balance.toHexString(), 32))
+
+  // Hack the balance by directly setting the EVM storage
+  await ethers.provider.send('hardhat_setStorageAt', [token, index, value])
+  await ethers.provider.send('evm_mine', [])
 }

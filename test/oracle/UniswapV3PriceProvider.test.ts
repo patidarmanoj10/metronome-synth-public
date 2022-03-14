@@ -52,17 +52,17 @@ describe('UniswapV3PriceProvider', function () {
   describe('getPriceInUsd', function () {
     it('should get MET price', async function () {
       const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedMetAddress)
-      expect(_priceInUsd).closeTo(toUSD('4.77943235'), toUSD('0.000001'))
+      expect(_priceInUsd).closeTo(toUSD('1.96868563'), toUSD('0.000001'))
     })
 
     it('should get WBTC price', async function () {
       const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedWbtcAddress)
-      expect(_priceInUsd).closeTo(toUSD('50028.93354162'), toUSD('0.000001'))
+      expect(_priceInUsd).closeTo(toUSD('38691.28411634'), toUSD('0.000001'))
     })
 
     it('should get ETH price', async function () {
       const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedWethAddress)
-      expect(_priceInUsd).closeTo(toUSD('3446.42503883'), toUSD('0.000001'))
+      expect(_priceInUsd).closeTo(toUSD('2560.37141557'), toUSD('0.000001'))
     })
   })
 
@@ -92,17 +92,17 @@ describe('UniswapV3PriceProvider', function () {
     describe('getPriceInUsd', function () {
       it('should get MET price', async function () {
         const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedMetAddress)
-        expect(_priceInUsd).closeTo(toUSD('4.78183500'), toUSD('0.000001'))
+        expect(_priceInUsd).closeTo(toUSD('1.969281'), toUSD('0.000001'))
       })
 
       it('should get WBTC price', async function () {
         const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedWbtcAddress)
-        expect(_priceInUsd).closeTo(toUSD('50054.08534500'), toUSD('0.000001'))
+        expect(_priceInUsd).closeTo(toUSD('38702.994986'), toUSD('0.000001'))
       })
 
       it('should get ETH price', async function () {
         const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedWethAddress)
-        expect(_priceInUsd).closeTo(toUSD('3448.15771200'), toUSD('0.000001'))
+        expect(_priceInUsd).closeTo(toUSD('2561.146375'), toUSD('0.000001'))
       })
     })
   })

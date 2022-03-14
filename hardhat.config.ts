@@ -29,6 +29,7 @@ const config: HardhatUserConfig = {
       // },
       saveDeployments: true,
       accounts,
+      chainId: process.env.CHAIN_ID ? parseInt(process.env.CHAIN_ID) : 1,
     },
     mainnet: {
       url: process.env.NODE_URL,

@@ -1,11 +1,5 @@
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
-import Address from '../../helpers/address'
-
-const {UNISWAP_V2_LIKE_ROUTER_ADDRESS, NATIVE_TOKEN_ADDRESS, UNISWAP_V3_CROSS_POOL_ORACLE_ADDRESS, DAI_ADDRESS} =
-  Address
-
-const TWAP_PERIOD = 60 * 60 * 2 // 2 hours
 
 const DefaultOracle = 'DefaultOracle'
 
@@ -16,24 +10,12 @@ const Protocol = {
   CHAINLINK: 3,
 }
 
-const {UNISWAP_V3, UNISWAP_V2, CHAINLINK} = Protocol
+const {CHAINLINK} = Protocol
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {getNamedAccounts, deployments} = hre
   const {execute, deploy} = deployments
   const {deployer, governor} = await getNamedAccounts()
-
-  const uniswapV3PriceProvider = await deploy('UniswapV3PriceProvider', {
-    from: deployer,
-    log: true,
-    args: [UNISWAP_V3_CROSS_POOL_ORACLE_ADDRESS, DAI_ADDRESS, TWAP_PERIOD],
-  })
-
-  const uniswapV2LikePriceProvider = await deploy('UniswapV2LikePriceProvider', {
-    from: deployer,
-    log: true,
-    args: [UNISWAP_V2_LIKE_ROUTER_ADDRESS, NATIVE_TOKEN_ADDRESS, DAI_ADDRESS, TWAP_PERIOD],
-  })
 
   const chainlinkPriceProvider = await deploy('ChainlinkPriceProvider', {
     from: deployer,
@@ -48,20 +30,6 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   await execute(DefaultOracle, {from: deployer, log: true}, 'transferGovernorship', governor)
 
-  await execute(
-    DefaultOracle,
-    {from: deployer, log: true},
-    'setPriceProvider',
-    UNISWAP_V3,
-    uniswapV3PriceProvider.address
-  )
-  await execute(
-    DefaultOracle,
-    {from: deployer, log: true},
-    'setPriceProvider',
-    UNISWAP_V2,
-    uniswapV2LikePriceProvider.address
-  )
   await execute(
     DefaultOracle,
     {from: deployer, log: true},

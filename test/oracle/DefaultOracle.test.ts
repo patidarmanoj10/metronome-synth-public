@@ -1,5 +1,4 @@
 /* eslint-disable camelcase */
-import {parseUnits} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
@@ -14,7 +13,7 @@ import {
 } from '../../typechain'
 import {
   DEFAULT_TWAP_PERIOD,
-  CHAINLINK_DOGE_AGGREGATOR_ADDRESS,
+  DOGE_USD_CHAINLINK_AGGREGATOR_ADDRESS,
   enableForking,
   disableForking,
   increaseTime,
@@ -126,7 +125,7 @@ describe('DefaultOracle', function () {
     await oracle.addOrUpdateUsdAsset(vsUSD.address)
     await oracle.addOrUpdateAssetThatUsesUniswapV3(vsETH.address, NATIVE_TOKEN_ADDRESS)
     await oracle.addOrUpdateAssetThatUsesUniswapV2(depositToken.address, MET_ADDRESS, STALE_PERIOD)
-    await oracle.addOrUpdateAssetThatUsesChainlink(vsDOGE.address, CHAINLINK_DOGE_AGGREGATOR_ADDRESS, STALE_PERIOD)
+    await oracle.addOrUpdateAssetThatUsesChainlink(vsDOGE.address, DOGE_USD_CHAINLINK_AGGREGATOR_ADDRESS, STALE_PERIOD)
   })
 
   afterEach(async function () {
@@ -142,19 +141,19 @@ describe('DefaultOracle', function () {
 
       it('should convert to USD using UniswapV3 price provider', async function () {
         const _amountInUsd = await oracle.getPriceInUsd(vsETH.address)
-        expect(_amountInUsd).closeTo(toUSD('3446.42503883'), toUSD('0.000001'))
+        expect(_amountInUsd).closeTo(toUSD('2560.37141557'), toUSD('0.000001'))
       })
 
       it('should convert to USD using UniswapV2 price provider', async function () {
         await increaseTime(DEFAULT_TWAP_PERIOD)
         await oracle.update(depositToken.address)
         const _amountInUsd = await oracle.getPriceInUsd(depositToken.address)
-        expect(_amountInUsd).closeTo(toUSD('4.80514770'), toUSD('0.000001'))
+        expect(_amountInUsd).closeTo(toUSD('2.13506071'), toUSD('0.000001'))
       })
 
       it('should convert to USD using Chainlink price provider', async function () {
         const _amountInUsd = await oracle.getPriceInUsd(vsDOGE.address)
-        expect(_amountInUsd).closeTo(toUSD('0.24128635'), toUSD('0.000001'))
+        expect(_amountInUsd).closeTo(toUSD('0.11530811'), toUSD('0.000001'))
       })
 
       it('should revert when price is outdated', async function () {
@@ -245,10 +244,10 @@ describe('DefaultOracle', function () {
     it('should set an asset that uses Chainlink as oracle', async function () {
       const tx = oracle.addOrUpdateAssetThatUsesChainlink(
         depositToken.address,
-        CHAINLINK_DOGE_AGGREGATOR_ADDRESS,
+        DOGE_USD_CHAINLINK_AGGREGATOR_ADDRESS,
         STALE_PERIOD
       )
-      const assetData = abi.encode(['address', 'uint256'], [CHAINLINK_DOGE_AGGREGATOR_ADDRESS, 18])
+      const assetData = abi.encode(['address', 'uint256'], [DOGE_USD_CHAINLINK_AGGREGATOR_ADDRESS, 18])
       await expect(tx)
         .emit(oracle, 'AssetUpdated')
         .withArgs(depositToken.address, Protocol.CHAINLINK, assetData, false, STALE_PERIOD)
