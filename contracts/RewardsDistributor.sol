@@ -4,6 +4,7 @@ pragma solidity 0.8.9;
 
 import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import "./dependencies/openzeppelin/utils/math/SafeCast.sol";
+import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./access/Manageable.sol";
 import "./storage/RewardsDistributorStorage.sol";
 import "./lib/WadRayMath.sol";
@@ -11,7 +12,7 @@ import "./lib/WadRayMath.sol";
 /**
  * @title RewardsDistributor contract
  */
-contract RewardsDistributor is Manageable, RewardsDistributorStorageV1 {
+contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorStorageV1 {
     using SafeERC20 for IERC20;
     using SafeCast for uint256;
     using WadRayMath for uint256;
@@ -178,7 +179,7 @@ contract RewardsDistributor is Manageable, RewardsDistributorStorageV1 {
     /**
      * @notice Claim tokens accrued by the accounts in the specified tokens
      */
-    function claimRewards(address[] memory _accounts, IERC20[] memory _tokens) public {
+    function claimRewards(address[] memory _accounts, IERC20[] memory _tokens) public nonReentrant {
         uint256 _accountsLength = _accounts.length;
         uint256 _tokensLength = _tokens.length;
         for (uint256 i = 0; i < _tokensLength; i++) {
@@ -191,8 +192,9 @@ contract RewardsDistributor is Manageable, RewardsDistributorStorageV1 {
                 }
             }
         }
+
         for (uint256 j = 0; j < _accountsLength; j++) {
-            tokensAccruedOf[_accounts[j]] = _transferRewardToken(_accounts[j], tokensAccruedOf[_accounts[j]]);
+            _transferRewardIfEnoughTokens(_accounts[j], tokensAccruedOf[_accounts[j]]);
         }
     }
 
@@ -200,14 +202,13 @@ contract RewardsDistributor is Manageable, RewardsDistributorStorageV1 {
      * @notice Transfer tokens to the user
      * @dev If there is not enough tokens, we do not perform the transfer
      */
-    function _transferRewardToken(address _account, uint256 _amount) private returns (uint256) {
+    function _transferRewardIfEnoughTokens(address _account, uint256 _amount) private {
         uint256 _balance = rewardToken.balanceOf(address(this));
         if (_amount > 0 && _amount <= _balance) {
+            tokensAccruedOf[_account] = 0;
             rewardToken.safeTransfer(_account, _amount);
             emit RewardClaimed(_account, _amount);
-            return 0;
         }
-        return _amount;
     }
 
     /**
