@@ -7,13 +7,8 @@ import "../dependencies/openzeppelin//proxy/transparent/TransparentUpgradeablePr
 import "../interface/external/IMulticall.sol";
 
 abstract contract UpgraderBase is ProxyAdmin {
-    address public multicall = 0xeefBa1e63905eF1D7ACbA5a8513c70307C1cE441;
-
-    function updateMulticall(address _multicall) public onlyOwner {
-        require(_multicall != address(0), "address-is-null");
-        require(_multicall != multicall, "new-same-as-current");
-        multicall = _multicall;
-    }
+    // Note: `Multicall3` contract has same address for all chains
+    address public constant multicall = 0xcA11bde05977b3631167028862bE2a173976CA11;
 
     function upgrade(TransparentUpgradeableProxy _proxy, address _implementation) public override onlyOwner {
         bytes[] memory calls = _calls();

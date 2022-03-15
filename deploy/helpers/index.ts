@@ -1,9 +1,6 @@
 import {BigNumber} from 'ethers'
 import {DeployFunction, DeployResult} from 'hardhat-deploy/types'
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
-import Address from '../../helpers/address'
-
-const {MULTICALL_ADDRESS} = Address
 
 interface ContractConfig {
   alias: string
@@ -35,20 +32,6 @@ export const UpgradableContracts: UpgradableContractsConfig = {
   },
 }
 
-const updateMulticallIfNeeded = async (
-  {deployments: {read, execute}, getNamedAccounts}: HardhatRuntimeEnvironment,
-  contractConfig: ContractConfig
-): Promise<void> => {
-  const {deployer} = await getNamedAccounts()
-  const {adminContract} = contractConfig
-
-  const multicallAddress = await read(adminContract, 'multicall')
-
-  if (multicallAddress != MULTICALL_ADDRESS) {
-    await execute(adminContract, {from: deployer, log: true}, 'updateMulticall', MULTICALL_ADDRESS)
-  }
-}
-
 export const deterministic = async (
   hre: HardhatRuntimeEnvironment,
   contractConfig: ContractConfig,
@@ -74,11 +57,7 @@ export const deterministic = async (
         name: adminContract,
       }
 
-  const {
-    address,
-    implementationAddress,
-    deploy: deployContract,
-  } = await wrappedDeterministic(alias, {
+  const {address, implementationAddress, deploy} = await wrappedDeterministic(alias, {
     contract,
     from: deployer,
     log: true,
@@ -88,17 +67,6 @@ export const deterministic = async (
     },
     salt,
   })
-
-  const deploy = async (): Promise<DeployResult> => {
-    const result = await deployContract()
-
-    // Note: `hardhat-deploy` doesn't support constructor args to a custom ProxyAdmin contract
-    // There is an open PR to address this: https://github.com/wighawag/hardhat-deploy/pull/142
-    // As workaround, we check if the default multicall contract (ethereum mainnet) is the same as the desired
-    // and update it if needed
-    await updateMulticallIfNeeded(hre, contractConfig)
-    return result
-  }
 
   return {address, implementationAddress, deploy}
 }
