@@ -347,9 +347,11 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         _transferWithChecks(_sender, _recipient, _amount);
 
         uint256 currentAllowance = allowance[_sender][_msgSender()];
-        require(currentAllowance >= _amount, "amount-exceeds-allowance");
-        unchecked {
-            _approve(_sender, _msgSender(), currentAllowance - _amount);
+        if (currentAllowance != type(uint256).max) {
+            require(currentAllowance >= _amount, "amount-exceeds-allowance");
+            unchecked {
+                _approve(_sender, _msgSender(), currentAllowance - _amount);
+            }
         }
 
         return true;

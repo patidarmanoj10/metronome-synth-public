@@ -94,9 +94,11 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
         _transfer(sender, recipient, amount);
 
         uint256 currentAllowance = allowance[sender][_msgSender()];
-        require(currentAllowance >= amount, "amount-exceeds-allowance");
-        unchecked {
-            _approve(sender, _msgSender(), currentAllowance - amount);
+        if (currentAllowance != type(uint256).max) {
+            require(currentAllowance >= amount, "amount-exceeds-allowance");
+            unchecked {
+                _approve(sender, _msgSender(), currentAllowance - amount);
+            }
         }
 
         return true;
