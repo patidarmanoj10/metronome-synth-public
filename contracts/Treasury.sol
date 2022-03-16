@@ -17,13 +17,10 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
     string public constant VERSION = "1.0.0";
 
     /**
-     * @dev Throws if caller isn't authorized
+     * @dev Throws if caller isn't a deposit token
      */
-    modifier onlyIfAuthorized() {
-        require(
-            msg.sender == address(controller) || controller.isDepositTokenExists(IDepositToken(msg.sender)),
-            "not-authorized"
-        );
+    modifier onlyIfDepositToken() {
+        require(controller.isDepositTokenExists(IDepositToken(msg.sender)), "not-deposit-token");
         _;
     }
 
@@ -39,13 +36,9 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
     /**
      * @notice Pull token from the Treasury
      */
-    function pull(
-        IERC20 _token,
-        address _to,
-        uint256 _amount
-    ) external override nonReentrant onlyIfAuthorized {
+    function pull(address _to, uint256 _amount) external override nonReentrant onlyIfDepositToken {
         require(_amount > 0, "amount-is-zero");
-        _token.safeTransfer(_to, _amount);
+        IDepositToken(msg.sender).underlying().safeTransfer(_to, _amount);
     }
 
     /**

@@ -285,7 +285,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         }
 
         _burnForWithdraw(_account, _amountToWithdraw);
-        _treasury.pull(underlying, _to, _amountToWithdraw);
+        _treasury.pull(_to, _amountToWithdraw);
 
         emit CollateralWithdrawn(_account, _to, _amount, _feeAmount);
     }
