@@ -172,7 +172,7 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
      * @param _to The account to mint to
      * @param _amount The amount to mint
      */
-    function mint(address _to, uint256 _amount) external override onlyIfAuthorized {
+    function mint(address _to, uint256 _amount) external override onlyIfSyntheticToken {
         _mint(_to, _amount);
     }
 

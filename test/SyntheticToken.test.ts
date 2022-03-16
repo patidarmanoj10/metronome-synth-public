@@ -21,6 +21,7 @@ import {
 import {toUSD} from '../helpers'
 
 const {MaxUint256} = ethers.constants
+import {impersonateAccount} from './helpers'
 
 describe('SyntheticToken', function () {
   let deployer: SignerWithAddress
@@ -526,14 +527,15 @@ describe('SyntheticToken', function () {
 
   describe('acrueInterest', function () {
     it('should mint accrued fee to treasury', async function () {
-      const pricipal = parseEther('100')
+      const principal = parseEther('100')
 
       // given
       await vsUSD.updateInterestRate(parseEther('0.1')) // 10%
 
-      const mintCall = vsUSD.interface.encodeFunctionData('mint', [user.address, pricipal])
+      const mintCall = vsUSD.interface.encodeFunctionData('mint', [user.address, principal])
       await controllerMock.mockCall(vsUSD.address, mintCall)
-      await controllerMock.mockCall(vsUSDDebt.address, mintCall)
+      const vsUSDWallet = await impersonateAccount(vsUSD.address)
+      await vsUSDDebt.connect(vsUSDWallet).mint(user.address, principal)
 
       // eslint-disable-next-line new-cap
       await vsUSDDebt.incrementBlockNumber(await vsUSD.BLOCKS_PER_YEAR())
@@ -550,7 +552,7 @@ describe('SyntheticToken', function () {
       expect(totalDebt).closeTo(parseEther('110'), parseEther('0.01'))
       expect(totalCredit).eq(totalDebt)
       expect(totalDebt).closeTo(debtOfUser, parseEther('0.000001'))
-      expect(creditOfUser).eq(pricipal)
+      expect(creditOfUser).eq(principal)
       expect(totalCredit).eq(creditOfUser.add(creditOfTreasury))
     })
   })

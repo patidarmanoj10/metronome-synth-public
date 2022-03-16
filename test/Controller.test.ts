@@ -287,7 +287,7 @@ describe('Controller', function () {
           const tx = controller.connect(alice).swap(vsEth.address, vsDoge.address, 0)
 
           // then
-          await expect(tx).revertedWith('amount-in-0-or-gt-balance')
+          await expect(tx).revertedWith('amount-in-is-0')
         })
 
         it('should revert if synthetic out is not active', async function () {
@@ -311,58 +311,7 @@ describe('Controller', function () {
           const tx = controller.connect(alice).swap(vsEth.address, vsDoge.address, amountIn)
 
           // then
-          await expect(tx).revertedWith('amount-in-0-or-gt-balance')
-        })
-
-        describe('debt floor', function () {
-          it('should revert if debt from assetIn becomes < debt floor', async function () {
-            // given
-            await controller.updateSwapFee(0)
-            await controller.updateDebtFloor(parseEther('3000')) // $3,000
-
-            const balance = await vsEth.balanceOf(alice.address)
-            expect(balance).eq(parseEther('1')) // $4,000
-
-            // when
-            const amountIn = balance.div('2') // $2,000
-            const tx = controller.connect(alice).swap(vsEth.address, vsDoge.address, amountIn)
-
-            // then
-            await expect(tx).revertedWith('synthetic-in-debt-lt-floor')
-          })
-
-          it('should revert if debt from assetOut becomes < debt floor', async function () {
-            // given
-            await controller.updateSwapFee(0)
-            await controller.updateDebtFloor(toUSD('3000')) // $3,000
-
-            const balance = await vsEth.balanceOf(alice.address)
-            expect(balance).eq(parseEther('1')) // $4,000
-
-            // when
-            const amountIn = balance.div('4') // $1,000
-            const tx = controller.connect(alice).swap(vsEth.address, vsDoge.address, amountIn)
-
-            // then
-            await expect(tx).revertedWith('synthetic-out-debt-lt-floor')
-          })
-
-          it('should allow swap if debt from assetIn becomes 0', async function () {
-            // given
-            await controller.updateSwapFee(0)
-            await controller.updateDebtFloor(toUSD('3000')) // $3,000
-
-            const balance = await vsEth.balanceOf(alice.address)
-            expect(balance).eq(parseEther('1')) // $4,000
-
-            // when
-            const amountIn = balance
-            await controller.connect(alice).swap(vsEth.address, vsDoge.address, amountIn)
-
-            // then
-            const vsAssetInDebt = await vsEthDebtToken.balanceOf(alice.address)
-            expect(vsAssetInDebt).eq(0)
-          })
+          await expect(tx).revertedWith('amount-in-gt-balance')
         })
 
         it('should swap synthetic tokens (swapFee == 0)', async function () {
@@ -398,9 +347,9 @@ describe('Controller', function () {
 
           expect(debtInUsdAfter).eq(debtInUsdBefore)
           expect(vsAssetInBalanceAfter).eq(vsAssetInBalanceBefore.sub(amountIn))
-          expect(vsAssetInDebtBalanceAfter).eq(vsAssetInDebtBalanceBefore.sub(amountIn))
+          expect(vsAssetInDebtBalanceAfter).eq(vsAssetInDebtBalanceBefore)
           expect(vsAssetOutBalanceAfter).eq(vsAssetOutBalanceBefore.add(expectedAmountOut))
-          expect(vsAssetOutDebtBalanceAfter).eq(vsAssetOutDebtBalanceBefore.add(expectedAmountOut))
+          expect(vsAssetOutDebtBalanceAfter).eq(vsAssetOutDebtBalanceBefore)
         })
 
         it('should swap synthetic tokens (swapFee > 0)', async function () {
@@ -439,9 +388,24 @@ describe('Controller', function () {
 
           expect(debtInUsdAfter).eq(debtInUsdBefore)
           expect(vsAssetInBalanceAfter).eq(vsAssetInBalanceBefore.sub(amountIn))
-          expect(vsAssetInDebtBalanceAfter).eq(vsAssetInDebtBalanceBefore.sub(amountIn))
+          expect(vsAssetInDebtBalanceAfter).eq(vsAssetInDebtBalanceBefore)
           expect(vsAssetOutBalanceAfter).eq(vsAssetOutBalanceBefore.add(expectedAmountOutAfterFee))
-          expect(vsAssetOutDebtBalanceAfter).eq(vsAssetOutDebtBalanceBefore.add(expectedAmountOut))
+          expect(vsAssetOutDebtBalanceAfter).eq(vsAssetOutDebtBalanceBefore)
+        })
+
+        it('should allow user without debt to swap', async function () {
+          // given
+          const amountIn = parseEther('1')
+          await vsEth.connect(alice).transfer(bob.address, amountIn)
+          expect(await vsEthDebtToken.balanceOf(bob.address)).eq(0)
+          expect(await vsDoge.balanceOf(bob.address)).eq(0)
+
+          // when
+          await controller.connect(bob).swap(vsEth.address, vsDoge.address, amountIn)
+
+          // then
+          expect(await vsEth.balanceOf(bob.address)).eq(0)
+          expect(await vsDoge.balanceOf(bob.address)).gt(0)
         })
       })
 
