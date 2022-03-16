@@ -22,10 +22,13 @@ import {
   DebtTokenMock,
   DebtTokenMock__factory,
 } from '../typechain'
-import {getMaxLiquidationAmountInUsd, getMinLiquidationAmountInUsd, setEtherBalance, toUSD} from './helpers'
+import {getMaxLiquidationAmountInUsd, getMinLiquidationAmountInUsd, setEtherBalance} from './helpers'
 import {FakeContract, smock} from '@defi-wonderland/smock'
+import {toUSD} from '../helpers'
 
 chai.use(smock.matchers)
+
+const {MaxUint256} = ethers.constants
 
 const liquidatorLiquidationFee = parseEther('0.1') // 10%
 const metCR = parseEther('0.67') // 67%
@@ -82,19 +85,35 @@ async function fixture() {
   await controller.deployed()
 
   // Deployment tasks
-  await vsdMET.initialize(met.address, controller.address, 'vsdMET', 18, metCR)
+  await vsdMET.initialize(met.address, controller.address, 'vsdMET', 18, metCR, MaxUint256)
 
-  await vsdDAI.initialize(dai.address, controller.address, 'vsdDAI', 18, daiCR)
+  await vsdDAI.initialize(dai.address, controller.address, 'vsdDAI', 18, daiCR, MaxUint256)
 
   await treasury.initialize(controller.address)
 
   await vsETHDebt.initialize('vsETH Debt', 'vsETH-Debt', 18, controller.address, vsEth.address)
 
-  await vsEth.initialize('Vesper Synth ETH', 'vsETH', 18, controller.address, vsETHDebt.address, interestRate)
+  await vsEth.initialize(
+    'Vesper Synth ETH',
+    'vsETH',
+    18,
+    controller.address,
+    vsETHDebt.address,
+    interestRate,
+    MaxUint256
+  )
 
   await vsDOGEDebt.initialize('vsDOGE Debt', 'vsDOGE-Debt', 18, controller.address, vsDoge.address)
 
-  await vsDoge.initialize('Vesper Synth DOGE', 'vsDOGE', 18, controller.address, vsDOGEDebt.address, interestRate)
+  await vsDoge.initialize(
+    'Vesper Synth DOGE',
+    'vsDOGE',
+    18,
+    controller.address,
+    vsDOGEDebt.address,
+    interestRate,
+    MaxUint256
+  )
 
   await controller.initialize(masterOracleMock.address, treasury.address)
   expect(await controller.liquidatorLiquidationFee()).eq(liquidatorLiquidationFee)
@@ -1164,7 +1183,15 @@ describe('Controller', function () {
         const vsAsset = await syntheticTokenFactory.deploy()
 
         await debtToken.initialize('Vesper Synth BTC debt', 'vsBTC-Debt', 8, controller.address, vsAsset.address)
-        await vsAsset.initialize('Vesper Synth BTC', 'vsBTC', 8, controller.address, debtToken.address, interestRate)
+        await vsAsset.initialize(
+          'Vesper Synth BTC',
+          'vsBTC',
+          8,
+          controller.address,
+          debtToken.address,
+          interestRate,
+          MaxUint256
+        )
 
         expect(await vsAsset.totalSupply()).eq(0)
         await controller.addSyntheticToken(vsAsset.address)

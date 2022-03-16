@@ -11,7 +11,7 @@ import {
   DefaultOracleMock__factory,
   DefaultOracleMock,
 } from '../../typechain'
-import {toUSD} from '../helpers'
+import {toUSD} from '../../helpers'
 
 const {AddressZero} = ethers.constants
 

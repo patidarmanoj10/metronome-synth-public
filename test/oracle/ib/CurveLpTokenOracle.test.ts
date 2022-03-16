@@ -3,8 +3,9 @@ import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
 import {CurveLpTokenOracle, CurveLpTokenOracle__factory} from '../../../typechain'
-import {enableForking, disableForking, toUSD} from '../../helpers'
+import {enableForking, disableForking} from '../../helpers'
 import Address from '../../../helpers/address'
+import {toUSD} from '../../../helpers'
 
 const {CURVE_ADDRESS_PROVIDER_ADDRESS, CURVE_3CRV_ADDRESS} = Address
 

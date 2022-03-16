@@ -1,6 +1,6 @@
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
-import {UpgradableContracts, deterministic} from '../helpers'
+import {UpgradableContracts, deterministic} from '../../helpers'
 
 const DefaultOracle = 'DefaultOracle'
 const {alias: MasterOracle} = UpgradableContracts.MasterOracle

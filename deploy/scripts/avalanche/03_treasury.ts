@@ -1,6 +1,6 @@
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
-import {deterministic, UpgradableContracts} from '../helpers'
+import {deterministic, UpgradableContracts} from '../../helpers'
 
 const {alias: Treasury} = UpgradableContracts.Treasury
 

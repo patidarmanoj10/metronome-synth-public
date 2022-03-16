@@ -13,11 +13,14 @@ import {
   Treasury,
   Treasury__factory,
 } from '../typechain'
-import {HOUR, increaseTime, setEtherBalance, toUSD} from './helpers'
+import {HOUR, increaseTime, setEtherBalance} from './helpers'
 import {FakeContract, MockContract, smock} from '@defi-wonderland/smock'
 import {BigNumber} from 'ethers'
+import {toUSD} from '../helpers'
 
 chai.use(smock.matchers)
+
+const {MaxUint256} = ethers.constants
 
 describe('DepositToken', function () {
   let deployer: SignerWithAddress
@@ -70,7 +73,7 @@ describe('DepositToken', function () {
     controllerMock.getRewardsDistributors.returns([rewardsDistributorMock.address])
     rewardsDistributorMock.controller.returns(controllerMock.address)
 
-    await metDepositToken.initialize(met.address, controllerMock.address, 'vsdMET', 18, metCR)
+    await metDepositToken.initialize(met.address, controllerMock.address, 'vsdMET', 18, metCR, MaxUint256)
     metDepositToken = metDepositToken.connect(governor)
 
     await masterOracle.updatePrice(metDepositToken.address, metPrice)

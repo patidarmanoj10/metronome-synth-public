@@ -24,38 +24,28 @@ import {
   SyntheticTokenUpgrader__factory,
   DebtTokenUpgrader__factory,
   UpgraderBase,
-  UniswapV3PriceProvider,
-  UniswapV2LikePriceProvider,
   ChainlinkPriceProvider,
   ChainlinkPriceProvider__factory,
-  UniswapV2LikePriceProvider__factory,
-  UniswapV3PriceProvider__factory,
   Controller,
   Controller__factory,
-  WETHGateway,
-  WETHGateway__factory,
+  NativeTokenGateway,
+  NativeTokenGateway__factory,
   ControllerUpgrader,
   ControllerUpgrader__factory,
   MasterOracle__factory,
   MasterOracle,
   MasterOracleUpgrader__factory,
   MasterOracleUpgrader,
-  RewardsDistributor,
-  RewardsDistributorUpgrader,
-  RewardsDistributorUpgrader__factory,
-  RewardsDistributor__factory,
 } from '../typechain'
 import {disableForking, enableForking} from './helpers'
 import Address from '../helpers/address'
 import {parseEther} from 'ethers/lib/utils'
 
-const {MET_ADDRESS, NATIVE_TOKEN_ADDRESS, VSP_ADDRESS, DAI_ADDRESS} = Address
+const {USDC_ADDRESS, NATIVE_TOKEN_ADDRESS, WAVAX_ADDRESS} = Address
 
 describe('Deployments', function () {
   let deployer: SignerWithAddress
   let governor: SignerWithAddress
-  let uniswapV3PriceProvider: UniswapV3PriceProvider
-  let uniswapV2LikePriceProvider: UniswapV2LikePriceProvider
   let chainlinkPriceProvider: ChainlinkPriceProvider
   let defaultOracle: DefaultOracle
   let masterOracle: MasterOracle
@@ -65,17 +55,15 @@ describe('Deployments', function () {
   let treasury: Treasury
   let treasuryUpgrader: TreasuryUpgrader
   let depositTokenUpgrader: DepositTokenUpgrader
-  let vsdMET: DepositToken
-  let vsdDAI: DepositToken
+  let vsdUSDC: DepositToken
+  let vsdWAVAX: DepositToken
   let syntheticTokenUpgrader: SyntheticTokenUpgrader
-  let vsETH: SyntheticToken
+  let vsBTC: SyntheticToken
   let vsUSD: SyntheticToken
   let debtTokenUpgrader: DebtTokenUpgrader
-  let vsETHDebt: DebtToken
+  let vsBTCDebt: DebtToken
   let vsUSDDebt: DebtToken
-  let wethGateway: WETHGateway
-  let rewardsDistributor: RewardsDistributor
-  let rewardsDistributorUpgrader: RewardsDistributorUpgrader
+  let wethGateway: NativeTokenGateway
 
   // Note: Enabling fork to be able to use MultiCall contract
   before(enableForking)
@@ -87,8 +75,6 @@ describe('Deployments', function () {
     ;[deployer, governor] = await ethers.getSigners()
 
     const {
-      UniswapV3PriceProvider: {address: uniswapV3PriceProviderAddress},
-      UniswapV2LikePriceProvider: {address: uniswapV2LikePriceProviderAddress},
       ChainlinkPriceProvider: {address: chainlinkPriceProviderAddress},
       DefaultOracle: {address: defaultOracleAddress},
       MasterOracle: {address: masterOracleAddress},
@@ -98,24 +84,17 @@ describe('Deployments', function () {
       Treasury: {address: treasuryAddress},
       TreasuryUpgrader: {address: treasuryUpgraderAddress},
       DepositTokenUpgrader: {address: depositTokenUpgraderAddress},
-      METDepositToken: {address: metDepositTokenAddress},
-      DAIDepositToken: {address: daiDepositTokenAddress},
+      USDCDepositToken: {address: usdcDepositTokenAddress},
+      WAVAXDepositToken: {address: wavaxDepositTokenAddress},
       SyntheticTokenUpgrader: {address: syntheticTokenUpgraderAddress},
-      VsETHSynthetic: {address: vsETHAddress},
+      VsBTCSynthetic: {address: vsBTCAddress},
       VsUSDSynthetic: {address: vsUSDAddress},
       DebtTokenUpgrader: {address: debtTokenUpgraderAddress},
-      VsETHDebt: {address: vsETHDebtTokenAddress},
+      VsBTCDebt: {address: vsBTCDebtTokenAddress},
       VsUSDDebt: {address: vsUSDDebtTokenAddress},
-      WETHGateway: {address: wethGatewayAddress},
-      VspRewardsDistributor: {address: rewardsDistributorAddress},
-      RewardsDistributorUpgrader: {address: rewardsDistributorUpgraderAddress},
+      NativeTokenGateway: {address: wethGatewayAddress},
     } = await deployments.fixture()
 
-    uniswapV3PriceProvider = UniswapV3PriceProvider__factory.connect(uniswapV3PriceProviderAddress, deployer)
-    uniswapV2LikePriceProvider = UniswapV2LikePriceProvider__factory.connect(
-      uniswapV2LikePriceProviderAddress,
-      deployer
-    )
     chainlinkPriceProvider = ChainlinkPriceProvider__factory.connect(chainlinkPriceProviderAddress, deployer)
     defaultOracle = DefaultOracle__factory.connect(defaultOracleAddress, deployer)
 
@@ -128,25 +107,19 @@ describe('Deployments', function () {
     treasury = Treasury__factory.connect(treasuryAddress, deployer)
     treasuryUpgrader = TreasuryUpgrader__factory.connect(treasuryUpgraderAddress, deployer)
 
-    wethGateway = WETHGateway__factory.connect(wethGatewayAddress, deployer)
+    wethGateway = NativeTokenGateway__factory.connect(wethGatewayAddress, deployer)
 
     depositTokenUpgrader = DepositTokenUpgrader__factory.connect(depositTokenUpgraderAddress, deployer)
-    vsdMET = DepositToken__factory.connect(metDepositTokenAddress, deployer)
-    vsdDAI = DepositToken__factory.connect(daiDepositTokenAddress, deployer)
+    vsdUSDC = DepositToken__factory.connect(usdcDepositTokenAddress, deployer)
+    vsdWAVAX = DepositToken__factory.connect(wavaxDepositTokenAddress, deployer)
 
     syntheticTokenUpgrader = SyntheticTokenUpgrader__factory.connect(syntheticTokenUpgraderAddress, deployer)
-    vsETH = SyntheticToken__factory.connect(vsETHAddress, deployer)
+    vsBTC = SyntheticToken__factory.connect(vsBTCAddress, deployer)
     vsUSD = SyntheticToken__factory.connect(vsUSDAddress, deployer)
 
     debtTokenUpgrader = DebtTokenUpgrader__factory.connect(debtTokenUpgraderAddress, deployer)
-    vsETHDebt = DebtToken__factory.connect(vsETHDebtTokenAddress, deployer)
+    vsBTCDebt = DebtToken__factory.connect(vsBTCDebtTokenAddress, deployer)
     vsUSDDebt = DebtToken__factory.connect(vsUSDDebtTokenAddress, deployer)
-
-    rewardsDistributor = RewardsDistributor__factory.connect(rewardsDistributorAddress, deployer)
-    rewardsDistributorUpgrader = RewardsDistributorUpgrader__factory.connect(
-      rewardsDistributorUpgraderAddress,
-      deployer
-    )
   })
 
   const upgradeTestcase = async function ({
@@ -188,8 +161,6 @@ describe('Deployments', function () {
         CHAINLINK: 3,
       }
 
-      expect(await defaultOracle.providerByProtocol(Protocol.UNISWAP_V3)).eq(uniswapV3PriceProvider.address)
-      expect(await defaultOracle.providerByProtocol(Protocol.UNISWAP_V2)).eq(uniswapV2LikePriceProvider.address)
       expect(await defaultOracle.providerByProtocol(Protocol.CHAINLINK)).eq(chainlinkPriceProvider.address)
 
       expect(await defaultOracle.governor()).eq(deployer.address)
@@ -269,9 +240,9 @@ describe('Deployments', function () {
     })
   })
 
-  describe('WETHGateway', function () {
+  describe('NativeTokenGateway', function () {
     it('should have correct params', async function () {
-      expect(await wethGateway.weth()).eq(NATIVE_TOKEN_ADDRESS)
+      expect(await wethGateway.nativeToken()).eq(NATIVE_TOKEN_ADDRESS)
 
       expect(await controller.governor()).eq(deployer.address)
       await defaultOracle.connect(governor).acceptGovernorship()
@@ -280,17 +251,17 @@ describe('Deployments', function () {
   })
 
   describe('DepositToken', function () {
-    describe('MET DepositToken', function () {
+    describe('USDC DepositToken', function () {
       it('token should have correct params', async function () {
-        expect(await vsdMET.controller()).eq(controller.address)
-        expect(await vsdMET.underlying()).eq(MET_ADDRESS)
-        expect(await vsdMET.governor()).eq(deployer.address)
+        expect(await vsdUSDC.controller()).eq(controller.address)
+        expect(await vsdUSDC.underlying()).eq(USDC_ADDRESS)
+        expect(await vsdUSDC.governor()).eq(deployer.address)
       })
 
       it('should upgrade implementation', async function () {
         await upgradeTestcase({
           newImplfactory: new DepositToken__factory(deployer),
-          proxy: vsdMET,
+          proxy: vsdUSDC,
           upgrader: depositTokenUpgrader,
           expectToFail: false,
         })
@@ -299,24 +270,24 @@ describe('Deployments', function () {
       it('should fail if implementation breaks storage', async function () {
         await upgradeTestcase({
           newImplfactory: new DefaultOracleMock__factory(deployer),
-          proxy: vsdMET,
+          proxy: vsdUSDC,
           upgrader: depositTokenUpgrader,
           expectToFail: true,
         })
       })
     })
 
-    describe('DAI DepositToken', function () {
+    describe('WAVAX DepositToken', function () {
       it('token should have correct params', async function () {
-        expect(await vsdDAI.controller()).eq(controller.address)
-        expect(await vsdDAI.underlying()).eq(DAI_ADDRESS)
-        expect(await vsdDAI.governor()).eq(deployer.address)
+        expect(await vsdWAVAX.controller()).eq(controller.address)
+        expect(await vsdWAVAX.underlying()).eq(WAVAX_ADDRESS)
+        expect(await vsdWAVAX.governor()).eq(deployer.address)
       })
 
       it('should upgrade implementation', async function () {
         await upgradeTestcase({
           newImplfactory: new DepositToken__factory(deployer),
-          proxy: vsdDAI,
+          proxy: vsdWAVAX,
           upgrader: depositTokenUpgrader,
           expectToFail: false,
         })
@@ -325,7 +296,7 @@ describe('Deployments', function () {
       it('should fail if implementation breaks storage', async function () {
         await upgradeTestcase({
           newImplfactory: new DefaultOracleMock__factory(deployer),
-          proxy: vsdDAI,
+          proxy: vsdWAVAX,
           upgrader: depositTokenUpgrader,
           expectToFail: true,
         })
@@ -334,18 +305,18 @@ describe('Deployments', function () {
   })
 
   describe('SyntheticToken', function () {
-    describe('vsETH SyntheticToken', function () {
+    describe('vsBTC SyntheticToken', function () {
       it('token should have correct params', async function () {
-        expect(await vsETH.controller()).eq(controller.address)
-        expect(await vsETH.debtToken()).eq(vsETHDebt.address)
-        expect(await vsETH.governor()).eq(deployer.address)
-        expect(await vsETH.interestRate()).eq(parseEther('0'))
+        expect(await vsBTC.controller()).eq(controller.address)
+        expect(await vsBTC.debtToken()).eq(vsBTCDebt.address)
+        expect(await vsBTC.governor()).eq(deployer.address)
+        expect(await vsBTC.interestRate()).eq(parseEther('0'))
       })
 
       it('should upgrade implementation', async function () {
         await upgradeTestcase({
           newImplfactory: new SyntheticToken__factory(deployer),
-          proxy: vsETH,
+          proxy: vsBTC,
           upgrader: syntheticTokenUpgrader,
           expectToFail: false,
         })
@@ -354,7 +325,7 @@ describe('Deployments', function () {
       it('should fail if implementation breaks storage', async function () {
         await upgradeTestcase({
           newImplfactory: new DefaultOracleMock__factory(deployer),
-          proxy: vsETH,
+          proxy: vsBTC,
           upgrader: syntheticTokenUpgrader,
           expectToFail: true,
         })
@@ -390,16 +361,16 @@ describe('Deployments', function () {
   })
 
   describe('DebtToken', function () {
-    describe('vsETH DebtToken', function () {
+    describe('vsBTC DebtToken', function () {
       it('token should have correct params', async function () {
-        expect(await vsETHDebt.controller()).eq(controller.address)
-        expect(await vsETHDebt.governor()).eq(deployer.address)
+        expect(await vsBTCDebt.controller()).eq(controller.address)
+        expect(await vsBTCDebt.governor()).eq(deployer.address)
       })
 
       it('should upgrade implementation', async function () {
         await upgradeTestcase({
           newImplfactory: new DebtToken__factory(deployer),
-          proxy: vsETHDebt,
+          proxy: vsBTCDebt,
           upgrader: debtTokenUpgrader,
           expectToFail: false,
         })
@@ -408,7 +379,7 @@ describe('Deployments', function () {
       it('should fail if implementation breaks storage', async function () {
         await upgradeTestcase({
           newImplfactory: new DefaultOracleMock__factory(deployer),
-          proxy: vsETHDebt,
+          proxy: vsBTCDebt,
           upgrader: debtTokenUpgrader,
           expectToFail: true,
         })
@@ -437,32 +408,6 @@ describe('Deployments', function () {
           upgrader: debtTokenUpgrader,
           expectToFail: true,
         })
-      })
-    })
-  })
-
-  describe('RewardsDistributor', function () {
-    it('should have correct params', async function () {
-      expect(await rewardsDistributor.controller()).eq(controller.address)
-      expect(await rewardsDistributor.rewardToken()).eq(VSP_ADDRESS)
-      expect(await rewardsDistributor.governor()).eq(deployer.address)
-    })
-
-    it('should upgrade implementation', async function () {
-      await upgradeTestcase({
-        newImplfactory: new RewardsDistributor__factory(deployer),
-        proxy: rewardsDistributor,
-        upgrader: rewardsDistributorUpgrader,
-        expectToFail: false,
-      })
-    })
-
-    it('should fail if implementation breaks storage', async function () {
-      await upgradeTestcase({
-        newImplfactory: new DefaultOracleMock__factory(deployer),
-        proxy: rewardsDistributor,
-        upgrader: rewardsDistributorUpgrader,
-        expectToFail: true,
       })
     })
   })

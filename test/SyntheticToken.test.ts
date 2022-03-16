@@ -18,7 +18,9 @@ import {
   DepositToken__factory,
   DepositToken,
 } from '../typechain'
-import {toUSD} from './helpers'
+import {toUSD} from '../helpers'
+
+const {MaxUint256} = ethers.constants
 
 describe('SyntheticToken', function () {
   let deployer: SignerWithAddress
@@ -70,9 +72,9 @@ describe('SyntheticToken', function () {
     // Initializations & Setup
     await controllerMock.updateTreasury(treasury.address, false)
 
-    await vsdMET.initialize(met.address, controllerMock.address, 'vsdMET', 18, metCR)
+    await vsdMET.initialize(met.address, controllerMock.address, 'vsdMET', 18, metCR, MaxUint256)
     await vsUSDDebt.initialize('vsUSD Debt', 'vsUSD-Debt', 18, controllerMock.address, vsUSD.address)
-    await vsUSD.initialize(name, symbol, 18, controllerMock.address, vsUSDDebt.address, interestRate)
+    await vsUSD.initialize(name, symbol, 18, controllerMock.address, vsUSDDebt.address, interestRate, MaxUint256)
 
     await masterOracleMock.updatePrice(vsUSD.address, toUSD('1')) // 1 vsAsset = $1
     await masterOracleMock.updatePrice(vsdMET.address, toUSD('1')) // 1 collateralToken = $1
@@ -123,7 +125,15 @@ describe('SyntheticToken', function () {
       const syntheticTokenFactory = new SyntheticToken__factory(deployer)
       const notListedSynthetic = await syntheticTokenFactory.deploy()
       await notListedSynthetic.deployed()
-      await notListedSynthetic.initialize(name, symbol, 18, controllerMock.address, vsUSDDebt.address, interestRate)
+      await notListedSynthetic.initialize(
+        name,
+        symbol,
+        18,
+        controllerMock.address,
+        vsUSDDebt.address,
+        interestRate,
+        MaxUint256
+      )
 
       // when
       const toIssue = parseEther('1')

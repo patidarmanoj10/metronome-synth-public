@@ -1,22 +1,18 @@
 /* eslint-disable camelcase */
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
-import {parseEther} from 'ethers/lib/utils'
 import {ethers} from 'hardhat'
 import {ChainlinkPriceProvider, ChainlinkPriceProvider__factory} from '../../typechain'
-import {
-  CHAINLINK_DOGE_AGGREGATOR_ADDRESS,
-  CHAINLINK_BTC_AGGREGATOR_ADDRESS,
-  CHAINLINK_ETH_AGGREGATOR_ADDRESS,
-  enableForking,
-  disableForking,
-  toUSD,
-} from '../helpers'
+import {DOGE_USD_CHAINLINK_AGGREGATOR_ADDRESS, enableForking, disableForking} from '../helpers'
+import {toUSD} from '../../helpers'
+import Address from '../../helpers/address'
+
+const {BTC_USD_CHAINLINK_AGGREGATOR_ADDRESS, ETH_USD_CHAINLINK_AGGREGATOR_ADDRESS} = Address
 
 const abi = new ethers.utils.AbiCoder()
-const encodedDogeData = abi.encode(['address', 'uint256'], [CHAINLINK_DOGE_AGGREGATOR_ADDRESS, 18])
-const encodedBtcData = abi.encode(['address', 'uint256'], [CHAINLINK_BTC_AGGREGATOR_ADDRESS, 8])
-const encodedEthData = abi.encode(['address', 'uint256'], [CHAINLINK_ETH_AGGREGATOR_ADDRESS, 18])
+const encodedDogeData = abi.encode(['address', 'uint256'], [DOGE_USD_CHAINLINK_AGGREGATOR_ADDRESS, 18])
+const encodedBtcData = abi.encode(['address', 'uint256'], [BTC_USD_CHAINLINK_AGGREGATOR_ADDRESS, 8])
+const encodedEthData = abi.encode(['address', 'uint256'], [ETH_USD_CHAINLINK_AGGREGATOR_ADDRESS, 18])
 
 describe('ChainlinkPriceProvider', function () {
   let snapshotId: string
@@ -43,17 +39,17 @@ describe('ChainlinkPriceProvider', function () {
   describe('getPriceInUsd ', function () {
     it('should get DOGE price', async function () {
       const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedDogeData)
-      expect(_priceInUsd).eq(toUSD('0.24128635'))
+      expect(_priceInUsd).eq(toUSD('0.11530811'))
     })
 
     it('should get BTC price', async function () {
       const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedBtcData)
-      expect(_priceInUsd).eq(toUSD('50241'))
+      expect(_priceInUsd).closeTo(toUSD('38841'), toUSD('1'))
     })
 
     it('should get ETH price', async function () {
       const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedEthData)
-      expect(_priceInUsd).eq(toUSD('3461.0476064'))
+      expect(_priceInUsd).eq(toUSD('2567.24244481'))
     })
   })
 })

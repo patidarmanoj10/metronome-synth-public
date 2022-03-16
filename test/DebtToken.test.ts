@@ -18,6 +18,8 @@ import {BigNumber} from 'ethers'
 
 chai.use(smock.matchers)
 
+const {MaxUint256} = ethers.constants
+
 let BLOCKS_PER_YEAR: BigNumber
 
 describe('DebtToken', function () {
@@ -70,7 +72,8 @@ describe('DebtToken', function () {
       18,
       controllerMock.address,
       debtToken.address,
-      interestRate
+      interestRate,
+      MaxUint256
     )
 
     // eslint-disable-next-line new-cap

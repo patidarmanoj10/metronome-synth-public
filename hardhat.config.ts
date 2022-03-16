@@ -29,12 +29,14 @@ const config: HardhatUserConfig = {
       // },
       saveDeployments: true,
       accounts,
+      chainId: process.env.CHAIN_ID ? parseInt(process.env.CHAIN_ID) : 1,
     },
     mainnet: {
       url: process.env.NODE_URL,
       chainId: 1,
       gas: 6700000,
       accounts,
+      deploy: 'deploy/scripts/mainnet',
     },
     avalanche: {
       url: process.env.NODE_URL,
@@ -44,8 +46,8 @@ const config: HardhatUserConfig = {
     },
   },
   paths: {
-    deploy: 'deploy/scripts',
-    deployments: 'deployments',
+    // Note: Uses avalanche folder as default
+    deploy: 'deploy/scripts/avalanche',
   },
   namedAccounts: {
     deployer: process.env.DEPLOYER || 0,
