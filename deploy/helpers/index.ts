@@ -1,5 +1,5 @@
 import {BigNumber} from 'ethers'
-import {DeployFunction, DeployResult} from 'hardhat-deploy/types'
+import {DeployFunction} from 'hardhat-deploy/types'
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 
 interface ContractConfig {
@@ -32,43 +32,32 @@ export const UpgradableContracts: UpgradableContractsConfig = {
   },
 }
 
-export const deterministic = async (
+export const deployUpgradable = async (
   hre: HardhatRuntimeEnvironment,
-  contractConfig: ContractConfig,
-  salt?: string
+  contractConfig: ContractConfig
 ): Promise<{
   address: string
   implementationAddress?: string | undefined
-  deploy(): Promise<DeployResult>
 }> => {
   const {
-    deployments: {deterministic: wrappedDeterministic, getOrNull},
+    deployments: {deploy},
     getNamedAccounts,
   } = hre
 
   const {deployer} = await getNamedAccounts()
   const {alias, contract, adminContract} = contractConfig
 
-  const upgrader = await getOrNull(adminContract)
-
-  const viaAdminContract = !upgrader
-    ? adminContract
-    : {
-        name: adminContract,
-      }
-
-  const {address, implementationAddress, deploy} = await wrappedDeterministic(alias, {
+  const {address, implementation: implementationAddress} = await deploy(alias, {
     contract,
     from: deployer,
     log: true,
     proxy: {
       proxyContract: 'OpenZeppelinTransparentProxy',
-      viaAdminContract,
+      viaAdminContract: adminContract,
     },
-    salt,
   })
 
-  return {address, implementationAddress, deploy}
+  return {address, implementationAddress}
 }
 
 const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1)
@@ -100,7 +89,6 @@ interface SyntheticDeployFunctionProps {
   interestRate: BigNumber
   maxTotalSupplyInUsd: BigNumber
   oracle: OracleChainlinkProps | OracleUniV2Props | OracleUniV3Props | OracleUSDPegProps
-  salt: string
 }
 
 export const buildSyntheticDeployFunction = ({
@@ -110,38 +98,25 @@ export const buildSyntheticDeployFunction = ({
   interestRate,
   maxTotalSupplyInUsd,
   oracle,
-  salt,
 }: SyntheticDeployFunctionProps): DeployFunction => {
   const debtAlias = `${capitalize(symbol)}Debt`
   const syntheticAlias = `${capitalize(symbol)}Synthetic`
 
   const deployFunction: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     const {getNamedAccounts, deployments} = hre
-    const {execute} = deployments
+    const {execute, get} = deployments
     const {deployer} = await getNamedAccounts()
 
-    const {address: controllerAddress} = await deterministic(hre, UpgradableContracts.Controller)
-    const {deploy: deployDebt} = await deterministic(
-      hre,
-      {
-        ...UpgradableContracts.DebtToken,
-        alias: debtAlias,
-      },
-      salt
-    )
+    const {address: controllerAddress} = await get(UpgradableContracts.Controller.alias)
+    const {address: debtTokenAddress} = await deployUpgradable(hre, {
+      ...UpgradableContracts.DebtToken,
+      alias: debtAlias,
+    })
 
-    const {deploy: deploySynthetic} = await deterministic(
-      hre,
-      {
-        ...UpgradableContracts.SyntheticToken,
-        alias: syntheticAlias,
-      },
-      salt
-    )
-
-    const {address: debtTokenAddress} = await deployDebt()
-
-    const {address: syntheticTokenAddress} = await deploySynthetic()
+    const {address: syntheticTokenAddress} = await deployUpgradable(hre, {
+      ...UpgradableContracts.SyntheticToken,
+      alias: syntheticAlias,
+    })
 
     await execute(
       debtAlias,
@@ -190,7 +165,6 @@ interface DepositDeployFunctionProps {
   collateralizationRatio: BigNumber
   maxTotalSupplyInUsd: BigNumber
   oracle: OracleChainlinkProps | OracleUniV2Props | OracleUniV3Props | OracleUSDPegProps
-  salt: string
 }
 
 export const buildDepositDeployFunction = ({
@@ -200,21 +174,18 @@ export const buildDepositDeployFunction = ({
   collateralizationRatio,
   maxTotalSupplyInUsd,
   oracle,
-  salt,
 }: DepositDeployFunctionProps): DeployFunction => {
   const alias = `${underlyingSymbol}DepositToken`
   const symbol = `vsd${underlyingSymbol}`
 
   const deployFunction: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     const {getNamedAccounts, deployments} = hre
-    const {execute} = deployments
+    const {execute, get} = deployments
     const {deployer} = await getNamedAccounts()
 
-    const {address: controllerAddress} = await deterministic(hre, UpgradableContracts.Controller)
+    const {address: controllerAddress} = await get(UpgradableContracts.Controller.alias)
 
-    const {deploy} = await deterministic(hre, {...UpgradableContracts.DepositToken, alias}, salt)
-
-    const {address: vsdAddress} = await deploy()
+    const {address: vsdAddress} = await deployUpgradable(hre, {...UpgradableContracts.DepositToken, alias})
 
     await execute(
       alias,

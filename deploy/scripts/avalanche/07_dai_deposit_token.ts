@@ -18,7 +18,6 @@ const func = buildDepositDeployFunction({
       stalePeriod: 60 * 60 * 24, // 24h
     },
   },
-  salt: '0x04',
 })
 
 export default func
