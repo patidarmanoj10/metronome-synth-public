@@ -29,3 +29,11 @@ npm t
 ```sh
 npm run coverage
 ```
+
+### Deploy
+
+Setup the env vars properly (See `.env.template` file)
+
+```
+$ npm run deploy -- --gasprice <gas price in wei> --network <network>
+```
