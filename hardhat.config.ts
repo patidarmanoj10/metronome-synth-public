@@ -8,6 +8,7 @@ import 'hardhat-gas-reporter'
 import 'hardhat-contract-sizer'
 import '@typechain/hardhat'
 import 'hardhat-spdx-license-identifier'
+import '@nomiclabs/hardhat-etherscan'
 import dotenv from 'dotenv'
 
 dotenv.config()
@@ -77,6 +78,9 @@ const config: HardhatUserConfig = {
         },
       },
     },
+  },
+  etherscan: {
+    apiKey: process.env.ETHERSCAN_API_KEY,
   },
   spdxLicenseIdentifier: {
     overwrite: true,
