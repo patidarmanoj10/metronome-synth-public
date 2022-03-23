@@ -137,15 +137,13 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
         _;
     }
 
-    function initialize(IMasterOracle _masterOracle, ITreasury _treasury) public initializer {
-        require(address(_treasury) != address(0), "treasury-is-null");
+    function initialize(IMasterOracle _masterOracle) public initializer {
         require(address(_masterOracle) != address(0), "oracle-is-null");
 
         __ReentrancyGuard_init();
         __Governable_init();
 
         masterOracle = _masterOracle;
-        treasury = _treasury;
 
         repayFee = 3e15; // 0.3%
         swapFee = 6e15; // 0.6%

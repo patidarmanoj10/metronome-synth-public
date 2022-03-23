@@ -1,5 +1,6 @@
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
+import {transferGovernorshipIfNeeded} from '../../helpers'
 
 const DefaultOracle = 'DefaultOracle'
 
@@ -14,8 +15,10 @@ const {CHAINLINK} = Protocol
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {getNamedAccounts, deployments} = hre
-  const {execute, deploy} = deployments
-  const {deployer, governor} = await getNamedAccounts()
+  const {execute, deploy, getOrNull} = deployments
+  const {deployer} = await getNamedAccounts()
+
+  const wasDeployed = !!(await getOrNull(DefaultOracle))
 
   const chainlinkPriceProvider = await deploy('ChainlinkPriceProvider', {
     from: deployer,
@@ -28,15 +31,16 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     args: [],
   })
 
-  await execute(DefaultOracle, {from: deployer, log: true}, 'transferGovernorship', governor)
-
-  await execute(
-    DefaultOracle,
-    {from: deployer, log: true},
-    'setPriceProvider',
-    CHAINLINK,
-    chainlinkPriceProvider.address
-  )
+  if (!wasDeployed) {
+    await execute(
+      DefaultOracle,
+      {from: deployer, log: true},
+      'setPriceProvider',
+      CHAINLINK,
+      chainlinkPriceProvider.address
+    )
+    await transferGovernorshipIfNeeded(hre, DefaultOracle)
+  }
 }
 
 export default func

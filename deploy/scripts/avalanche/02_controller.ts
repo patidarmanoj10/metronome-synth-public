@@ -1,27 +1,25 @@
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
-import {UpgradableContracts, deployUpgradable} from '../../helpers'
+import {UpgradableContracts, deployUpgradable, transferGovernorshipIfNeeded} from '../../helpers'
 
 const MasterOracle = 'MasterOracle'
 const {
   Controller: {alias: Controller},
-  Treasury: {alias: Treasury},
 } = UpgradableContracts
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
-  const {getNamedAccounts, deployments} = hre
-  const {execute, get} = deployments
-  const {deployer, governor} = await getNamedAccounts()
+  const {deployments} = hre
+  const {get, getOrNull} = deployments
+
+  const wasDeployed = !!(await getOrNull(Controller))
 
   const masterOracle = await get(MasterOracle)
 
-  const {address: controllerAddress} = await deployUpgradable(hre, UpgradableContracts.Controller)
+  await deployUpgradable({hre, contractConfig: UpgradableContracts.Controller, initializeArgs: [masterOracle.address]})
 
-  const {address: treasuryAddress} = await deployUpgradable(hre, UpgradableContracts.Treasury)
-
-  await execute(Treasury, {from: deployer, log: true}, 'initialize', controllerAddress)
-  await execute(Controller, {from: deployer, log: true}, 'initialize', masterOracle.address, treasuryAddress)
-  await execute(Controller, {from: deployer, log: true}, 'transferGovernorship', governor)
+  if (!wasDeployed) {
+    await transferGovernorshipIfNeeded(hre, Controller)
+  }
 }
 
 export default func

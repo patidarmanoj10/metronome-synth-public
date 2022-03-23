@@ -47,8 +47,7 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
         string memory _name,
         string memory _symbol,
         uint8 _decimals,
-        IController _controller,
-        ISyntheticToken _syntheticToken
+        IController _controller
     ) public initializer {
         require(address(_controller) != address(0), "controller-address-is-zero");
 
@@ -58,9 +57,13 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
         name = _name;
         symbol = _symbol;
         decimals = _decimals;
-        syntheticToken = _syntheticToken;
         lastBlockAccrued = block.number;
         debtIndex = 1e18;
+    }
+
+    function setSyntheticToken(ISyntheticToken _syntheticToken) external onlyGovernor {
+        require(address(syntheticToken) == address(0), "synthetic-token-already-assigned");
+        syntheticToken = _syntheticToken;
     }
 
     function totalSupply() external view override returns (uint256) {

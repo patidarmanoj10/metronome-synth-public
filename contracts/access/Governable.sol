@@ -17,7 +17,7 @@ import "../interface/IGovernable.sol";
  */
 abstract contract Governable is IGovernable, Context, Initializable {
     address public governor;
-    address private proposedGovernor;
+    address public proposedGovernor;
 
     event UpdatedGovernor(address indexed previousGovernor, address indexed proposedGovernor);
 

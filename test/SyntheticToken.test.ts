@@ -74,7 +74,8 @@ describe('SyntheticToken', function () {
     await controllerMock.updateTreasury(treasury.address, false)
 
     await vsdMET.initialize(met.address, controllerMock.address, 'vsdMET', 18, metCR, MaxUint256)
-    await vsUSDDebt.initialize('vsUSD Debt', 'vsUSD-Debt', 18, controllerMock.address, vsUSD.address)
+    await vsUSDDebt.initialize('vsUSD Debt', 'vsUSD-Debt', 18, controllerMock.address)
+    await vsUSDDebt.setSyntheticToken(vsUSD.address)
     await vsUSD.initialize(name, symbol, 18, controllerMock.address, vsUSDDebt.address, interestRate, MaxUint256)
 
     await masterOracleMock.updatePrice(vsUSD.address, toUSD('1')) // 1 vsAsset = $1

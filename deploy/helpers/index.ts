@@ -18,50 +18,6 @@ interface UpgradableContractsConfig {
   VspRewardsDistributor: ContractConfig
 }
 
-export const UpgradableContracts: UpgradableContractsConfig = {
-  MasterOracle: {alias: 'MasterOracle', contract: 'MasterOracle', adminContract: 'MasterOracleUpgrader'},
-  Controller: {alias: 'Controller', contract: 'Controller', adminContract: 'ControllerUpgrader'},
-  Treasury: {alias: 'Treasury', contract: 'Treasury', adminContract: 'TreasuryUpgrader'},
-  DepositToken: {alias: '', contract: 'DepositToken', adminContract: 'DepositTokenUpgrader'},
-  SyntheticToken: {alias: '', contract: 'SyntheticToken', adminContract: 'SyntheticTokenUpgrader'},
-  DebtToken: {alias: '', contract: 'DebtToken', adminContract: 'DebtTokenUpgrader'},
-  VspRewardsDistributor: {
-    alias: 'VspRewardsDistributor',
-    contract: 'RewardsDistributor',
-    adminContract: 'RewardsDistributorUpgrader',
-  },
-}
-
-export const deployUpgradable = async (
-  hre: HardhatRuntimeEnvironment,
-  contractConfig: ContractConfig
-): Promise<{
-  address: string
-  implementationAddress?: string | undefined
-}> => {
-  const {
-    deployments: {deploy},
-    getNamedAccounts,
-  } = hre
-
-  const {deployer} = await getNamedAccounts()
-  const {alias, contract, adminContract} = contractConfig
-
-  const {address, implementation: implementationAddress} = await deploy(alias, {
-    contract,
-    from: deployer,
-    log: true,
-    proxy: {
-      proxyContract: 'OpenZeppelinTransparentProxy',
-      viaAdminContract: adminContract,
-    },
-  })
-
-  return {address, implementationAddress}
-}
-
-const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1)
-
 interface OracleChainlinkProps {
   function: 'addOrUpdateAssetThatUsesChainlink'
   args: {aggregator: string; stalePeriod: number}
@@ -91,6 +47,80 @@ interface SyntheticDeployFunctionProps {
   oracle: OracleChainlinkProps | OracleUniV2Props | OracleUniV3Props | OracleUSDPegProps
 }
 
+interface DepositDeployFunctionProps {
+  underlyingAddress: string
+  underlyingSymbol: string
+  underlyingDecimals: number
+  collateralizationRatio: BigNumber
+  maxTotalSupplyInUsd: BigNumber
+  oracle: OracleChainlinkProps | OracleUniV2Props | OracleUniV3Props | OracleUSDPegProps
+}
+
+interface DeployUpgradableFunctionProps {
+  hre: HardhatRuntimeEnvironment
+  contractConfig: ContractConfig
+  initializeArgs: unknown[]
+}
+
+export const UpgradableContracts: UpgradableContractsConfig = {
+  MasterOracle: {alias: 'MasterOracle', contract: 'MasterOracle', adminContract: 'MasterOracleUpgrader'},
+  Controller: {alias: 'Controller', contract: 'Controller', adminContract: 'ControllerUpgrader'},
+  Treasury: {alias: 'Treasury', contract: 'Treasury', adminContract: 'TreasuryUpgrader'},
+  DepositToken: {alias: '', contract: 'DepositToken', adminContract: 'DepositTokenUpgrader'},
+  SyntheticToken: {alias: '', contract: 'SyntheticToken', adminContract: 'SyntheticTokenUpgrader'},
+  DebtToken: {alias: '', contract: 'DebtToken', adminContract: 'DebtTokenUpgrader'},
+  VspRewardsDistributor: {
+    alias: 'VspRewardsDistributor',
+    contract: 'RewardsDistributor',
+    adminContract: 'RewardsDistributorUpgrader',
+  },
+}
+
+const DefaultOracle = 'DefaultOracle'
+const {
+  DepositToken: DepositTokenConfig,
+  DebtToken: DebtTokenConfig,
+  SyntheticToken: SyntheticTokenConfig,
+  Controller: {alias: Controller},
+} = UpgradableContracts
+
+const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1)
+
+export const deployUpgradable = async ({
+  hre,
+  contractConfig,
+  initializeArgs,
+}: DeployUpgradableFunctionProps): Promise<{
+  address: string
+  implementationAddress?: string | undefined
+}> => {
+  const {
+    deployments: {deploy},
+    getNamedAccounts,
+  } = hre
+
+  const {deployer} = await getNamedAccounts()
+  const {alias, contract, adminContract} = contractConfig
+
+  const {address, implementation: implementationAddress} = await deploy(alias, {
+    contract,
+    from: deployer,
+    log: true,
+    proxy: {
+      proxyContract: 'OpenZeppelinTransparentProxy',
+      viaAdminContract: adminContract,
+      execute: {
+        init: {
+          methodName: 'initialize',
+          args: initializeArgs,
+        },
+      },
+    },
+  })
+
+  return {address, implementationAddress}
+}
+
 export const buildSyntheticDeployFunction = ({
   name,
   symbol,
@@ -104,67 +134,42 @@ export const buildSyntheticDeployFunction = ({
 
   const deployFunction: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     const {getNamedAccounts, deployments} = hre
-    const {execute, get} = deployments
+    const {execute, get, getOrNull} = deployments
     const {deployer} = await getNamedAccounts()
 
-    const {address: controllerAddress} = await get(UpgradableContracts.Controller.alias)
-    const {address: debtTokenAddress} = await deployUpgradable(hre, {
-      ...UpgradableContracts.DebtToken,
-      alias: debtAlias,
+    const {address: controllerAddress} = await get(Controller)
+    const {address: debtTokenAddress} = await deployUpgradable({
+      hre,
+      contractConfig: {
+        ...DebtTokenConfig,
+        alias: debtAlias,
+      },
+      initializeArgs: [`${name}-Debt`, `${symbol}-Debt`, decimals, controllerAddress],
     })
 
-    const {address: syntheticTokenAddress} = await deployUpgradable(hre, {
-      ...UpgradableContracts.SyntheticToken,
-      alias: syntheticAlias,
+    const wasDeployed = !!(await getOrNull(syntheticAlias))
+
+    const {address: syntheticTokenAddress} = await deployUpgradable({
+      hre,
+      contractConfig: {
+        ...SyntheticTokenConfig,
+        alias: syntheticAlias,
+      },
+      initializeArgs: [name, symbol, decimals, controllerAddress, debtTokenAddress, interestRate, maxTotalSupplyInUsd],
     })
 
-    await execute(
-      debtAlias,
-      {from: deployer, log: true},
-      'initialize',
-      `${name}-Debt`,
-      `${symbol}-Debt`,
-      decimals,
-      controllerAddress,
-      syntheticTokenAddress
-    )
-
-    await execute(
-      syntheticAlias,
-      {from: deployer, log: true},
-      'initialize',
-      name,
-      symbol,
-      decimals,
-      controllerAddress,
-      debtTokenAddress,
-      interestRate,
-      maxTotalSupplyInUsd
-    )
-
-    await execute(
-      UpgradableContracts.Controller.alias,
-      {from: deployer, log: true},
-      'addSyntheticToken',
-      syntheticTokenAddress
-    )
-
-    const oracleArgs = [syntheticTokenAddress, ...Object.values(oracle.args || {})]
-    await execute('DefaultOracle', {from: deployer, log: true}, oracle.function, ...oracleArgs)
+    if (!wasDeployed) {
+      await execute(debtAlias, {from: deployer, log: true}, 'setSyntheticToken', syntheticTokenAddress)
+      await execute(Controller, {from: deployer, log: true}, 'addSyntheticToken', syntheticTokenAddress)
+      const oracleArgs = [syntheticTokenAddress, ...Object.values(oracle.args || {})]
+      await execute(DefaultOracle, {from: deployer, log: true}, oracle.function, ...oracleArgs)
+    }
   }
 
   deployFunction.tags = [syntheticAlias]
+  deployFunction.dependencies = [DefaultOracle, Controller]
 
   return deployFunction
-}
-
-interface DepositDeployFunctionProps {
-  underlyingAddress: string
-  underlyingSymbol: string
-  underlyingDecimals: number
-  collateralizationRatio: BigNumber
-  maxTotalSupplyInUsd: BigNumber
-  oracle: OracleChainlinkProps | OracleUniV2Props | OracleUniV3Props | OracleUSDPegProps
 }
 
 export const buildDepositDeployFunction = ({
@@ -180,32 +185,53 @@ export const buildDepositDeployFunction = ({
 
   const deployFunction: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     const {getNamedAccounts, deployments} = hre
-    const {execute, get} = deployments
+    const {execute, get, getOrNull} = deployments
     const {deployer} = await getNamedAccounts()
 
-    const {address: controllerAddress} = await get(UpgradableContracts.Controller.alias)
+    const {address: controllerAddress} = await get(Controller)
 
-    const {address: vsdAddress} = await deployUpgradable(hre, {...UpgradableContracts.DepositToken, alias})
+    const wasDeployed = !!(await getOrNull(alias))
 
-    await execute(
-      alias,
-      {from: deployer, log: true},
-      'initialize',
-      underlyingAddress,
-      controllerAddress,
-      symbol,
-      underlyingDecimals,
-      collateralizationRatio,
-      maxTotalSupplyInUsd
-    )
+    const {address: vsdAddress} = await deployUpgradable({
+      hre,
+      contractConfig: {...DepositTokenConfig, alias},
+      initializeArgs: [
+        underlyingAddress,
+        controllerAddress,
+        symbol,
+        underlyingDecimals,
+        collateralizationRatio,
+        maxTotalSupplyInUsd,
+      ],
+    })
 
-    await execute(UpgradableContracts.Controller.alias, {from: deployer, log: true}, 'addDepositToken', vsdAddress)
-
-    const oracleArgs = [vsdAddress, ...Object.values(oracle.args || {})]
-    await execute('DefaultOracle', {from: deployer, log: true}, oracle.function, ...oracleArgs)
+    if (!wasDeployed) {
+      await execute(Controller, {from: deployer, log: true}, 'addDepositToken', vsdAddress)
+      const oracleArgs = [vsdAddress, ...Object.values(oracle.args || {})]
+      await execute(DefaultOracle, {from: deployer, log: true}, oracle.function, ...oracleArgs)
+    }
   }
 
   deployFunction.tags = [alias]
+  deployFunction.dependencies = [DefaultOracle, Controller]
 
   return deployFunction
+}
+
+export const transferGovernorshipIfNeeded = async (
+  hre: HardhatRuntimeEnvironment,
+  contractAlias: string
+): Promise<void> => {
+  const {getNamedAccounts, deployments} = hre
+  const {execute, read} = deployments
+  const {deployer, governor} = await getNamedAccounts()
+
+  const current = await Promise.all([
+    await read(contractAlias, 'governor'),
+    await read(contractAlias, 'proposedGovernor'),
+  ])
+
+  if (!current.includes(governor)) {
+    await execute(contractAlias, {from: deployer, log: true}, 'transferGovernorship', governor)
+  }
 }
