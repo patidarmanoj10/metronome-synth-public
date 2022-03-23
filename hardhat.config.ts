@@ -9,6 +9,7 @@ import 'hardhat-contract-sizer'
 import '@typechain/hardhat'
 import 'hardhat-spdx-license-identifier'
 import '@nomiclabs/hardhat-etherscan'
+import './tasks/create-release'
 import dotenv from 'dotenv'
 
 dotenv.config()
