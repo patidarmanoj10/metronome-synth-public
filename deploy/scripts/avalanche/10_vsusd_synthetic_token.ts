@@ -9,7 +9,6 @@ const func = buildSyntheticDeployFunction({
   interestRate: parseEther('0'), // 0%
   maxTotalSupplyInUsd: toUSD('50000'),
   oracle: {function: 'addOrUpdateUsdAsset'},
-  salt: '0x02',
 })
 
 export default func

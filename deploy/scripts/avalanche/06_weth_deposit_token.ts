@@ -3,22 +3,21 @@ import Address from '../../../helpers/address'
 import {parseEther} from 'ethers/lib/utils'
 import {toUSD} from '../../../helpers'
 
-const {USDT_ADDRESS, USDT_USD_CHAINLINK_AGGREGATOR_ADDRESS} = Address
+const {WETH_ADDRESS, ETH_USD_CHAINLINK_AGGREGATOR_ADDRESS} = Address
 
 const func = buildDepositDeployFunction({
-  underlyingAddress: USDT_ADDRESS,
-  underlyingSymbol: 'USDT',
-  underlyingDecimals: 6,
+  underlyingAddress: WETH_ADDRESS,
+  underlyingSymbol: 'WETH',
+  underlyingDecimals: 18,
   collateralizationRatio: parseEther('0.5'), // 50%
   maxTotalSupplyInUsd: toUSD('100000'),
   oracle: {
     function: 'addOrUpdateAssetThatUsesChainlink',
     args: {
-      aggregator: USDT_USD_CHAINLINK_AGGREGATOR_ADDRESS,
-      stalePeriod: 60 * 60 * 24, // 24h
+      aggregator: ETH_USD_CHAINLINK_AGGREGATOR_ADDRESS,
+      stalePeriod: 60 * 60 * 6, // 6h
     },
   },
-  salt: '0x05',
 })
 
 export default func

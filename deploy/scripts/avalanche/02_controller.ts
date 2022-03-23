@@ -1,9 +1,12 @@
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
-import {UpgradableContracts, deterministic} from '../../helpers'
+import {UpgradableContracts, deployUpgradable} from '../../helpers'
 
-const {alias: Controller} = UpgradableContracts.Controller
 const MasterOracle = 'MasterOracle'
+const {
+  Controller: {alias: Controller},
+  Treasury: {alias: Treasury},
+} = UpgradableContracts
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {getNamedAccounts, deployments} = hre
@@ -12,11 +15,11 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   const masterOracle = await get(MasterOracle)
 
-  const {address: treasuryAddress} = await deterministic(hre, UpgradableContracts.Treasury)
+  const {address: controllerAddress} = await deployUpgradable(hre, UpgradableContracts.Controller)
 
-  const {deploy} = await deterministic(hre, UpgradableContracts.Controller)
-  await deploy()
+  const {address: treasuryAddress} = await deployUpgradable(hre, UpgradableContracts.Treasury)
 
+  await execute(Treasury, {from: deployer, log: true}, 'initialize', controllerAddress)
   await execute(Controller, {from: deployer, log: true}, 'initialize', masterOracle.address, treasuryAddress)
   await execute(Controller, {from: deployer, log: true}, 'transferGovernorship', governor)
 }

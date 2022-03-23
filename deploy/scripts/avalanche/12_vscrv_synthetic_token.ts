@@ -18,7 +18,6 @@ const func = buildSyntheticDeployFunction({
       stalePeriod: 60 * 60 * 12, // 6h
     },
   },
-  salt: '0x04',
 })
 
 export default func

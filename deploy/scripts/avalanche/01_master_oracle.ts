@@ -1,6 +1,6 @@
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
-import {UpgradableContracts, deterministic} from '../../helpers'
+import {UpgradableContracts, deployUpgradable} from '../../helpers'
 
 const DefaultOracle = 'DefaultOracle'
 const {alias: MasterOracle} = UpgradableContracts.MasterOracle
@@ -12,8 +12,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   const defaultOracle = await get(DefaultOracle)
 
-  const {deploy} = await deterministic(hre, UpgradableContracts.MasterOracle)
-  await deploy()
+  await deployUpgradable(hre, UpgradableContracts.MasterOracle)
 
   await execute(MasterOracle, {from: deployer, log: true}, 'initialize', [], [], defaultOracle.address)
   await execute(MasterOracle, {from: deployer, log: true}, 'transferGovernorship', governor)
