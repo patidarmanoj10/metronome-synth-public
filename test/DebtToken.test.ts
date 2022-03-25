@@ -66,7 +66,8 @@ describe('DebtToken', function () {
     debtToken = await debtTokenMockFactory.deploy()
     await debtToken.deployed()
 
-    await debtToken.initialize(name, symbol, 18, controllerMock.address, syntheticToken.address)
+    await debtToken.initialize(name, symbol, 18, controllerMock.address)
+    await debtToken.setSyntheticToken(syntheticToken.address)
 
     await syntheticToken.initialize(
       'Vesper Synth ETH',

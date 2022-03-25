@@ -15,6 +15,7 @@ import dotenv from 'dotenv'
 dotenv.config()
 
 const accounts = process.env.MNEMONIC ? {mnemonic: process.env.MNEMONIC} : undefined
+const deployer = process.env.DEPLOYER || 0
 
 const config: HardhatUserConfig = {
   defaultNetwork: 'hardhat',
@@ -52,8 +53,8 @@ const config: HardhatUserConfig = {
     deploy: 'deploy/scripts/avalanche',
   },
   namedAccounts: {
-    deployer: process.env.DEPLOYER || 0,
-    governor: process.env.GOVERNOR || 1,
+    deployer,
+    governor: process.env.GOVERNOR || deployer,
   },
   contractSizer: {
     alphaSort: true,

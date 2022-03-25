@@ -45,7 +45,6 @@ const {USDC_ADDRESS, NATIVE_TOKEN_ADDRESS, WAVAX_ADDRESS} = Address
 
 describe('Deployments', function () {
   let deployer: SignerWithAddress
-  let governor: SignerWithAddress
   let chainlinkPriceProvider: ChainlinkPriceProvider
   let defaultOracle: DefaultOracle
   let masterOracle: MasterOracle
@@ -72,7 +71,7 @@ describe('Deployments', function () {
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
-    ;[deployer, governor] = await ethers.getSigners()
+    ;[deployer] = await ethers.getSigners()
 
     const {
       ChainlinkPriceProvider: {address: chainlinkPriceProviderAddress},
@@ -162,10 +161,8 @@ describe('Deployments', function () {
       }
 
       expect(await defaultOracle.providerByProtocol(Protocol.CHAINLINK)).eq(chainlinkPriceProvider.address)
-
       expect(await defaultOracle.governor()).eq(deployer.address)
-      await defaultOracle.connect(governor).acceptGovernorship()
-      expect(await defaultOracle.governor()).eq(governor.address)
+      expect(await defaultOracle.proposedGovernor()).eq(ethers.constants.AddressZero)
     })
   })
 
@@ -173,8 +170,7 @@ describe('Deployments', function () {
     it('should have correct params', async function () {
       expect(await masterOracle.defaultOracle()).eq(defaultOracle.address)
       expect(await masterOracle.governor()).eq(deployer.address)
-      await masterOracle.connect(governor).acceptGovernorship()
-      expect(await masterOracle.governor()).eq(governor.address)
+      expect(await masterOracle.proposedGovernor()).eq(ethers.constants.AddressZero)
     })
 
     it('should upgrade implementation', async function () {
@@ -201,8 +197,7 @@ describe('Deployments', function () {
       expect(await controller.treasury()).eq(treasury.address)
       expect(await controller.masterOracle()).eq(masterOracle.address)
       expect(await controller.governor()).eq(deployer.address)
-      await controller.connect(governor).acceptGovernorship()
-      expect(await controller.governor()).eq(governor.address)
+      expect(await controller.proposedGovernor()).eq(ethers.constants.AddressZero)
     })
 
     it('should upgrade implementation', async function () {
@@ -243,10 +238,8 @@ describe('Deployments', function () {
   describe('NativeTokenGateway', function () {
     it('should have correct params', async function () {
       expect(await wethGateway.nativeToken()).eq(NATIVE_TOKEN_ADDRESS)
-
-      expect(await controller.governor()).eq(deployer.address)
-      await defaultOracle.connect(governor).acceptGovernorship()
-      expect(await defaultOracle.governor()).eq(governor.address)
+      expect(await wethGateway.governor()).eq(deployer.address)
+      expect(await wethGateway.proposedGovernor()).eq(ethers.constants.AddressZero)
     })
   })
 
