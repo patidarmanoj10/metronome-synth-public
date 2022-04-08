@@ -11,7 +11,7 @@ import "../interface/oracle/IPriceProvider.sol";
  * @title Oracle contract that encapsulates 3rd-party protocols' oracles
  */
 contract DefaultOracle is IOracle, Governable {
-    uint256 public constant ONE_USD = 1 ether;
+    uint256 public constant ONE_USD = 1e18;
 
     /**
      * @notice The supported protocols

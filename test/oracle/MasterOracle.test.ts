@@ -106,6 +106,18 @@ describe('MasterOracle', function () {
         .withArgs(vsBTC.address, btcOracle.address, defaultOracle.address)
       expect(await masterOracle.oracles(vsBTC.address)).eq(defaultOracle.address)
     })
+
+    it('should remove an oracle (i.e. set zero address)', async function () {
+      // given
+      expect(await masterOracle.oracles(vsBTC.address)).eq(btcOracle.address)
+
+      // when
+      const tx = masterOracle.addOrUpdate([vsBTC.address], [AddressZero])
+
+      // then
+      await expect(tx).emit(masterOracle, 'OracleUpdated').withArgs(vsBTC.address, btcOracle.address, AddressZero)
+      expect(await masterOracle.oracles(vsBTC.address)).eq(AddressZero)
+    })
   })
 
   describe('setDefaultOracle', function () {
