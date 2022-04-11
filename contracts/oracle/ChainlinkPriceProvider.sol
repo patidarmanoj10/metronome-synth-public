@@ -13,14 +13,18 @@ import "../interface/oracle/IPriceProvider.sol";
  */
 contract ChainlinkPriceProvider is IPriceProvider {
     /**
+     * @notice Used to convert 8-decimals from Chainlink to 18-decimals values
+     */
+    uint256 public constant TEN_DECIMALS = 1e10;
+
+    /**
      * @notice Get price from an aggregator
      * @param _aggregator The aggregator contract address
      * @return The price (18-decimals) and its timestamp
      */
     function _getPriceOfAsset(address _aggregator) private view returns (uint256, uint256) {
         (, int256 _price, , uint256 _lastUpdatedAt, ) = AggregatorV3Interface(_aggregator).latestRoundData();
-        uint256 _priceInWei = SafeCast.toUint256(_price) * 1e10; // chainlink returns price with 8 decimals
-        return (_priceInWei, _lastUpdatedAt);
+        return (SafeCast.toUint256(_price) * TEN_DECIMALS, _lastUpdatedAt);
     }
 
     /**
