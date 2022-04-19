@@ -27,6 +27,7 @@ describe('SyntheticToken', function () {
   let deployer: SignerWithAddress
   let governor: SignerWithAddress
   let user: SignerWithAddress
+  let otherUser: SignerWithAddress
   let treasury: SignerWithAddress
   let controllerMock: ControllerMock
   let met: ERC20Mock
@@ -42,7 +43,7 @@ describe('SyntheticToken', function () {
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
-    ;[deployer, governor, user, treasury] = await ethers.getSigners()
+    ;[deployer, governor, user, otherUser, treasury] = await ethers.getSigners()
 
     const masterOracleMockFactory = new MasterOracleMock__factory(deployer)
     masterOracleMock = <MasterOracleMock>await masterOracleMockFactory.deploy()
@@ -357,50 +358,66 @@ describe('SyntheticToken', function () {
           // given
           const repayFee = parseEther('0.1') // 10%
           await controllerMock.updateRepayFee(repayFee)
-          const {_depositInUsd: depositInUsdBefore} = await controllerMock.debtPositionOf(user.address)
-          const lockedCollateralBefore = await vsdMET.lockedBalanceOf(user.address)
-          expect(lockedCollateralBefore).gt(0)
+          const {_debtInUsd: debtInUsdBefore} = await controllerMock.debtPositionOf(user.address)
+          const vsUsdBefore = await vsUSD.balanceOf(user.address)
+          expect(vsUsdBefore).eq(debtInUsdBefore)
 
           // when
-          const amount = await vsUSD.balanceOf(user.address)
-          const expectedFee = amount.mul(repayFee).div(parseEther('1'))
+          const amount = vsUsdBefore
+          const debtToErase = amount.mul(parseEther('1')).div(parseEther('1').add(repayFee))
+          const expectedFee = amount.sub(debtToErase).sub(1)
           const tx = vsUSD.connect(user).repay(user.address, amount)
           await expect(tx).emit(vsUSD, 'DebtRepayed').withArgs(user.address, amount, expectedFee)
 
           // then
           expect(await vsUSD.balanceOf(user.address)).eq(0)
-          const {_depositInUsd: depositInUsdAfter} = await controllerMock.debtPositionOf(user.address)
-          const lockedCollateralAfter = await vsdMET.lockedBalanceOf(user.address)
-          const expectedLockedCollateralAfter = lockedCollateralBefore.mul(repayFee).div(parseEther('1'))
-          expect(lockedCollateralAfter).closeTo(expectedLockedCollateralAfter, parseEther('0.000000001'))
-          expect(depositInUsdAfter).eq(depositInUsdBefore)
+          const {_debtInUsd: debtInUsdAfter} = await controllerMock.debtPositionOf(user.address)
+          expect(debtInUsdAfter).eq(expectedFee)
         })
 
         it('should repay if amount < debt (repayFee > 0)', async function () {
           // given
           const repayFee = parseEther('0.1') // 10%
           await controllerMock.updateRepayFee(repayFee)
-          const {_depositInUsd: depositInUsdBefore} = await controllerMock.debtPositionOf(user.address)
-          const lockedDepositBefore = await vsdMET.lockedBalanceOf(user.address)
-          expect(lockedDepositBefore).gt(0)
-          expect(depositInUsdBefore).gt(0)
+          const {_debtInUsd: debtInUsdBefore} = await controllerMock.debtPositionOf(user.address)
+          const vsUsdBefore = await vsUSD.balanceOf(user.address)
+          expect(vsUsdBefore).eq(debtInUsdBefore)
 
           // when
-          const amount = (await vsUSD.balanceOf(user.address)).div('2')
-          const expectedFee = amount.mul(repayFee).div(parseEther('1'))
+          const halfBalance = vsUsdBefore.div('2')
+          const amount = halfBalance
+          const debtToErase = amount.mul(parseEther('1')).div(parseEther('1').add(repayFee))
+          const expectedFee = amount.sub(debtToErase)
           const tx = vsUSD.connect(user).repay(user.address, amount)
           await expect(tx).emit(vsUSD, 'DebtRepayed').withArgs(user.address, amount, expectedFee)
 
           // then
-          expect(await vsUSD.balanceOf(user.address)).eq(amount)
-          const {_depositInUsd: depositInUsdAfter} = await controllerMock.debtPositionOf(user.address)
-          const lockedDepositAfter = await vsdMET.lockedBalanceOf(user.address)
-          const expectedlockedDepositAfter = lockedDepositBefore
-            .div('2')
-            .mul(parseEther('1').add(repayFee))
-            .div(parseEther('1'))
-          expect(lockedDepositAfter).closeTo(expectedlockedDepositAfter, parseEther('0.000000001'))
-          expect(depositInUsdAfter).eq(depositInUsdBefore)
+          const vsUsdAfter = await vsUSD.balanceOf(user.address)
+          expect(vsUsdAfter).eq(halfBalance)
+          const {_debtInUsd: debtInUsdAfter} = await controllerMock.debtPositionOf(user.address)
+          expect(debtInUsdAfter).eq(halfBalance.add(expectedFee))
+        })
+
+        it('should repay all debt (repayFee > 0)', async function () {
+          // given
+          const repayFee = parseEther('0.1') // 10%
+          await controllerMock.updateRepayFee(repayFee)
+
+          await met.mint(otherUser.address, parseEther('1000'))
+          await met.connect(otherUser).approve(vsdMET.address, ethers.constants.MaxUint256)
+          await vsdMET.connect(otherUser).deposit(depositAmount, otherUser.address)
+          await vsUSD.connect(otherUser).issue(parseEther('1'), user.address)
+
+          const {_debtInUsd: debtBefore} = await controllerMock.debtPositionOf(user.address)
+          expect(debtBefore).gt(0)
+
+          // when
+          const amount = debtBefore.mul(parseEther('1').add(repayFee)).div(parseEther('1'))
+          await vsUSD.connect(user).repay(user.address, amount)
+
+          // then
+          const {_debtInUsd: debtAfter} = await controllerMock.debtPositionOf(user.address)
+          expect(debtAfter).eq(0)
         })
       })
     })
