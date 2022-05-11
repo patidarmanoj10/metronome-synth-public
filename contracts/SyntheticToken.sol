@@ -49,7 +49,6 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
         uint256 _maxTotalSupplyInUsd
     ) public initializer {
         require(address(_debtToken) != address(0), "debt-token-is-null");
-        require(_decimals == _debtToken.decimals(), "debt-decimals-is-not-the-same");
         require(address(_controller) != address(0), "controller-address-is-zero");
 
         __Manageable_init();

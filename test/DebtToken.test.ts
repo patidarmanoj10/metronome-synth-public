@@ -18,7 +18,7 @@ import {BigNumber} from 'ethers'
 
 chai.use(smock.matchers)
 
-const {MaxUint256} = ethers.constants
+const {MaxUint256, AddressZero} = ethers.constants
 
 let BLOCKS_PER_YEAR: BigNumber
 
@@ -66,9 +66,6 @@ describe('DebtToken', function () {
     debtToken = await debtTokenMockFactory.deploy()
     await debtToken.deployed()
 
-    await debtToken.initialize(name, symbol, 18, controllerMock.address)
-    await debtToken.setSyntheticToken(syntheticToken.address)
-
     await syntheticToken.initialize(
       'Vesper Synth ETH',
       'vsETH',
@@ -78,6 +75,9 @@ describe('DebtToken', function () {
       interestRate,
       MaxUint256
     )
+
+    await debtToken.initialize(name, symbol, 18, controllerMock.address)
+    await debtToken.setSyntheticToken(syntheticToken.address)
 
     // eslint-disable-next-line new-cap
     BLOCKS_PER_YEAR = await syntheticToken.BLOCKS_PER_YEAR()
@@ -391,6 +391,73 @@ describe('DebtToken', function () {
       // then
       const totalDebt = await debtToken.totalSupply()
       expect(totalDebt).closeTo(parseEther('110'), parseEther('0.1'))
+    })
+  })
+
+  describe('setSyntheticToken', function () {
+    let syntheticTokenFake: FakeContract
+
+    beforeEach(async function () {
+      syntheticTokenFake = await smock.fake('SyntheticToken')
+
+      const debtTokenMockFactory = new DebtTokenMock__factory(deployer)
+      debtToken = await debtTokenMockFactory.deploy()
+      await debtToken.deployed()
+      await debtToken.initialize(name, symbol, 18, controllerMock.address)
+
+      expect(await debtToken.syntheticToken()).eq(AddressZero)
+    })
+
+    it('should revert if not governor', async function () {
+      const tx = debtToken.connect(user1).setSyntheticToken(syntheticTokenFake.address)
+      await expect(tx).revertedWith('not-governor')
+    })
+
+    it('should revert if address is null', async function () {
+      const tx = debtToken.setSyntheticToken(AddressZero)
+      await expect(tx).revertedWith('synthetic-is-null')
+    })
+
+    it('should revert if synthetic token is not pointing to the debt token', async function () {
+      // given
+      syntheticTokenFake.debtToken.returns(() => user1.address)
+
+      // when-then
+      const tx = debtToken.setSyntheticToken(syntheticTokenFake.address)
+      await expect(tx).revertedWith('invalid-synthetic-debt-token')
+    })
+
+    it('should revert if decimals are not the same', async function () {
+      // given
+      syntheticTokenFake.debtToken.returns(() => debtToken.address)
+      syntheticTokenFake.decimals.returns(() => 4)
+
+      // when-then
+      const tx = debtToken.setSyntheticToken(syntheticTokenFake.address)
+      await expect(tx).revertedWith('invalid-synthetic-decimals')
+    })
+
+    it('should revert if already assigned', async function () {
+      // given
+      syntheticTokenFake.debtToken.returns(() => debtToken.address)
+      syntheticTokenFake.decimals.returns(() => 18)
+      await debtToken.setSyntheticToken(syntheticTokenFake.address)
+
+      // when-then
+      const tx = debtToken.setSyntheticToken(syntheticTokenFake.address)
+      await expect(tx).revertedWith('synthetic-already-assigned')
+    })
+
+    it('should  set synthetic token', async function () {
+      // given
+      syntheticTokenFake.debtToken.returns(() => debtToken.address)
+      syntheticTokenFake.decimals.returns(() => 18)
+
+      // when
+      await debtToken.setSyntheticToken(syntheticTokenFake.address)
+
+      // then
+      expect(await debtToken.syntheticToken()).eq(syntheticTokenFake.address)
     })
   })
 })

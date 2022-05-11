@@ -224,6 +224,6 @@ contract UniswapV2LikePriceProvider is IPriceProvider, Governable {
         uint256 _amount = 10**_decimals;
         uint256 _ethAmount = _token == NATIVE_TOKEN ? _amount : _getAmountOut(_token, _token, _amount);
         _priceInUsd = OracleHelpers.normalizeUsdOutput(usdToken, _getAmountOut(usdToken, NATIVE_TOKEN, _ethAmount));
-        _lastUpdatedAt = oracleDataOf[usdToken].blockTimestampLast;
+        _lastUpdatedAt = Math.min(oracleDataOf[usdToken].blockTimestampLast, oracleDataOf[_token].blockTimestampLast);
     }
 }
