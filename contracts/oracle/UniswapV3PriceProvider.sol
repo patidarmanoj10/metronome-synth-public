@@ -79,10 +79,9 @@ contract UniswapV3PriceProvider is IPriceProvider, Governable {
         returns (uint256 _priceInUsd, uint256 _lastUpdatedAt)
     {
         address _token = _decode(_encodedTokenAddress);
-        uint256 _amount = 10**IERC20Metadata(_token).decimals();
         _priceInUsd = OracleHelpers.normalizeUsdOutput(
             usdToken,
-            crossPoolOracle.assetToAsset(_token, _amount, usdToken, twapPeriod)
+            crossPoolOracle.assetToAsset(_token, 10**IERC20Metadata(_token).decimals(), usdToken, twapPeriod)
         );
         _lastUpdatedAt = block.timestamp;
     }
