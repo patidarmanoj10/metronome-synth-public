@@ -15,7 +15,7 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
 
     string public constant VERSION = "1.0.0";
 
-    uint256 public constant BLOCKS_PER_YEAR = 2336000;
+    uint256 public constant SECONDS_PER_YEAR = 365 days;
 
     /// @notice Emitted when synthetic token is issued
     event SyntheticTokenIssued(address indexed account, address indexed to, uint256 amount, uint256 fee);
@@ -72,8 +72,8 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
     /// @notice Emitted when interest rate is updated
     event InterestRateUpdated(uint256 oldInterestRate, uint256 newInterestRate);
 
-    function interestRatePerBlock() external view virtual override returns (uint256) {
-        return interestRate / BLOCKS_PER_YEAR;
+    function interestRatePerSecond() external view virtual override returns (uint256) {
+        return interestRate / SECONDS_PER_YEAR;
     }
 
     function transfer(address recipient, uint256 amount) external override returns (bool) {

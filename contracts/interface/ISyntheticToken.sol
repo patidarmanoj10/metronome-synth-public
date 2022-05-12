@@ -13,7 +13,7 @@ interface ISyntheticToken is IERC20, IERC20Metadata {
 
     function interestRate() external view returns (uint256);
 
-    function interestRatePerBlock() external view returns (uint256);
+    function interestRatePerSecond() external view returns (uint256);
 
     function debtToken() external view returns (IDebtToken);
 

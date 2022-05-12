@@ -12,7 +12,7 @@ contract DebtTokenUpgrader is UpgraderBase {
     function _calls() internal pure override returns (bytes[] memory calls) {
         calls = new bytes[](7);
         calls[0] = abi.encodeWithSignature("totalSupply()");
-        calls[1] = abi.encodeWithSignature("lastBlockAccrued()");
+        calls[1] = abi.encodeWithSignature("lastTimestampAccrued()");
         calls[2] = abi.encodeWithSignature("debtIndex()");
         calls[3] = abi.encodeWithSignature("decimals()");
         calls[4] = abi.encodeWithSignature("name()");

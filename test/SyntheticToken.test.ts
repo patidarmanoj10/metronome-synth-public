@@ -7,8 +7,8 @@ import {ethers} from 'hardhat'
 import {
   SyntheticToken,
   SyntheticToken__factory,
-  DebtTokenMock,
-  DebtTokenMock__factory,
+  DebtToken,
+  DebtToken__factory,
   MasterOracleMock__factory,
   MasterOracleMock,
   ControllerMock,
@@ -21,7 +21,7 @@ import {
 import {toUSD} from '../helpers'
 
 const {MaxUint256} = ethers.constants
-import {impersonateAccount} from './helpers'
+import {impersonateAccount, increaseTime} from './helpers'
 
 describe('SyntheticToken', function () {
   let deployer: SignerWithAddress
@@ -33,7 +33,7 @@ describe('SyntheticToken', function () {
   let met: ERC20Mock
   let vsdMET: DepositToken
   let vsUSD: SyntheticToken
-  let vsUSDDebt: DebtTokenMock
+  let vsUSDDebt: DebtToken
   let masterOracleMock: MasterOracleMock
 
   const metCR = parseEther('0.5') // 50%
@@ -57,7 +57,7 @@ describe('SyntheticToken', function () {
     vsdMET = await depositTokenFactory.deploy()
     await vsdMET.deployed()
 
-    const debtTokenFactory = new DebtTokenMock__factory(deployer)
+    const debtTokenFactory = new DebtToken__factory(deployer)
     vsUSDDebt = await debtTokenFactory.deploy()
     await vsUSDDebt.deployed()
 
@@ -556,7 +556,7 @@ describe('SyntheticToken', function () {
       await vsUSDDebt.connect(vsUSDWallet).mint(user.address, principal)
 
       // eslint-disable-next-line new-cap
-      await vsUSDDebt.incrementBlockNumber(await vsUSD.BLOCKS_PER_YEAR())
+      await increaseTime(await vsUSD.SECONDS_PER_YEAR())
 
       // when
       await vsUSD.accrueInterest()

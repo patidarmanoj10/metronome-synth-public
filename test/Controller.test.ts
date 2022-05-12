@@ -19,8 +19,8 @@ import {
   Treasury__factory,
   Controller__factory,
   Controller,
-  DebtTokenMock,
-  DebtTokenMock__factory,
+  DebtToken,
+  DebtToken__factory,
 } from '../typechain'
 import {getMaxLiquidationAmountInUsd, getMinLiquidationAmountInUsd, setEtherBalance} from './helpers'
 import {FakeContract, smock} from '@defi-wonderland/smock'
@@ -64,12 +64,12 @@ async function fixture() {
   const vsdDAI = await depositTokenFactory.deploy()
   await vsdDAI.deployed()
 
-  const debtTokenMockFactory = new DebtTokenMock__factory(deployer)
+  const debtTokenFactory = new DebtToken__factory(deployer)
 
-  const vsETHDebt = await debtTokenMockFactory.deploy()
+  const vsETHDebt = await debtTokenFactory.deploy()
   await vsETHDebt.deployed()
 
-  const vsDOGEDebt = await debtTokenMockFactory.deploy()
+  const vsDOGEDebt = await debtTokenFactory.deploy()
   await vsDOGEDebt.deployed()
 
   const syntheticTokenFactory = new SyntheticToken__factory(deployer)
@@ -158,8 +158,8 @@ describe('Controller', function () {
   let liquidator: SignerWithAddress
   let met: ERC20Mock
   let dai: ERC20Mock
-  let vsEthDebtToken: DebtTokenMock
-  let vsDogeDebtToken: DebtTokenMock
+  let vsEthDebtToken: DebtToken
+  let vsDogeDebtToken: DebtToken
   let vsEth: SyntheticToken
   let vsDoge: SyntheticToken
   let treasury: Treasury
@@ -1143,8 +1143,8 @@ describe('Controller', function () {
     describe('removeSyntheticToken', function () {
       it('should remove synthetic token', async function () {
         // given
-        const debtTokenMockFactory = new DebtTokenMock__factory(deployer)
-        const debtToken = await debtTokenMockFactory.deploy()
+        const debtTokenFactory = new DebtToken__factory(deployer)
+        const debtToken = await debtTokenFactory.deploy()
 
         const syntheticTokenFactory = new SyntheticToken__factory(deployer)
         const vsAsset = await syntheticTokenFactory.deploy()
