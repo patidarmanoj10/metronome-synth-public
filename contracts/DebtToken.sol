@@ -62,7 +62,10 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
     }
 
     function setSyntheticToken(ISyntheticToken _syntheticToken) external onlyGovernor {
-        require(address(syntheticToken) == address(0), "synthetic-token-already-assigned");
+        require(address(_syntheticToken) != address(0), "synthetic-is-null");
+        require(address(syntheticToken) == address(0), "synthetic-already-assigned");
+        require(_syntheticToken.debtToken() == this, "invalid-synthetic-debt-token");
+        require(decimals == _syntheticToken.decimals(), "invalid-synthetic-decimals");
         syntheticToken = _syntheticToken;
     }
 

@@ -287,22 +287,21 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
         _syntheticToken.accrueInterest();
 
-        require(
-            _amountToRepay.wadDiv(_syntheticToken.debtToken().balanceOf(_account)) <= maxLiquidable,
-            "amount-gt-max-liquidable"
-        );
+        (bool _isHealthy, , , , ) = debtPositionOf(_account);
+
+        require(!_isHealthy, "position-is-healthy");
+
+        IDebtToken _debtToken = _syntheticToken.debtToken();
+
+        require(_amountToRepay.wadDiv(_debtToken.balanceOf(_account)) <= maxLiquidable, "amount-gt-max-liquidable");
 
         if (debtFloorInUsd > 0) {
             uint256 _newDebtInUsd = masterOracle.convertToUsd(
                 _syntheticToken,
-                _syntheticToken.debtToken().balanceOf(_account) - _amountToRepay
+                _debtToken.balanceOf(_account) - _amountToRepay
             );
             require(_newDebtInUsd == 0 || _newDebtInUsd >= debtFloorInUsd, "debt-lt-floor");
         }
-
-        (bool _isHealthy, , , , ) = debtPositionOf(_account);
-
-        require(!_isHealthy, "position-is-healthy");
 
         uint256 _amountToRepayInCollateral = masterOracle.convert(_syntheticToken, _depositToken, _amountToRepay);
 
@@ -315,7 +314,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
         require(_depositToSeize <= _depositToken.balanceOf(_account), "amount-too-high");
 
         _syntheticToken.burn(_liquidator, _amountToRepay);
-        _syntheticToken.debtToken().burn(_account, _amountToRepay);
+        _debtToken.burn(_account, _amountToRepay);
         _depositToken.seize(_account, _liquidator, _toLiquidator);
 
         if (_toProtocol > 0) {
