@@ -400,8 +400,8 @@ describe('DebtToken', function () {
     beforeEach(async function () {
       syntheticTokenFake = await smock.fake('SyntheticToken')
 
-      const debtTokenMockFactory = new DebtTokenMock__factory(deployer)
-      debtToken = await debtTokenMockFactory.deploy()
+      const debtTokenFactory = new DebtToken__factory(deployer)
+      debtToken = await debtTokenFactory.deploy()
       await debtToken.deployed()
       await debtToken.initialize(name, symbol, 18, controllerMock.address)
 
