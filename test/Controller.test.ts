@@ -91,9 +91,6 @@ async function fixture() {
 
   await treasury.initialize(controller.address)
 
-  await vsETHDebt.initialize('vsETH Debt', 'vsETH-Debt', 18, controller.address)
-  await vsETHDebt.setSyntheticToken(vsEth.address)
-
   await vsEth.initialize(
     'Vesper Synth ETH',
     'vsETH',
@@ -104,8 +101,8 @@ async function fixture() {
     MaxUint256
   )
 
-  await vsDOGEDebt.initialize('vsDOGE Debt', 'vsDOGE-Debt', 18, controller.address)
-  await vsDOGEDebt.setSyntheticToken(vsDoge.address)
+  await vsETHDebt.initialize('vsETH Debt', 'vsETH-Debt', 18, controller.address)
+  await vsETHDebt.setSyntheticToken(vsEth.address)
 
   await vsDoge.initialize(
     'Vesper Synth DOGE',
@@ -116,6 +113,9 @@ async function fixture() {
     interestRate,
     MaxUint256
   )
+
+  await vsDOGEDebt.initialize('vsDOGE Debt', 'vsDOGE-Debt', 18, controller.address)
+  await vsDOGEDebt.setSyntheticToken(vsDoge.address)
 
   await controller.initialize(masterOracleMock.address)
   await controller.updateTreasury(treasury.address, false)
@@ -1148,9 +1148,6 @@ describe('Controller', function () {
 
         const syntheticTokenFactory = new SyntheticToken__factory(deployer)
         const vsAsset = await syntheticTokenFactory.deploy()
-
-        await debtToken.initialize('Vesper Synth BTC debt', 'vsBTC-Debt', 8, controller.address)
-        await debtToken.setSyntheticToken(vsAsset.address)
         await vsAsset.initialize(
           'Vesper Synth BTC',
           'vsBTC',
@@ -1160,6 +1157,9 @@ describe('Controller', function () {
           interestRate,
           MaxUint256
         )
+
+        await debtToken.initialize('Vesper Synth BTC debt', 'vsBTC-Debt', 8, controller.address)
+        await debtToken.setSyntheticToken(vsAsset.address)
 
         expect(await vsAsset.totalSupply()).eq(0)
         await controller.addSyntheticToken(vsAsset.address)
