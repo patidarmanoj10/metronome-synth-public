@@ -2,6 +2,7 @@
 
 pragma solidity 0.8.9;
 
+import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./access/Governable.sol";
 import "./interface/external/IWETH.sol";
 import "./interface/INativeTokenGateway.sol";
@@ -10,7 +11,7 @@ import "./interface/IDepositToken.sol";
 /**
  * @title Helper contract to easily support native tokens (e.g. ETH/AVAX) as collateral
  */
-contract NativeTokenGateway is Governable, INativeTokenGateway {
+contract NativeTokenGateway is ReentrancyGuard, Governable, INativeTokenGateway {
     using SafeERC20 for IERC20;
     using SafeERC20 for IWETH;
     using SafeERC20 for IDepositToken;
@@ -37,7 +38,7 @@ contract NativeTokenGateway is Governable, INativeTokenGateway {
      * @param _controller The Controller contract
      * @param _amount The amount of deposit tokens to withdraw and receive native ETH
      */
-    function withdraw(IController _controller, uint256 _amount) external override {
+    function withdraw(IController _controller, uint256 _amount) external override nonReentrant {
         IDepositToken _vsdToken = _controller.depositTokenOf(nativeToken);
         _vsdToken.safeTransferFrom(_msgSender(), address(this), _amount);
         _vsdToken.withdraw(_amount, address(this));

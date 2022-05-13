@@ -21,7 +21,7 @@ abstract contract RewardsDistributorStorageV1 is IRewardsDistributor {
     IERC20[] public tokens;
 
     /**
-     * @notice The amount of token distribuited for each token per second
+     * @notice The amount of token distributed for each token per second
      */
     mapping(IERC20 => uint256) public tokenSpeeds;
 

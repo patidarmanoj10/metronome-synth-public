@@ -47,8 +47,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @notice Requires that amount is lower than the account's unlocked balance
      */
     modifier onlyIfNotLocked(address _account, uint256 _amount) {
-        uint256 _unlockedDeposit = unlockedBalanceOf(_account);
-        require(_unlockedDeposit >= _amount, "not-enough-free-balance");
+        require(unlockedBalanceOf(_account) >= _amount, "not-enough-free-balance");
         _;
     }
 
@@ -66,7 +65,8 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      */
     modifier updateRewardsBeforeMintOrBurn(address _account) {
         IRewardsDistributor[] memory _rewardsDistributors = controller.getRewardsDistributors();
-        for (uint256 i; i < _rewardsDistributors.length; i++) {
+        uint256 _length = _rewardsDistributors.length;
+        for (uint256 i; i < _length; i++) {
             _rewardsDistributors[i].updateBeforeMintOrBurn(this, _account);
         }
         _;
@@ -103,7 +103,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     ) public initializer {
         require(address(_underlying) != address(0), "underlying-is-null");
         require(address(_controller) != address(0), "controller-address-is-zero");
-        require(_collateralizationRatio <= 1e18, "collaterization-ratio-gt-100%");
+        require(_collateralizationRatio <= 1e18, "collateralization-ratio-gt-100%");
 
         __Manageable_init();
 
@@ -155,7 +155,9 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
 
         emit Transfer(_sender, _recipient, _amount);
 
-        _addToDepositTokensOfRecipientIfNeeded(_recipient, balanceOf[_recipient] - _amount);
+        unchecked {
+            _addToDepositTokensOfRecipientIfNeeded(_recipient, balanceOf[_recipient] - _amount);
+        }
         _removeFromDepositTokensOfSenderIfNeeded(_sender, balanceOf[_sender]);
     }
 
@@ -174,7 +176,9 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         balanceOf[_account] += _amount;
         emit Transfer(address(0), _account, _amount);
 
-        _addToDepositTokensOfRecipientIfNeeded(_account, balanceOf[_account] - _amount);
+        unchecked {
+            _addToDepositTokensOfRecipientIfNeeded(_account, balanceOf[_account] - _amount);
+        }
     }
 
     function _burn(address _account, uint256 _amount) private updateRewardsBeforeMintOrBurn(_account) {
@@ -217,7 +221,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     }
 
     /**
-     * @notice Deposit colleteral and mint vsdTOKEN (tokenized deposit position)
+     * @notice Deposit collateral and mint vsdTOKEN (tokenized deposit position)
      * @param _amount The amount of collateral tokens to deposit
      * @param _onBehalfOf The account to deposit to
      */
@@ -303,11 +307,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @param _from The account to burn from
      * @param _amount The amount to burn
      */
-    function _burnForWithdraw(address _from, uint256 _amount)
-        private
-        onlyIfNotLocked(_from, _amount)
-        onlyIfMinDepositTimePassed(_from)
-    {
+    function _burnForWithdraw(address _from, uint256 _amount) private onlyIfMinDepositTimePassed(_from) {
         _burn(_from, _amount);
     }
 
@@ -358,7 +358,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     }
 
     /**
-     * @notice Get the unlocked balance (i.e. transfarable, withdrawable)
+     * @notice Get the unlocked balance (i.e. transferable, withdrawable)
      * @param _account The account to check
      * @return _unlockedBalance The amount that user can transfer or withdraw
      */
@@ -405,7 +405,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @param _newCollateralizationRatio The new CR value
      */
     function updateCollateralizationRatio(uint128 _newCollateralizationRatio) external override onlyGovernor {
-        require(_newCollateralizationRatio <= 1e18, "collaterization-ratio-gt-100%");
+        require(_newCollateralizationRatio <= 1e18, "collateralization-ratio-gt-100%");
         uint256 _currentCollateralizationRatio = collateralizationRatio;
         require(_newCollateralizationRatio != _currentCollateralizationRatio, "new-same-as-current");
         emit CollateralizationRatioUpdated(_currentCollateralizationRatio, _newCollateralizationRatio);

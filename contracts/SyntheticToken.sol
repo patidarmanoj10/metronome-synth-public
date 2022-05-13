@@ -20,8 +20,8 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
     /// @notice Emitted when synthetic token is issued
     event SyntheticTokenIssued(address indexed account, address indexed to, uint256 amount, uint256 fee);
 
-    /// @notice Emitted when synthetic's debt is repayed
-    event DebtRepayed(address indexed account, uint256 amount, uint256 fee);
+    /// @notice Emitted when synthetic's debt is repaid
+    event DebtRepaid(address indexed payer, address indexed account, uint256 amount, uint256 fee);
 
     /**
      * @dev Throws if synthetic token doesn't exist
@@ -222,7 +222,7 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
 
     /**
      * @notice Send synthetic token to decrease debt
-     * @dev The msg.sender is the payer and the account beneficied
+     * @dev The msg.sender is the payer and the account beneficed
      * @param _onBehalfOf The account that will have debt decreased
      * @param _amount The amount of synthetic token to burn (should consider the repay fee)
      */
@@ -255,7 +255,7 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
         _burn(_payer, _amountToRepay);
         debtToken.burn(_onBehalfOf, _amountToRepay);
 
-        emit DebtRepayed(_onBehalfOf, _amount, _feeAmount);
+        emit DebtRepaid(_payer, _onBehalfOf, _amount, _feeAmount);
     }
 
     /**

@@ -451,7 +451,7 @@ describe('Controller', function () {
           await expect(tx).revertedWith('position-is-healthy')
         })
 
-        describe('when the position is unhealty (colalteral:debt >= 1)', function () {
+        describe('when the position is unhealthy (colalteral:debt >= 1)', function () {
           const newMetPrice = toUSD('0.95')
 
           beforeEach(async function () {
@@ -551,7 +551,7 @@ describe('Controller', function () {
                 .liquidate(vsEth.address, alice.address, amountToRepay, vsdMET.address)
 
               // then
-              await expect(tx).revertedWith('debt-lt-floor')
+              await expect(tx).revertedWith('remaining-debt-lt-floor')
             })
 
             it('should allow erase debt when debt floor set', async function () {
@@ -907,7 +907,7 @@ describe('Controller', function () {
           })
         })
 
-        describe('when the position is unhealty (collateral:debt < 1)', function () {
+        describe('when the position is unhealthy (collateral:debt < 1)', function () {
           const newMetPrice = toUSD('0.50')
 
           beforeEach(async function () {

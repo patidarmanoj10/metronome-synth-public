@@ -44,8 +44,8 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
     }
 
     function initialize(
-        string memory _name,
-        string memory _symbol,
+        string calldata _name,
+        string calldata _symbol,
         uint8 _decimals,
         IController _controller
     ) public initializer {
@@ -151,10 +151,12 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
         uint256 accountBalance = balanceOf(_account);
         require(accountBalance >= _amount, "burn-amount-exceeds-balance");
 
-        principalOf[_account] = accountBalance - _amount;
-        debtIndexOf[_account] = debtIndex;
+        unchecked {
+            principalOf[_account] = accountBalance - _amount;
+            debtIndexOf[_account] = debtIndex;
 
-        totalSupply_ -= _amount;
+            totalSupply_ -= _amount;
+        }
 
         emit Transfer(_account, address(0), _amount);
 
@@ -193,10 +195,10 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
 
     /**
      * @notice Calculate interest to accrue
-     * @dev This util function avoids code duplication accross `balanceOf` and `accrueInterest`
+     * @dev This util function avoids code duplication across `balanceOf` and `accrueInterest`
      * @return _interestAmountAccrued The total amount of debt tokens accrued
      * @return _debtIndex The new `debtIndex` value
-     * @return _currentTimestamp The current block timstamp
+     * @return _currentTimestamp The current block timestamp
      */
 
     function _calculateInterestAccrual()
@@ -214,9 +216,8 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
             return (0, debtIndex, _currentTimestamp);
         }
 
-        uint256 _blockDelta = _currentTimestamp - lastTimestampAccrued;
-
-        uint256 _interestRateToAccrue = syntheticToken.interestRatePerSecond() * _blockDelta;
+        uint256 _interestRateToAccrue = syntheticToken.interestRatePerSecond() *
+            (_currentTimestamp - lastTimestampAccrued);
 
         _interestAmountAccrued = _interestRateToAccrue.wadMul(totalSupply_);
 

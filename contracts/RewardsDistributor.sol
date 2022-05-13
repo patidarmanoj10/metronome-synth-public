@@ -29,7 +29,7 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     event RewardClaimed(address account, uint256 amount);
 
     /**
-     * @dev Throws if this contract isn't registred on controller
+     * @dev Throws if this contract isn't registered on controller
      */
     modifier onlyIfDistributorExists() {
         bool _distributorAdded = false;
@@ -189,14 +189,15 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
 
             if (tokenStates[_token].index > 0) {
                 _updateTokenIndex(_token);
-                for (uint256 j = 0; j < _accountsLength; j++) {
+                for (uint256 j; j < _accountsLength; j++) {
                     _updateTokensAccruedOf(_token, _accounts[j]);
                 }
             }
         }
 
-        for (uint256 j = 0; j < _accountsLength; j++) {
-            _transferRewardIfEnoughTokens(_accounts[j], tokensAccruedOf[_accounts[j]]);
+        for (uint256 j; j < _accountsLength; j++) {
+            address _account = _accounts[j];
+            _transferRewardIfEnoughTokens(_account, tokensAccruedOf[_account]);
         }
     }
 

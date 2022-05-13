@@ -257,7 +257,7 @@ describe('SyntheticToken', function () {
           const tx = vsUSD.connect(user).repay(user.address, amount)
 
           // then
-          await expect(tx).emit(vsUSD, 'DebtRepayed')
+          await expect(tx).emit(vsUSD, 'DebtRepaid')
         })
 
         it('should revert if shutdown', async function () {
@@ -329,7 +329,7 @@ describe('SyntheticToken', function () {
           // when
           const amount = await vsUSD.balanceOf(user.address)
           const tx = vsUSD.connect(user).repay(user.address, amount)
-          await expect(tx).emit(vsUSD, 'DebtRepayed').withArgs(user.address, amount, 0)
+          await expect(tx).emit(vsUSD, 'DebtRepaid').withArgs(user.address, user.address, amount, 0)
 
           // then
           expect(await vsUSD.balanceOf(user.address)).eq(0)
@@ -346,7 +346,7 @@ describe('SyntheticToken', function () {
           // when
           const amount = (await vsUSD.balanceOf(user.address)).div('2')
           const tx = vsUSD.connect(user).repay(user.address, amount)
-          await expect(tx).emit(vsUSD, 'DebtRepayed').withArgs(user.address, amount, 0)
+          await expect(tx).emit(vsUSD, 'DebtRepaid').withArgs(user.address, user.address, amount, 0)
 
           // then
           expect(await vsUSD.balanceOf(user.address)).eq(amount)
@@ -367,7 +367,7 @@ describe('SyntheticToken', function () {
           const debtToErase = amount.mul(parseEther('1')).div(parseEther('1').add(repayFee))
           const expectedFee = amount.sub(debtToErase).sub(1)
           const tx = vsUSD.connect(user).repay(user.address, amount)
-          await expect(tx).emit(vsUSD, 'DebtRepayed').withArgs(user.address, amount, expectedFee)
+          await expect(tx).emit(vsUSD, 'DebtRepaid').withArgs(user.address, user.address, amount, expectedFee)
 
           // then
           expect(await vsUSD.balanceOf(user.address)).eq(0)
@@ -389,7 +389,7 @@ describe('SyntheticToken', function () {
           const debtToErase = amount.mul(parseEther('1')).div(parseEther('1').add(repayFee))
           const expectedFee = amount.sub(debtToErase)
           const tx = vsUSD.connect(user).repay(user.address, amount)
-          await expect(tx).emit(vsUSD, 'DebtRepayed').withArgs(user.address, amount, expectedFee)
+          await expect(tx).emit(vsUSD, 'DebtRepaid').withArgs(user.address, user.address, amount, expectedFee)
 
           // then
           const vsUsdAfter = await vsUSD.balanceOf(user.address)

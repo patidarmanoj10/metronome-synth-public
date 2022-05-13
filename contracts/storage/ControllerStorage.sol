@@ -84,7 +84,7 @@ abstract contract ControllerStorageV1 is IController {
     mapping(IERC20 => IDepositToken) public depositTokenOf;
 
     /**
-     * @notice Avaliable synthetic tokens
+     * @notice Available synthetic tokens
      */
     EnumerableSet.AddressSet internal syntheticTokens;
 

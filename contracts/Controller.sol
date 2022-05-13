@@ -36,7 +36,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
         address indexed liquidator,
         address indexed account,
         ISyntheticToken indexed syntheticToken,
-        uint256 amountRepayed,
+        uint256 amountRepaid,
         uint256 depositSeized,
         uint256 fee
     );
@@ -118,8 +118,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
      * @dev Throws if `msg.sender` isn't a debt token
      */
     modifier onlyIfMsgSenderIsDebtToken() {
-        IDebtToken _debtToken = IDebtToken(_msgSender());
-        ISyntheticToken _syntheticToken = _debtToken.syntheticToken();
+        ISyntheticToken _syntheticToken = IDebtToken(_msgSender()).syntheticToken();
         require(
             syntheticTokens.contains(address(_syntheticToken)) && _msgSender() == address(_syntheticToken.debtToken()),
             "caller-is-not-debt-token"
@@ -170,7 +169,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     }
 
     /**
-     * @notice Get all deposit tokens
+     * @notice Get all debt tokens
      * @dev WARNING: This operation will copy the entire storage to memory, which can be quite expensive. This is designed
      * to mostly be used by view accessors that are queried without any gas fees.
      */
@@ -213,8 +212,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
         for (uint256 i; i < _length; ++i) {
             IDebtToken _debtToken = IDebtToken(debtTokensOfAccount.at(_account, i));
             ISyntheticToken _syntheticToken = _debtToken.syntheticToken();
-            uint256 _amountInUsd = masterOracle.convertToUsd(_syntheticToken, _debtToken.balanceOf(_account));
-            _debtInUsd += _amountInUsd;
+            _debtInUsd += masterOracle.convertToUsd(_syntheticToken, _debtToken.balanceOf(_account));
         }
     }
 
@@ -269,7 +267,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     /**
      * @notice Burn synthetic token, unlock deposit token and send liquidator liquidation fee
      * @param _syntheticToken The vsAsset to use for repayment
-     * @param _account The account with an unhealty position
+     * @param _account The account with an unhealthy position
      * @param _amountToRepay The amount to repay in synthetic token
      * @param _depositToken The collateral to seize from
      */
@@ -291,15 +289,13 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
         require(!_isHealthy, "position-is-healthy");
 
         IDebtToken _debtToken = _syntheticToken.debtToken();
+        uint256 _debtTokenBalance = _debtToken.balanceOf(_account);
 
-        require(_amountToRepay.wadDiv(_debtToken.balanceOf(_account)) <= maxLiquidable, "amount-gt-max-liquidable");
+        require(_amountToRepay.wadDiv(_debtTokenBalance) <= maxLiquidable, "amount-gt-max-liquidable");
 
         if (debtFloorInUsd > 0) {
-            uint256 _newDebtInUsd = masterOracle.convertToUsd(
-                _syntheticToken,
-                _debtToken.balanceOf(_account) - _amountToRepay
-            );
-            require(_newDebtInUsd == 0 || _newDebtInUsd >= debtFloorInUsd, "debt-lt-floor");
+            uint256 _newDebtInUsd = masterOracle.convertToUsd(_syntheticToken, _debtTokenBalance - _amountToRepay);
+            require(_newDebtInUsd == 0 || _newDebtInUsd >= debtFloorInUsd, "remaining-debt-lt-floor");
         }
 
         uint256 _amountToRepayInCollateral = masterOracle.convert(_syntheticToken, _depositToken, _amountToRepay);
@@ -426,7 +422,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
     /**
      * @notice Add a deposit token to the per-account list
-     * @dev This function is called from `DepositToken._beforeTokenTransfer` hook
+     * @dev This function is called from `DepositToken` when user's balance changes from `0`
      * @dev The caller should ensure to not pass `address(0)` as `_account`
      * @param _account The account address
      */
@@ -437,7 +433,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
     /**
      * @notice Remove a deposit token from the per-account list
-     * @dev This function is called from `DepositToken._afterTokenTransfer` hook
+     * @dev This function is called from `DepositToken` when user's balance changes to `0`
      * @dev The caller should ensure to not pass `address(0)` as `_account`
      * @param _account The account address
      */
@@ -448,7 +444,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
     /**
      * @notice Add a debt token to the per-account list
-     * @dev This function is called from `DebtToken._beforeTokenTransfer` hook
+     * @dev This function is called from `DebtToken` when user's balance changes from `0`
      * @dev The caller should ensure to not pass `address(0)` as `_account`
      * @param _account The account address
      */
@@ -458,7 +454,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
     /**
      * @notice Remove a debt token from the per-account list
-     * @dev This function is called from `DebtToken._afterTokenTransfer` hook
+     * @dev This function is called from `DebtToken` when user's balance changes to `0`
      * @dev The caller should ensure to not pass `address(0)` as `_account`
      * @param _account The account address
      */
