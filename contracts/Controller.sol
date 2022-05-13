@@ -140,7 +140,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
         swapFee = 6e15; // 0.6%
         liquidatorLiquidationFee = 1e17; // 10%
         protocolLiquidationFee = 8e16; // 8%
-        maxLiquidable = 1e18; // 100%
+        maxLiquidable = 0.5e18; // 50%
     }
 
     /**

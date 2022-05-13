@@ -118,6 +118,7 @@ async function fixture() {
   await vsDOGEDebt.setSyntheticToken(vsDoge.address)
 
   await controller.initialize(masterOracleMock.address)
+  await controller.updateMaxLiquidable(parseEther('1')) // 100%
   await controller.updateTreasury(treasury.address, false)
   expect(await controller.liquidatorLiquidationFee()).eq(liquidatorLiquidationFee)
   await controller.addDepositToken(vsdMET.address)
