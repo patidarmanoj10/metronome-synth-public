@@ -52,15 +52,6 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
         uint256 fee
     );
 
-    /// @notice Emitted when debt is refinanced
-    event DebtRefinanced(
-        address indexed account,
-        ISyntheticToken syntheticToken,
-        uint256 amountIn,
-        uint256 amountOut,
-        uint256 fee
-    );
-
     /// @notice Emitted when protocol liquidation fee is updated
     event DebtFloorUpdated(uint256 oldDebtFloorInUsd, uint256 newDebtFloorInUsd);
 
