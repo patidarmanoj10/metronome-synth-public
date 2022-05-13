@@ -83,12 +83,12 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
         } else if (_newSpeed > 0) {
             // Add token token to the list
             if (tokenStates[_token].index == 0) {
-                tokenStates[_token] = TokenState({index: INITIAL_INDEX, block: getBlockNumber().toUint32()});
+                tokenStates[_token] = TokenState({index: INITIAL_INDEX, timestamp: block.timestamp.toUint32()});
 
                 tokens.push(_token);
             } else {
-                // Update block number to ensure extra interest is not accrued during the prior period
-                tokenStates[_token].block = getBlockNumber().toUint32();
+                // Update timestamp to ensure extra interest is not accrued during the prior period
+                tokenStates[_token].timestamp = block.timestamp.toUint32();
             }
         }
 
@@ -104,16 +104,16 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     function _updateTokenIndex(IERC20 _token) private {
         TokenState storage _supplyState = tokenStates[_token];
         uint256 _speed = tokenSpeeds[_token];
-        uint256 _blockNumber = getBlockNumber();
-        uint256 _deltaBlocks = _blockNumber - uint256(_supplyState.block);
-        if (_deltaBlocks > 0 && _speed > 0) {
+        uint256 _timestamp = block.timestamp;
+        uint256 _deltaTimestamps = _timestamp - uint256(_supplyState.timestamp);
+        if (_deltaTimestamps > 0 && _speed > 0) {
             uint256 _totalSupply = _token.totalSupply();
-            uint256 _tokensAccrued = _deltaBlocks * _speed;
+            uint256 _tokensAccrued = _deltaTimestamps * _speed;
             uint256 _ratio = _totalSupply > 0 ? _tokensAccrued.wadDiv(_totalSupply) : 0;
             uint256 _newIndex = _supplyState.index + _ratio;
-            tokenStates[_token] = TokenState({index: _newIndex.toUint224(), block: _blockNumber.toUint32()});
-        } else if (_deltaBlocks > 0 && _supplyState.index > 0) {
-            _supplyState.block = _blockNumber.toUint32();
+            tokenStates[_token] = TokenState({index: _newIndex.toUint224(), timestamp: _timestamp.toUint32()});
+        } else if (_deltaTimestamps > 0 && _supplyState.index > 0) {
+            _supplyState.timestamp = _timestamp.toUint32();
         }
     }
 
@@ -242,9 +242,5 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
         for (uint256 i = 0; i < _tokensLength; ++i) {
             _updateTokenSpeed(_tokens[i], _speeds[i]);
         }
-    }
-
-    function getBlockNumber() public view virtual returns (uint256) {
-        return block.number;
     }
 }

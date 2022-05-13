@@ -68,9 +68,19 @@ export const getMaxLiquidationAmountInUsd = async function (
   return numerator.mul(parseEther('1')).div(denominator)
 }
 
+export const mineBlock = async (): Promise<void> => {
+  await ethers.provider.send('evm_mine', [])
+}
+
+// TODO: To number?
 export const increaseTime = async (timeToIncrease: BigNumber): Promise<void> => {
   await ethers.provider.send('evm_increaseTime', [timeToIncrease.toNumber()])
-  await ethers.provider.send('evm_mine', [])
+  await mineBlock()
+}
+
+export const increaseTimeOfNextBlock = async (timeToIncrease: number): Promise<void> => {
+  const timestamp = (await ethers.provider.getBlock('latest')).timestamp + timeToIncrease
+  await ethers.provider.send('evm_setNextBlockTimestamp', [timestamp])
 }
 
 export const enableForking = async (): Promise<void> => {

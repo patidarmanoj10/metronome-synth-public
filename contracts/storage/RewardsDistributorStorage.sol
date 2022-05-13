@@ -12,7 +12,7 @@ abstract contract RewardsDistributorStorageV1 is IRewardsDistributor {
 
     struct TokenState {
         uint224 index; // The last updated index
-        uint32 block; // The block number the index was last updated at
+        uint32 timestamp; // The timestamp of the latest index update
     }
 
     /**
@@ -21,7 +21,7 @@ abstract contract RewardsDistributorStorageV1 is IRewardsDistributor {
     IERC20[] public tokens;
 
     /**
-     * @notice The amount of token distribuited for each token per block
+     * @notice The amount of token distribuited for each token per second
      */
     mapping(IERC20 => uint256) public tokenSpeeds;
 
