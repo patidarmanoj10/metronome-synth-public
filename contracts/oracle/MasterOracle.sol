@@ -52,7 +52,7 @@ contract MasterOracle is Initializable, IMasterOracle, Governable {
         uint256 _assetsLength = _assets.length;
         require(_assetsLength == _oracles.length, "invalid-arrays-length");
 
-        for (uint256 i = 0; i < _assetsLength; i++) {
+        for (uint256 i; i < _assetsLength; i++) {
             address _asset = _assets[i];
             require(_asset != address(0), "an-asset-has-null-address");
             IOracle _currentOracle = oracles[_asset];

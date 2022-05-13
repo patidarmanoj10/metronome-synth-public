@@ -427,32 +427,5 @@ describe('RewardDistributor', function () {
       const after = await Promise.all([vsp.balanceOf(alice.address), vsp.balanceOf(bob.address)])
       expect(after).deep.eq([parseEther('10'), parseEther('10')])
     })
-
-    describe('emergencyTokenTransfer', function () {
-      it('should revert if not governor', async function () {
-        // given
-        const accrued = await rewardDistributor.tokensAccruedOf(alice.address)
-
-        // when
-        const tx = rewardDistributor
-          .connect(alice.address)
-          .emergencyTokenTransfer(vsp.address, alice.address, accrued.div('2'))
-
-        // then
-        await expect(tx).revertedWith('not-governor')
-      })
-
-      it('should claim on user behalf', async function () {
-        // given
-        const accrued = await rewardDistributor.tokensAccruedOf(alice.address)
-
-        // when
-        const amount = accrued.div('2')
-        const tx = () => rewardDistributor.emergencyTokenTransfer(vsp.address, alice.address, amount)
-
-        // then
-        await expect(tx).changeTokenBalance(vsp, alice, amount)
-      })
-    })
   })
 })

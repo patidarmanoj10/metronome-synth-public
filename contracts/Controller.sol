@@ -2,7 +2,6 @@
 
 pragma solidity 0.8.9;
 
-import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./dependencies/openzeppelin/utils/math/Math.sol";
 import "./storage/ControllerStorage.sol";
@@ -211,7 +210,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
      */
     function debtOf(address _account) public view override returns (uint256 _debtInUsd) {
         uint256 _length = debtTokensOfAccount.length(_account);
-        for (uint256 i = 0; i < _length; ++i) {
+        for (uint256 i; i < _length; ++i) {
             IDebtToken _debtToken = IDebtToken(debtTokensOfAccount.at(_account, i));
             ISyntheticToken _syntheticToken = _debtToken.syntheticToken();
             uint256 _amountInUsd = masterOracle.convertToUsd(_syntheticToken, _debtToken.balanceOf(_account));
@@ -232,7 +231,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
         returns (uint256 _depositInUsd, uint256 _issuableLimitInUsd)
     {
         uint256 _length = depositTokensOfAccount.length(_account);
-        for (uint256 i = 0; i < _length; ++i) {
+        for (uint256 i; i < _length; ++i) {
             IDepositToken _depositToken = IDepositToken(depositTokensOfAccount.at(_account, i));
             uint256 _amountInUsd = masterOracle.convertToUsd(_depositToken, _depositToken.balanceOf(_account));
             _depositInUsd += _amountInUsd;
@@ -596,7 +595,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     function addRewardsDistributor(IRewardsDistributor _distributor) external override onlyGovernor {
         require(address(_distributor) != address(0), "address-is-null");
 
-        for (uint256 i = 0; i < rewardsDistributors.length; i++)
+        for (uint256 i; i < rewardsDistributors.length; i++)
             require(_distributor != rewardsDistributors[i], "contract-already-added");
 
         rewardsDistributors.push(_distributor);

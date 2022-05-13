@@ -2,7 +2,6 @@
 
 pragma solidity 0.8.9;
 
-import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import "./dependencies/openzeppelin/utils/math/Math.sol";
 import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./lib/WadRayMath.sol";
@@ -67,7 +66,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      */
     modifier updateRewardsBeforeMintOrBurn(address _account) {
         IRewardsDistributor[] memory _rewardsDistributors = controller.getRewardsDistributors();
-        for (uint256 i = 0; i < _rewardsDistributors.length; i++) {
+        for (uint256 i; i < _rewardsDistributors.length; i++) {
             _rewardsDistributors[i].updateBeforeMintOrBurn(this, _account);
         }
         _;
@@ -80,7 +79,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     modifier updateRewardsBeforeTransfer(address _sender, address _recipient) {
         IRewardsDistributor[] memory _rewardsDistributors = controller.getRewardsDistributors();
         uint256 _length = _rewardsDistributors.length;
-        for (uint256 i = 0; i < _length; i++) {
+        for (uint256 i; i < _length; i++) {
             _rewardsDistributors[i].updateBeforeTransfer(this, _sender, _recipient);
         }
         _;

@@ -18,7 +18,7 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
      * @dev Throws if caller isn't authorized
      */
     modifier onlyIfAuthorized() {
-        require(msg.sender == address(controller) || msg.sender == address(syntheticToken), "not-authorized");
+        require(_msgSender() == address(controller) || _msgSender() == address(syntheticToken), "not-authorized");
         _;
     }
 
@@ -37,7 +37,7 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
     modifier updateRewardsBeforeMintOrBurn(address _account) {
         IRewardsDistributor[] memory _rewardsDistributors = controller.getRewardsDistributors();
         uint256 _length = _rewardsDistributors.length;
-        for (uint256 i = 0; i < _length; i++) {
+        for (uint256 i; i < _length; i++) {
             _rewardsDistributors[i].updateBeforeMintOrBurn(syntheticToken, _account);
         }
         _;

@@ -2,7 +2,6 @@
 
 pragma solidity 0.8.9;
 
-import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import "./dependencies/openzeppelin/utils/math/SafeCast.sol";
 import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./access/Manageable.sol";
@@ -36,7 +35,7 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
         bool _distributorAdded = false;
         IRewardsDistributor[] memory _rewardsDistributors = controller.getRewardsDistributors();
         uint256 _length = _rewardsDistributors.length;
-        for (uint256 i = 0; i < _length; i++) {
+        for (uint256 i; i < _length; i++) {
             if (_rewardsDistributors[i] == this) {
                 _distributorAdded = true;
                 break;
@@ -185,7 +184,7 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     function claimRewards(address[] memory _accounts, IERC20[] memory _tokens) public nonReentrant {
         uint256 _accountsLength = _accounts.length;
         uint256 _tokensLength = _tokens.length;
-        for (uint256 i = 0; i < _tokensLength; i++) {
+        for (uint256 i; i < _tokensLength; i++) {
             IERC20 _token = _tokens[i];
 
             if (tokenStates[_token].index > 0) {
@@ -215,17 +214,6 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     }
 
     /**
-     * @notice ERC20 recovery in case of stuck tokens due direct transfers to the contract address
-     */
-    function emergencyTokenTransfer(
-        IERC20 _token,
-        address _to,
-        uint256 _amount
-    ) external onlyGovernor {
-        _token.safeTransfer(_to, _amount);
-    }
-
-    /**
      * @notice Update speed for a single deposit token
      */
     function updateTokenSpeed(IERC20 _token, uint256 _newSpeed) external onlyGovernor {
@@ -239,7 +227,7 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
         uint256 _tokensLength = _tokens.length;
         require(_tokensLength == _speeds.length, "invalid-input");
 
-        for (uint256 i = 0; i < _tokensLength; ++i) {
+        for (uint256 i; i < _tokensLength; ++i) {
             _updateTokenSpeed(_tokens[i], _speeds[i]);
         }
     }

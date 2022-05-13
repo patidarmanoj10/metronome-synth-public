@@ -128,22 +128,4 @@ describe('NativeTokenGateway', function () {
       await expect(tx).changeTokenBalance(vsdNativeToken, user, amount.mul('-1'))
     })
   })
-
-  describe('emergencyTokenTransfer', function () {
-    beforeEach(async function () {
-      await tokenMock.mint(nativeTokenGateway.address, parseEther('100'))
-    })
-
-    it('should release token from contract', async function () {
-      const tx = () => nativeTokenGateway.emergencyTokenTransfer(tokenMock.address, user.address, parseEther('1'))
-      await expect(tx).changeTokenBalances(tokenMock, [nativeTokenGateway, user], [parseEther('-1'), parseEther('1')])
-    })
-
-    it('should revert if caller is not governor', async function () {
-      const tx = nativeTokenGateway
-        .connect(user)
-        .emergencyTokenTransfer(tokenMock.address, user.address, parseEther('1'))
-      await expect(tx).revertedWith('not-governor')
-    })
-  })
 })

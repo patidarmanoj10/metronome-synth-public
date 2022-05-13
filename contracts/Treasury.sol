@@ -2,7 +2,6 @@
 
 pragma solidity 0.8.9;
 
-import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./access/Manageable.sol";
 import "./storage/TreasuryStorage.sol";
@@ -20,7 +19,7 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
      * @dev Throws if caller isn't a deposit token
      */
     modifier onlyIfDepositToken() {
-        require(controller.isDepositTokenExists(IDepositToken(msg.sender)), "not-deposit-token");
+        require(controller.isDepositTokenExists(IDepositToken(_msgSender())), "not-deposit-token");
         _;
     }
 
@@ -38,7 +37,7 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
      */
     function pull(address _to, uint256 _amount) external override nonReentrant onlyIfDepositToken {
         require(_amount > 0, "amount-is-zero");
-        IDepositToken(msg.sender).underlying().safeTransfer(_to, _amount);
+        IDepositToken(_msgSender()).underlying().safeTransfer(_to, _amount);
     }
 
     /**
@@ -49,7 +48,7 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
         address[] memory _depositTokens = controller.getDepositTokens();
         uint256 _depositTokensLength = _depositTokens.length;
 
-        for (uint256 i = 0; i < _depositTokensLength; ++i) {
+        for (uint256 i; i < _depositTokensLength; ++i) {
             IDepositToken _depositToken = IDepositToken(_depositTokens[i]);
 
             uint256 _balance = _depositToken.balanceOf(address(this));
@@ -62,7 +61,7 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
         address[] memory _syntheticTokens = controller.getSyntheticTokens();
         uint256 _syntheticTokensLength = _syntheticTokens.length;
 
-        for (uint256 i = 0; i < _syntheticTokensLength; ++i) {
+        for (uint256 i; i < _syntheticTokensLength; ++i) {
             IERC20 _vsAsset = IERC20(_syntheticTokens[i]);
             uint256 _balance = _vsAsset.balanceOf(address(this));
             if (_balance > 0) {
