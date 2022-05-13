@@ -223,7 +223,7 @@ describe('SyntheticToken', function () {
 
     it('should issue max issuable amount (issueFee == 0)', async function () {
       const {_issuableInUsd} = await controllerMock.debtPositionOf(user.address)
-      const amount = await masterOracleMock.convertFromUsd(vsUSD.address, _issuableInUsd)
+      const amount = await masterOracleMock.quoteUsdToToken(vsUSD.address, _issuableInUsd)
       const tx = vsUSD.connect(user).issue(amount, user.address)
       await expect(tx).emit(vsUSD, 'SyntheticTokenIssued').withArgs(user.address, user.address, amount, 0)
     })
@@ -234,7 +234,7 @@ describe('SyntheticToken', function () {
       await controllerMock.updateIssueFee(issueFee)
 
       const {_issuableInUsd} = await controllerMock.debtPositionOf(user.address)
-      const amount = await masterOracleMock.convertFromUsd(vsUSD.address, _issuableInUsd)
+      const amount = await masterOracleMock.quoteUsdToToken(vsUSD.address, _issuableInUsd)
       const expectedFee = amount.mul(issueFee).div(parseEther('1'))
       const tx = vsUSD.connect(user).issue(amount, user.address)
       await expect(tx).emit(vsUSD, 'SyntheticTokenIssued').withArgs(user.address, user.address, amount, expectedFee)

@@ -212,7 +212,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
         for (uint256 i; i < _length; ++i) {
             IDebtToken _debtToken = IDebtToken(debtTokensOfAccount.at(_account, i));
             ISyntheticToken _syntheticToken = _debtToken.syntheticToken();
-            _debtInUsd += masterOracle.convertToUsd(_syntheticToken, _debtToken.balanceOf(_account));
+            _debtInUsd += masterOracle.quoteTokenToUsd(_syntheticToken, _debtToken.balanceOf(_account));
         }
     }
 
@@ -231,7 +231,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
         uint256 _length = depositTokensOfAccount.length(_account);
         for (uint256 i; i < _length; ++i) {
             IDepositToken _depositToken = IDepositToken(depositTokensOfAccount.at(_account, i));
-            uint256 _amountInUsd = masterOracle.convertToUsd(_depositToken, _depositToken.balanceOf(_account));
+            uint256 _amountInUsd = masterOracle.quoteTokenToUsd(_depositToken, _depositToken.balanceOf(_account));
             _depositInUsd += _amountInUsd;
             _issuableLimitInUsd += _amountInUsd.wadMul(_depositToken.collateralizationRatio());
         }
@@ -294,11 +294,11 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
         require(_amountToRepay.wadDiv(_debtTokenBalance) <= maxLiquidable, "amount-gt-max-liquidable");
 
         if (debtFloorInUsd > 0) {
-            uint256 _newDebtInUsd = masterOracle.convertToUsd(_syntheticToken, _debtTokenBalance - _amountToRepay);
+            uint256 _newDebtInUsd = masterOracle.quoteTokenToUsd(_syntheticToken, _debtTokenBalance - _amountToRepay);
             require(_newDebtInUsd == 0 || _newDebtInUsd >= debtFloorInUsd, "remaining-debt-lt-floor");
         }
 
-        uint256 _amountToRepayInCollateral = masterOracle.convert(_syntheticToken, _depositToken, _amountToRepay);
+        uint256 _amountToRepayInCollateral = masterOracle.quote(_syntheticToken, _depositToken, _amountToRepay);
 
         uint256 _toProtocol = protocolLiquidationFee > 0
             ? _amountToRepayInCollateral.wadMul(protocolLiquidationFee)
@@ -349,7 +349,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
         _syntheticTokenIn.burn(_account, _amountIn);
 
-        _amountOut = masterOracle.convert(_syntheticTokenIn, _syntheticTokenOut, _amountIn);
+        _amountOut = masterOracle.quote(_syntheticTokenIn, _syntheticTokenOut, _amountIn);
 
         uint256 _feeAmount;
         if (swapFee > 0) {

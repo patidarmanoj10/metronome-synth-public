@@ -168,7 +168,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     {
         require(_account != address(0), "mint-to-the-zero-address");
 
-        uint256 _newTotalSupplyInUsd = controller.masterOracle().convertToUsd(this, totalSupply + _amount);
+        uint256 _newTotalSupplyInUsd = controller.masterOracle().quoteTokenToUsd(this, totalSupply + _amount);
         require(_newTotalSupplyInUsd <= maxTotalSupplyInUsd, "surpass-max-total-supply");
         lastDepositOf[_account] = block.timestamp;
 
@@ -369,7 +369,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
             uint256 _unlockedInUsd = _issuableInUsd.wadDiv(collateralizationRatio);
             _unlockedBalance = Math.min(
                 balanceOf[_account],
-                controller.masterOracle().convertFromUsd(this, _unlockedInUsd)
+                controller.masterOracle().quoteUsdToToken(this, _unlockedInUsd)
             );
         }
     }

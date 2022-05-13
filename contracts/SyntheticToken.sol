@@ -139,7 +139,7 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
 
     function _mint(address account, uint256 amount) private onlyIfSyntheticTokenIsActive {
         require(account != address(0), "mint-to-the-zero-address");
-        uint256 _newTotalSupplyInUsd = controller.masterOracle().convertToUsd(this, totalSupply + amount);
+        uint256 _newTotalSupplyInUsd = controller.masterOracle().quoteTokenToUsd(this, totalSupply + amount);
         require(_newTotalSupplyInUsd <= maxTotalSupplyInUsd, "surpass-max-total-supply");
 
         totalSupply += amount;
@@ -194,13 +194,13 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
 
         IMasterOracle _masterOracle = controller.masterOracle();
 
-        require(_amount <= _masterOracle.convertFromUsd(this, _issuableInUsd), "not-enough-collateral");
+        require(_amount <= _masterOracle.quoteUsdToToken(this, _issuableInUsd), "not-enough-collateral");
 
         uint256 _debtFloorInUsd = controller.debtFloorInUsd();
 
         if (_debtFloorInUsd > 0) {
             require(
-                _masterOracle.convertToUsd(this, debtToken.balanceOf(_account) + _amount) >= _debtFloorInUsd,
+                _masterOracle.quoteTokenToUsd(this, debtToken.balanceOf(_account) + _amount) >= _debtFloorInUsd,
                 "debt-lt-floor"
             );
         }
@@ -245,7 +245,7 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
         uint256 _debtFloorInUsd = controller.debtFloorInUsd();
 
         if (_debtFloorInUsd > 0) {
-            uint256 _newDebtInUsd = controller.masterOracle().convertToUsd(
+            uint256 _newDebtInUsd = controller.masterOracle().quoteTokenToUsd(
                 this,
                 debtToken.balanceOf(_onBehalfOf) - _amountToRepay
             );
