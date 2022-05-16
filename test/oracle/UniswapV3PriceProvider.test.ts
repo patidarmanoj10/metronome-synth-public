@@ -16,11 +16,6 @@ const {
   WBTC_ADDRESS,
 } = Address
 
-const abi = new ethers.utils.AbiCoder()
-const encodedMetAddress = abi.encode(['address'], [MET_ADDRESS])
-const encodedWbtcAddress = abi.encode(['address'], [WBTC_ADDRESS])
-const encodedWethAddress = abi.encode(['address'], [NATIVE_TOKEN_ADDRESS])
-
 describe('UniswapV3PriceProvider', function () {
   let snapshotId: string
   let deployer: SignerWithAddress
@@ -51,17 +46,17 @@ describe('UniswapV3PriceProvider', function () {
 
   describe('getPriceInUsd', function () {
     it('should get MET price', async function () {
-      const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedMetAddress)
+      const {_priceInUsd} = await priceProvider.getPriceInUsd(MET_ADDRESS)
       expect(_priceInUsd).closeTo(toUSD('1.96868563'), toUSD('0.000001'))
     })
 
     it('should get WBTC price', async function () {
-      const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedWbtcAddress)
+      const {_priceInUsd} = await priceProvider.getPriceInUsd(WBTC_ADDRESS)
       expect(_priceInUsd).closeTo(toUSD('38691.28411634'), toUSD('0.000001'))
     })
 
     it('should get ETH price', async function () {
-      const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedWethAddress)
+      const {_priceInUsd} = await priceProvider.getPriceInUsd(NATIVE_TOKEN_ADDRESS)
       expect(_priceInUsd).closeTo(toUSD('2560.37141557'), toUSD('0.000001'))
     })
   })
@@ -91,17 +86,17 @@ describe('UniswapV3PriceProvider', function () {
 
     describe('getPriceInUsd', function () {
       it('should get MET price', async function () {
-        const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedMetAddress)
+        const {_priceInUsd} = await priceProvider.getPriceInUsd(MET_ADDRESS)
         expect(_priceInUsd).closeTo(toUSD('1.969281'), toUSD('0.000001'))
       })
 
       it('should get WBTC price', async function () {
-        const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedWbtcAddress)
+        const {_priceInUsd} = await priceProvider.getPriceInUsd(WBTC_ADDRESS)
         expect(_priceInUsd).closeTo(toUSD('38702.994986'), toUSD('0.000001'))
       })
 
       it('should get ETH price', async function () {
-        const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedWethAddress)
+        const {_priceInUsd} = await priceProvider.getPriceInUsd(NATIVE_TOKEN_ADDRESS)
         expect(_priceInUsd).closeTo(toUSD('2561.146375'), toUSD('0.000001'))
       })
     })

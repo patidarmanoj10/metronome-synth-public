@@ -8,7 +8,7 @@ import Address from '../../helpers/address'
 const {hexlify, solidityKeccak256, zeroPad, getAddress} = ethers.utils
 
 export const HOUR = BigNumber.from(60 * 60)
-export const DOGE_USD_CHAINLINK_AGGREGATOR_ADDRESS = '0x2465cefd3b488be410b941b1d4b2767088e2a028'
+export const DOGE_USD_CHAINLINK_AGGREGATOR_ADDRESS = '0x2465CefD3b488BE410b941b1d4b2767088e2A028'
 export const DEFAULT_TWAP_PERIOD = HOUR.mul('2')
 
 /**

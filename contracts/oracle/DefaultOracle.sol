@@ -29,13 +29,13 @@ contract DefaultOracle is IOracle, Governable {
      */
     struct Asset {
         Protocol protocol;
-        bytes assetData; // encoded data used for queries on price providers
+        address assetData; // Underling address for UniswapV2/V3 and aggregator address for Chainlink
         bool isUsd; // i.e. when true no oracle query is needed (amountOut = amountIn)
         uint256 stalePeriod; // it's used to determine if a price is invalid (i.e. outdated)
     }
 
     /**
-     * @notice Avaliable assets
+     * @notice Available assets
      */
     mapping(IERC20 => Asset) public assets;
 
@@ -48,10 +48,10 @@ contract DefaultOracle is IOracle, Governable {
     event PriceProviderUpdated(Protocol protocol, IPriceProvider oldPriceProvider, IPriceProvider newPriceProvider);
 
     /// @notice Emitted when asset setup is updated
-    event AssetUpdated(IERC20 indexed asset, Protocol protocol, bytes assetData, bool isUsd, uint256 stalePeriod);
+    event AssetUpdated(IERC20 indexed asset, Protocol protocol, address assetData, bool isUsd, uint256 stalePeriod);
 
     /**
-     * @dev Throws if the asset isn't avaliable
+     * @dev Throws if the asset isn't available
      */
     modifier onlyIfAssetHasPriceProvider(IERC20 _asset) {
         require(assets[_asset].isUsd || assets[_asset].protocol != Protocol.NONE, "asset-has-no-price-provider");
@@ -68,7 +68,7 @@ contract DefaultOracle is IOracle, Governable {
     /**
      * @dev Get encoded data of an asset
      */
-    function _dataOfAsset(IERC20 _asset) private view returns (bytes memory) {
+    function _dataOfAsset(IERC20 _asset) private view returns (address) {
         return assets[_asset].assetData;
     }
 
@@ -87,15 +87,6 @@ contract DefaultOracle is IOracle, Governable {
     }
 
     /**
-     * @notice Check if a price timestamp is outdated
-     * @param _timeOfLastUpdate The price timestamp
-     * @return true if  price is stale (outdated)
-     */
-    function _priceIsStale(IERC20 _asset, uint256 _timeOfLastUpdate) private view returns (bool) {
-        return block.timestamp - _timeOfLastUpdate > assets[_asset].stalePeriod;
-    }
-
-    /**
      * @notice Store an asset
      * @param _asset The asset to store
      * @param _protocol The protocol to use as source of price
@@ -105,7 +96,7 @@ contract DefaultOracle is IOracle, Governable {
     function _addOrUpdateAsset(
         IERC20 _asset,
         Protocol _protocol,
-        bytes memory _assetData,
+        address _assetData,
         bool _isUsd,
         uint256 _stalePeriod
     ) private {
@@ -119,7 +110,7 @@ contract DefaultOracle is IOracle, Governable {
      * @param _asset The asset to store
      */
     function addOrUpdateUsdAsset(IERC20 _asset) external onlyGovernor {
-        _addOrUpdateAsset(_asset, Protocol.NONE, new bytes(0), true, type(uint256).max);
+        _addOrUpdateAsset(_asset, Protocol.NONE, address(0), true, type(uint256).max);
     }
 
     /**
@@ -136,7 +127,7 @@ contract DefaultOracle is IOracle, Governable {
         // Note: Keeping this check here because we call the `_asset.decimals()` function before calling `_addOrUpdateAsset`
         require(address(_asset) != address(0), "asset-address-is-null");
         require(address(_aggregator) != address(0), "aggregator-address-is-null");
-        _addOrUpdateAsset(_asset, Protocol.CHAINLINK, abi.encode(_aggregator, _asset.decimals()), false, _stalePeriod);
+        _addOrUpdateAsset(_asset, Protocol.CHAINLINK, _aggregator, false, _stalePeriod);
     }
 
     /**
@@ -147,11 +138,11 @@ contract DefaultOracle is IOracle, Governable {
      */
     function addOrUpdateAssetThatUsesUniswapV2(
         IERC20 _asset,
-        IERC20 _underlying,
+        address _underlying,
         uint256 _stalePeriod
     ) external onlyGovernor {
-        require(address(_underlying) != address(0), "underlying-address-is-null");
-        _addOrUpdateAsset(_asset, Protocol.UNISWAP_V2, abi.encode(_underlying), false, _stalePeriod);
+        require(_underlying != address(0), "underlying-address-is-null");
+        _addOrUpdateAsset(_asset, Protocol.UNISWAP_V2, _underlying, false, _stalePeriod);
     }
 
     /**
@@ -160,9 +151,9 @@ contract DefaultOracle is IOracle, Governable {
      * @param _asset The asset to store
      * @param _underlying The actual asset to get prices from (e.g. vsETH uses WETH)
      */
-    function addOrUpdateAssetThatUsesUniswapV3(IERC20 _asset, IERC20 _underlying) external onlyGovernor {
-        require(address(_underlying) != address(0), "underlying-address-is-null");
-        _addOrUpdateAsset(_asset, Protocol.UNISWAP_V3, abi.encode(_underlying), false, type(uint256).max);
+    function addOrUpdateAssetThatUsesUniswapV3(IERC20 _asset, address _underlying) external onlyGovernor {
+        require(_underlying != address(0), "underlying-address-is-null");
+        _addOrUpdateAsset(_asset, Protocol.UNISWAP_V3, _underlying, false, type(uint256).max);
     }
 
     /**
@@ -191,6 +182,6 @@ contract DefaultOracle is IOracle, Governable {
 
         uint256 _lastUpdatedAt;
         (_priceInUsd, _lastUpdatedAt) = _priceProviderOfAsset(_asset).getPriceInUsd(_dataOfAsset(_asset));
-        require(!_priceIsStale(_asset, _lastUpdatedAt), "price-is-stale");
+        require(block.timestamp - _lastUpdatedAt <= assets[_asset].stalePeriod, "price-is-stale");
     }
 }

@@ -9,11 +9,6 @@ import Address from '../../helpers/address'
 
 const {BTC_USD_CHAINLINK_AGGREGATOR_ADDRESS, ETH_USD_CHAINLINK_AGGREGATOR_ADDRESS} = Address
 
-const abi = new ethers.utils.AbiCoder()
-const encodedDogeData = abi.encode(['address', 'uint256'], [DOGE_USD_CHAINLINK_AGGREGATOR_ADDRESS, 18])
-const encodedBtcData = abi.encode(['address', 'uint256'], [BTC_USD_CHAINLINK_AGGREGATOR_ADDRESS, 8])
-const encodedEthData = abi.encode(['address', 'uint256'], [ETH_USD_CHAINLINK_AGGREGATOR_ADDRESS, 18])
-
 describe('ChainlinkPriceProvider', function () {
   let snapshotId: string
   let deployer: SignerWithAddress
@@ -38,17 +33,17 @@ describe('ChainlinkPriceProvider', function () {
 
   describe('getPriceInUsd ', function () {
     it('should get DOGE price', async function () {
-      const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedDogeData)
+      const {_priceInUsd} = await priceProvider.getPriceInUsd(DOGE_USD_CHAINLINK_AGGREGATOR_ADDRESS)
       expect(_priceInUsd).eq(toUSD('0.11530811'))
     })
 
     it('should get BTC price', async function () {
-      const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedBtcData)
+      const {_priceInUsd} = await priceProvider.getPriceInUsd(BTC_USD_CHAINLINK_AGGREGATOR_ADDRESS)
       expect(_priceInUsd).closeTo(toUSD('38841'), toUSD('1'))
     })
 
     it('should get ETH price', async function () {
-      const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedEthData)
+      const {_priceInUsd} = await priceProvider.getPriceInUsd(ETH_USD_CHAINLINK_AGGREGATOR_ADDRESS)
       expect(_priceInUsd).eq(toUSD('2567.24244481'))
     })
   })

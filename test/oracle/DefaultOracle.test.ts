@@ -42,8 +42,6 @@ const Protocol = {
   CHAINLINK: 3,
 }
 
-const abi = new ethers.utils.AbiCoder()
-
 describe('DefaultOracle', function () {
   let snapshotId: string
   let deployer: SignerWithAddress
@@ -221,7 +219,9 @@ describe('DefaultOracle', function () {
 
     it('should set an USD asset', async function () {
       const tx = oracle.addOrUpdateUsdAsset(vsUSD.address)
-      await expect(tx).emit(oracle, 'AssetUpdated').withArgs(vsUSD.address, Protocol.NONE, '0x', true, MaxUint256)
+      await expect(tx)
+        .emit(oracle, 'AssetUpdated')
+        .withArgs(vsUSD.address, Protocol.NONE, ethers.constants.AddressZero, true, MaxUint256)
     })
   })
 
@@ -247,10 +247,10 @@ describe('DefaultOracle', function () {
         DOGE_USD_CHAINLINK_AGGREGATOR_ADDRESS,
         STALE_PERIOD
       )
-      const assetData = abi.encode(['address', 'uint256'], [DOGE_USD_CHAINLINK_AGGREGATOR_ADDRESS, 18])
+
       await expect(tx)
         .emit(oracle, 'AssetUpdated')
-        .withArgs(depositToken.address, Protocol.CHAINLINK, assetData, false, STALE_PERIOD)
+        .withArgs(depositToken.address, Protocol.CHAINLINK, DOGE_USD_CHAINLINK_AGGREGATOR_ADDRESS, false, STALE_PERIOD)
     })
   })
 
@@ -272,10 +272,9 @@ describe('DefaultOracle', function () {
 
     it('should set an asset that uses UniswapV2 as oracle', async function () {
       const tx = oracle.addOrUpdateAssetThatUsesUniswapV2(depositToken.address, MET_ADDRESS, STALE_PERIOD)
-      const encodedMetAddress = abi.encode(['address'], [MET_ADDRESS])
       await expect(tx)
         .emit(oracle, 'AssetUpdated')
-        .withArgs(depositToken.address, Protocol.UNISWAP_V2, encodedMetAddress, false, STALE_PERIOD)
+        .withArgs(depositToken.address, Protocol.UNISWAP_V2, MET_ADDRESS, false, STALE_PERIOD)
     })
   })
 
@@ -297,10 +296,9 @@ describe('DefaultOracle', function () {
 
     it('should set an asset that uses UniswapV3 as oracle', async function () {
       const tx = oracle.addOrUpdateAssetThatUsesUniswapV3(depositToken.address, MET_ADDRESS)
-      const encodedMetAddress = abi.encode(['address'], [MET_ADDRESS])
       await expect(tx)
         .emit(oracle, 'AssetUpdated')
-        .withArgs(depositToken.address, Protocol.UNISWAP_V3, encodedMetAddress, false, MaxUint256)
+        .withArgs(depositToken.address, Protocol.UNISWAP_V3, MET_ADDRESS, false, MaxUint256)
     })
   })
 })
