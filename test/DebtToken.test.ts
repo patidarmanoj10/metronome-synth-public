@@ -5,14 +5,14 @@ import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import chai, {expect} from 'chai'
 import {ethers} from 'hardhat'
 import {
-  DebtTokenMock,
-  DebtTokenMock__factory,
+  DebtToken,
+  DebtToken__factory,
   MasterOracleMock,
   MasterOracleMock__factory,
   SyntheticToken,
   SyntheticToken__factory,
 } from '../typechain'
-import {impersonateAccount, setEtherBalance} from './helpers'
+import {impersonateAccount, increaseTime, setEtherBalance} from './helpers'
 import {FakeContract, MockContract, smock} from '@defi-wonderland/smock'
 import {BigNumber} from 'ethers'
 
@@ -20,7 +20,7 @@ chai.use(smock.matchers)
 
 const {MaxUint256, AddressZero} = ethers.constants
 
-let BLOCKS_PER_YEAR: BigNumber
+let SECONDS_PER_YEAR: BigNumber
 
 describe('DebtToken', function () {
   let deployer: SignerWithAddress
@@ -28,7 +28,7 @@ describe('DebtToken', function () {
   let user1: SignerWithAddress
   let user2: SignerWithAddress
   let treasury: SignerWithAddress
-  let debtToken: DebtTokenMock
+  let debtToken: DebtToken
   let syntheticToken: SyntheticToken
   let syntheticTokenWallet: SignerWithAddress
   let masterOracleMock: MasterOracleMock
@@ -62,8 +62,8 @@ describe('DebtToken', function () {
     controllerMock.getRewardsDistributors.returns([rewardsDistributorMock.address])
     rewardsDistributorMock.controller.returns(controllerMock.address)
 
-    const debtTokenMockFactory = new DebtTokenMock__factory(deployer)
-    debtToken = await debtTokenMockFactory.deploy()
+    const debtTokenFactory = new DebtToken__factory(deployer)
+    debtToken = await debtTokenFactory.deploy()
     await debtToken.deployed()
 
     await syntheticToken.initialize(
@@ -80,7 +80,7 @@ describe('DebtToken', function () {
     await debtToken.setSyntheticToken(syntheticToken.address)
 
     // eslint-disable-next-line new-cap
-    BLOCKS_PER_YEAR = await syntheticToken.BLOCKS_PER_YEAR()
+    SECONDS_PER_YEAR = await syntheticToken.SECONDS_PER_YEAR()
     await masterOracleMock.updatePrice(syntheticToken.address, parseEther('4000')) // 1 vsETH = $4,000
   })
 
@@ -250,7 +250,7 @@ describe('DebtToken', function () {
       // when
       await syntheticToken.updateInterestRate(parseEther('0.02')) // 2%
 
-      await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
+      await increaseTime(SECONDS_PER_YEAR)
 
       // then
       const debtOfUser = await debtToken.balanceOf(user1.address)
@@ -264,7 +264,7 @@ describe('DebtToken', function () {
       expect(await syntheticToken.interestRate()).eq(0)
 
       // when
-      await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
+      await increaseTime(SECONDS_PER_YEAR)
 
       // then
       const debtOfUser = await debtToken.balanceOf(user1.address)
@@ -278,10 +278,10 @@ describe('DebtToken', function () {
       // when
       // 1st year 10% interest + 2nd year 50% interest
       await syntheticToken.updateInterestRate(parseEther('0.1')) // 10%
-      await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
+      await increaseTime(SECONDS_PER_YEAR)
 
       await syntheticToken.updateInterestRate(parseEther('0.5')) // 50%
-      await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
+      await increaseTime(SECONDS_PER_YEAR)
 
       // then
       const debtOfUser = await debtToken.balanceOf(user1.address)
@@ -296,11 +296,11 @@ describe('DebtToken', function () {
       // 1st year 10% interest + 2nd year 0% interest
       await syntheticToken.updateInterestRate(parseEther('0.1')) // 10%
 
-      await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
+      await increaseTime(SECONDS_PER_YEAR)
 
       await syntheticToken.updateInterestRate(parseEther('0'))
 
-      await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
+      await increaseTime(SECONDS_PER_YEAR)
 
       // then
       const debtOfUser = await debtToken.balanceOf(user1.address)
@@ -322,7 +322,7 @@ describe('DebtToken', function () {
     it('should accrue interest', async function () {
       // when
       await syntheticToken.updateInterestRate(parseEther('0.02')) // 2%
-      await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
+      await increaseTime(SECONDS_PER_YEAR)
       await syntheticToken.accrueInterest()
 
       // then
@@ -335,7 +335,7 @@ describe('DebtToken', function () {
       expect(await syntheticToken.interestRate()).eq(0)
 
       // when
-      await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
+      await increaseTime(SECONDS_PER_YEAR)
       await syntheticToken.accrueInterest()
 
       // then
@@ -347,11 +347,11 @@ describe('DebtToken', function () {
       // when
       // 1st year 10% interest + 2nd year 50% interest
       await syntheticToken.updateInterestRate(parseEther('0.1')) // 10%
-      await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
+      await increaseTime(SECONDS_PER_YEAR)
       await syntheticToken.accrueInterest()
 
       await syntheticToken.updateInterestRate(parseEther('0.5')) // 50%
-      await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
+      await increaseTime(SECONDS_PER_YEAR)
       await syntheticToken.accrueInterest()
 
       // then
@@ -363,11 +363,11 @@ describe('DebtToken', function () {
       // when
       // 1st year 10% interest + 2nd year 0% interest
       await syntheticToken.updateInterestRate(parseEther('0.1')) // 10%
-      await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
+      await increaseTime(SECONDS_PER_YEAR)
       await syntheticToken.accrueInterest()
 
       await syntheticToken.updateInterestRate(parseEther('0'))
-      await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
+      await increaseTime(SECONDS_PER_YEAR)
       await syntheticToken.accrueInterest()
 
       // then
@@ -381,11 +381,11 @@ describe('DebtToken', function () {
 
       // when
       // 1st year 0% interest + 2nd year 10% interest
-      await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
+      await increaseTime(SECONDS_PER_YEAR)
       await syntheticToken.accrueInterest()
 
       await syntheticToken.updateInterestRate(parseEther('0.1')) // 10%
-      await debtToken.incrementBlockNumber(BLOCKS_PER_YEAR)
+      await increaseTime(SECONDS_PER_YEAR)
       await syntheticToken.accrueInterest()
 
       // then
@@ -400,8 +400,8 @@ describe('DebtToken', function () {
     beforeEach(async function () {
       syntheticTokenFake = await smock.fake('SyntheticToken')
 
-      const debtTokenMockFactory = new DebtTokenMock__factory(deployer)
-      debtToken = await debtTokenMockFactory.deploy()
+      const debtTokenFactory = new DebtToken__factory(deployer)
+      debtToken = await debtTokenFactory.deploy()
       await debtToken.deployed()
       await debtToken.initialize(name, symbol, 18, controllerMock.address)
 

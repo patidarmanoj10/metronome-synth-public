@@ -14,7 +14,7 @@ import {enableForking, disableForking} from '../../helpers'
 import Address from '../../../helpers/address'
 import {toUSD} from '../../../helpers'
 
-const {DAI_ADDRESS, CDAI_ADDRESS, USDC_ADDRESS, CUSDC_ADDRESS} = Address
+const {DAI_ADDRESS, CDAI_ADDRESS, USDC_ADDRESS, CUSDC_ADDRESS, WETH_ADDRESS} = Address
 
 describe('CTokenOracle', function () {
   let snapshotId: string
@@ -41,7 +41,7 @@ describe('CTokenOracle', function () {
     await underlyingOracle.addOrUpdateUsdAsset(USDC_ADDRESS)
 
     const ibOracleFactory = new CTokenOracle__factory(deployer)
-    ibOracle = await ibOracleFactory.deploy(underlyingOracle.address)
+    ibOracle = await ibOracleFactory.deploy(underlyingOracle.address, WETH_ADDRESS)
     await ibOracle.deployed()
 
     cDAI = ICToken__factory.connect(CDAI_ADDRESS, deployer)

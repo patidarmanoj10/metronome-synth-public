@@ -18,7 +18,7 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
      * @dev Throws if caller isn't authorized
      */
     modifier onlyIfAuthorized() {
-        require(msg.sender == address(controller) || msg.sender == address(syntheticToken), "not-authorized");
+        require(_msgSender() == address(controller) || _msgSender() == address(syntheticToken), "not-authorized");
         _;
     }
 
@@ -37,15 +37,15 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
     modifier updateRewardsBeforeMintOrBurn(address _account) {
         IRewardsDistributor[] memory _rewardsDistributors = controller.getRewardsDistributors();
         uint256 _length = _rewardsDistributors.length;
-        for (uint256 i = 0; i < _length; i++) {
+        for (uint256 i; i < _length; i++) {
             _rewardsDistributors[i].updateBeforeMintOrBurn(syntheticToken, _account);
         }
         _;
     }
 
     function initialize(
-        string memory _name,
-        string memory _symbol,
+        string calldata _name,
+        string calldata _symbol,
         uint8 _decimals,
         IController _controller
     ) public initializer {
@@ -57,7 +57,7 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
         name = _name;
         symbol = _symbol;
         decimals = _decimals;
-        lastBlockAccrued = block.number;
+        lastTimestampAccrued = block.timestamp;
         debtIndex = 1e18;
     }
 
@@ -151,10 +151,12 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
         uint256 accountBalance = balanceOf(_account);
         require(accountBalance >= _amount, "burn-amount-exceeds-balance");
 
-        principalOf[_account] = accountBalance - _amount;
-        debtIndexOf[_account] = debtIndex;
+        unchecked {
+            principalOf[_account] = accountBalance - _amount;
+            debtIndexOf[_account] = debtIndex;
 
-        totalSupply_ -= _amount;
+            totalSupply_ -= _amount;
+        }
 
         emit Transfer(_account, address(0), _amount);
 
@@ -192,20 +194,11 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
     }
 
     /**
-     * @notice Get current block number
-     * @dev Having this temporarily as virtual for make test easier since for now hardhat doesn't support mine several blocks
-     * See more: https://github.com/nomiclabs/hardhat/issues/1112
-     */
-    function getBlockNumber() public view virtual returns (uint256 _blockNumber) {
-        _blockNumber = block.number;
-    }
-
-    /**
      * @notice Calculate interest to accrue
-     * @dev This util function avoids code duplication accross `balanceOf` and `accrueInterest`
+     * @dev This util function avoids code duplication across `balanceOf` and `accrueInterest`
      * @return _interestAmountAccrued The total amount of debt tokens accrued
      * @return _debtIndex The new `debtIndex` value
-     * @return _currentBlockNumber The current block number
+     * @return _currentTimestamp The current block timestamp
      */
 
     function _calculateInterestAccrual()
@@ -214,18 +207,17 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
         returns (
             uint256 _interestAmountAccrued,
             uint256 _debtIndex,
-            uint256 _currentBlockNumber
+            uint256 _currentTimestamp
         )
     {
-        _currentBlockNumber = getBlockNumber();
+        _currentTimestamp = block.timestamp;
 
-        if (lastBlockAccrued == _currentBlockNumber) {
-            return (0, debtIndex, _currentBlockNumber);
+        if (lastTimestampAccrued == _currentTimestamp) {
+            return (0, debtIndex, _currentTimestamp);
         }
 
-        uint256 _blockDelta = _currentBlockNumber - lastBlockAccrued;
-
-        uint256 _interestRateToAccrue = syntheticToken.interestRatePerBlock() * _blockDelta;
+        uint256 _interestRateToAccrue = syntheticToken.interestRatePerSecond() *
+            (_currentTimestamp - lastTimestampAccrued);
 
         _interestAmountAccrued = _interestRateToAccrue.wadMul(totalSupply_);
 
@@ -238,16 +230,16 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
      */
     function accrueInterest() external override onlyIfSyntheticToken returns (uint256 _interestAmountAccrued) {
         uint256 _debtIndex;
-        uint256 _currentBlockNumber;
+        uint256 _currentTimestamp;
 
-        (_interestAmountAccrued, _debtIndex, _currentBlockNumber) = _calculateInterestAccrual();
+        (_interestAmountAccrued, _debtIndex, _currentTimestamp) = _calculateInterestAccrual();
 
-        if (_currentBlockNumber == lastBlockAccrued) {
+        if (_currentTimestamp == lastTimestampAccrued) {
             return 0;
         }
 
         totalSupply_ += _interestAmountAccrued;
         debtIndex = _debtIndex;
-        lastBlockAccrued = _currentBlockNumber;
+        lastTimestampAccrued = _currentTimestamp;
     }
 }

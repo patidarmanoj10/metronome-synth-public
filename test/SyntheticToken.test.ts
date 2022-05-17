@@ -7,8 +7,8 @@ import {ethers} from 'hardhat'
 import {
   SyntheticToken,
   SyntheticToken__factory,
-  DebtTokenMock,
-  DebtTokenMock__factory,
+  DebtToken,
+  DebtToken__factory,
   MasterOracleMock__factory,
   MasterOracleMock,
   ControllerMock,
@@ -21,7 +21,7 @@ import {
 import {toUSD} from '../helpers'
 
 const {MaxUint256} = ethers.constants
-import {impersonateAccount} from './helpers'
+import {impersonateAccount, increaseTime} from './helpers'
 
 describe('SyntheticToken', function () {
   let deployer: SignerWithAddress
@@ -33,7 +33,7 @@ describe('SyntheticToken', function () {
   let met: ERC20Mock
   let vsdMET: DepositToken
   let vsUSD: SyntheticToken
-  let vsUSDDebt: DebtTokenMock
+  let vsUSDDebt: DebtToken
   let masterOracleMock: MasterOracleMock
 
   const metCR = parseEther('0.5') // 50%
@@ -57,7 +57,7 @@ describe('SyntheticToken', function () {
     vsdMET = await depositTokenFactory.deploy()
     await vsdMET.deployed()
 
-    const debtTokenFactory = new DebtTokenMock__factory(deployer)
+    const debtTokenFactory = new DebtToken__factory(deployer)
     vsUSDDebt = await debtTokenFactory.deploy()
     await vsUSDDebt.deployed()
 
@@ -223,7 +223,7 @@ describe('SyntheticToken', function () {
 
     it('should issue max issuable amount (issueFee == 0)', async function () {
       const {_issuableInUsd} = await controllerMock.debtPositionOf(user.address)
-      const amount = await masterOracleMock.convertFromUsd(vsUSD.address, _issuableInUsd)
+      const amount = await masterOracleMock.quoteUsdToToken(vsUSD.address, _issuableInUsd)
       const tx = vsUSD.connect(user).issue(amount, user.address)
       await expect(tx).emit(vsUSD, 'SyntheticTokenIssued').withArgs(user.address, user.address, amount, 0)
     })
@@ -234,7 +234,7 @@ describe('SyntheticToken', function () {
       await controllerMock.updateIssueFee(issueFee)
 
       const {_issuableInUsd} = await controllerMock.debtPositionOf(user.address)
-      const amount = await masterOracleMock.convertFromUsd(vsUSD.address, _issuableInUsd)
+      const amount = await masterOracleMock.quoteUsdToToken(vsUSD.address, _issuableInUsd)
       const expectedFee = amount.mul(issueFee).div(parseEther('1'))
       const tx = vsUSD.connect(user).issue(amount, user.address)
       await expect(tx).emit(vsUSD, 'SyntheticTokenIssued').withArgs(user.address, user.address, amount, expectedFee)
@@ -257,7 +257,7 @@ describe('SyntheticToken', function () {
           const tx = vsUSD.connect(user).repay(user.address, amount)
 
           // then
-          await expect(tx).emit(vsUSD, 'DebtRepayed')
+          await expect(tx).emit(vsUSD, 'DebtRepaid')
         })
 
         it('should revert if shutdown', async function () {
@@ -329,7 +329,7 @@ describe('SyntheticToken', function () {
           // when
           const amount = await vsUSD.balanceOf(user.address)
           const tx = vsUSD.connect(user).repay(user.address, amount)
-          await expect(tx).emit(vsUSD, 'DebtRepayed').withArgs(user.address, amount, 0)
+          await expect(tx).emit(vsUSD, 'DebtRepaid').withArgs(user.address, user.address, amount, 0)
 
           // then
           expect(await vsUSD.balanceOf(user.address)).eq(0)
@@ -346,7 +346,7 @@ describe('SyntheticToken', function () {
           // when
           const amount = (await vsUSD.balanceOf(user.address)).div('2')
           const tx = vsUSD.connect(user).repay(user.address, amount)
-          await expect(tx).emit(vsUSD, 'DebtRepayed').withArgs(user.address, amount, 0)
+          await expect(tx).emit(vsUSD, 'DebtRepaid').withArgs(user.address, user.address, amount, 0)
 
           // then
           expect(await vsUSD.balanceOf(user.address)).eq(amount)
@@ -367,7 +367,7 @@ describe('SyntheticToken', function () {
           const debtToErase = amount.mul(parseEther('1')).div(parseEther('1').add(repayFee))
           const expectedFee = amount.sub(debtToErase).sub(1)
           const tx = vsUSD.connect(user).repay(user.address, amount)
-          await expect(tx).emit(vsUSD, 'DebtRepayed').withArgs(user.address, amount, expectedFee)
+          await expect(tx).emit(vsUSD, 'DebtRepaid').withArgs(user.address, user.address, amount, expectedFee)
 
           // then
           expect(await vsUSD.balanceOf(user.address)).eq(0)
@@ -389,7 +389,7 @@ describe('SyntheticToken', function () {
           const debtToErase = amount.mul(parseEther('1')).div(parseEther('1').add(repayFee))
           const expectedFee = amount.sub(debtToErase)
           const tx = vsUSD.connect(user).repay(user.address, amount)
-          await expect(tx).emit(vsUSD, 'DebtRepayed').withArgs(user.address, amount, expectedFee)
+          await expect(tx).emit(vsUSD, 'DebtRepaid').withArgs(user.address, user.address, amount, expectedFee)
 
           // then
           const vsUsdAfter = await vsUSD.balanceOf(user.address)
@@ -556,7 +556,7 @@ describe('SyntheticToken', function () {
       await vsUSDDebt.connect(vsUSDWallet).mint(user.address, principal)
 
       // eslint-disable-next-line new-cap
-      await vsUSDDebt.incrementBlockNumber(await vsUSD.BLOCKS_PER_YEAR())
+      await increaseTime(await vsUSD.SECONDS_PER_YEAR())
 
       // when
       await vsUSD.accrueInterest()

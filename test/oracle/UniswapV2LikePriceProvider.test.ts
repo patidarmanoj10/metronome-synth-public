@@ -18,11 +18,6 @@ const {
   WBTC_ADDRESS,
 } = Address
 
-const abi = new ethers.utils.AbiCoder()
-const encodedLinkAddress = abi.encode(['address'], [LINK_ADDRESS])
-const encodedWbtcAddress = abi.encode(['address'], [WBTC_ADDRESS])
-const encodedWethAddress = abi.encode(['address'], [WETH_ADDRESS])
-
 describe('UniswapV2LikePriceProvider', function () {
   let snapshotId: string
   let deployer: SignerWithAddress
@@ -48,9 +43,9 @@ describe('UniswapV2LikePriceProvider', function () {
     await priceProvider.deployed()
 
     await increaseTime(DEFAULT_TWAP_PERIOD)
-    await priceProvider.update(encodedLinkAddress)
-    await priceProvider.update(encodedWbtcAddress)
-    await priceProvider.update(encodedWethAddress)
+    await priceProvider.update(LINK_ADDRESS)
+    await priceProvider.update(WBTC_ADDRESS)
+    await priceProvider.update(WETH_ADDRESS)
   })
 
   afterEach(async function () {
@@ -59,17 +54,17 @@ describe('UniswapV2LikePriceProvider', function () {
 
   describe('getPriceInUsd', function () {
     it('should get LINK price', async function () {
-      const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedLinkAddress)
+      const {_priceInUsd} = await priceProvider.getPriceInUsd(LINK_ADDRESS)
       expect(_priceInUsd).closeTo(toUSD('13.08898148'), toUSD('0.0000001'))
     })
 
     it('should get WBTC price', async function () {
-      const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedWbtcAddress)
+      const {_priceInUsd} = await priceProvider.getPriceInUsd(WBTC_ADDRESS)
       expect(_priceInUsd).closeTo(toUSD('38893.89154814'), toUSD('0.0000001'))
     })
 
     it('should get ETH price', async function () {
-      const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedWethAddress)
+      const {_priceInUsd} = await priceProvider.getPriceInUsd(WETH_ADDRESS)
       expect(_priceInUsd).closeTo(toUSD('2566.9129679'), toUSD('0.0000001'))
     })
   })
@@ -101,8 +96,7 @@ describe('UniswapV2LikePriceProvider', function () {
         expect((await priceProvider.oracleDataOf(MIM_ADDRESS)).blockTimestampLast).eq(0)
 
         // when
-        const encodedTokenAddress = abi.encode(['address'], [MIM_ADDRESS])
-        await priceProvider.update(encodedTokenAddress)
+        await priceProvider.update(MIM_ADDRESS)
 
         // then
         expect((await priceProvider.oracleDataOf(MIM_ADDRESS)).blockTimestampLast).not.eq(0)
@@ -114,7 +108,7 @@ describe('UniswapV2LikePriceProvider', function () {
         await increaseTime(DEFAULT_TWAP_PERIOD)
 
         // when
-        await priceProvider.update(encodedWbtcAddress)
+        await priceProvider.update(WBTC_ADDRESS)
 
         // then
         const {blockTimestampLast: blockTimestampLastAfter} = await priceProvider.oracleDataOf(WBTC_ADDRESS)
@@ -141,8 +135,7 @@ describe('UniswapV2LikePriceProvider', function () {
         expect((await priceProvider.oracleDataOf(MIM_ADDRESS)).blockTimestampLast).eq(0)
 
         // when
-        const encodedTokenAddress = abi.encode(['address'], [MIM_ADDRESS])
-        await priceProvider.update(encodedTokenAddress)
+        await priceProvider.update(MIM_ADDRESS)
 
         // then
         expect((await priceProvider.oracleDataOf(MIM_ADDRESS)).blockTimestampLast).not.eq(0)
@@ -157,7 +150,7 @@ describe('UniswapV2LikePriceProvider', function () {
         await increaseTime(DEFAULT_TWAP_PERIOD.mul('10'))
 
         // when
-        await priceProvider.update(encodedWbtcAddress)
+        await priceProvider.update(WBTC_ADDRESS)
 
         // then
         const {blockTimestampLast: blockTimestampLastAfter} = await priceProvider.oracleDataOf(WBTC_ADDRESS)
@@ -180,24 +173,24 @@ describe('UniswapV2LikePriceProvider', function () {
       )
       await priceProvider.deployed()
 
-      await priceProvider.update(encodedLinkAddress)
-      await priceProvider.update(encodedWbtcAddress)
-      await priceProvider.update(encodedWethAddress)
+      await priceProvider.update(LINK_ADDRESS)
+      await priceProvider.update(WBTC_ADDRESS)
+      await priceProvider.update(WETH_ADDRESS)
     })
 
     describe('getPriceInUsd', function () {
       it('should get LINK price', async function () {
-        const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedLinkAddress)
+        const {_priceInUsd} = await priceProvider.getPriceInUsd(LINK_ADDRESS)
         expect(_priceInUsd).eq(toUSD('13.063278'))
       })
 
       it('should get WBTC price', async function () {
-        const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedWbtcAddress)
+        const {_priceInUsd} = await priceProvider.getPriceInUsd(WBTC_ADDRESS)
         expect(_priceInUsd).eq(toUSD('38817.513939'))
       })
 
       it('should get ETH price', async function () {
-        const {_priceInUsd} = await priceProvider.getPriceInUsd(encodedWethAddress)
+        const {_priceInUsd} = await priceProvider.getPriceInUsd(WETH_ADDRESS)
         expect(_priceInUsd).eq(toUSD('2561.87221'))
       })
     })

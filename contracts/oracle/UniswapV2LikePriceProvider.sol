@@ -60,7 +60,7 @@ contract UniswapV2LikePriceProvider is IPriceProvider, Governable {
     }
 
     /**
-     * @notice Avaliable oracles
+     * @notice Available oracles
      * @dev Use TOKEN (don't WETH) as key for pairs
      */
     mapping(address => PairOracleData) public oracleDataOf;
@@ -100,7 +100,7 @@ contract UniswapV2LikePriceProvider is IPriceProvider, Governable {
      */
     function _hasOracleData(address _token) private view returns (bool) {
         if (_token == NATIVE_TOKEN) return true;
-        return oracleDataOf[_token].blockTimestampLast != 0;
+        return oracleDataOf[_token].blockTimestampLast > 0;
     }
 
     /**
@@ -109,13 +109,11 @@ contract UniswapV2LikePriceProvider is IPriceProvider, Governable {
      * @param _token The token to add
      */
     function _addOracleForEthAnd(address _token) private {
-        if (_hasOracleData(_token)) return;
-
         IUniswapV2Pair _pair = IUniswapV2Pair(factory.getPair(NATIVE_TOKEN, _token));
 
         (uint112 _reserve0, uint112 _reserve1, uint32 _blockTimestampLast) = _pair.getReserves();
 
-        require(_reserve0 != 0 && _reserve1 != 0, "no-reserves");
+        require(_reserve0 > 0 && _reserve1 > 0, "no-reserves");
 
         oracleDataOf[_token] = PairOracleData({
             token0: _pair.token0(),
@@ -163,19 +161,13 @@ contract UniswapV2LikePriceProvider is IPriceProvider, Governable {
         return true;
     }
 
-    function _decode(bytes calldata _encodedTokenAddress) private pure returns (address _token) {
-        _token = abi.decode(_encodedTokenAddress, (address));
-    }
-
     /**
      * @notice Update a oracle pair's price
      * @dev Will create the pair if it doesn't exist
      * @dev This function also update the default USD_TOKEN:NATIVE_TOKEN pair
-     * @param _encodedTokenAddress The asset's encoded address
+     * @param _token The asset's address
      */
-    function update(bytes calldata _encodedTokenAddress) external override {
-        address _token = _decode(_encodedTokenAddress);
-
+    function update(address _token) external override {
         if (!_hasOracleData(_token)) {
             _addOracleForEthAnd(_token);
         }
@@ -209,17 +201,16 @@ contract UniswapV2LikePriceProvider is IPriceProvider, Governable {
 
     /**
      * @notice Get asset's USD price
-     * @param _encodedTokenAddress The asset's encoded address
+     * @param _token The asset's address
      * @return _priceInUsd The amount in USD (18 decimals)
      * @return _lastUpdatedAt The timestamp of the price used to convert
      */
-    function getPriceInUsd(bytes calldata _encodedTokenAddress)
+    function getPriceInUsd(address _token)
         external
         view
         override
         returns (uint256 _priceInUsd, uint256 _lastUpdatedAt)
     {
-        address _token = _decode(_encodedTokenAddress);
         uint256 _decimals = IERC20Metadata(_token).decimals();
         uint256 _amount = 10**_decimals;
         uint256 _ethAmount = _token == NATIVE_TOKEN ? _amount : _getAmountOut(_token, _token, _amount);

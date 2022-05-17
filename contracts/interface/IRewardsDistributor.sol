@@ -2,8 +2,7 @@
 
 pragma solidity 0.8.9;
 
-import "./ISyntheticToken.sol";
-import "./IDepositToken.sol";
+import "../dependencies/openzeppelin/token/ERC20/IERC20.sol";
 
 /**
  * @notice Reward Distributor interface

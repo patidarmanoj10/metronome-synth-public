@@ -52,7 +52,7 @@ contract MasterOracle is Initializable, IMasterOracle, Governable {
         uint256 _assetsLength = _assets.length;
         require(_assetsLength == _oracles.length, "invalid-arrays-length");
 
-        for (uint256 i = 0; i < _assetsLength; i++) {
+        for (uint256 i; i < _assetsLength; i++) {
             address _asset = _assets[i];
             require(_asset != address(0), "an-asset-has-null-address");
             IOracle _currentOracle = oracles[_asset];
@@ -110,7 +110,7 @@ contract MasterOracle is Initializable, IMasterOracle, Governable {
      * @param _amount The amount to convert
      * @return _amountInUsd The amount in USD (18 decimals)
      */
-    function convertToUsd(IERC20 _asset, uint256 _amount) public view returns (uint256 _amountInUsd) {
+    function quoteTokenToUsd(IERC20 _asset, uint256 _amount) public view returns (uint256 _amountInUsd) {
         uint256 _priceInUsd = _getPriceInUsd(_asset);
         _amountInUsd = (_amount * _priceInUsd) / 10**IERC20Metadata(address(_asset)).decimals();
     }
@@ -121,7 +121,7 @@ contract MasterOracle is Initializable, IMasterOracle, Governable {
      * @param _amountInUsd The amount in USD (18 decimals)
      * @return _amount The converted amount
      */
-    function convertFromUsd(IERC20 _asset, uint256 _amountInUsd) public view returns (uint256 _amount) {
+    function quoteUsdToToken(IERC20 _asset, uint256 _amountInUsd) public view returns (uint256 _amount) {
         uint256 _priceInUsd = _getPriceInUsd(_asset);
         _amount = (_amountInUsd * 10**IERC20Metadata(address(_asset)).decimals()) / _priceInUsd;
     }
@@ -133,12 +133,12 @@ contract MasterOracle is Initializable, IMasterOracle, Governable {
      * @param _amountIn The amount to convert from
      * @return _amountOut The converted amount
      */
-    function convert(
+    function quote(
         IERC20 _assetIn,
         IERC20 _assetOut,
         uint256 _amountIn
     ) external view returns (uint256 _amountOut) {
-        uint256 _amountInUsd = convertToUsd(_assetIn, _amountIn);
-        _amountOut = convertFromUsd(_assetOut, _amountInUsd);
+        uint256 _amountInUsd = quoteTokenToUsd(_assetIn, _amountIn);
+        _amountOut = quoteUsdToToken(_assetOut, _amountInUsd);
     }
 }

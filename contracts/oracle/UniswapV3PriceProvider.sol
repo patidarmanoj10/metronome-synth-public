@@ -58,27 +58,17 @@ contract UniswapV3PriceProvider is IPriceProvider, Governable {
     }
 
     /**
-     * @notice Decode asset data
-     * @param _encodedTokenAddress The asset's encoded address
-     * @return _token The asset's address
-     */
-    function _decode(bytes calldata _encodedTokenAddress) private pure returns (address _token) {
-        _token = abi.decode(_encodedTokenAddress, (address));
-    }
-
-    /**
      * @notice Get asset's USD price
-     * @param _encodedTokenAddress The asset's encoded address
+     * @param _token The asset's encoded address
      * @return _priceInUsd The amount in USD (18 decimals)
      * @return _lastUpdatedAt The timestamp of the price used to convert
      */
-    function getPriceInUsd(bytes calldata _encodedTokenAddress)
+    function getPriceInUsd(address _token)
         external
         view
         override
         returns (uint256 _priceInUsd, uint256 _lastUpdatedAt)
     {
-        address _token = _decode(_encodedTokenAddress);
         _priceInUsd = OracleHelpers.normalizeUsdOutput(
             usdToken,
             crossPoolOracle.assetToAsset(_token, 10**IERC20Metadata(_token).decimals(), usdToken, twapPeriod)
@@ -90,5 +80,5 @@ contract UniswapV3PriceProvider is IPriceProvider, Governable {
      * @dev This function is here just to follow IPriceProvider
      */
     // solhint-disable-next-line no-empty-blocks
-    function update(bytes calldata) external {}
+    function update(address) external {}
 }

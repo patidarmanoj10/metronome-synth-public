@@ -4,13 +4,14 @@ pragma solidity 0.8.9;
 
 import "../dependencies/openzeppelin/utils/Context.sol";
 import "../dependencies/openzeppelin/proxy/utils/Initializable.sol";
+import "../utils/TokenHolder.sol";
 import "../interface/IGovernable.sol";
 import "../interface/IController.sol";
 
 /**
  * @title Reusable contract that handles accesses
  */
-abstract contract Manageable is Context, Initializable {
+abstract contract Manageable is Context, TokenHolder, Initializable {
     /**
      * @notice Controller contract
      */
@@ -48,6 +49,8 @@ abstract contract Manageable is Context, Initializable {
     function governor() public view returns (address _governor) {
         _governor = IGovernable(address(controller)).governor();
     }
+
+    function _requireCanSweep() internal view override onlyGovernor {}
 
     /**
      * @notice Update Controller contract

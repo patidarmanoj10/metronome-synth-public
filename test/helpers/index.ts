@@ -8,7 +8,7 @@ import Address from '../../helpers/address'
 const {hexlify, solidityKeccak256, zeroPad, getAddress} = ethers.utils
 
 export const HOUR = BigNumber.from(60 * 60)
-export const DOGE_USD_CHAINLINK_AGGREGATOR_ADDRESS = '0x2465cefd3b488be410b941b1d4b2767088e2a028'
+export const DOGE_USD_CHAINLINK_AGGREGATOR_ADDRESS = '0x2465CefD3b488BE410b941b1d4b2767088e2A028'
 export const DEFAULT_TWAP_PERIOD = HOUR.mul('2')
 
 /**
@@ -68,9 +68,19 @@ export const getMaxLiquidationAmountInUsd = async function (
   return numerator.mul(parseEther('1')).div(denominator)
 }
 
+export const mineBlock = async (): Promise<void> => {
+  await ethers.provider.send('evm_mine', [])
+}
+
+// TODO: To number?
 export const increaseTime = async (timeToIncrease: BigNumber): Promise<void> => {
   await ethers.provider.send('evm_increaseTime', [timeToIncrease.toNumber()])
-  await ethers.provider.send('evm_mine', [])
+  await mineBlock()
+}
+
+export const increaseTimeOfNextBlock = async (timeToIncrease: number): Promise<void> => {
+  const timestamp = (await ethers.provider.getBlock('latest')).timestamp + timeToIncrease
+  await ethers.provider.send('evm_setNextBlockTimestamp', [timestamp])
 }
 
 export const enableForking = async (): Promise<void> => {

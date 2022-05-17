@@ -15,13 +15,13 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
 
     string public constant VERSION = "1.0.0";
 
-    uint256 public constant BLOCKS_PER_YEAR = 2336000;
+    uint256 public constant SECONDS_PER_YEAR = 365 days;
 
     /// @notice Emitted when synthetic token is issued
     event SyntheticTokenIssued(address indexed account, address indexed to, uint256 amount, uint256 fee);
 
-    /// @notice Emitted when synthetic's debt is repayed
-    event DebtRepayed(address indexed account, uint256 amount, uint256 fee);
+    /// @notice Emitted when synthetic's debt is repaid
+    event DebtRepaid(address indexed payer, address indexed account, uint256 amount, uint256 fee);
 
     /**
      * @dev Throws if synthetic token doesn't exist
@@ -72,8 +72,8 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
     /// @notice Emitted when interest rate is updated
     event InterestRateUpdated(uint256 oldInterestRate, uint256 newInterestRate);
 
-    function interestRatePerBlock() external view virtual override returns (uint256) {
-        return interestRate / BLOCKS_PER_YEAR;
+    function interestRatePerSecond() external view virtual override returns (uint256) {
+        return interestRate / SECONDS_PER_YEAR;
     }
 
     function transfer(address recipient, uint256 amount) external override returns (bool) {
@@ -139,7 +139,7 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
 
     function _mint(address account, uint256 amount) private onlyIfSyntheticTokenIsActive {
         require(account != address(0), "mint-to-the-zero-address");
-        uint256 _newTotalSupplyInUsd = controller.masterOracle().convertToUsd(this, totalSupply + amount);
+        uint256 _newTotalSupplyInUsd = controller.masterOracle().quoteTokenToUsd(this, totalSupply + amount);
         require(_newTotalSupplyInUsd <= maxTotalSupplyInUsd, "surpass-max-total-supply");
 
         totalSupply += amount;
@@ -194,13 +194,13 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
 
         IMasterOracle _masterOracle = controller.masterOracle();
 
-        require(_amount <= _masterOracle.convertFromUsd(this, _issuableInUsd), "not-enough-collateral");
+        require(_amount <= _masterOracle.quoteUsdToToken(this, _issuableInUsd), "not-enough-collateral");
 
         uint256 _debtFloorInUsd = controller.debtFloorInUsd();
 
         if (_debtFloorInUsd > 0) {
             require(
-                _masterOracle.convertToUsd(this, debtToken.balanceOf(_account) + _amount) >= _debtFloorInUsd,
+                _masterOracle.quoteTokenToUsd(this, debtToken.balanceOf(_account) + _amount) >= _debtFloorInUsd,
                 "debt-lt-floor"
             );
         }
@@ -222,9 +222,9 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
 
     /**
      * @notice Send synthetic token to decrease debt
-     * @dev The msg.sender is the payer and the account beneficied
+     * @dev The msg.sender is the payer and the account beneficed
      * @param _onBehalfOf The account that will have debt decreased
-     * @param _amount The amount of synthetic token to burn (should consider the repay fee)
+     * @param _amount The amount of synthetic token to burn (this is the gross amount, the repay fee will be subtracted from it)
      */
     function repay(address _onBehalfOf, uint256 _amount) external override whenNotShutdown nonReentrant {
         require(_amount > 0, "amount-is-zero");
@@ -237,6 +237,7 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
         uint256 _amountToRepay = _amount;
         uint256 _feeAmount;
         if (_repayFee > 0) {
+            // Note: `_amountToRepay = _amount - repayFeeAmount`
             _amountToRepay = _amount.wadDiv(1e18 + _repayFee);
             _feeAmount = _amount - _amountToRepay;
             _transfer(_payer, address(controller.treasury()), _feeAmount);
@@ -245,7 +246,7 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
         uint256 _debtFloorInUsd = controller.debtFloorInUsd();
 
         if (_debtFloorInUsd > 0) {
-            uint256 _newDebtInUsd = controller.masterOracle().convertToUsd(
+            uint256 _newDebtInUsd = controller.masterOracle().quoteTokenToUsd(
                 this,
                 debtToken.balanceOf(_onBehalfOf) - _amountToRepay
             );
@@ -255,7 +256,7 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
         _burn(_payer, _amountToRepay);
         debtToken.burn(_onBehalfOf, _amountToRepay);
 
-        emit DebtRepayed(_onBehalfOf, _amount, _feeAmount);
+        emit DebtRepaid(_payer, _onBehalfOf, _amount, _feeAmount);
     }
 
     /**

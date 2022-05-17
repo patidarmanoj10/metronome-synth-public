@@ -22,7 +22,7 @@ abstract contract DepositTokenStorageV1 is IDepositToken {
     IERC20 public underlying;
 
     /**
-     * @notice Collaterization ration for the deposit token
+     * @notice Collateralization ration for the deposit token
      * @dev Use 18 decimals (e.g. 0.66e18 = 66%)
      */
     uint256 public collateralizationRatio;

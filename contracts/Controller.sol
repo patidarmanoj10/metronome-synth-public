@@ -2,7 +2,6 @@
 
 pragma solidity 0.8.9;
 
-import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./dependencies/openzeppelin/utils/math/Math.sol";
 import "./storage/ControllerStorage.sol";
@@ -37,7 +36,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
         address indexed liquidator,
         address indexed account,
         ISyntheticToken indexed syntheticToken,
-        uint256 amountRepayed,
+        uint256 amountRepaid,
         uint256 depositSeized,
         uint256 fee
     );
@@ -119,8 +118,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
      * @dev Throws if `msg.sender` isn't a debt token
      */
     modifier onlyIfMsgSenderIsDebtToken() {
-        IDebtToken _debtToken = IDebtToken(_msgSender());
-        ISyntheticToken _syntheticToken = _debtToken.syntheticToken();
+        ISyntheticToken _syntheticToken = IDebtToken(_msgSender()).syntheticToken();
         require(
             syntheticTokens.contains(address(_syntheticToken)) && _msgSender() == address(_syntheticToken.debtToken()),
             "caller-is-not-debt-token"
@@ -140,7 +138,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
         swapFee = 6e15; // 0.6%
         liquidatorLiquidationFee = 1e17; // 10%
         protocolLiquidationFee = 8e16; // 8%
-        maxLiquidable = 1e18; // 100%
+        maxLiquidable = 0.5e18; // 50%
     }
 
     /**
@@ -171,7 +169,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     }
 
     /**
-     * @notice Get all deposit tokens
+     * @notice Get all debt tokens
      * @dev WARNING: This operation will copy the entire storage to memory, which can be quite expensive. This is designed
      * to mostly be used by view accessors that are queried without any gas fees.
      */
@@ -211,11 +209,10 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
      */
     function debtOf(address _account) public view override returns (uint256 _debtInUsd) {
         uint256 _length = debtTokensOfAccount.length(_account);
-        for (uint256 i = 0; i < _length; ++i) {
+        for (uint256 i; i < _length; ++i) {
             IDebtToken _debtToken = IDebtToken(debtTokensOfAccount.at(_account, i));
             ISyntheticToken _syntheticToken = _debtToken.syntheticToken();
-            uint256 _amountInUsd = masterOracle.convertToUsd(_syntheticToken, _debtToken.balanceOf(_account));
-            _debtInUsd += _amountInUsd;
+            _debtInUsd += masterOracle.quoteTokenToUsd(_syntheticToken, _debtToken.balanceOf(_account));
         }
     }
 
@@ -232,9 +229,9 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
         returns (uint256 _depositInUsd, uint256 _issuableLimitInUsd)
     {
         uint256 _length = depositTokensOfAccount.length(_account);
-        for (uint256 i = 0; i < _length; ++i) {
+        for (uint256 i; i < _length; ++i) {
             IDepositToken _depositToken = IDepositToken(depositTokensOfAccount.at(_account, i));
-            uint256 _amountInUsd = masterOracle.convertToUsd(_depositToken, _depositToken.balanceOf(_account));
+            uint256 _amountInUsd = masterOracle.quoteTokenToUsd(_depositToken, _depositToken.balanceOf(_account));
             _depositInUsd += _amountInUsd;
             _issuableLimitInUsd += _amountInUsd.wadMul(_depositToken.collateralizationRatio());
         }
@@ -270,7 +267,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     /**
      * @notice Burn synthetic token, unlock deposit token and send liquidator liquidation fee
      * @param _syntheticToken The vsAsset to use for repayment
-     * @param _account The account with an unhealty position
+     * @param _account The account with an unhealthy position
      * @param _amountToRepay The amount to repay in synthetic token
      * @param _depositToken The collateral to seize from
      */
@@ -292,18 +289,16 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
         require(!_isHealthy, "position-is-healthy");
 
         IDebtToken _debtToken = _syntheticToken.debtToken();
+        uint256 _debtTokenBalance = _debtToken.balanceOf(_account);
 
-        require(_amountToRepay.wadDiv(_debtToken.balanceOf(_account)) <= maxLiquidable, "amount-gt-max-liquidable");
+        require(_amountToRepay.wadDiv(_debtTokenBalance) <= maxLiquidable, "amount-gt-max-liquidable");
 
         if (debtFloorInUsd > 0) {
-            uint256 _newDebtInUsd = masterOracle.convertToUsd(
-                _syntheticToken,
-                _debtToken.balanceOf(_account) - _amountToRepay
-            );
-            require(_newDebtInUsd == 0 || _newDebtInUsd >= debtFloorInUsd, "debt-lt-floor");
+            uint256 _newDebtInUsd = masterOracle.quoteTokenToUsd(_syntheticToken, _debtTokenBalance - _amountToRepay);
+            require(_newDebtInUsd == 0 || _newDebtInUsd >= debtFloorInUsd, "remaining-debt-lt-floor");
         }
 
-        uint256 _amountToRepayInCollateral = masterOracle.convert(_syntheticToken, _depositToken, _amountToRepay);
+        uint256 _amountToRepayInCollateral = masterOracle.quote(_syntheticToken, _depositToken, _amountToRepay);
 
         uint256 _toProtocol = protocolLiquidationFee > 0
             ? _amountToRepayInCollateral.wadMul(protocolLiquidationFee)
@@ -354,7 +349,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
         _syntheticTokenIn.burn(_account, _amountIn);
 
-        _amountOut = masterOracle.convert(_syntheticTokenIn, _syntheticTokenOut, _amountIn);
+        _amountOut = masterOracle.quote(_syntheticTokenIn, _syntheticTokenOut, _amountIn);
 
         uint256 _feeAmount;
         if (swapFee > 0) {
@@ -427,7 +422,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
     /**
      * @notice Add a deposit token to the per-account list
-     * @dev This function is called from `DepositToken._beforeTokenTransfer` hook
+     * @dev This function is called from `DepositToken` when user's balance changes from `0`
      * @dev The caller should ensure to not pass `address(0)` as `_account`
      * @param _account The account address
      */
@@ -438,7 +433,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
     /**
      * @notice Remove a deposit token from the per-account list
-     * @dev This function is called from `DepositToken._afterTokenTransfer` hook
+     * @dev This function is called from `DepositToken` when user's balance changes to `0`
      * @dev The caller should ensure to not pass `address(0)` as `_account`
      * @param _account The account address
      */
@@ -449,7 +444,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
     /**
      * @notice Add a debt token to the per-account list
-     * @dev This function is called from `DebtToken._beforeTokenTransfer` hook
+     * @dev This function is called from `DebtToken` when user's balance changes from `0`
      * @dev The caller should ensure to not pass `address(0)` as `_account`
      * @param _account The account address
      */
@@ -459,7 +454,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
     /**
      * @notice Remove a debt token from the per-account list
-     * @dev This function is called from `DebtToken._afterTokenTransfer` hook
+     * @dev This function is called from `DebtToken` when user's balance changes to `0`
      * @dev The caller should ensure to not pass `address(0)` as `_account`
      * @param _account The account address
      */
@@ -582,11 +577,12 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
      */
     function updateTreasury(ITreasury _newTreasury, bool _withMigration) external override onlyGovernor {
         require(address(_newTreasury) != address(0), "address-is-null");
-        require(_newTreasury != treasury, "new-same-as-current");
+        ITreasury _currentTreasury = treasury;
+        require(_newTreasury != _currentTreasury, "new-same-as-current");
 
-        if (_withMigration) treasury.migrateTo(address(_newTreasury));
+        if (_withMigration) _currentTreasury.migrateTo(address(_newTreasury));
 
-        emit TreasuryUpdated(treasury, _newTreasury);
+        emit TreasuryUpdated(_currentTreasury, _newTreasury);
         treasury = _newTreasury;
     }
 
@@ -596,7 +592,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     function addRewardsDistributor(IRewardsDistributor _distributor) external override onlyGovernor {
         require(address(_distributor) != address(0), "address-is-null");
 
-        for (uint256 i = 0; i < rewardsDistributors.length; i++)
+        for (uint256 i; i < rewardsDistributors.length; i++)
             require(_distributor != rewardsDistributors[i], "contract-already-added");
 
         rewardsDistributors.push(_distributor);

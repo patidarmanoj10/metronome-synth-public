@@ -24,9 +24,9 @@ abstract contract DebtTokenStorageV1 is IDebtToken {
     ISyntheticToken public syntheticToken;
 
     /**
-     * @notice The block when interest accrual was calculated for the last time
+     * @notice The timestamp when interest accrual was calculated for the last time
      */
-    uint256 public lastBlockAccrued;
+    uint256 public lastTimestampAccrued;
 
     /**
      * @notice Accumulator of the total earned interest rate since the beginning

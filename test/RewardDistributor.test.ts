@@ -3,8 +3,10 @@ import {parseEther} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import chai, {expect} from 'chai'
 import {ethers} from 'hardhat'
-import {RewardsDistributorMock__factory, RewardsDistributorMock, ERC20Mock__factory, ERC20Mock} from '../typechain'
+import {RewardsDistributor__factory, RewardsDistributor, ERC20Mock__factory, ERC20Mock} from '../typechain'
 import {FakeContract, smock} from '@defi-wonderland/smock'
+import {increaseTimeOfNextBlock, mineBlock} from './helpers'
+import {BigNumber} from 'ethers'
 
 chai.use(smock.matchers)
 
@@ -20,7 +22,7 @@ describe('RewardDistributor', function () {
   let vsdTOKEN1: FakeContract
   let debtToken2: FakeContract
   let vsdTOKEN2: FakeContract
-  let rewardDistributor: RewardsDistributorMock
+  let rewardDistributor: RewardsDistributor
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
@@ -36,7 +38,7 @@ describe('RewardDistributor', function () {
     debtToken2 = await smock.fake('DebtToken')
     vsdTOKEN2 = await smock.fake('DepositToken')
 
-    const rewardDistributorFactory = new RewardsDistributorMock__factory(deployer)
+    const rewardDistributorFactory = new RewardsDistributor__factory(deployer)
     rewardDistributor = await rewardDistributorFactory.deploy()
     rewardDistributor.deployed()
 
@@ -188,7 +190,7 @@ describe('RewardDistributor', function () {
         vsdTOKEN1.totalSupply.returns(totalSupply)
         vsdTOKEN1.balanceOf.returns(balanceOf)
 
-        await rewardDistributor.incrementBlockNumber('10')
+        await increaseTimeOfNextBlock(10)
         await rewardDistributor.updateBeforeMintOrBurn(vsdTOKEN1.address, alice.address)
 
         // then
@@ -212,7 +214,7 @@ describe('RewardDistributor', function () {
         vsdTOKEN1.totalSupply.returns(totalSupply)
         vsdTOKEN1.balanceOf.returns(balanceOf)
 
-        await rewardDistributor.incrementBlockNumber('10')
+        await increaseTimeOfNextBlock(10)
         await rewardDistributor.updateBeforeMintOrBurn(vsdTOKEN1.address, alice.address)
 
         // then
@@ -236,7 +238,7 @@ describe('RewardDistributor', function () {
         vsdTOKEN1.totalSupply.returns(totalSupply1)
         vsdTOKEN1.balanceOf.returns(balance1)
 
-        await rewardDistributor.incrementBlockNumber('10')
+        await increaseTimeOfNextBlock(10)
         await rewardDistributor.updateBeforeMintOrBurn(vsdTOKEN1.address, alice.address)
         const tokensAccruedOfUser1 = await rewardDistributor.tokensAccruedOf(alice.address)
         expect(tokensAccruedOfUser1).eq(parseEther('10'))
@@ -247,7 +249,7 @@ describe('RewardDistributor', function () {
         vsdTOKEN1.totalSupply.returns(totalSupply2)
         vsdTOKEN1.balanceOf.returns(balance2)
 
-        await rewardDistributor.incrementBlockNumber('10')
+        await increaseTimeOfNextBlock(10)
         await rewardDistributor.updateBeforeMintOrBurn(vsdTOKEN1.address, alice.address)
 
         // then
@@ -262,7 +264,7 @@ describe('RewardDistributor', function () {
         vsdTOKEN1.totalSupply.returns(totalSupply1)
         vsdTOKEN1.balanceOf.returns(balance1)
 
-        await rewardDistributor.incrementBlockNumber('10')
+        await increaseTimeOfNextBlock(10)
         await rewardDistributor.updateBeforeMintOrBurn(vsdTOKEN1.address, alice.address)
         const tokensAccruedBefore = await rewardDistributor.tokensAccruedOf(alice.address)
         expect(tokensAccruedBefore).eq(parseEther('5'))
@@ -273,7 +275,7 @@ describe('RewardDistributor', function () {
         vsdTOKEN1.totalSupply.returns(totalSupply2)
         vsdTOKEN1.balanceOf.returns(balance2)
 
-        await rewardDistributor.incrementBlockNumber('10')
+        await increaseTimeOfNextBlock(10)
         await rewardDistributor.updateBeforeMintOrBurn(vsdTOKEN1.address, alice.address)
 
         // then
@@ -291,7 +293,7 @@ describe('RewardDistributor', function () {
         vsdTOKEN1.balanceOf.whenCalledWith(alice.address).returns(balanceOfAlice1)
         vsdTOKEN1.balanceOf.whenCalledWith(bob.address).returns(balanceOfBob1)
 
-        await rewardDistributor.incrementBlockNumber('10')
+        await increaseTimeOfNextBlock(10)
         await rewardDistributor.updateBeforeTransfer(vsdTOKEN1.address, alice.address, bob.address)
 
         const aliceTokensAccrued1 = await rewardDistributor.tokensAccruedOf(alice.address)
@@ -305,7 +307,7 @@ describe('RewardDistributor', function () {
         vsdTOKEN1.balanceOf.whenCalledWith(alice.address).returns(balanceOfAlice2)
         vsdTOKEN1.balanceOf.whenCalledWith(bob.address).returns(balanceOfBob2)
 
-        await rewardDistributor.incrementBlockNumber('10')
+        await increaseTimeOfNextBlock(10)
         await rewardDistributor.updateBeforeTransfer(vsdTOKEN1.address, alice.address, bob.address)
 
         // then
@@ -340,6 +342,8 @@ describe('RewardDistributor', function () {
       debtToken2.totalSupply.returns(0)
       debtToken2.balanceOf.returns(0)
 
+      await ethers.provider.send('evm_setAutomine', [false])
+
       await rewardDistributor.updateBeforeMintOrBurn(vsdTOKEN1.address, alice.address)
       await rewardDistributor.updateBeforeMintOrBurn(vsdTOKEN1.address, bob.address)
 
@@ -351,6 +355,8 @@ describe('RewardDistributor', function () {
 
       await rewardDistributor.updateBeforeMintOrBurn(debtToken2.address, alice.address)
       await rewardDistributor.updateBeforeMintOrBurn(debtToken2.address, bob.address)
+
+      await ethers.provider.send('evm_mine', [])
 
       vsdTOKEN1.totalSupply.returns(parseEther('100'))
       vsdTOKEN1.balanceOf.whenCalledWith(alice.address).returns(parseEther('50'))
@@ -368,76 +374,58 @@ describe('RewardDistributor', function () {
       debtToken2.balanceOf.whenCalledWith(alice.address).returns(parseEther('50'))
       debtToken2.balanceOf.whenCalledWith(bob.address).returns(parseEther('50'))
 
-      // Will accrue 1 VSP per token per block (40 VSP in total)
+      // Will accrue 1 VSP per token per second (40 VSP in total)
       // Each user (i.e. alice and bob) will accrue 5 VSP per token
-      await rewardDistributor.incrementBlockNumber('10')
+      await increaseTimeOfNextBlock(10)
+    })
+
+    afterEach(async function () {
+      await ethers.provider.send('evm_setAutomine', [true])
     })
 
     it('claimRewards', async function () {
       // when
-      const claimTxs = () =>
-        Promise.all([
-          rewardDistributor['claimRewards(address)'](alice.address),
-          rewardDistributor['claimRewards(address)'](bob.address),
-        ])
+      const before = await Promise.all([vsp.balanceOf(alice.address), vsp.balanceOf(bob.address)])
+      expect(before).deep.eq([BigNumber.from(0), BigNumber.from(0)])
+
+      await rewardDistributor['claimRewards(address)'](alice.address)
+      await rewardDistributor['claimRewards(address)'](bob.address)
+      await mineBlock()
 
       // then
-      await expect(claimTxs).changeTokenBalances(vsp, [alice, bob], [parseEther('20'), parseEther('20')])
+      const after = await Promise.all([vsp.balanceOf(alice.address), vsp.balanceOf(bob.address)])
+      expect(after).deep.eq([parseEther('20'), parseEther('20')])
     })
 
     it('claimRewards(address,address[])', async function () {
       // given
-      const expected = parseEther('10')
+      const before = await vsp.balanceOf(alice.address)
+      expect(before).eq(0)
 
       // when
-      const tx = () =>
-        rewardDistributor['claimRewards(address,address[])'](alice.address, [vsdTOKEN1.address, vsdTOKEN2.address])
+      await rewardDistributor['claimRewards(address,address[])'](alice.address, [vsdTOKEN1.address, vsdTOKEN2.address])
+      await mineBlock()
 
       // then
-      await expect(tx).changeTokenBalance(vsp, alice, expected)
+      const after = await vsp.balanceOf(alice.address)
+      expect(after).eq(parseEther('10'))
     })
 
     it('claimRewards(address[],address[])', async function () {
       // given
-      const toAlice = parseEther('10')
-      const toBob = parseEther('10')
+      const before = await Promise.all([vsp.balanceOf(alice.address), vsp.balanceOf(bob.address)])
+      expect(before).deep.eq([BigNumber.from(0), BigNumber.from(0)])
 
       // when
-      const tx = () =>
-        rewardDistributor['claimRewards(address[],address[])'](
-          [alice.address, bob.address],
-          [debtToken1.address, debtToken2.address]
-        )
+      await rewardDistributor['claimRewards(address[],address[])'](
+        [alice.address, bob.address],
+        [debtToken1.address, debtToken2.address]
+      )
+      await mineBlock()
 
       // then
-      await expect(tx).changeTokenBalances(vsp, [alice, bob], [toAlice, toBob])
-    })
-
-    describe('emergencyTokenTransfer', function () {
-      it('should revert if not governor', async function () {
-        // given
-        const accrued = await rewardDistributor.tokensAccruedOf(alice.address)
-
-        // when
-        const tx = rewardDistributor
-          .connect(alice.address)
-          .emergencyTokenTransfer(vsp.address, alice.address, accrued.div('2'))
-
-        // then
-        await expect(tx).revertedWith('not-governor')
-      })
-
-      it('should claim on user behalf', async function () {
-        // given
-        const accrued = await rewardDistributor.tokensAccruedOf(alice.address)
-
-        // when
-        const amount = accrued.div('2')
-        const tx = () => rewardDistributor.emergencyTokenTransfer(vsp.address, alice.address, amount)
-
-        // then
-        await expect(tx).changeTokenBalance(vsp, alice, amount)
-      })
+      const after = await Promise.all([vsp.balanceOf(alice.address), vsp.balanceOf(bob.address)])
+      expect(after).deep.eq([parseEther('10'), parseEther('10')])
     })
   })
 })

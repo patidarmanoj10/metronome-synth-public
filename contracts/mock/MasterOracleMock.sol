@@ -12,20 +12,20 @@ contract MasterOracleMock is IMasterOracle {
         prices[_asset] = _price;
     }
 
-    function convertToUsd(IERC20 _asset, uint256 _amount) public view override returns (uint256 _amountInUsd) {
+    function quoteTokenToUsd(IERC20 _asset, uint256 _amount) public view override returns (uint256 _amountInUsd) {
         _amountInUsd = (_amount * prices[_asset]) / 10**IERC20Metadata(address(_asset)).decimals();
     }
 
-    function convertFromUsd(IERC20 _asset, uint256 _amountInUsd) public view override returns (uint256 _amount) {
+    function quoteUsdToToken(IERC20 _asset, uint256 _amountInUsd) public view override returns (uint256 _amount) {
         _amount = (_amountInUsd * 10**IERC20Metadata(address(_asset)).decimals()) / prices[_asset];
     }
 
-    function convert(
+    function quote(
         IERC20 _assetIn,
         IERC20 _assetOut,
         uint256 _amountIn
     ) public view override returns (uint256 _amountOut) {
-        uint256 _amountInUsd = convertToUsd(_assetIn, _amountIn);
-        _amountOut = convertFromUsd(_assetOut, _amountInUsd);
+        uint256 _amountInUsd = quoteTokenToUsd(_assetIn, _amountIn);
+        _amountOut = quoteUsdToToken(_assetOut, _amountInUsd);
     }
 }

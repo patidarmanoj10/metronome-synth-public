@@ -2,7 +2,6 @@
 
 pragma solidity 0.8.9;
 
-import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import "./dependencies/openzeppelin/utils/math/SafeCast.sol";
 import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./access/Manageable.sol";
@@ -30,13 +29,13 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     event RewardClaimed(address account, uint256 amount);
 
     /**
-     * @dev Throws if this contract isn't registred on controller
+     * @dev Throws if this contract isn't registered on controller
      */
     modifier onlyIfDistributorExists() {
         bool _distributorAdded = false;
         IRewardsDistributor[] memory _rewardsDistributors = controller.getRewardsDistributors();
         uint256 _length = _rewardsDistributors.length;
-        for (uint256 i = 0; i < _length; i++) {
+        for (uint256 i; i < _length; i++) {
             if (_rewardsDistributors[i] == this) {
                 _distributorAdded = true;
                 break;
@@ -83,12 +82,12 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
         } else if (_newSpeed > 0) {
             // Add token token to the list
             if (tokenStates[_token].index == 0) {
-                tokenStates[_token] = TokenState({index: INITIAL_INDEX, block: getBlockNumber().toUint32()});
+                tokenStates[_token] = TokenState({index: INITIAL_INDEX, timestamp: block.timestamp.toUint32()});
 
                 tokens.push(_token);
             } else {
-                // Update block number to ensure extra interest is not accrued during the prior period
-                tokenStates[_token].block = getBlockNumber().toUint32();
+                // Update timestamp to ensure extra interest is not accrued during the prior period
+                tokenStates[_token].timestamp = block.timestamp.toUint32();
             }
         }
 
@@ -104,16 +103,16 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     function _updateTokenIndex(IERC20 _token) private {
         TokenState storage _supplyState = tokenStates[_token];
         uint256 _speed = tokenSpeeds[_token];
-        uint256 _blockNumber = getBlockNumber();
-        uint256 _deltaBlocks = _blockNumber - uint256(_supplyState.block);
-        if (_deltaBlocks > 0 && _speed > 0) {
+        uint256 _timestamp = block.timestamp;
+        uint256 _deltaTimestamps = _timestamp - uint256(_supplyState.timestamp);
+        if (_deltaTimestamps > 0 && _speed > 0) {
             uint256 _totalSupply = _token.totalSupply();
-            uint256 _tokensAccrued = _deltaBlocks * _speed;
+            uint256 _tokensAccrued = _deltaTimestamps * _speed;
             uint256 _ratio = _totalSupply > 0 ? _tokensAccrued.wadDiv(_totalSupply) : 0;
             uint256 _newIndex = _supplyState.index + _ratio;
-            tokenStates[_token] = TokenState({index: _newIndex.toUint224(), block: _blockNumber.toUint32()});
-        } else if (_deltaBlocks > 0 && _supplyState.index > 0) {
-            _supplyState.block = _blockNumber.toUint32();
+            tokenStates[_token] = TokenState({index: _newIndex.toUint224(), timestamp: _timestamp.toUint32()});
+        } else if (_deltaTimestamps > 0 && _supplyState.index > 0) {
+            _supplyState.timestamp = _timestamp.toUint32();
         }
     }
 
@@ -185,19 +184,20 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     function claimRewards(address[] memory _accounts, IERC20[] memory _tokens) public nonReentrant {
         uint256 _accountsLength = _accounts.length;
         uint256 _tokensLength = _tokens.length;
-        for (uint256 i = 0; i < _tokensLength; i++) {
+        for (uint256 i; i < _tokensLength; i++) {
             IERC20 _token = _tokens[i];
 
             if (tokenStates[_token].index > 0) {
                 _updateTokenIndex(_token);
-                for (uint256 j = 0; j < _accountsLength; j++) {
+                for (uint256 j; j < _accountsLength; j++) {
                     _updateTokensAccruedOf(_token, _accounts[j]);
                 }
             }
         }
 
-        for (uint256 j = 0; j < _accountsLength; j++) {
-            _transferRewardIfEnoughTokens(_accounts[j], tokensAccruedOf[_accounts[j]]);
+        for (uint256 j; j < _accountsLength; j++) {
+            address _account = _accounts[j];
+            _transferRewardIfEnoughTokens(_account, tokensAccruedOf[_account]);
         }
     }
 
@@ -215,17 +215,6 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     }
 
     /**
-     * @notice ERC20 recovery in case of stuck tokens due direct transfers to the contract address
-     */
-    function emergencyTokenTransfer(
-        IERC20 _token,
-        address _to,
-        uint256 _amount
-    ) external onlyGovernor {
-        _token.safeTransfer(_to, _amount);
-    }
-
-    /**
      * @notice Update speed for a single deposit token
      */
     function updateTokenSpeed(IERC20 _token, uint256 _newSpeed) external onlyGovernor {
@@ -239,12 +228,8 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
         uint256 _tokensLength = _tokens.length;
         require(_tokensLength == _speeds.length, "invalid-input");
 
-        for (uint256 i = 0; i < _tokensLength; ++i) {
+        for (uint256 i; i < _tokensLength; ++i) {
             _updateTokenSpeed(_tokens[i], _speeds[i]);
         }
-    }
-
-    function getBlockNumber() public view virtual returns (uint256) {
-        return block.number;
     }
 }

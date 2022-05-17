@@ -5,6 +5,7 @@ pragma solidity 0.8.9;
 /**
  * @title Math library
  * @dev Provides mul and div function for wads (decimal numbers with 18 digits precision) and rays (decimals with 27 digits)
+ * @dev Based on https://github.com/dapphub/ds-math/blob/master/src/math.sol
  */
 library WadRayMath {
     uint256 internal constant WAD = 1e18;

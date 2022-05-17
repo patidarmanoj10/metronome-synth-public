@@ -2,18 +2,17 @@
 
 pragma solidity 0.8.9;
 
-import "../dependencies/openzeppelin/token/ERC20/IERC20.sol";
 import "../dependencies/openzeppelin/token/ERC20/extensions/IERC20Metadata.sol";
 import "./IDebtToken.sol";
 
-interface ISyntheticToken is IERC20, IERC20Metadata {
+interface ISyntheticToken is IERC20Metadata {
     function isActive() external view returns (bool);
 
     function maxTotalSupplyInUsd() external view returns (uint256);
 
     function interestRate() external view returns (uint256);
 
-    function interestRatePerBlock() external view returns (uint256);
+    function interestRatePerSecond() external view returns (uint256);
 
     function debtToken() external view returns (IDebtToken);
 

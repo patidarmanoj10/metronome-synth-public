@@ -719,7 +719,7 @@ describe('DepositToken', function () {
         const tx = metDepositToken.updateCollateralizationRatio(parseEther('1').add('1'))
 
         // then
-        await expect(tx).revertedWith('collaterization-ratio-gt-100%')
+        await expect(tx).revertedWith('collateralization-ratio-gt-100%')
       })
     })
 
