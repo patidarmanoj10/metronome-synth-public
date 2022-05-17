@@ -224,7 +224,7 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
      * @notice Send synthetic token to decrease debt
      * @dev The msg.sender is the payer and the account beneficed
      * @param _onBehalfOf The account that will have debt decreased
-     * @param _amount The amount of synthetic token to burn (should consider the repay fee)
+     * @param _amount The amount of synthetic token to burn (this is the gross amount, the repay fee will be subtracted from it)
      */
     function repay(address _onBehalfOf, uint256 _amount) external override whenNotShutdown nonReentrant {
         require(_amount > 0, "amount-is-zero");
@@ -237,6 +237,7 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
         uint256 _amountToRepay = _amount;
         uint256 _feeAmount;
         if (_repayFee > 0) {
+            // Note: `_amountToRepay = _amount - repayFeeAmount`
             _amountToRepay = _amount.wadDiv(1e18 + _repayFee);
             _feeAmount = _amount - _amountToRepay;
             _transfer(_payer, address(controller.treasury()), _feeAmount);
