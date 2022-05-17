@@ -577,11 +577,12 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
      */
     function updateTreasury(ITreasury _newTreasury, bool _withMigration) external override onlyGovernor {
         require(address(_newTreasury) != address(0), "address-is-null");
-        require(_newTreasury != treasury, "new-same-as-current");
+        ITreasury _currentTreasury = treasury;
+        require(_newTreasury != _currentTreasury, "new-same-as-current");
 
-        if (_withMigration) treasury.migrateTo(address(_newTreasury));
+        if (_withMigration) _currentTreasury.migrateTo(address(_newTreasury));
 
-        emit TreasuryUpdated(treasury, _newTreasury);
+        emit TreasuryUpdated(_currentTreasury, _newTreasury);
         treasury = _newTreasury;
     }
 
