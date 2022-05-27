@@ -103,12 +103,12 @@ export const deployUpgradable = async ({
   const {alias, contract, adminContract} = contractConfig
 
   const {address, implementation: implementationAddress} = await deploy(alias, {
-    contract,
     from: deployer,
     log: true,
     proxy: {
       proxyContract: 'OpenZeppelinTransparentProxy',
       viaAdminContract: adminContract,
+      implementationName: alias === contract ? undefined : contract,
       execute: {
         init: {
           methodName: 'initialize',
