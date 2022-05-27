@@ -250,6 +250,12 @@ describe('Deployments', function () {
       expect(vsdUSDCProxyAdmin).eq(vsdWAVAXProxyAdmin).eq(depositTokenUpgrader.address)
     })
 
+    it('should have the same implementation', async function () {
+      const vsdUSDCImpl = await depositTokenUpgrader.getProxyImplementation(vsdUSDC.address)
+      const vsdWAVAXImpl = await depositTokenUpgrader.getProxyImplementation(vsdWAVAX.address)
+      expect(vsdUSDCImpl).eq(vsdWAVAXImpl)
+    })
+
     describe('USDC DepositToken', function () {
       it('token should have correct params', async function () {
         expect(await vsdUSDC.controller()).eq(controller.address)
@@ -312,6 +318,16 @@ describe('Deployments', function () {
       const vsBTCProxyAdmin = await syntheticTokenUpgrader.getProxyAdmin(vsBTC.address)
       const vsUSDProxyAdmin = await syntheticTokenUpgrader.getProxyAdmin(vsUSD.address)
       expect(vsBTCProxyAdmin).eq(vsUSDProxyAdmin).eq(syntheticTokenUpgrader.address)
+    })
+
+    it('should have the same implementation', async function () {
+      const vsBTCDebtImpl = await debtTokenUpgrader.getProxyImplementation(vsBTCDebt.address)
+      const vsUSDDebtImpl = await debtTokenUpgrader.getProxyImplementation(vsUSDDebt.address)
+      expect(vsBTCDebtImpl).eq(vsUSDDebtImpl)
+
+      const vsBTCImpl = await syntheticTokenUpgrader.getProxyImplementation(vsBTC.address)
+      const vsUSDImpl = await syntheticTokenUpgrader.getProxyImplementation(vsUSD.address)
+      expect(vsBTCImpl).eq(vsUSDImpl)
     })
 
     describe('vsBTC SyntheticToken', function () {
