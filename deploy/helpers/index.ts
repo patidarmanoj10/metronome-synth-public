@@ -95,7 +95,7 @@ export const deployUpgradable = async ({
   implementationAddress?: string | undefined
 }> => {
   const {
-    deployments: {deploy},
+    deployments: {deploy, read, execute},
     getNamedAccounts,
   } = hre
 
@@ -103,12 +103,12 @@ export const deployUpgradable = async ({
   const {alias, contract, adminContract} = contractConfig
 
   const {address, implementation: implementationAddress} = await deploy(alias, {
-    contract,
     from: deployer,
     log: true,
     proxy: {
       proxyContract: 'OpenZeppelinTransparentProxy',
       viaAdminContract: adminContract,
+      implementationName: alias === contract ? undefined : contract,
       execute: {
         init: {
           methodName: 'initialize',
@@ -117,6 +117,14 @@ export const deployUpgradable = async ({
       },
     },
   })
+
+  // Note: `hardhat-deploy` is partially not working when upgrading an implementation used by many proxies
+  // It deploy the new implementation contract, updates the deployment JSON files but isn't properly calling `upgrade()`
+  // See more: https://github.com/wighawag/hardhat-deploy/issues/284#issuecomment-1139971427
+  const actualImpl = await read(adminContract, 'getProxyImplementation', address)
+  if (actualImpl !== implementationAddress) {
+    await execute(adminContract, {from: deployer, log: true}, 'upgrade', address, implementationAddress)
+  }
 
   return {address, implementationAddress}
 }
