@@ -16,7 +16,7 @@
     "precoverage": "hardhat typechain",
     "coverage": "hardhat coverage",
     "postcoverage": "istanbul check-coverage --statements 90 --branches 75 --functions 88 --lines 92",
-    "deploy": "hardhat deploy-pool",
+    "deploy": "hardhat deploy",
     "pretest": "hardhat typechain",
     "test": "hardhat test --parallel",
     "verify": "hardhat etherscan-verify",
