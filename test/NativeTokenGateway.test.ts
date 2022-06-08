@@ -107,6 +107,20 @@ describe('NativeTokenGateway', function () {
       await expect(tx).changeTokenBalance(nativeToken, treasury, value)
       await expect(tx).changeTokenBalance(vsdNativeToken, user, value)
     })
+
+    it('should allow N deposits', async function () {
+      // given
+      const before = await ethers.provider.getBalance(user.address)
+
+      // when
+      const value = parseEther('1')
+      await nativeTokenGateway.connect(user).deposit(controllerMock.address, {value})
+      await nativeTokenGateway.connect(user).deposit(controllerMock.address, {value})
+
+      // then
+      const after = await ethers.provider.getBalance(user.address)
+      expect(after).closeTo(before.sub(value.mul('2')), parseEther('0.01'))
+    })
   })
 
   describe('withdraw', function () {
