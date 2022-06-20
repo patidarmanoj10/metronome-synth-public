@@ -23,7 +23,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   })
 
   if (!wasDeployed) {
-    await execute(Controller, {from: deployer, log: true}, 'updateTreasury', treasuryAddress, false)
+    await execute(Controller, {from: deployer, log: true}, 'updateTreasury', treasuryAddress)
   }
 }
 
