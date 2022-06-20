@@ -66,7 +66,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     modifier updateRewardsBeforeMintOrBurn(address _account) {
         IRewardsDistributor[] memory _rewardsDistributors = controller.getRewardsDistributors();
         uint256 _length = _rewardsDistributors.length;
-        for (uint256 i; i < _length; i++) {
+        for (uint256 i; i < _length; ++i) {
             _rewardsDistributors[i].updateBeforeMintOrBurn(this, _account);
         }
         _;
@@ -79,7 +79,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     modifier updateRewardsBeforeTransfer(address _sender, address _recipient) {
         IRewardsDistributor[] memory _rewardsDistributors = controller.getRewardsDistributors();
         uint256 _length = _rewardsDistributors.length;
-        for (uint256 i; i < _length; i++) {
+        for (uint256 i; i < _length; ++i) {
             _rewardsDistributors[i].updateBeforeTransfer(this, _sender, _recipient);
         }
         _;

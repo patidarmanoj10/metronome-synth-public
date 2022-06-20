@@ -38,7 +38,7 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
         bool _distributorAdded = false;
         IRewardsDistributor[] memory _rewardsDistributors = controller.getRewardsDistributors();
         uint256 _length = _rewardsDistributors.length;
-        for (uint256 i; i < _length; i++) {
+        for (uint256 i; i < _length; ++i) {
             if (_rewardsDistributors[i] == this) {
                 _distributorAdded = true;
                 break;
@@ -187,7 +187,7 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     function claimRewards(address[] memory _accounts, IERC20[] memory _tokens) public nonReentrant {
         uint256 _accountsLength = _accounts.length;
         uint256 _tokensLength = _tokens.length;
-        for (uint256 i; i < _tokensLength; i++) {
+        for (uint256 i; i < _tokensLength; ++i) {
             IERC20 _token = _tokens[i];
 
             if (tokenStates[_token].index > 0) {

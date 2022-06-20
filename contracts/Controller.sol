@@ -594,7 +594,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     function addRewardsDistributor(IRewardsDistributor _distributor) external override onlyGovernor {
         require(address(_distributor) != address(0), "address-is-null");
 
-        for (uint256 i; i < rewardsDistributors.length; i++)
+        for (uint256 i; i < rewardsDistributors.length; ++i)
             require(_distributor != rewardsDistributors[i], "contract-already-added");
 
         rewardsDistributors.push(_distributor);
