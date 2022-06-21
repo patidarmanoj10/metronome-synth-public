@@ -140,19 +140,26 @@ contract UniswapV2LikePriceProvider is IPriceProvider, Governable {
 
         (uint256 price0Cumulative, uint256 price1Cumulative, uint32 blockTimestamp) = UniswapV2OracleLibrary
             .currentCumulativePrices(_pair);
-        uint32 timeElapsed = blockTimestamp - _pairOracle.blockTimestampLast; // overflow is desired
+        uint32 timeElapsed;
+        unchecked {
+            timeElapsed = blockTimestamp - _pairOracle.blockTimestampLast; // overflow is desired
+        }
 
         // ensure that at least one full period has passed since the last update
         if (timeElapsed < twapPeriod) return false;
 
+        uint256 price0new;
+        uint256 price1new;
+
+        unchecked {
+            price0new = price0Cumulative - _pairOracle.price0CumulativeLast;
+            price1new = price1Cumulative - _pairOracle.price1CumulativeLast;
+        }
+
         // overflow is desired, casting never truncates
         // cumulative price is in (uq112x112 price * seconds) units so we simply wrap it after division by time elapsed
-        _pairOracle.price0Average = FixedPoint.uq112x112(
-            uint224((price0Cumulative - _pairOracle.price0CumulativeLast) / timeElapsed)
-        );
-        _pairOracle.price1Average = FixedPoint.uq112x112(
-            uint224((price1Cumulative - _pairOracle.price1CumulativeLast) / timeElapsed)
-        );
+        _pairOracle.price0Average = FixedPoint.uq112x112(uint224(price0new / timeElapsed));
+        _pairOracle.price1Average = FixedPoint.uq112x112(uint224(price1new / timeElapsed));
 
         _pairOracle.price0CumulativeLast = price0Cumulative;
         _pairOracle.price1CumulativeLast = price1Cumulative;
