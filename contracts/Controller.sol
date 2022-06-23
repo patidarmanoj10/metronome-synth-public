@@ -575,12 +575,14 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     /**
      * @notice Update treasury contract - will migrate funds to the new contract
      */
-    function updateTreasury(ITreasury _newTreasury, bool _withMigration) external override onlyGovernor {
+    function updateTreasury(ITreasury _newTreasury) external override onlyGovernor {
         require(address(_newTreasury) != address(0), "address-is-null");
         ITreasury _currentTreasury = treasury;
         require(_newTreasury != _currentTreasury, "new-same-as-current");
 
-        if (_withMigration) _currentTreasury.migrateTo(address(_newTreasury));
+        if (address(_currentTreasury) != address(0)) {
+            _currentTreasury.migrateTo(address(_newTreasury));
+        }
 
         emit TreasuryUpdated(_currentTreasury, _newTreasury);
         treasury = _newTreasury;
@@ -592,7 +594,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     function addRewardsDistributor(IRewardsDistributor _distributor) external override onlyGovernor {
         require(address(_distributor) != address(0), "address-is-null");
 
-        for (uint256 i; i < rewardsDistributors.length; i++)
+        for (uint256 i; i < rewardsDistributors.length; ++i)
             require(_distributor != rewardsDistributors[i], "contract-already-added");
 
         rewardsDistributors.push(_distributor);

@@ -175,7 +175,7 @@ contract ControllerMock is IController, Governable, Pausable {
         return true;
     }
 
-    function updateTreasury(ITreasury _treasury, bool) external override {
+    function updateTreasury(ITreasury _treasury) external override {
         treasury = _treasury;
     }
 

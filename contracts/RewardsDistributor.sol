@@ -19,6 +19,9 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     /// @notice The initial index
     uint224 public constant INITIAL_INDEX = 1e18;
 
+    /// @notice Max reward tokens to avoid DoS scenario
+    uint224 public constant MAX_REWARD_TOKENS = 20;
+
     /// @notice Emitted when updating token speed
     event TokenSpeedUpdated(IERC20 indexed token, uint256 oldSpeed, uint256 newSpeed);
 
@@ -35,7 +38,7 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
         bool _distributorAdded = false;
         IRewardsDistributor[] memory _rewardsDistributors = controller.getRewardsDistributors();
         uint256 _length = _rewardsDistributors.length;
-        for (uint256 i; i < _length; i++) {
+        for (uint256 i; i < _length; ++i) {
             if (_rewardsDistributors[i] == this) {
                 _distributorAdded = true;
                 break;
@@ -82,8 +85,8 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
         } else if (_newSpeed > 0) {
             // Add token token to the list
             if (tokenStates[_token].index == 0) {
+                require(tokens.length < MAX_REWARD_TOKENS, "reached-max-reward-tokens");
                 tokenStates[_token] = TokenState({index: INITIAL_INDEX, timestamp: block.timestamp.toUint32()});
-
                 tokens.push(_token);
             } else {
                 // Update timestamp to ensure extra interest is not accrued during the prior period
@@ -184,7 +187,7 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     function claimRewards(address[] memory _accounts, IERC20[] memory _tokens) public nonReentrant {
         uint256 _accountsLength = _accounts.length;
         uint256 _tokensLength = _tokens.length;
-        for (uint256 i; i < _tokensLength; i++) {
+        for (uint256 i; i < _tokensLength; ++i) {
             IERC20 _token = _tokens[i];
 
             if (tokenStates[_token].index > 0) {

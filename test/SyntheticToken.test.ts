@@ -69,10 +69,9 @@ describe('SyntheticToken', function () {
     controllerMock = await controllerMockFactory.deploy(vsdMET.address, masterOracleMock.address, vsUSD.address)
     await controllerMock.deployed()
     await controllerMock.transferGovernorship(governor.address)
-    await controllerMock.updateTreasury(treasury.address, false)
 
     // Initializations & Setup
-    await controllerMock.updateTreasury(treasury.address, false)
+    await controllerMock.updateTreasury(treasury.address)
 
     await vsdMET.initialize(met.address, controllerMock.address, 'vsdMET', 18, metCR, MaxUint256)
     await vsUSD.initialize(name, symbol, 18, controllerMock.address, vsUSDDebt.address, interestRate, MaxUint256)

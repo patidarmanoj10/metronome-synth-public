@@ -119,7 +119,7 @@ async function fixture() {
 
   await controller.initialize(masterOracleMock.address)
   await controller.updateMaxLiquidable(parseEther('1')) // 100%
-  await controller.updateTreasury(treasury.address, false)
+  await controller.updateTreasury(treasury.address)
   expect(await controller.liquidatorLiquidationFee()).eq(liquidatorLiquidationFee)
   await controller.addDepositToken(vsdMET.address)
   await controller.addSyntheticToken(vsEth.address)
@@ -1249,7 +1249,7 @@ describe('Controller', function () {
       expect(await controller.treasury()).eq(treasury.address)
 
       // when
-      const tx = controller.updateTreasury(treasury.address, true)
+      const tx = controller.updateTreasury(treasury.address)
 
       // then
       await expect(tx).revertedWith('new-same-as-current')
@@ -1257,7 +1257,7 @@ describe('Controller', function () {
 
     it('should revert if caller is not governor', async function () {
       // when
-      const tx = controller.connect(alice.address).updateTreasury(treasury.address, true)
+      const tx = controller.connect(alice.address).updateTreasury(treasury.address)
 
       // then
       await expect(tx).revertedWith('not-governor')
@@ -1265,7 +1265,7 @@ describe('Controller', function () {
 
     it('should revert if address is zero', async function () {
       // when
-      const tx = controller.updateTreasury(ethers.constants.AddressZero, true)
+      const tx = controller.updateTreasury(ethers.constants.AddressZero)
 
       // then
       await expect(tx).revertedWith('address-is-null')
@@ -1292,7 +1292,7 @@ describe('Controller', function () {
       expect(await vsdMET.balanceOf(treasury.address)).gt(0)
 
       // when
-      await controller.updateTreasury(newTreasury.address, true)
+      await controller.updateTreasury(newTreasury.address)
 
       // then
       expect(await met.balanceOf(treasury.address)).eq(0)

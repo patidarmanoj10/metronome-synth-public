@@ -91,7 +91,7 @@ interface IController is IPausable {
 
     function updateMaxLiquidable(uint256 _newMaxLiquidable) external;
 
-    function updateTreasury(ITreasury _newTreasury, bool _withMigration) external;
+    function updateTreasury(ITreasury _newTreasury) external;
 
     function treasury() external view returns (ITreasury);
 

@@ -85,7 +85,7 @@ describe('NativeTokenGateway', function () {
     tokenMock = await erc20MockFactory.deploy('Name', 'SYMBOL', 18)
     await tokenMock.deployed()
 
-    await controllerMock.updateTreasury(treasury.address, true)
+    await controllerMock.updateTreasury(treasury.address)
     await masterOracleMock.updatePrice(vsdNativeToken.address, toUSD('1'))
     await treasury.initialize(controllerMock.address)
   })
