@@ -58,73 +58,73 @@ async function fixture() {
   await treasury.deployed()
 
   const depositTokenFactory = new DepositToken__factory(deployer)
-  const vsdMET = await depositTokenFactory.deploy()
-  await vsdMET.deployed()
+  const msdMET = await depositTokenFactory.deploy()
+  await msdMET.deployed()
 
-  const vsdDAI = await depositTokenFactory.deploy()
-  await vsdDAI.deployed()
+  const msdDAI = await depositTokenFactory.deploy()
+  await msdDAI.deployed()
 
   const debtTokenFactory = new DebtToken__factory(deployer)
 
-  const vsETHDebt = await debtTokenFactory.deploy()
-  await vsETHDebt.deployed()
+  const msEthDebtToken = await debtTokenFactory.deploy()
+  await msEthDebtToken.deployed()
 
-  const vsDOGEDebt = await debtTokenFactory.deploy()
-  await vsDOGEDebt.deployed()
+  const msDogeDebtToken = await debtTokenFactory.deploy()
+  await msDogeDebtToken.deployed()
 
   const syntheticTokenFactory = new SyntheticToken__factory(deployer)
 
-  const vsEth = await syntheticTokenFactory.deploy()
-  await vsEth.deployed()
+  const msEth = await syntheticTokenFactory.deploy()
+  await msEth.deployed()
 
-  const vsDoge = await syntheticTokenFactory.deploy()
-  await vsDoge.deployed()
+  const msDoge = await syntheticTokenFactory.deploy()
+  await msDoge.deployed()
 
   const controllerFactory = new Controller__factory(deployer)
   const controller = await controllerFactory.deploy()
   await controller.deployed()
 
   // Deployment tasks
-  await vsdMET.initialize(met.address, controller.address, 'vsdMET', 18, metCR, MaxUint256)
+  await msdMET.initialize(met.address, controller.address, 'msdMET', 18, metCR, MaxUint256)
 
-  await vsdDAI.initialize(dai.address, controller.address, 'vsdDAI', 18, daiCR, MaxUint256)
+  await msdDAI.initialize(dai.address, controller.address, 'msdDAI', 18, daiCR, MaxUint256)
 
   await treasury.initialize(controller.address)
 
-  await vsEth.initialize(
-    'Vesper Synth ETH',
-    'vsETH',
+  await msEth.initialize(
+    'Metronome Synth ETH',
+    'msETH',
     18,
     controller.address,
-    vsETHDebt.address,
+    msEthDebtToken.address,
     interestRate,
     MaxUint256
   )
 
-  await vsETHDebt.initialize('vsETH Debt', 'vsETH-Debt', 18, controller.address)
-  await vsETHDebt.setSyntheticToken(vsEth.address)
+  await msEthDebtToken.initialize('msETH Debt', 'msETH-Debt', 18, controller.address)
+  await msEthDebtToken.setSyntheticToken(msEth.address)
 
-  await vsDoge.initialize(
-    'Vesper Synth DOGE',
-    'vsDOGE',
+  await msDoge.initialize(
+    'Metronome Synth DOGE',
+    'msDOGE',
     18,
     controller.address,
-    vsDOGEDebt.address,
+    msDogeDebtToken.address,
     interestRate,
     MaxUint256
   )
 
-  await vsDOGEDebt.initialize('vsDOGE Debt', 'vsDOGE-Debt', 18, controller.address)
-  await vsDOGEDebt.setSyntheticToken(vsDoge.address)
+  await msDogeDebtToken.initialize('msDOGE Debt', 'msDOGE-Debt', 18, controller.address)
+  await msDogeDebtToken.setSyntheticToken(msDoge.address)
 
   await controller.initialize(masterOracleMock.address)
   await controller.updateMaxLiquidable(parseEther('1')) // 100%
   await controller.updateTreasury(treasury.address)
   expect(await controller.liquidatorLiquidationFee()).eq(liquidatorLiquidationFee)
-  await controller.addDepositToken(vsdMET.address)
-  await controller.addSyntheticToken(vsEth.address)
-  await controller.addDepositToken(vsdDAI.address)
-  await controller.addSyntheticToken(vsDoge.address)
+  await controller.addDepositToken(msdMET.address)
+  await controller.addSyntheticToken(msEth.address)
+  await controller.addDepositToken(msdDAI.address)
+  await controller.addSyntheticToken(msDoge.address)
 
   // mint some collaterals to users
   await met.mint(alice.address, parseEther(`${1e6}`))
@@ -132,22 +132,22 @@ async function fixture() {
   await dai.mint(alice.address, parseEther(`${1e6}`))
 
   // initialize mocked oracle
-  await masterOracleMock.updatePrice(vsdDAI.address, daiPrice)
-  await masterOracleMock.updatePrice(vsdMET.address, metPrice)
-  await masterOracleMock.updatePrice(vsEth.address, ethPrice)
-  await masterOracleMock.updatePrice(vsDoge.address, dogePrice)
+  await masterOracleMock.updatePrice(msdDAI.address, daiPrice)
+  await masterOracleMock.updatePrice(msdMET.address, metPrice)
+  await masterOracleMock.updatePrice(msEth.address, ethPrice)
+  await masterOracleMock.updatePrice(msDoge.address, dogePrice)
 
   return {
-    oracle: masterOracleMock,
+    masterOracleMock,
     met,
     dai,
     treasury,
-    metDepositToken: vsdMET,
-    daiDepositToken: vsdDAI,
-    vsEthDebtToken: vsETHDebt,
-    vsDogeDebtToken: vsDOGEDebt,
-    vsEth,
-    vsDoge,
+    msdMET,
+    msdDAI,
+    msEthDebtToken,
+    msDogeDebtToken,
+    msEth,
+    msDoge,
     controller,
   }
 }
@@ -159,13 +159,13 @@ describe('Controller', function () {
   let liquidator: SignerWithAddress
   let met: ERC20Mock
   let dai: ERC20Mock
-  let vsEthDebtToken: DebtToken
-  let vsDogeDebtToken: DebtToken
-  let vsEth: SyntheticToken
-  let vsDoge: SyntheticToken
+  let msEthDebtToken: DebtToken
+  let msDogeDebtToken: DebtToken
+  let msEth: SyntheticToken
+  let msDoge: SyntheticToken
   let treasury: Treasury
-  let vsdMET: DepositToken
-  let vsdDAI: DepositToken
+  let msdMET: DepositToken
+  let msdDAI: DepositToken
   let masterOracle: MasterOracleMock
   let controller: Controller
 
@@ -173,16 +173,16 @@ describe('Controller', function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[deployer, alice, bob, liquidator] = await ethers.getSigners()
     ;({
-      oracle: masterOracle,
+      masterOracleMock: masterOracle,
       met,
       dai,
       treasury,
-      metDepositToken: vsdMET,
-      daiDepositToken: vsdDAI,
-      vsEthDebtToken,
-      vsDogeDebtToken,
-      vsEth,
-      vsDoge,
+      msdMET,
+      msdDAI,
+      msEthDebtToken,
+      msDogeDebtToken,
+      msEth,
+      msDoge,
       controller,
     } = await waffle.loadFixture(fixture))
   })
@@ -192,21 +192,21 @@ describe('Controller', function () {
     const daiDepositAmount = parseEther('24000') // ~$24,000
 
     beforeEach(async function () {
-      await met.connect(alice).approve(vsdMET.address, ethers.constants.MaxUint256)
-      await dai.connect(alice).approve(vsdDAI.address, ethers.constants.MaxUint256)
+      await met.connect(alice).approve(msdMET.address, ethers.constants.MaxUint256)
+      await dai.connect(alice).approve(msdDAI.address, ethers.constants.MaxUint256)
 
-      await vsdMET.connect(alice).deposit(metDepositAmount, alice.address)
-      await vsdDAI.connect(alice).deposit(daiDepositAmount, alice.address)
+      await msdMET.connect(alice).deposit(metDepositAmount, alice.address)
+      await msdDAI.connect(alice).deposit(daiDepositAmount, alice.address)
     })
 
     it('should calculate deposit correctly', async function () {
       const {_isHealthy, _depositInUsd, _debtInUsd, _issuableLimitInUsd, _issuableInUsd} =
         await controller.debtPositionOf(alice.address)
 
-      const limitForMet = (await vsdMET.balanceOf(alice.address)).mul(metCR).div(parseEther('1'))
-      const limitForDai = (await vsdDAI.balanceOf(alice.address)).mul(daiCR).div(parseEther('1'))
-      const limitForMetInUsd = await masterOracle.quoteTokenToUsd(vsdMET.address, limitForMet)
-      const limitForDaiInUsd = await masterOracle.quoteTokenToUsd(vsdDAI.address, limitForDai)
+      const limitForMet = (await msdMET.balanceOf(alice.address)).mul(metCR).div(parseEther('1'))
+      const limitForDai = (await msdDAI.balanceOf(alice.address)).mul(daiCR).div(parseEther('1'))
+      const limitForMetInUsd = await masterOracle.quoteTokenToUsd(msdMET.address, limitForMet)
+      const limitForDaiInUsd = await masterOracle.quoteTokenToUsd(msdDAI.address, limitForDai)
       const _expectedMintableLimitInUsd = limitForMetInUsd.add(limitForDaiInUsd)
 
       expect(_isHealthy).eq(true)
@@ -219,8 +219,8 @@ describe('Controller', function () {
     it('should be able to issue using position among multiple collaterals', async function () {
       const {_issuableInUsd: _issuableInUsdBefore} = await controller.debtPositionOf(alice.address)
 
-      const amountToIssue = await masterOracle.quoteUsdToToken(vsEth.address, _issuableInUsdBefore)
-      await vsEth.connect(alice).issue(amountToIssue, alice.address)
+      const amountToIssue = await masterOracle.quoteUsdToToken(msEth.address, _issuableInUsdBefore)
+      await msEth.connect(alice).issue(amountToIssue, alice.address)
 
       const {_isHealthy, _issuableInUsd, _depositInUsd} = await controller.debtPositionOf(alice.address)
 
@@ -234,8 +234,8 @@ describe('Controller', function () {
     const userDepositAmount = parseEther('6000')
 
     beforeEach(async function () {
-      await met.connect(alice).approve(vsdMET.address, ethers.constants.MaxUint256)
-      await vsdMET.connect(alice).deposit(userDepositAmount, alice.address)
+      await met.connect(alice).approve(msdMET.address, ethers.constants.MaxUint256)
+      await msdMET.connect(alice).deposit(userDepositAmount, alice.address)
     })
 
     it('should withdraw when collateral charges transfer fee', async function () {
@@ -243,22 +243,22 @@ describe('Controller', function () {
       const fee = parseEther('0.1') // 10%
       await met.updateFee(fee)
       const metBalanceBefore = await met.balanceOf(alice.address)
-      const amountToWithdraw = await vsdMET.balanceOf(alice.address)
+      const amountToWithdraw = await msdMET.balanceOf(alice.address)
 
       // when
       const amountAfterFee = amountToWithdraw.sub(amountToWithdraw.mul(fee).div(parseEther('1')))
-      const tx = vsdMET.connect(alice).withdraw(amountToWithdraw, alice.address)
-      await expect(tx).emit(vsdMET, 'CollateralWithdrawn').withArgs(alice.address, alice.address, amountToWithdraw, 0)
+      const tx = msdMET.connect(alice).withdraw(amountToWithdraw, alice.address)
+      await expect(tx).emit(msdMET, 'CollateralWithdrawn').withArgs(alice.address, alice.address, amountToWithdraw, 0)
 
       // then
       expect(await met.balanceOf(alice.address)).eq(metBalanceBefore.add(amountAfterFee))
     })
 
-    describe('when user minted some vsETH', function () {
+    describe('when user minted some msETH', function () {
       const userMintAmount = parseEther('1')
 
       beforeEach(async function () {
-        await vsEth.connect(alice).issue(userMintAmount, alice.address)
+        await msEth.connect(alice).issue(userMintAmount, alice.address)
       })
 
       describe('swap', function () {
@@ -268,7 +268,7 @@ describe('Controller', function () {
 
           // when
           const amount = parseEther('0.1')
-          const tx = controller.connect(alice).swap(vsEth.address, vsDoge.address, amount)
+          const tx = controller.connect(alice).swap(msEth.address, msDoge.address, amount)
 
           // then
           await expect(tx).emit(controller, 'SyntheticTokenSwapped')
@@ -280,7 +280,7 @@ describe('Controller', function () {
 
           // when
           const amount = parseEther('0.1')
-          const tx = controller.connect(alice).swap(vsEth.address, vsDoge.address, amount)
+          const tx = controller.connect(alice).swap(msEth.address, msDoge.address, amount)
 
           // then
           await expect(tx).revertedWith('shutdown')
@@ -288,7 +288,7 @@ describe('Controller', function () {
 
         it('should revert if amount == 0', async function () {
           // when
-          const tx = controller.connect(alice).swap(vsEth.address, vsDoge.address, 0)
+          const tx = controller.connect(alice).swap(msEth.address, msDoge.address, 0)
 
           // then
           await expect(tx).revertedWith('amount-in-is-0')
@@ -296,11 +296,11 @@ describe('Controller', function () {
 
         it('should revert if synthetic out is not active', async function () {
           // given
-          await vsDoge.toggleIsActive()
+          await msDoge.toggleIsActive()
 
           // when
-          const amountIn = await vsEth.balanceOf(alice.address)
-          const tx = controller.connect(alice).swap(vsEth.address, vsDoge.address, amountIn)
+          const amountIn = await msEth.balanceOf(alice.address)
+          const tx = controller.connect(alice).swap(msEth.address, msDoge.address, amountIn)
 
           // then
           await expect(tx).revertedWith('synthetic-inactive')
@@ -308,11 +308,11 @@ describe('Controller', function () {
 
         it('should revert if user has not enough balance', async function () {
           // given
-          const vsAssetInBalance = await vsEth.balanceOf(alice.address)
+          const msAssetInBalance = await msEth.balanceOf(alice.address)
 
           // when
-          const amountIn = vsAssetInBalance.add('1')
-          const tx = controller.connect(alice).swap(vsEth.address, vsDoge.address, amountIn)
+          const amountIn = msAssetInBalance.add('1')
+          const tx = controller.connect(alice).swap(msEth.address, msDoge.address, amountIn)
 
           // then
           await expect(tx).revertedWith('amount-in-gt-balance')
@@ -321,59 +321,59 @@ describe('Controller', function () {
         it('should swap synthetic tokens (swapFee == 0)', async function () {
           // given
           await controller.updateSwapFee(0)
-          const vsAssetInBalanceBefore = await vsEth.balanceOf(alice.address)
-          const vsAssetInDebtBalanceBefore = await vsEthDebtToken.balanceOf(alice.address)
-          const vsAssetOutBalanceBefore = await vsDoge.balanceOf(alice.address)
-          const vsAssetOutDebtBalanceBefore = await vsDogeDebtToken.balanceOf(alice.address)
-          expect(vsAssetOutBalanceBefore).eq(0)
-          expect(vsAssetOutDebtBalanceBefore).eq(0)
+          const msAssetInBalanceBefore = await msEth.balanceOf(alice.address)
+          const msAssetInDebtBalanceBefore = await msEthDebtToken.balanceOf(alice.address)
+          const msAssetOutBalanceBefore = await msDoge.balanceOf(alice.address)
+          const msAssetOutDebtBalanceBefore = await msDogeDebtToken.balanceOf(alice.address)
+          expect(msAssetOutBalanceBefore).eq(0)
+          expect(msAssetOutDebtBalanceBefore).eq(0)
           const debtInUsdBefore = await controller.debtOf(alice.address)
 
           // when
-          const vsAssetIn = vsEth.address
-          const vsAssetOut = vsDoge.address
-          const amountIn = vsAssetInBalanceBefore
+          const msAssetIn = msEth.address
+          const msAssetOut = msDoge.address
+          const amountIn = msAssetInBalanceBefore
           const amountInUsd = amountIn.mul(ethPrice).div(parseEther('1'))
-          const tx = await controller.connect(alice).swap(vsAssetIn, vsAssetOut, amountIn)
+          const tx = await controller.connect(alice).swap(msAssetIn, msAssetOut, amountIn)
 
           // then
           const expectedAmountOut = amountInUsd.mul(parseEther('1')).div(dogePrice)
 
           await expect(tx)
             .emit(controller, 'SyntheticTokenSwapped')
-            .withArgs(alice.address, vsAssetIn, vsAssetOut, amountIn, expectedAmountOut, 0)
+            .withArgs(alice.address, msAssetIn, msAssetOut, amountIn, expectedAmountOut, 0)
 
-          const vsAssetInBalanceAfter = await vsEth.balanceOf(alice.address)
-          const vsAssetInDebtBalanceAfter = await vsEthDebtToken.balanceOf(alice.address)
-          const vsAssetOutBalanceAfter = await vsDoge.balanceOf(alice.address)
-          const vsAssetOutDebtBalanceAfter = await vsDogeDebtToken.balanceOf(alice.address)
+          const msAssetInBalanceAfter = await msEth.balanceOf(alice.address)
+          const msAssetInDebtBalanceAfter = await msEthDebtToken.balanceOf(alice.address)
+          const msAssetOutBalanceAfter = await msDoge.balanceOf(alice.address)
+          const msAssetOutDebtBalanceAfter = await msDogeDebtToken.balanceOf(alice.address)
           const debtInUsdAfter = await controller.debtOf(alice.address)
 
           expect(debtInUsdAfter).eq(debtInUsdBefore)
-          expect(vsAssetInBalanceAfter).eq(vsAssetInBalanceBefore.sub(amountIn))
-          expect(vsAssetInDebtBalanceAfter).eq(vsAssetInDebtBalanceBefore)
-          expect(vsAssetOutBalanceAfter).eq(vsAssetOutBalanceBefore.add(expectedAmountOut))
-          expect(vsAssetOutDebtBalanceAfter).eq(vsAssetOutDebtBalanceBefore)
+          expect(msAssetInBalanceAfter).eq(msAssetInBalanceBefore.sub(amountIn))
+          expect(msAssetInDebtBalanceAfter).eq(msAssetInDebtBalanceBefore)
+          expect(msAssetOutBalanceAfter).eq(msAssetOutBalanceBefore.add(expectedAmountOut))
+          expect(msAssetOutDebtBalanceAfter).eq(msAssetOutDebtBalanceBefore)
         })
 
         it('should swap synthetic tokens (swapFee > 0)', async function () {
           // given
           const swapFee = parseEther('0.1') // 10%
           await controller.updateSwapFee(swapFee)
-          const vsAssetInBalanceBefore = await vsEth.balanceOf(alice.address)
-          const vsAssetInDebtBalanceBefore = await vsEthDebtToken.balanceOf(alice.address)
-          const vsAssetOutBalanceBefore = await vsDoge.balanceOf(alice.address)
-          const vsAssetOutDebtBalanceBefore = await vsDogeDebtToken.balanceOf(alice.address)
-          expect(vsAssetOutBalanceBefore).eq(0)
-          expect(vsAssetOutDebtBalanceBefore).eq(0)
+          const msAssetInBalanceBefore = await msEth.balanceOf(alice.address)
+          const msAssetInDebtBalanceBefore = await msEthDebtToken.balanceOf(alice.address)
+          const msAssetOutBalanceBefore = await msDoge.balanceOf(alice.address)
+          const msAssetOutDebtBalanceBefore = await msDogeDebtToken.balanceOf(alice.address)
+          expect(msAssetOutBalanceBefore).eq(0)
+          expect(msAssetOutDebtBalanceBefore).eq(0)
           const debtInUsdBefore = await controller.debtOf(alice.address)
 
           // when
-          const vsAssetIn = vsEth.address
-          const vsAssetOut = vsDoge.address
-          const amountIn = vsAssetInBalanceBefore
+          const msAssetIn = msEth.address
+          const msAssetOut = msDoge.address
+          const amountIn = msAssetInBalanceBefore
           const amountInUsd = amountIn.mul(ethPrice).div(parseEther('1'))
-          const tx = await controller.connect(alice).swap(vsAssetIn, vsAssetOut, amountIn)
+          const tx = await controller.connect(alice).swap(msAssetIn, msAssetOut, amountIn)
 
           // then
           const expectedAmountOut = amountInUsd.mul(parseEther('1')).div(dogePrice)
@@ -382,34 +382,34 @@ describe('Controller', function () {
 
           await expect(tx)
             .emit(controller, 'SyntheticTokenSwapped')
-            .withArgs(alice.address, vsAssetIn, vsAssetOut, amountIn, expectedAmountOutAfterFee, expectedFee)
+            .withArgs(alice.address, msAssetIn, msAssetOut, amountIn, expectedAmountOutAfterFee, expectedFee)
 
-          const vsAssetInBalanceAfter = await vsEth.balanceOf(alice.address)
-          const vsAssetInDebtBalanceAfter = await vsEthDebtToken.balanceOf(alice.address)
-          const vsAssetOutBalanceAfter = await vsDoge.balanceOf(alice.address)
-          const vsAssetOutDebtBalanceAfter = await vsDogeDebtToken.balanceOf(alice.address)
+          const msAssetInBalanceAfter = await msEth.balanceOf(alice.address)
+          const msAssetInDebtBalanceAfter = await msEthDebtToken.balanceOf(alice.address)
+          const msAssetOutBalanceAfter = await msDoge.balanceOf(alice.address)
+          const msAssetOutDebtBalanceAfter = await msDogeDebtToken.balanceOf(alice.address)
           const debtInUsdAfter = await controller.debtOf(alice.address)
 
           expect(debtInUsdAfter).eq(debtInUsdBefore)
-          expect(vsAssetInBalanceAfter).eq(vsAssetInBalanceBefore.sub(amountIn))
-          expect(vsAssetInDebtBalanceAfter).eq(vsAssetInDebtBalanceBefore)
-          expect(vsAssetOutBalanceAfter).eq(vsAssetOutBalanceBefore.add(expectedAmountOutAfterFee))
-          expect(vsAssetOutDebtBalanceAfter).eq(vsAssetOutDebtBalanceBefore)
+          expect(msAssetInBalanceAfter).eq(msAssetInBalanceBefore.sub(amountIn))
+          expect(msAssetInDebtBalanceAfter).eq(msAssetInDebtBalanceBefore)
+          expect(msAssetOutBalanceAfter).eq(msAssetOutBalanceBefore.add(expectedAmountOutAfterFee))
+          expect(msAssetOutDebtBalanceAfter).eq(msAssetOutDebtBalanceBefore)
         })
 
         it('should allow user without debt to swap', async function () {
           // given
           const amountIn = parseEther('1')
-          await vsEth.connect(alice).transfer(bob.address, amountIn)
-          expect(await vsEthDebtToken.balanceOf(bob.address)).eq(0)
-          expect(await vsDoge.balanceOf(bob.address)).eq(0)
+          await msEth.connect(alice).transfer(bob.address, amountIn)
+          expect(await msEthDebtToken.balanceOf(bob.address)).eq(0)
+          expect(await msDoge.balanceOf(bob.address)).eq(0)
 
           // when
-          await controller.connect(bob).swap(vsEth.address, vsDoge.address, amountIn)
+          await controller.connect(bob).swap(msEth.address, msDoge.address, amountIn)
 
           // then
-          expect(await vsEth.balanceOf(bob.address)).eq(0)
-          expect(await vsDoge.balanceOf(bob.address)).gt(0)
+          expect(await msEth.balanceOf(bob.address)).eq(0)
+          expect(await msDoge.balanceOf(bob.address)).gt(0)
         })
       })
 
@@ -418,14 +418,14 @@ describe('Controller', function () {
         const liquidatorMintAmount = parseEther('2')
 
         beforeEach(async function () {
-          await met.connect(liquidator).approve(vsdMET.address, ethers.constants.MaxUint256)
-          await vsdMET.connect(liquidator).deposit(liquidatorDepositAmount, liquidator.address)
-          await vsEth.connect(liquidator).issue(liquidatorMintAmount, liquidator.address)
+          await met.connect(liquidator).approve(msdMET.address, ethers.constants.MaxUint256)
+          await msdMET.connect(liquidator).deposit(liquidatorDepositAmount, liquidator.address)
+          await msEth.connect(liquidator).issue(liquidatorMintAmount, liquidator.address)
         })
 
         it('should revert if amount to repay == 0', async function () {
           // when
-          const tx = controller.liquidate(vsEth.address, alice.address, 0, vsdMET.address)
+          const tx = controller.liquidate(msEth.address, alice.address, 0, msdMET.address)
 
           // then
           await expect(tx).revertedWith('amount-is-zero')
@@ -433,7 +433,7 @@ describe('Controller', function () {
 
         it('should revert if liquidator == account', async function () {
           // when
-          const tx = controller.connect(alice).liquidate(vsEth.address, alice.address, 1, vsdMET.address)
+          const tx = controller.connect(alice).liquidate(msEth.address, alice.address, 1, msdMET.address)
 
           // then
           await expect(tx).revertedWith('can-not-liquidate-own-position')
@@ -445,7 +445,7 @@ describe('Controller', function () {
           expect(_isHealthy).true
 
           // when
-          const tx = controller.liquidate(vsEth.address, alice.address, parseEther('1'), vsdMET.address)
+          const tx = controller.liquidate(msEth.address, alice.address, parseEther('1'), msdMET.address)
 
           // then
           await expect(tx).revertedWith('position-is-healthy')
@@ -455,7 +455,7 @@ describe('Controller', function () {
           const newMetPrice = toUSD('0.95')
 
           beforeEach(async function () {
-            await masterOracle.updatePrice(vsdMET.address, newMetPrice)
+            await masterOracle.updatePrice(msdMET.address, newMetPrice)
 
             const expectedDebtInUsd = userMintAmount.mul(ethPrice).div(parseEther('1'))
             const expectedDepositInUsd = userDepositAmount.mul(newMetPrice).div(parseEther('1'))
@@ -470,12 +470,12 @@ describe('Controller', function () {
             expect(_issuableLimitInUsd).eq(expectedMintableLimit)
             expect(_issuableInUsd).eq(0)
 
-            expect(await vsdMET.balanceOf(alice.address)).eq(userDepositAmount)
-            expect(await vsEth.balanceOf(alice.address)).eq(userMintAmount)
-            expect(await vsEthDebtToken.balanceOf(alice.address)).eq(userMintAmount)
-            expect(await vsdMET.balanceOf(liquidator.address)).eq(liquidatorDepositAmount)
-            expect(await vsEth.balanceOf(liquidator.address)).eq(liquidatorMintAmount)
-            expect(await vsEthDebtToken.balanceOf(liquidator.address)).eq(liquidatorMintAmount)
+            expect(await msdMET.balanceOf(alice.address)).eq(userDepositAmount)
+            expect(await msEth.balanceOf(alice.address)).eq(userMintAmount)
+            expect(await msEthDebtToken.balanceOf(alice.address)).eq(userMintAmount)
+            expect(await msdMET.balanceOf(liquidator.address)).eq(liquidatorDepositAmount)
+            expect(await msEth.balanceOf(liquidator.address)).eq(liquidatorMintAmount)
+            expect(await msEthDebtToken.balanceOf(liquidator.address)).eq(liquidatorMintAmount)
           })
 
           it('should not revert if paused', async function () {
@@ -486,7 +486,7 @@ describe('Controller', function () {
             const amountToRepay = userMintAmount // repay all user's debt
             const tx = await controller
               .connect(liquidator)
-              .liquidate(vsEth.address, alice.address, amountToRepay, vsdMET.address)
+              .liquidate(msEth.address, alice.address, amountToRepay, msdMET.address)
 
             // then
             await expect(tx).emit(controller, 'PositionLiquidated')
@@ -500,24 +500,24 @@ describe('Controller', function () {
             const amountToRepay = userMintAmount // repay all user's debt
             const tx = controller
               .connect(liquidator)
-              .liquidate(vsEth.address, alice.address, amountToRepay, vsdMET.address)
+              .liquidate(msEth.address, alice.address, amountToRepay, msdMET.address)
 
             // then
             await expect(tx).revertedWith('shutdown')
           })
 
-          it('should revert if liquidator has not enough vsAsset to repay', async function () {
+          it('should revert if liquidator has not enough msAsset to repay', async function () {
             // given
-            const liquidatorVsEthBalanceBefore = await vsEth.balanceOf(liquidator.address)
-            await vsEth.connect(liquidator).repay(liquidator.address, liquidatorVsEthBalanceBefore)
-            const amountToRepayInUsd = await getMinLiquidationAmountInUsd(controller, alice.address, vsdMET)
-            const amountToRepayInVsEth = amountToRepayInUsd.mul(parseEther('1')).div(ethPrice)
-            expect(await vsEth.balanceOf(liquidator.address)).lt(amountToRepayInVsEth)
+            const liquidatorMsEthBalanceBefore = await msEth.balanceOf(liquidator.address)
+            await msEth.connect(liquidator).repay(liquidator.address, liquidatorMsEthBalanceBefore)
+            const amountToRepayInUsd = await getMinLiquidationAmountInUsd(controller, alice.address, msdMET)
+            const amountToRepayInMsEth = amountToRepayInUsd.mul(parseEther('1')).div(ethPrice)
+            expect(await msEth.balanceOf(liquidator.address)).lt(amountToRepayInMsEth)
 
             // when
             const tx = controller
               .connect(liquidator)
-              .liquidate(vsEth.address, alice.address, amountToRepayInVsEth, vsdMET.address)
+              .liquidate(msEth.address, alice.address, amountToRepayInMsEth, msdMET.address)
 
             // then
             await expect(tx).revertedWith('burn-amount-exceeds-balance')
@@ -525,13 +525,13 @@ describe('Controller', function () {
 
           it('should revert if debt amount is < amount to repay', async function () {
             // given
-            const vsEthDebt = await vsEthDebtToken.balanceOf(alice.address)
+            const msEthDebt = await msEthDebtToken.balanceOf(alice.address)
 
             // when
-            const amountToRepay = vsEthDebt.add('1')
+            const amountToRepay = msEthDebt.add('1')
             const tx = controller
               .connect(liquidator)
-              .liquidate(vsEth.address, alice.address, amountToRepay, vsdMET.address)
+              .liquidate(msEth.address, alice.address, amountToRepay, msdMET.address)
 
             // then
             await expect(tx).revertedWith('amount-gt-max-liquidable')
@@ -541,14 +541,14 @@ describe('Controller', function () {
             it('should revert if debt becomes < debt floor', async function () {
               // given
               await controller.updateDebtFloor(parseEther('3000')) // $3,000
-              const debtBefore = await vsEthDebtToken.balanceOf(alice.address)
+              const debtBefore = await msEthDebtToken.balanceOf(alice.address)
               expect(debtBefore).eq(parseEther('1')) // $4,000
 
               // when
               const amountToRepay = debtBefore.div('2') // $2,0000
               const tx = controller
                 .connect(liquidator)
-                .liquidate(vsEth.address, alice.address, amountToRepay, vsdMET.address)
+                .liquidate(msEth.address, alice.address, amountToRepay, msdMET.address)
 
               // then
               await expect(tx).revertedWith('remaining-debt-lt-floor')
@@ -557,17 +557,17 @@ describe('Controller', function () {
             it('should allow erase debt when debt floor set', async function () {
               // given
               await controller.updateDebtFloor(parseEther('3000')) // $3,000
-              const debtBefore = await vsEthDebtToken.balanceOf(alice.address)
+              const debtBefore = await msEthDebtToken.balanceOf(alice.address)
               expect(debtBefore).eq(parseEther('1')) // $4,000
 
               // when
               const amountToRepay = debtBefore
               await controller
                 .connect(liquidator)
-                .liquidate(vsEth.address, alice.address, amountToRepay, vsdMET.address)
+                .liquidate(msEth.address, alice.address, amountToRepay, msdMET.address)
 
               // then
-              const debtAfter = await vsEthDebtToken.balanceOf(alice.address)
+              const debtAfter = await msEthDebtToken.balanceOf(alice.address)
               expect(debtAfter).eq(0)
             })
           })
@@ -576,13 +576,13 @@ describe('Controller', function () {
             // given
             const maxLiquidable = parseEther('0.5') // 50%
             await controller.updateMaxLiquidable(maxLiquidable)
-            const vsEthDebt = await vsEthDebtToken.balanceOf(alice.address)
+            const msEthDebt = await msEthDebtToken.balanceOf(alice.address)
 
             // when
-            const amountToRepay = vsEthDebt.div('2').add('1')
+            const amountToRepay = msEthDebt.div('2').add('1')
             const tx = controller
               .connect(liquidator)
-              .liquidate(vsEth.address, alice.address, amountToRepay, vsdMET.address)
+              .liquidate(msEth.address, alice.address, amountToRepay, msdMET.address)
 
             // then
             await expect(tx).revertedWith('amount-gt-max-liquidable')
@@ -598,7 +598,7 @@ describe('Controller', function () {
             const amountToRepay = userMintAmount // repay all user's debt
             const tx = await controller
               .connect(liquidator)
-              .liquidate(vsEth.address, alice.address, amountToRepay, vsdMET.address)
+              .liquidate(msEth.address, alice.address, amountToRepay, msdMET.address)
 
             // then
             const [PositionLiquidated] = (await tx.wait()).events!.filter(({event}) => event === 'PositionLiquidated')
@@ -607,7 +607,7 @@ describe('Controller', function () {
             const amountToSeizeInUsd = debtInUsdBefore
               .mul(parseEther('1').add(liquidatorLiquidationFee))
               .div(parseEther('1'))
-            const expectedDepositSeized = await masterOracle.quoteUsdToToken(vsdMET.address, amountToSeizeInUsd)
+            const expectedDepositSeized = await masterOracle.quoteUsdToToken(msdMET.address, amountToSeizeInUsd)
             const expectedDepositAfter = collateralInUsdBefore
               .sub(amountToSeizeInUsd)
               .mul(parseEther('1'))
@@ -616,12 +616,12 @@ describe('Controller', function () {
 
             expect(_isHealthy).true
             expect(depositSeized).eq(expectedDepositSeized)
-            expect(await vsdMET.balanceOf(alice.address)).closeTo(expectedDepositAfter, '1')
-            expect(await vsEth.balanceOf(alice.address)).eq(userMintAmount)
-            expect(await vsEthDebtToken.balanceOf(alice.address)).eq(0)
-            expect(await vsdMET.balanceOf(liquidator.address)).eq(liquidatorDepositAmount.add(depositSeized))
-            expect(await vsEth.balanceOf(liquidator.address)).eq(liquidatorMintAmount.sub(amountToRepay))
-            expect(await vsEthDebtToken.balanceOf(liquidator.address)).eq(liquidatorMintAmount)
+            expect(await msdMET.balanceOf(alice.address)).closeTo(expectedDepositAfter, '1')
+            expect(await msEth.balanceOf(alice.address)).eq(userMintAmount)
+            expect(await msEthDebtToken.balanceOf(alice.address)).eq(0)
+            expect(await msdMET.balanceOf(liquidator.address)).eq(liquidatorDepositAmount.add(depositSeized))
+            expect(await msEth.balanceOf(liquidator.address)).eq(liquidatorMintAmount.sub(amountToRepay))
+            expect(await msEthDebtToken.balanceOf(liquidator.address)).eq(liquidatorMintAmount)
           })
 
           it('should liquidate by repaying all debt (protocolLiquidationFee > 0)', async function () {
@@ -630,13 +630,13 @@ describe('Controller', function () {
             await controller.updateProtocolLiquidationFee(protocolLiquidationFee)
             const debtInUsdBefore = await controller.debtOf(alice.address)
             const {_depositInUsd: depositInUsdBefore} = await controller.debtPositionOf(alice.address)
-            const depositBefore = await masterOracle.quoteUsdToToken(vsdMET.address, depositInUsdBefore)
+            const depositBefore = await masterOracle.quoteUsdToToken(msdMET.address, depositInUsdBefore)
 
             // when
             const amountToRepay = userMintAmount // repay all user's debt
             const tx = await controller
               .connect(liquidator)
-              .liquidate(vsEth.address, alice.address, amountToRepay, vsdMET.address)
+              .liquidate(msEth.address, alice.address, amountToRepay, msdMET.address)
 
             // then
             const [PositionLiquidated] = (await tx.wait()).events!.filter(({event}) => event === 'PositionLiquidated')
@@ -649,22 +649,22 @@ describe('Controller', function () {
             const expectedDepositToLiquidator = debtInUsdBefore
               .mul(parseEther('1').add(liquidatorLiquidationFee))
               .div(newMetPrice)
-            const expectedDepositSeized = await masterOracle.quoteUsdToToken(vsdMET.address, depositToSeizeInUsd)
+            const expectedDepositSeized = await masterOracle.quoteUsdToToken(msdMET.address, depositToSeizeInUsd)
             const expectedDepositAfter = depositBefore.sub(expectedDepositSeized)
 
             const {_isHealthy} = await controller.debtPositionOf(alice.address)
 
             expect(_isHealthy).true
             expect(depositSeized).eq(expectedDepositSeized)
-            expect(await vsdMET.balanceOf(alice.address)).eq(expectedDepositAfter)
-            expect(await vsEth.balanceOf(alice.address)).eq(userMintAmount)
-            expect(await vsEthDebtToken.balanceOf(alice.address)).eq(0)
-            expect(await vsdMET.balanceOf(liquidator.address)).closeTo(
+            expect(await msdMET.balanceOf(alice.address)).eq(expectedDepositAfter)
+            expect(await msEth.balanceOf(alice.address)).eq(userMintAmount)
+            expect(await msEthDebtToken.balanceOf(alice.address)).eq(0)
+            expect(await msdMET.balanceOf(liquidator.address)).closeTo(
               liquidatorDepositAmount.add(expectedDepositToLiquidator),
               1
             )
-            expect(await vsEth.balanceOf(liquidator.address)).eq(liquidatorMintAmount.sub(amountToRepay))
-            expect(await vsEthDebtToken.balanceOf(liquidator.address)).eq(liquidatorMintAmount)
+            expect(await msEth.balanceOf(liquidator.address)).eq(liquidatorMintAmount.sub(amountToRepay))
+            expect(await msEthDebtToken.balanceOf(liquidator.address)).eq(liquidatorMintAmount)
           })
 
           it('should liquidate by repaying > needed (protocolLiquidationFee == 0)', async function () {
@@ -672,8 +672,8 @@ describe('Controller', function () {
             await controller.updateProtocolLiquidationFee(0)
             const debtInUsdBefore = await controller.debtOf(alice.address)
             const {_depositInUsd: collateralInUsdBefore} = await controller.debtPositionOf(alice.address)
-            const collateralBefore = await masterOracle.quoteUsdToToken(vsdMET.address, collateralInUsdBefore)
-            const minAmountToRepayInUsd = await getMinLiquidationAmountInUsd(controller, alice.address, vsdMET)
+            const collateralBefore = await masterOracle.quoteUsdToToken(msdMET.address, collateralInUsdBefore)
+            const minAmountToRepayInUsd = await getMinLiquidationAmountInUsd(controller, alice.address, msdMET)
 
             // when
             const amountToRepayInUsd = minAmountToRepayInUsd.mul(parseEther('1.1')).div(parseEther('1')) // min + 10%
@@ -681,26 +681,26 @@ describe('Controller', function () {
             const amountToRepay = amountToRepayInUsd.mul(parseEther('1')).div(ethPrice)
             const tx = await controller
               .connect(liquidator)
-              .liquidate(vsEth.address, alice.address, amountToRepay, vsdMET.address)
+              .liquidate(msEth.address, alice.address, amountToRepay, msdMET.address)
             const [PositionLiquidated] = (await tx.wait()).events!.filter(({event}) => event === 'PositionLiquidated')
             const [, , , , depositSeized] = PositionLiquidated.args!
-            const depositSeizedInUsd = await masterOracle.quoteTokenToUsd(vsdMET.address, depositSeized)
+            const depositSeizedInUsd = await masterOracle.quoteTokenToUsd(msdMET.address, depositSeized)
 
             // then
             const {_isHealthy: isHealthyAfter, _depositInUsd: collateralInUsdAfter} = await controller.debtPositionOf(
               alice.address
             )
-            const lockedCollateralAfter = await vsdMET.lockedBalanceOf(alice.address)
+            const lockedCollateralAfter = await msdMET.lockedBalanceOf(alice.address)
 
             expect(isHealthyAfter).true
             expect(collateralInUsdAfter).closeTo(collateralInUsdBefore.sub(depositSeizedInUsd), 1)
             expect(lockedCollateralAfter).gt(0)
-            expect(await vsdMET.balanceOf(alice.address)).eq(collateralBefore.sub(depositSeized))
-            expect(await vsEth.balanceOf(alice.address)).eq(userMintAmount)
-            expect(await vsEthDebtToken.balanceOf(alice.address)).eq(userMintAmount.sub(amountToRepay))
-            expect(await vsdMET.balanceOf(liquidator.address)).eq(liquidatorDepositAmount.add(depositSeized))
-            expect(await vsEth.balanceOf(liquidator.address)).eq(liquidatorMintAmount.sub(amountToRepay))
-            expect(await vsEthDebtToken.balanceOf(liquidator.address)).eq(liquidatorMintAmount)
+            expect(await msdMET.balanceOf(alice.address)).eq(collateralBefore.sub(depositSeized))
+            expect(await msEth.balanceOf(alice.address)).eq(userMintAmount)
+            expect(await msEthDebtToken.balanceOf(alice.address)).eq(userMintAmount.sub(amountToRepay))
+            expect(await msdMET.balanceOf(liquidator.address)).eq(liquidatorDepositAmount.add(depositSeized))
+            expect(await msEth.balanceOf(liquidator.address)).eq(liquidatorMintAmount.sub(amountToRepay))
+            expect(await msEthDebtToken.balanceOf(liquidator.address)).eq(liquidatorMintAmount)
           })
 
           it('should liquidate by repaying > needed (protocolLiquidationFee > 0)', async function () {
@@ -709,8 +709,8 @@ describe('Controller', function () {
             await controller.updateProtocolLiquidationFee(protocolLiquidationFee)
             const debtInUsdBefore = await controller.debtOf(alice.address)
             const {_depositInUsd: collateralInUsdBefore} = await controller.debtPositionOf(alice.address)
-            const minAmountToRepayInUsd = await getMinLiquidationAmountInUsd(controller, alice.address, vsdMET)
-            const collateralBefore = await masterOracle.quoteUsdToToken(vsdMET.address, collateralInUsdBefore)
+            const minAmountToRepayInUsd = await getMinLiquidationAmountInUsd(controller, alice.address, msdMET)
+            const collateralBefore = await masterOracle.quoteUsdToToken(msdMET.address, collateralInUsdBefore)
 
             // when
             const amountToRepayInUsd = minAmountToRepayInUsd.mul(parseEther('1.1')).div(parseEther('1')) // min + 10%
@@ -718,11 +718,11 @@ describe('Controller', function () {
             const amountToRepay = amountToRepayInUsd.mul(parseEther('1')).div(ethPrice)
             const tx = await controller
               .connect(liquidator)
-              .liquidate(vsEth.address, alice.address, amountToRepay, vsdMET.address)
+              .liquidate(msEth.address, alice.address, amountToRepay, msdMET.address)
             const [PositionLiquidated] = (await tx.wait()).events!.filter(({event}) => event === 'PositionLiquidated')
             const [, , , , depositSeized] = PositionLiquidated.args!
 
-            const amountToRepayInMET = await masterOracle.quote(vsEth.address, vsdMET.address, amountToRepay)
+            const amountToRepayInMET = await masterOracle.quote(msEth.address, msdMET.address, amountToRepay)
 
             const expectedDepositToLiquidator = amountToRepayInMET
               .mul(parseEther('1').add(liquidatorLiquidationFee))
@@ -732,55 +732,55 @@ describe('Controller', function () {
             const {_isHealthy: isHealthyAfter, _depositInUsd: collateralInUsdAfter} = await controller.debtPositionOf(
               alice.address
             )
-            const collateralAfter = await masterOracle.quoteUsdToToken(vsdMET.address, collateralInUsdAfter)
-            const lockedCollateralAfter = await vsdMET.lockedBalanceOf(alice.address)
+            const collateralAfter = await masterOracle.quoteUsdToToken(msdMET.address, collateralInUsdAfter)
+            const lockedCollateralAfter = await msdMET.lockedBalanceOf(alice.address)
 
             expect(isHealthyAfter).true
             expect(collateralAfter).closeTo(collateralBefore.sub(depositSeized), 1)
             expect(lockedCollateralAfter).gt(0)
-            expect(await vsdMET.balanceOf(alice.address)).eq(collateralBefore.sub(depositSeized))
-            expect(await vsEth.balanceOf(alice.address)).eq(userMintAmount)
-            expect(await vsEthDebtToken.balanceOf(alice.address)).eq(userMintAmount.sub(amountToRepay))
-            expect(await vsdMET.balanceOf(liquidator.address)).closeTo(
+            expect(await msdMET.balanceOf(alice.address)).eq(collateralBefore.sub(depositSeized))
+            expect(await msEth.balanceOf(alice.address)).eq(userMintAmount)
+            expect(await msEthDebtToken.balanceOf(alice.address)).eq(userMintAmount.sub(amountToRepay))
+            expect(await msdMET.balanceOf(liquidator.address)).closeTo(
               liquidatorDepositAmount.add(expectedDepositToLiquidator),
               0
             )
-            expect(await vsEth.balanceOf(liquidator.address)).eq(liquidatorMintAmount.sub(amountToRepay))
-            expect(await vsEthDebtToken.balanceOf(liquidator.address)).eq(liquidatorMintAmount)
+            expect(await msEth.balanceOf(liquidator.address)).eq(liquidatorMintAmount.sub(amountToRepay))
+            expect(await msEthDebtToken.balanceOf(liquidator.address)).eq(liquidatorMintAmount)
           })
 
           it('should liquidate by repaying < needed (protocolLiquidationFee == 0)', async function () {
             // given
             await controller.updateProtocolLiquidationFee(0)
             const {_depositInUsd: collateralInUsdBefore} = await controller.debtPositionOf(alice.address)
-            const collateralBefore = await masterOracle.quoteUsdToToken(vsdMET.address, collateralInUsdBefore)
+            const collateralBefore = await masterOracle.quoteUsdToToken(msdMET.address, collateralInUsdBefore)
 
             // when
-            const minAmountToRepayInUsd = await getMinLiquidationAmountInUsd(controller, alice.address, vsdMET)
+            const minAmountToRepayInUsd = await getMinLiquidationAmountInUsd(controller, alice.address, msdMET)
             const minAmountToRepay = minAmountToRepayInUsd.mul(parseEther('1')).div(ethPrice)
             const amountToRepay = minAmountToRepay.div('2')
             const tx = await controller
               .connect(liquidator)
-              .liquidate(vsEth.address, alice.address, amountToRepay, vsdMET.address)
+              .liquidate(msEth.address, alice.address, amountToRepay, msdMET.address)
             const [PositionLiquidated] = (await tx.wait()).events!.filter(({event}) => event === 'PositionLiquidated')
             const [, , , , depositSeized] = PositionLiquidated.args!
 
             // then
             const {_isHealthy: isHealthyAfter} = await controller.debtPositionOf(alice.address)
-            const collateralAfter = await vsdMET.balanceOf(alice.address)
-            const unlockedCollateralAfter = await vsdMET.unlockedBalanceOf(alice.address)
-            const lockedCollateralAfter = await vsdMET.lockedBalanceOf(alice.address)
+            const collateralAfter = await msdMET.balanceOf(alice.address)
+            const unlockedCollateralAfter = await msdMET.unlockedBalanceOf(alice.address)
+            const lockedCollateralAfter = await msdMET.lockedBalanceOf(alice.address)
 
             expect(isHealthyAfter).false
             expect(collateralAfter).eq(collateralBefore.sub(depositSeized))
             expect(lockedCollateralAfter).gte(collateralAfter)
             expect(unlockedCollateralAfter).eq(0)
-            expect(await vsdMET.balanceOf(alice.address)).eq(collateralBefore.sub(depositSeized))
-            expect(await vsEth.balanceOf(alice.address)).eq(userMintAmount)
-            expect(await vsEthDebtToken.balanceOf(alice.address)).eq(userMintAmount.sub(amountToRepay))
-            expect(await vsdMET.balanceOf(liquidator.address)).eq(liquidatorDepositAmount.add(depositSeized))
-            expect(await vsEth.balanceOf(liquidator.address)).eq(liquidatorMintAmount.sub(amountToRepay))
-            expect(await vsEthDebtToken.balanceOf(liquidator.address)).eq(liquidatorMintAmount)
+            expect(await msdMET.balanceOf(alice.address)).eq(collateralBefore.sub(depositSeized))
+            expect(await msEth.balanceOf(alice.address)).eq(userMintAmount)
+            expect(await msEthDebtToken.balanceOf(alice.address)).eq(userMintAmount.sub(amountToRepay))
+            expect(await msdMET.balanceOf(liquidator.address)).eq(liquidatorDepositAmount.add(depositSeized))
+            expect(await msEth.balanceOf(liquidator.address)).eq(liquidatorMintAmount.sub(amountToRepay))
+            expect(await msEthDebtToken.balanceOf(liquidator.address)).eq(liquidatorMintAmount)
           })
 
           it('should liquidate by repaying < needed (protocolLiquidationFee > 0)', async function () {
@@ -788,24 +788,24 @@ describe('Controller', function () {
             const protocolLiquidationFee = parseEther('0.01') // 1%
             await controller.updateProtocolLiquidationFee(protocolLiquidationFee)
             const {_depositInUsd: collateralInUsdBefore} = await controller.debtPositionOf(alice.address)
-            const collateralBefore = await masterOracle.quoteUsdToToken(vsdMET.address, collateralInUsdBefore)
+            const collateralBefore = await masterOracle.quoteUsdToToken(msdMET.address, collateralInUsdBefore)
 
             // when
-            const amountToRepayInUsd = (await getMinLiquidationAmountInUsd(controller, alice.address, vsdMET)).div('2')
+            const amountToRepayInUsd = (await getMinLiquidationAmountInUsd(controller, alice.address, msdMET)).div('2')
             const amountToRepay = amountToRepayInUsd.mul(parseEther('1')).div(ethPrice)
             const tx = await controller
               .connect(liquidator)
-              .liquidate(vsEth.address, alice.address, amountToRepay, vsdMET.address)
+              .liquidate(msEth.address, alice.address, amountToRepay, msdMET.address)
             const [PositionLiquidated] = (await tx.wait()).events!.filter(({event}) => event === 'PositionLiquidated')
             const [, , , , depositSeized] = PositionLiquidated.args!
 
             // then
             const {_isHealthy: isHealthyAfter} = await controller.debtPositionOf(alice.address)
-            const collateralAfter = await vsdMET.balanceOf(alice.address)
-            const unlockedCollateralAfter = await vsdMET.unlockedBalanceOf(alice.address)
-            const lockedCollateralAfter = await vsdMET.lockedBalanceOf(alice.address)
+            const collateralAfter = await msdMET.balanceOf(alice.address)
+            const unlockedCollateralAfter = await msdMET.unlockedBalanceOf(alice.address)
+            const lockedCollateralAfter = await msdMET.lockedBalanceOf(alice.address)
 
-            const amountToRepayInMET = await masterOracle.quote(vsEth.address, vsdMET.address, amountToRepay)
+            const amountToRepayInMET = await masterOracle.quote(msEth.address, msdMET.address, amountToRepay)
 
             const expectedDepositToLiquidator = amountToRepayInMET.add(
               amountToRepayInMET.mul(liquidatorLiquidationFee).div(parseEther('1'))
@@ -815,36 +815,36 @@ describe('Controller', function () {
             expect(collateralAfter).eq(collateralBefore.sub(depositSeized))
             expect(lockedCollateralAfter).gte(collateralAfter)
             expect(unlockedCollateralAfter).eq(0)
-            expect(await vsdMET.balanceOf(alice.address)).eq(collateralBefore.sub(depositSeized))
-            expect(await vsEth.balanceOf(alice.address)).eq(userMintAmount)
-            expect(await vsEthDebtToken.balanceOf(alice.address)).eq(userMintAmount.sub(amountToRepay))
-            expect(await vsdMET.balanceOf(liquidator.address)).eq(
+            expect(await msdMET.balanceOf(alice.address)).eq(collateralBefore.sub(depositSeized))
+            expect(await msEth.balanceOf(alice.address)).eq(userMintAmount)
+            expect(await msEthDebtToken.balanceOf(alice.address)).eq(userMintAmount.sub(amountToRepay))
+            expect(await msdMET.balanceOf(liquidator.address)).eq(
               liquidatorDepositAmount.add(expectedDepositToLiquidator)
             )
-            expect(await vsEth.balanceOf(liquidator.address)).eq(liquidatorMintAmount.sub(amountToRepay))
-            expect(await vsEthDebtToken.balanceOf(liquidator.address)).eq(liquidatorMintAmount)
+            expect(await msEth.balanceOf(liquidator.address)).eq(liquidatorMintAmount.sub(amountToRepay))
+            expect(await msEthDebtToken.balanceOf(liquidator.address)).eq(liquidatorMintAmount)
           })
 
           it('should liquidate by repaying the exact amount needed (protocolLiquidationFee == 0)', async function () {
             // given
             await controller.updateProtocolLiquidationFee(0)
             const {_depositInUsd: depositInUsdBefore} = await controller.debtPositionOf(alice.address)
-            const depositBefore = await masterOracle.quoteUsdToToken(vsdMET.address, depositInUsdBefore)
+            const depositBefore = await masterOracle.quoteUsdToToken(msdMET.address, depositInUsdBefore)
 
             // when
-            const amountToRepayInUsd = await getMinLiquidationAmountInUsd(controller, alice.address, vsdMET)
+            const amountToRepayInUsd = await getMinLiquidationAmountInUsd(controller, alice.address, msdMET)
             const amountToRepay = amountToRepayInUsd.mul(parseEther('1')).div(ethPrice)
             const tx = await controller
               .connect(liquidator)
-              .liquidate(vsEth.address, alice.address, amountToRepay, vsdMET.address)
+              .liquidate(msEth.address, alice.address, amountToRepay, msdMET.address)
             const [PositionLiquidated] = (await tx.wait()).events!.filter(({event}) => event === 'PositionLiquidated')
             const [, , , , depositSeized] = PositionLiquidated.args!
 
             // then
             const {_debtInUsd, _issuableLimitInUsd} = await controller.debtPositionOf(alice.address)
-            const depositAfter = await vsdMET.balanceOf(alice.address)
-            const unlockedDepositAfter = await vsdMET.unlockedBalanceOf(alice.address)
-            const lockedDepositAfter = await vsdMET.lockedBalanceOf(alice.address)
+            const depositAfter = await msdMET.balanceOf(alice.address)
+            const unlockedDepositAfter = await msdMET.unlockedBalanceOf(alice.address)
+            const lockedDepositAfter = await msdMET.lockedBalanceOf(alice.address)
 
             // Note: The value returned by `getMinLiquidationAmountInUsd` is a few weis less than the needed
             expect(_debtInUsd).closeTo(_issuableLimitInUsd, 104)
@@ -852,12 +852,12 @@ describe('Controller', function () {
             expect(depositAfter).eq(depositBefore.sub(depositSeized))
             expect(lockedDepositAfter).eq(depositAfter)
             expect(unlockedDepositAfter).eq(0)
-            expect(await vsdMET.balanceOf(alice.address)).eq(depositBefore.sub(depositSeized))
-            expect(await vsEth.balanceOf(alice.address)).eq(userMintAmount)
-            expect(await vsEthDebtToken.balanceOf(alice.address)).eq(userMintAmount.sub(amountToRepay))
-            expect(await vsdMET.balanceOf(liquidator.address)).eq(liquidatorDepositAmount.add(depositSeized))
-            expect(await vsEth.balanceOf(liquidator.address)).eq(liquidatorMintAmount.sub(amountToRepay))
-            expect(await vsEthDebtToken.balanceOf(liquidator.address)).eq(liquidatorMintAmount)
+            expect(await msdMET.balanceOf(alice.address)).eq(depositBefore.sub(depositSeized))
+            expect(await msEth.balanceOf(alice.address)).eq(userMintAmount)
+            expect(await msEthDebtToken.balanceOf(alice.address)).eq(userMintAmount.sub(amountToRepay))
+            expect(await msdMET.balanceOf(liquidator.address)).eq(liquidatorDepositAmount.add(depositSeized))
+            expect(await msEth.balanceOf(liquidator.address)).eq(liquidatorMintAmount.sub(amountToRepay))
+            expect(await msEthDebtToken.balanceOf(liquidator.address)).eq(liquidatorMintAmount)
           })
 
           it('should liquidate by repaying the exact amount needed (protocolLiquidationFee > 0)', async function () {
@@ -865,25 +865,25 @@ describe('Controller', function () {
             const protocolLiquidationFee = parseEther('0.01') // 1%
             await controller.updateProtocolLiquidationFee(protocolLiquidationFee)
             const {_depositInUsd: depositBeforeInUsd} = await controller.debtPositionOf(alice.address)
-            const depositBefore = await masterOracle.quoteUsdToToken(vsdMET.address, depositBeforeInUsd)
+            const depositBefore = await masterOracle.quoteUsdToToken(msdMET.address, depositBeforeInUsd)
 
             // when
-            const amountToRepayInUsd = await getMinLiquidationAmountInUsd(controller, alice.address, vsdMET)
-            const amountToRepay = await masterOracle.quoteUsdToToken(vsEth.address, amountToRepayInUsd)
+            const amountToRepayInUsd = await getMinLiquidationAmountInUsd(controller, alice.address, msdMET)
+            const amountToRepay = await masterOracle.quoteUsdToToken(msEth.address, amountToRepayInUsd)
 
             const tx = await controller
               .connect(liquidator)
-              .liquidate(vsEth.address, alice.address, amountToRepay, vsdMET.address)
+              .liquidate(msEth.address, alice.address, amountToRepay, msdMET.address)
             const [PositionLiquidated] = (await tx.wait()).events!.filter(({event}) => event === 'PositionLiquidated')
             const [, , , , depositSeized] = PositionLiquidated.args!
 
             // then
             const {_debtInUsd, _issuableLimitInUsd} = await controller.debtPositionOf(alice.address)
-            const depositAfter = await vsdMET.balanceOf(alice.address)
-            const unlockedDepositAfter = await vsdMET.unlockedBalanceOf(alice.address)
-            const lockedDepositAfter = await vsdMET.lockedBalanceOf(alice.address)
+            const depositAfter = await msdMET.balanceOf(alice.address)
+            const unlockedDepositAfter = await msdMET.unlockedBalanceOf(alice.address)
+            const lockedDepositAfter = await msdMET.lockedBalanceOf(alice.address)
 
-            const amountToRepayInMET = await masterOracle.quote(vsEth.address, vsdMET.address, amountToRepay)
+            const amountToRepayInMET = await masterOracle.quote(msEth.address, msdMET.address, amountToRepay)
 
             const expectedDepositToLiquidator = amountToRepayInMET.add(
               amountToRepayInMET.mul(liquidatorLiquidationFee).div(parseEther('1'))
@@ -895,15 +895,15 @@ describe('Controller', function () {
             expect(depositAfter).eq(depositBefore.sub(depositSeized))
             expect(lockedDepositAfter).eq(depositAfter)
             expect(unlockedDepositAfter).eq(0)
-            expect(await vsdMET.balanceOf(alice.address)).eq(depositBefore.sub(depositSeized))
-            expect(await vsEth.balanceOf(alice.address)).eq(userMintAmount)
-            expect(await vsEthDebtToken.balanceOf(alice.address)).eq(userMintAmount.sub(amountToRepay))
-            expect(await vsdMET.balanceOf(liquidator.address)).closeTo(
+            expect(await msdMET.balanceOf(alice.address)).eq(depositBefore.sub(depositSeized))
+            expect(await msEth.balanceOf(alice.address)).eq(userMintAmount)
+            expect(await msEthDebtToken.balanceOf(alice.address)).eq(userMintAmount.sub(amountToRepay))
+            expect(await msdMET.balanceOf(liquidator.address)).closeTo(
               liquidatorDepositAmount.add(expectedDepositToLiquidator),
               1
             )
-            expect(await vsEth.balanceOf(liquidator.address)).eq(liquidatorMintAmount.sub(amountToRepay))
-            expect(await vsEthDebtToken.balanceOf(liquidator.address)).eq(liquidatorMintAmount)
+            expect(await msEth.balanceOf(liquidator.address)).eq(liquidatorMintAmount.sub(amountToRepay))
+            expect(await msEthDebtToken.balanceOf(liquidator.address)).eq(liquidatorMintAmount)
           })
         })
 
@@ -911,17 +911,17 @@ describe('Controller', function () {
           const newMetPrice = toUSD('0.50')
 
           beforeEach(async function () {
-            await masterOracle.updatePrice(vsdMET.address, newMetPrice)
+            await masterOracle.updatePrice(msdMET.address, newMetPrice)
             const _debtInUsd = await controller.debtOf(alice.address)
             const {_depositInUsd} = await controller.debtPositionOf(alice.address)
             expect(_debtInUsd).gt(_depositInUsd)
           })
 
           it('should revert if paying more than needed to seize all deposit', async function () {
-            const amountToRepay = await vsEthDebtToken.balanceOf(alice.address)
+            const amountToRepay = await msEthDebtToken.balanceOf(alice.address)
             const tx = controller
               .connect(liquidator)
-              .liquidate(vsEth.address, alice.address, amountToRepay, vsdMET.address)
+              .liquidate(msEth.address, alice.address, amountToRepay, msdMET.address)
 
             // then
             await expect(tx).revertedWith('amount-too-high')
@@ -930,7 +930,7 @@ describe('Controller', function () {
           it('should liquidate by repaying max possible amount (liquidafeFee == 0)', async function () {
             // given
             await controller.updateProtocolLiquidationFee(0)
-            const depositBefore = await vsdMET.balanceOf(alice.address)
+            const depositBefore = await msdMET.balanceOf(alice.address)
 
             // when
             const amountToRepayInUsd = await getMaxLiquidationAmountInUsd(controller, alice.address)
@@ -938,7 +938,7 @@ describe('Controller', function () {
 
             const tx = await controller
               .connect(liquidator)
-              .liquidate(vsEth.address, alice.address, amountToRepay, vsdMET.address)
+              .liquidate(msEth.address, alice.address, amountToRepay, msdMET.address)
 
             // then
             const [PositionLiquidated] = (await tx.wait()).events!.filter(({event}) => event === 'PositionLiquidated')
@@ -950,32 +950,32 @@ describe('Controller', function () {
 
             expect(_isHealthy).false
             expect(depositSeized).closeTo(depositBefore, remainder)
-            expect(await vsdMET.balanceOf(alice.address)).closeTo(BigNumber.from('0'), remainder)
-            expect(await vsEth.balanceOf(alice.address)).eq(userMintAmount)
-            expect(await vsEthDebtToken.balanceOf(alice.address)).gt(0)
-            expect(await vsdMET.balanceOf(liquidator.address)).eq(liquidatorDepositAmount.add(depositSeized))
-            expect(await vsEth.balanceOf(liquidator.address)).eq(liquidatorMintAmount.sub(amountToRepay))
-            expect(await vsEthDebtToken.balanceOf(liquidator.address)).eq(liquidatorMintAmount)
+            expect(await msdMET.balanceOf(alice.address)).closeTo(BigNumber.from('0'), remainder)
+            expect(await msEth.balanceOf(alice.address)).eq(userMintAmount)
+            expect(await msEthDebtToken.balanceOf(alice.address)).gt(0)
+            expect(await msdMET.balanceOf(liquidator.address)).eq(liquidatorDepositAmount.add(depositSeized))
+            expect(await msEth.balanceOf(liquidator.address)).eq(liquidatorMintAmount.sub(amountToRepay))
+            expect(await msEthDebtToken.balanceOf(liquidator.address)).eq(liquidatorMintAmount)
           })
 
           it('should liquidate by repaying max possible amount (liquidafeFee > 0)', async function () {
             // given
             const protocolLiquidationFee = parseEther('0.01') // 1%
             await controller.updateProtocolLiquidationFee(protocolLiquidationFee)
-            const depositBefore = await vsdMET.balanceOf(alice.address)
+            const depositBefore = await msdMET.balanceOf(alice.address)
 
             // when
             const amountToRepayInUsd = await getMaxLiquidationAmountInUsd(controller, alice.address)
             const amountToRepay = amountToRepayInUsd.mul(parseEther('1')).div(ethPrice)
             const tx = await controller
               .connect(liquidator)
-              .liquidate(vsEth.address, alice.address, amountToRepay, vsdMET.address)
+              .liquidate(msEth.address, alice.address, amountToRepay, msdMET.address)
 
             // then
             const [PositionLiquidated] = (await tx.wait()).events!.filter(({event}) => event === 'PositionLiquidated')
             const [, , , , depositSeized] = PositionLiquidated.args!
 
-            const amountToRepayInMET = await masterOracle.quote(vsEth.address, vsdMET.address, amountToRepay)
+            const amountToRepayInMET = await masterOracle.quote(msEth.address, msdMET.address, amountToRepay)
 
             const expectedDepositToLiquidator = amountToRepayInMET.add(
               amountToRepayInMET.mul(liquidatorLiquidationFee).div(parseEther('1'))
@@ -987,21 +987,21 @@ describe('Controller', function () {
 
             expect(_isHealthy).false
             expect(depositSeized).closeTo(depositBefore, remainder)
-            expect(await vsdMET.balanceOf(alice.address)).closeTo(BigNumber.from('0'), remainder)
-            expect(await vsEth.balanceOf(alice.address)).eq(userMintAmount)
-            expect(await vsEthDebtToken.balanceOf(alice.address)).gt(0)
-            expect(await vsdMET.balanceOf(liquidator.address)).eq(
+            expect(await msdMET.balanceOf(alice.address)).closeTo(BigNumber.from('0'), remainder)
+            expect(await msEth.balanceOf(alice.address)).eq(userMintAmount)
+            expect(await msEthDebtToken.balanceOf(alice.address)).gt(0)
+            expect(await msdMET.balanceOf(liquidator.address)).eq(
               liquidatorDepositAmount.add(expectedDepositToLiquidator)
             )
-            expect(await vsEth.balanceOf(liquidator.address)).eq(liquidatorMintAmount.sub(amountToRepay))
-            expect(await vsEthDebtToken.balanceOf(liquidator.address)).eq(liquidatorMintAmount)
+            expect(await msEth.balanceOf(liquidator.address)).eq(liquidatorMintAmount.sub(amountToRepay))
+            expect(await msEthDebtToken.balanceOf(liquidator.address)).eq(liquidatorMintAmount)
           })
 
           it('should liquidate by not repaying all debt (liquidaFee == 0)', async function () {
             // given
             await controller.updateProtocolLiquidationFee(0)
             const {_depositInUsd: collateralInUsdBefore} = await controller.debtPositionOf(alice.address)
-            const collateralBefore = await masterOracle.quoteUsdToToken(vsdMET.address, collateralInUsdBefore)
+            const collateralBefore = await masterOracle.quoteUsdToToken(msdMET.address, collateralInUsdBefore)
 
             // when
             const amountToRepayInUsd = await getMaxLiquidationAmountInUsd(controller, alice.address)
@@ -1009,7 +1009,7 @@ describe('Controller', function () {
             const amountToRepay = minAmountToRepay.div('2')
             const tx = await controller
               .connect(liquidator)
-              .liquidate(vsEth.address, alice.address, amountToRepay, vsdMET.address)
+              .liquidate(msEth.address, alice.address, amountToRepay, msdMET.address)
             const [PositionLiquidated] = (await tx.wait()).events!.filter(({event}) => event === 'PositionLiquidated')
             const [, , , , depositSeized] = PositionLiquidated.args!
 
@@ -1018,9 +1018,9 @@ describe('Controller', function () {
             const {_isHealthy: isHealthyAfter, _depositInUsd: collateralInUsdAfter} = await controller.debtPositionOf(
               alice.address
             )
-            const collateralAfter = await vsdMET.balanceOf(alice.address)
-            const unlockedCollateralAfter = await vsdMET.unlockedBalanceOf(alice.address)
-            const lockedCollateralAfter = await vsdMET.lockedBalanceOf(alice.address)
+            const collateralAfter = await msdMET.balanceOf(alice.address)
+            const unlockedCollateralAfter = await msdMET.unlockedBalanceOf(alice.address)
+            const lockedCollateralAfter = await msdMET.lockedBalanceOf(alice.address)
 
             const currentCollateralizationRatio = collateralInUsdAfter.mul(parseEther('1')).div(debtInUsdAfter)
 
@@ -1029,12 +1029,12 @@ describe('Controller', function () {
             expect(collateralAfter).eq(collateralBefore.sub(depositSeized))
             expect(lockedCollateralAfter).gte(collateralInUsdAfter)
             expect(unlockedCollateralAfter).eq(0)
-            expect(await vsdMET.balanceOf(alice.address)).eq(collateralBefore.sub(depositSeized))
-            expect(await vsEth.balanceOf(alice.address)).eq(userMintAmount)
-            expect(await vsEthDebtToken.balanceOf(alice.address)).eq(userMintAmount.sub(amountToRepay))
-            expect(await vsdMET.balanceOf(liquidator.address)).eq(liquidatorDepositAmount.add(depositSeized))
-            expect(await vsEth.balanceOf(liquidator.address)).eq(liquidatorMintAmount.sub(amountToRepay))
-            expect(await vsEthDebtToken.balanceOf(liquidator.address)).eq(liquidatorMintAmount)
+            expect(await msdMET.balanceOf(alice.address)).eq(collateralBefore.sub(depositSeized))
+            expect(await msEth.balanceOf(alice.address)).eq(userMintAmount)
+            expect(await msEthDebtToken.balanceOf(alice.address)).eq(userMintAmount.sub(amountToRepay))
+            expect(await msdMET.balanceOf(liquidator.address)).eq(liquidatorDepositAmount.add(depositSeized))
+            expect(await msEth.balanceOf(liquidator.address)).eq(liquidatorMintAmount.sub(amountToRepay))
+            expect(await msEthDebtToken.balanceOf(liquidator.address)).eq(liquidatorMintAmount)
           })
 
           it('should liquidate by not repaying all debt (liquidaFee > 0)', async function () {
@@ -1042,14 +1042,14 @@ describe('Controller', function () {
             const protocolLiquidationFee = parseEther('0.01') // 1%
             await controller.updateProtocolLiquidationFee(protocolLiquidationFee)
             const {_depositInUsd: collateralInUsdBefore} = await controller.debtPositionOf(alice.address)
-            const collateralBefore = await masterOracle.quoteUsdToToken(vsdMET.address, collateralInUsdBefore)
+            const collateralBefore = await masterOracle.quoteUsdToToken(msdMET.address, collateralInUsdBefore)
 
             // when
             const amountToRepayInUsd = (await getMaxLiquidationAmountInUsd(controller, alice.address)).div('2')
             const amountToRepay = amountToRepayInUsd.mul(parseEther('1')).div(ethPrice)
             const tx = await controller
               .connect(liquidator)
-              .liquidate(vsEth.address, alice.address, amountToRepay, vsdMET.address)
+              .liquidate(msEth.address, alice.address, amountToRepay, msdMET.address)
             const [PositionLiquidated] = (await tx.wait()).events!.filter(({event}) => event === 'PositionLiquidated')
             const [, , , , depositSeized] = PositionLiquidated.args!
 
@@ -1058,11 +1058,11 @@ describe('Controller', function () {
             const {_isHealthy: isHealthyAfter, _depositInUsd: collateralInUsdAfter} = await controller.debtPositionOf(
               alice.address
             )
-            const collateralAfter = await vsdMET.balanceOf(alice.address)
-            const unlockedCollateralAfter = await vsdMET.unlockedBalanceOf(alice.address)
-            const lockedCollateralAfter = await vsdMET.lockedBalanceOf(alice.address)
+            const collateralAfter = await msdMET.balanceOf(alice.address)
+            const unlockedCollateralAfter = await msdMET.unlockedBalanceOf(alice.address)
+            const lockedCollateralAfter = await msdMET.lockedBalanceOf(alice.address)
 
-            const amountToRepayInMET = await masterOracle.quote(vsEth.address, vsdMET.address, amountToRepay)
+            const amountToRepayInMET = await masterOracle.quote(msEth.address, msdMET.address, amountToRepay)
 
             const expectedDepositToLiquidator = amountToRepayInMET.add(
               amountToRepayInMET.mul(liquidatorLiquidationFee).div(parseEther('1'))
@@ -1075,46 +1075,46 @@ describe('Controller', function () {
             expect(collateralAfter).eq(collateralBefore.sub(depositSeized))
             expect(lockedCollateralAfter).gte(collateralInUsdAfter)
             expect(unlockedCollateralAfter).eq(0)
-            expect(await vsdMET.balanceOf(alice.address)).eq(collateralBefore.sub(depositSeized))
-            expect(await vsEth.balanceOf(alice.address)).eq(userMintAmount)
-            expect(await vsEthDebtToken.balanceOf(alice.address)).eq(userMintAmount.sub(amountToRepay))
-            expect(await vsdMET.balanceOf(liquidator.address)).eq(
+            expect(await msdMET.balanceOf(alice.address)).eq(collateralBefore.sub(depositSeized))
+            expect(await msEth.balanceOf(alice.address)).eq(userMintAmount)
+            expect(await msEthDebtToken.balanceOf(alice.address)).eq(userMintAmount.sub(amountToRepay))
+            expect(await msdMET.balanceOf(liquidator.address)).eq(
               liquidatorDepositAmount.add(expectedDepositToLiquidator)
             )
-            expect(await vsEth.balanceOf(liquidator.address)).eq(liquidatorMintAmount.sub(amountToRepay))
-            expect(await vsEthDebtToken.balanceOf(liquidator.address)).eq(liquidatorMintAmount)
+            expect(await msEth.balanceOf(liquidator.address)).eq(liquidatorMintAmount.sub(amountToRepay))
+            expect(await msEthDebtToken.balanceOf(liquidator.address)).eq(liquidatorMintAmount)
           })
         })
 
-        describe('when user minted both vsETH and vsDOGE using all collateral', function () {
+        describe('when user minted both msETH and msDOGE using all collateral', function () {
           beforeEach(async function () {
             await controller.updateProtocolLiquidationFee(0)
 
             const {_issuableInUsd} = await controller.debtPositionOf(alice.address)
-            const maxIssuableDoge = await masterOracle.quoteUsdToToken(vsDoge.address, _issuableInUsd)
+            const maxIssuableDoge = await masterOracle.quoteUsdToToken(msDoge.address, _issuableInUsd)
 
-            await vsDoge.connect(alice).issue(maxIssuableDoge, alice.address)
+            await msDoge.connect(alice).issue(maxIssuableDoge, alice.address)
 
             const {_isHealthy, _issuableInUsd: _mintableInUsdAfter} = await controller.debtPositionOf(alice.address)
             expect(_isHealthy).true
             expect(_mintableInUsdAfter).eq(0)
 
-            const _unlockedDeposit = await vsdMET.unlockedBalanceOf(alice.address)
+            const _unlockedDeposit = await msdMET.unlockedBalanceOf(alice.address)
 
             expect(_unlockedDeposit).eq(0)
           })
 
-          it('should liquidate a position that have minted more than one vsAsset', async function () {
+          it('should liquidate a position that have minted more than one msAsset', async function () {
             // given
             const newDogePrice = toUSD('0.5')
-            await masterOracle.updatePrice(vsDoge.address, newDogePrice) // $0.4 -> $0.5
+            await masterOracle.updatePrice(msDoge.address, newDogePrice) // $0.4 -> $0.5
             const {_isHealthy: isHealthyBefore} = await controller.debtPositionOf(alice.address)
             expect(isHealthyBefore).false
 
             // when
-            const amountToRepay = await vsDogeDebtToken.balanceOf(alice.address)
-            await vsDoge.connect(liquidator).issue(amountToRepay, liquidator.address)
-            await controller.connect(liquidator).liquidate(vsDoge.address, alice.address, amountToRepay, vsdMET.address)
+            const amountToRepay = await msDogeDebtToken.balanceOf(alice.address)
+            await msDoge.connect(liquidator).issue(amountToRepay, liquidator.address)
+            await controller.connect(liquidator).liquidate(msDoge.address, alice.address, amountToRepay, msdMET.address)
 
             // then
             const {_isHealthy: isHealthyAfter} = await controller.debtPositionOf(alice.address)
@@ -1128,7 +1128,7 @@ describe('Controller', function () {
   describe('whitelisting', function () {
     describe('addSyntheticToken', function () {
       it('should revert if not governor', async function () {
-        const tx = controller.connect(alice).addSyntheticToken(vsEth.address)
+        const tx = controller.connect(alice).addSyntheticToken(msEth.address)
         await expect(tx).revertedWith('not-governor')
       })
 
@@ -1148,10 +1148,10 @@ describe('Controller', function () {
         const debtToken = await debtTokenFactory.deploy()
 
         const syntheticTokenFactory = new SyntheticToken__factory(deployer)
-        const vsAsset = await syntheticTokenFactory.deploy()
-        await vsAsset.initialize(
-          'Vesper Synth BTC',
-          'vsBTC',
+        const msAsset = await syntheticTokenFactory.deploy()
+        await msAsset.initialize(
+          'Metronome Synth BTC',
+          'msBTC',
           8,
           controller.address,
           debtToken.address,
@@ -1159,15 +1159,15 @@ describe('Controller', function () {
           MaxUint256
         )
 
-        await debtToken.initialize('Vesper Synth BTC debt', 'vsBTC-Debt', 8, controller.address)
-        await debtToken.setSyntheticToken(vsAsset.address)
+        await debtToken.initialize('Metronome Synth BTC debt', 'msBTC-Debt', 8, controller.address)
+        await debtToken.setSyntheticToken(msAsset.address)
 
-        expect(await vsAsset.totalSupply()).eq(0)
-        await controller.addSyntheticToken(vsAsset.address)
+        expect(await msAsset.totalSupply()).eq(0)
+        await controller.addSyntheticToken(msAsset.address)
         const syntheticTokensBefore = await controller.getSyntheticTokens()
 
         // when
-        await controller.removeSyntheticToken(vsAsset.address)
+        await controller.removeSyntheticToken(msAsset.address)
 
         // then
         const syntheticTokensAfter = await controller.getSyntheticTokens()
@@ -1176,23 +1176,23 @@ describe('Controller', function () {
 
       it('should revert if not governor', async function () {
         // when
-        const tx = controller.connect(alice).removeSyntheticToken(vsEth.address)
+        const tx = controller.connect(alice).removeSyntheticToken(msEth.address)
 
         // then
         await expect(tx).revertedWith('not-governor')
       })
 
-      it('should revert if vsAsset has any supply', async function () {
+      it('should revert if msAsset has any supply', async function () {
         // given
         const ERC20MockFactory = new ERC20Mock__factory(deployer)
-        const vsAsset = await ERC20MockFactory.deploy('Vesper Synth BTC', 'vsBTC', 8)
-        await vsAsset.deployed()
-        await controller.addSyntheticToken(vsAsset.address)
-        await vsAsset.mint(deployer.address, parseEther('100'))
-        expect(await vsAsset.totalSupply()).gt(0)
+        const msAsset = await ERC20MockFactory.deploy('Metronome Synth BTC', 'msBTC', 8)
+        await msAsset.deployed()
+        await controller.addSyntheticToken(msAsset.address)
+        await msAsset.mint(deployer.address, parseEther('100'))
+        expect(await msAsset.totalSupply()).gt(0)
 
         // when
-        const tx = controller.removeSyntheticToken(vsAsset.address)
+        const tx = controller.removeSyntheticToken(msAsset.address)
 
         // then
         await expect(tx).revertedWith('supply-gt-0')
@@ -1280,34 +1280,34 @@ describe('Controller', function () {
       // given
       const balance = parseEther('1')
       await met.mint(deployer.address, parseEther('10000'))
-      await met.approve(vsdMET.address, parseEther('10000'))
-      await vsdMET.deposit(parseEther('10000'), deployer.address)
+      await met.approve(msdMET.address, parseEther('10000'))
+      await msdMET.deposit(parseEther('10000'), deployer.address)
 
-      await vsdMET.transfer(treasury.address, balance)
-      await vsEth.issue(balance, deployer.address)
-      await vsEth.transfer(treasury.address, balance)
+      await msdMET.transfer(treasury.address, balance)
+      await msEth.issue(balance, deployer.address)
+      await msEth.transfer(treasury.address, balance)
 
       expect(await met.balanceOf(treasury.address)).gt(0)
-      expect(await vsEth.balanceOf(treasury.address)).gt(0)
-      expect(await vsdMET.balanceOf(treasury.address)).gt(0)
+      expect(await msEth.balanceOf(treasury.address)).gt(0)
+      expect(await msdMET.balanceOf(treasury.address)).gt(0)
 
       // when
       await controller.updateTreasury(newTreasury.address)
 
       // then
       expect(await met.balanceOf(treasury.address)).eq(0)
-      expect(await vsEth.balanceOf(treasury.address)).eq(0)
-      expect(await vsdMET.balanceOf(treasury.address)).eq(0)
+      expect(await msEth.balanceOf(treasury.address)).eq(0)
+      expect(await msdMET.balanceOf(treasury.address)).eq(0)
     })
   })
 
   describe('depositTokensOfAccount', function () {
-    let vsdTOKEN: FakeContract
+    let msdTOKEN: FakeContract
 
     beforeEach(async function () {
-      vsdTOKEN = await smock.fake('DepositToken')
-      await controller.addDepositToken(vsdTOKEN.address)
-      await setEtherBalance(vsdTOKEN.address, parseEther('1'))
+      msdTOKEN = await smock.fake('DepositToken')
+      await controller.addDepositToken(msdTOKEN.address)
+      await setEtherBalance(msdTOKEN.address, parseEther('1'))
     })
 
     describe('addToDepositTokensOfAccount', function () {
@@ -1322,10 +1322,10 @@ describe('Controller', function () {
         expect(await controller.getDepositTokensOfAccount(alice.address)).deep.eq([])
 
         // then
-        await controller.connect(vsdTOKEN.wallet).addToDepositTokensOfAccount(alice.address)
+        await controller.connect(msdTOKEN.wallet).addToDepositTokensOfAccount(alice.address)
 
         // when
-        expect(await controller.getDepositTokensOfAccount(alice.address)).deep.eq([vsdTOKEN.address])
+        expect(await controller.getDepositTokensOfAccount(alice.address)).deep.eq([msdTOKEN.address])
       })
 
       it('should revert when trying to add same deposit token twice', async function () {
@@ -1333,8 +1333,8 @@ describe('Controller', function () {
         expect(await controller.getDepositTokensOfAccount(alice.address)).deep.eq([])
 
         // then
-        await controller.connect(vsdTOKEN.wallet).addToDepositTokensOfAccount(alice.address)
-        const tx = controller.connect(vsdTOKEN.wallet).addToDepositTokensOfAccount(alice.address)
+        await controller.connect(msdTOKEN.wallet).addToDepositTokensOfAccount(alice.address)
+        const tx = controller.connect(msdTOKEN.wallet).addToDepositTokensOfAccount(alice.address)
 
         // when
         await expect(tx).revertedWith('deposit-token-exists')
@@ -1343,7 +1343,7 @@ describe('Controller', function () {
 
     describe('removeFromDepositTokensOfAccount', function () {
       beforeEach(async function () {
-        await controller.connect(vsdTOKEN.wallet).addToDepositTokensOfAccount(alice.address)
+        await controller.connect(msdTOKEN.wallet).addToDepositTokensOfAccount(alice.address)
       })
 
       it('should revert if caller is not a deposit token', async function () {
@@ -1354,10 +1354,10 @@ describe('Controller', function () {
       // eslint-disable-next-line quotes
       it("should remove deposit token to the account's array", async function () {
         // given
-        expect(await controller.getDepositTokensOfAccount(alice.address)).deep.eq([vsdTOKEN.address])
+        expect(await controller.getDepositTokensOfAccount(alice.address)).deep.eq([msdTOKEN.address])
 
         // then
-        await controller.connect(vsdTOKEN.wallet).removeFromDepositTokensOfAccount(alice.address)
+        await controller.connect(msdTOKEN.wallet).removeFromDepositTokensOfAccount(alice.address)
 
         // when
         expect(await controller.getDepositTokensOfAccount(alice.address)).deep.eq([])

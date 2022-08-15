@@ -67,10 +67,10 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
         uint256 _syntheticTokensLength = _syntheticTokens.length;
 
         for (uint256 i; i < _syntheticTokensLength; ++i) {
-            IERC20 _vsAsset = IERC20(_syntheticTokens[i]);
-            uint256 _balance = _vsAsset.balanceOf(address(this));
+            IERC20 _msAsset = IERC20(_syntheticTokens[i]);
+            uint256 _balance = _msAsset.balanceOf(address(this));
             if (_balance > 0) {
-                _vsAsset.safeTransfer(_newTreasury, _balance);
+                _msAsset.safeTransfer(_newTreasury, _balance);
             }
         }
     }

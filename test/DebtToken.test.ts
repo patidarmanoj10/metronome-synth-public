@@ -34,8 +34,8 @@ describe('DebtToken', function () {
   let masterOracleMock: MasterOracleMock
   let rewardsDistributorMock: MockContract
 
-  const name = 'vsETH Debt'
-  const symbol = 'vsETH-Debt'
+  const name = 'msETH Debt'
+  const symbol = 'msETH-Debt'
   const interestRate = parseEther('0')
 
   beforeEach(async function () {
@@ -67,8 +67,8 @@ describe('DebtToken', function () {
     await debtToken.deployed()
 
     await syntheticToken.initialize(
-      'Vesper Synth ETH',
-      'vsETH',
+      'Metronome Synth ETH',
+      'msETH',
       18,
       controllerMock.address,
       debtToken.address,
@@ -81,7 +81,7 @@ describe('DebtToken', function () {
 
     // eslint-disable-next-line new-cap
     SECONDS_PER_YEAR = await syntheticToken.SECONDS_PER_YEAR()
-    await masterOracleMock.updatePrice(syntheticToken.address, parseEther('4000')) // 1 vsETH = $4,000
+    await masterOracleMock.updatePrice(syntheticToken.address, parseEther('4000')) // 1 msETH = $4,000
   })
 
   it('default values', async function () {

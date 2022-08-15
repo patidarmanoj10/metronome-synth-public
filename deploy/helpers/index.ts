@@ -189,7 +189,7 @@ export const buildDepositDeployFunction = ({
   oracle,
 }: DepositDeployFunctionProps): DeployFunction => {
   const alias = `${underlyingSymbol}DepositToken`
-  const symbol = `vsd${underlyingSymbol}`
+  const symbol = `msd${underlyingSymbol}`
 
   const deployFunction: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     const {getNamedAccounts, deployments} = hre
@@ -200,7 +200,7 @@ export const buildDepositDeployFunction = ({
 
     const wasDeployed = !!(await getOrNull(alias))
 
-    const {address: vsdAddress} = await deployUpgradable({
+    const {address: msdAddress} = await deployUpgradable({
       hre,
       contractConfig: {...DepositTokenConfig, alias},
       initializeArgs: [
@@ -214,8 +214,8 @@ export const buildDepositDeployFunction = ({
     })
 
     if (!wasDeployed) {
-      await execute(Controller, {from: deployer, log: true}, 'addDepositToken', vsdAddress)
-      const oracleArgs = [vsdAddress, ...Object.values(oracle.args || {})]
+      await execute(Controller, {from: deployer, log: true}, 'addDepositToken', msdAddress)
+      const oracleArgs = [msdAddress, ...Object.values(oracle.args || {})]
       await execute(DefaultOracle, {from: deployer, log: true}, oracle.function, ...oracleArgs)
     }
   }

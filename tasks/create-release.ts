@@ -42,7 +42,7 @@ function getPreviousRelease() {
 
 /* eslint-disable no-param-reassign */
 task('create-release', 'Create release file from deploy data')
-  .addParam('release', 'Vesper Synth release semantic version, i.e 1.2.3')
+  .addParam('release', 'Metronome Synth release semantic version, i.e 1.2.3')
   .setAction(async function ({release}, hre) {
     const network = hre.network.name
     const networkDir = `./deployments/${network}`

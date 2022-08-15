@@ -1,6 +1,6 @@
-# Vesper Synth
+# Metronome Synth
 
-This repository contains set of smart contracts and test cases of Vesper Synth
+This repository contains set of smart contracts and test cases of Metronome Synth
 
 ## Setup
 

@@ -47,11 +47,11 @@ describe('DefaultOracle', function () {
   let deployer: SignerWithAddress
   let user: SignerWithAddress
   let oracle: DefaultOracle
-  let vsUSD: ERC20Mock
+  let msUSD: ERC20Mock
   let depositToken: ERC20Mock
-  let vsDOGE: ERC20Mock
-  let vsETH: ERC20Mock
-  let vsBTC: ERC20Mock
+  let msDOGE: ERC20Mock
+  let msETH: ERC20Mock
+  let msBTC: ERC20Mock
   let priceProviderMock: FakeContract
 
   before(enableForking)
@@ -64,25 +64,25 @@ describe('DefaultOracle', function () {
 
     const erc20MockFactory = new ERC20Mock__factory(deployer)
 
-    // vsUSD
-    vsUSD = await erc20MockFactory.deploy('vsUSD', 'vsUSD', 18)
-    await vsUSD.deployed()
+    // msUSD
+    msUSD = await erc20MockFactory.deploy('msUSD', 'msUSD', 18)
+    await msUSD.deployed()
 
     // depositToken
-    depositToken = await erc20MockFactory.deploy('Tokenized deposit position', 'vsdMET', 18)
+    depositToken = await erc20MockFactory.deploy('Tokenized deposit position', 'msdMET', 18)
     await depositToken.deployed()
 
-    // vsDOGE
-    vsDOGE = await erc20MockFactory.deploy('vsDOGE', 'vsDOGE', 18)
-    await vsDOGE.deployed()
+    // msDOGE
+    msDOGE = await erc20MockFactory.deploy('msDOGE', 'msDOGE', 18)
+    await msDOGE.deployed()
 
-    // vsETH
-    vsETH = await erc20MockFactory.deploy('vsETH', 'vsETH', 18)
-    await vsETH.deployed()
+    // msETH
+    msETH = await erc20MockFactory.deploy('msETH', 'msETH', 18)
+    await msETH.deployed()
 
-    // vsETH
-    vsBTC = await erc20MockFactory.deploy('vsBTC', 'vsBTC', 8)
-    await vsBTC.deployed()
+    // msETH
+    msBTC = await erc20MockFactory.deploy('msBTC', 'msBTC', 8)
+    await msBTC.deployed()
 
     // UniswapV3
     const uniswapV3PriceProviderFactory = new UniswapV3PriceProvider__factory(deployer)
@@ -120,10 +120,10 @@ describe('DefaultOracle', function () {
     await oracle.setPriceProvider(Protocol.UNISWAP_V2, uniswapV2LikePriceProvider.address)
     await oracle.setPriceProvider(Protocol.CHAINLINK, chainlinkPriceProvider.address)
 
-    await oracle.addOrUpdateUsdAsset(vsUSD.address)
-    await oracle.addOrUpdateAssetThatUsesUniswapV3(vsETH.address, NATIVE_TOKEN_ADDRESS)
+    await oracle.addOrUpdateUsdAsset(msUSD.address)
+    await oracle.addOrUpdateAssetThatUsesUniswapV3(msETH.address, NATIVE_TOKEN_ADDRESS)
     await oracle.addOrUpdateAssetThatUsesUniswapV2(depositToken.address, MET_ADDRESS, STALE_PERIOD)
-    await oracle.addOrUpdateAssetThatUsesChainlink(vsDOGE.address, DOGE_USD_CHAINLINK_AGGREGATOR_ADDRESS, STALE_PERIOD)
+    await oracle.addOrUpdateAssetThatUsesChainlink(msDOGE.address, DOGE_USD_CHAINLINK_AGGREGATOR_ADDRESS, STALE_PERIOD)
   })
 
   afterEach(async function () {
@@ -133,12 +133,12 @@ describe('DefaultOracle', function () {
   describe('using latest price (view) functions', function () {
     describe('getPriceInUsd', function () {
       it('should convert to USD using no price provider needed', async function () {
-        const _amountInUsd = await oracle.getPriceInUsd(vsUSD.address)
+        const _amountInUsd = await oracle.getPriceInUsd(msUSD.address)
         expect(_amountInUsd).eq(toUSD('1'))
       })
 
       it('should convert to USD using UniswapV3 price provider', async function () {
-        const _amountInUsd = await oracle.getPriceInUsd(vsETH.address)
+        const _amountInUsd = await oracle.getPriceInUsd(msETH.address)
         expect(_amountInUsd).closeTo(toUSD('2560.37141557'), toUSD('0.000001'))
       })
 
@@ -150,7 +150,7 @@ describe('DefaultOracle', function () {
       })
 
       it('should convert to USD using Chainlink price provider', async function () {
-        const _amountInUsd = await oracle.getPriceInUsd(vsDOGE.address)
+        const _amountInUsd = await oracle.getPriceInUsd(msDOGE.address)
         expect(_amountInUsd).closeTo(toUSD('0.11530811'), toUSD('0.000001'))
       })
 
@@ -208,7 +208,7 @@ describe('DefaultOracle', function () {
 
   describe('addOrUpdateUsdAsset', function () {
     it('should revert if not governor', async function () {
-      const tx = oracle.connect(user).addOrUpdateUsdAsset(vsUSD.address)
+      const tx = oracle.connect(user).addOrUpdateUsdAsset(msUSD.address)
       await expect(tx).revertedWith('not-governor')
     })
 
@@ -218,10 +218,10 @@ describe('DefaultOracle', function () {
     })
 
     it('should set an USD asset', async function () {
-      const tx = oracle.addOrUpdateUsdAsset(vsUSD.address)
+      const tx = oracle.addOrUpdateUsdAsset(msUSD.address)
       await expect(tx)
         .emit(oracle, 'AssetUpdated')
-        .withArgs(vsUSD.address, Protocol.NONE, ethers.constants.AddressZero, true, MaxUint256)
+        .withArgs(msUSD.address, Protocol.NONE, ethers.constants.AddressZero, true, MaxUint256)
     })
   })
 

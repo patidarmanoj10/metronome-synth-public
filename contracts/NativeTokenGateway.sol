@@ -28,9 +28,9 @@ contract NativeTokenGateway is ReentrancyGuard, Governable, INativeTokenGateway 
      */
     function deposit(IController _controller) external payable override {
         nativeToken.deposit{value: msg.value}();
-        IDepositToken _vsdToken = _controller.depositTokenOf(nativeToken);
-        nativeToken.safeApprove(address(_vsdToken), msg.value);
-        _vsdToken.deposit(msg.value, _msgSender());
+        IDepositToken _msdToken = _controller.depositTokenOf(nativeToken);
+        nativeToken.safeApprove(address(_msdToken), msg.value);
+        _msdToken.deposit(msg.value, _msgSender());
     }
 
     /**
@@ -39,9 +39,9 @@ contract NativeTokenGateway is ReentrancyGuard, Governable, INativeTokenGateway 
      * @param _amount The amount of deposit tokens to withdraw and receive native ETH
      */
     function withdraw(IController _controller, uint256 _amount) external override nonReentrant {
-        IDepositToken _vsdToken = _controller.depositTokenOf(nativeToken);
-        _vsdToken.safeTransferFrom(_msgSender(), address(this), _amount);
-        _vsdToken.withdraw(_amount, address(this));
+        IDepositToken _msdToken = _controller.depositTokenOf(nativeToken);
+        _msdToken.safeTransferFrom(_msgSender(), address(this), _amount);
+        _msdToken.withdraw(_amount, address(this));
         nativeToken.withdraw(_amount);
         Address.sendValue(payable(_msgSender()), _amount);
     }

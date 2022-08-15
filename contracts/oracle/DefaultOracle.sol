@@ -133,7 +133,7 @@ contract DefaultOracle is IOracle, Governable {
     /**
      * @notice Store an asset that uses UniswapV2 source of price
      * @param _asset The asset to store
-     * @param _underlying The actual asset to get prices from (e.g. vsETH uses WETH)
+     * @param _underlying The actual asset to get prices from (e.g. msETH uses WETH)
      * @param _stalePeriod The stale period
      */
     function addOrUpdateAssetThatUsesUniswapV2(
@@ -149,7 +149,7 @@ contract DefaultOracle is IOracle, Governable {
      * @notice Store an asset that uses UniswapV3 source of price
      * @dev This function is also used for update a asset setup
      * @param _asset The asset to store
-     * @param _underlying The actual asset to get prices from (e.g. vsETH uses WETH)
+     * @param _underlying The actual asset to get prices from (e.g. msETH uses WETH)
      */
     function addOrUpdateAssetThatUsesUniswapV3(IERC20 _asset, address _underlying) external onlyGovernor {
         require(_underlying != address(0), "underlying-address-is-null");

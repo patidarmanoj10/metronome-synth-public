@@ -1,7 +1,7 @@
 {
-  "name": "vesper-synth",
+  "name": "metronome-synth",
   "version": "0.0.1",
-  "description": "Vesper Synth",
+  "description": "Metronome Synth",
   "license": "MIT",
   "directories": {
     "test": "test"

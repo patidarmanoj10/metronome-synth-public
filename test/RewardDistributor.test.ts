@@ -19,9 +19,9 @@ describe('RewardDistributor', function () {
   let vsp: ERC20Mock
   let controller: FakeContract
   let debtToken1: FakeContract
-  let vsdTOKEN1: FakeContract
+  let msdTOKEN1: FakeContract
   let debtToken2: FakeContract
-  let vsdTOKEN2: FakeContract
+  let msdTOKEN2: FakeContract
   let rewardDistributor: RewardsDistributor
 
   beforeEach(async function () {
@@ -34,9 +34,9 @@ describe('RewardDistributor', function () {
 
     controller = await smock.fake('Controller')
     debtToken1 = await smock.fake('DebtToken')
-    vsdTOKEN1 = await smock.fake('DepositToken')
+    msdTOKEN1 = await smock.fake('DepositToken')
     debtToken2 = await smock.fake('DebtToken')
-    vsdTOKEN2 = await smock.fake('DepositToken')
+    msdTOKEN2 = await smock.fake('DepositToken')
 
     const rewardDistributorFactory = new RewardsDistributor__factory(deployer)
     rewardDistributor = await rewardDistributorFactory.deploy()
@@ -45,8 +45,8 @@ describe('RewardDistributor', function () {
     // Setup
     await rewardDistributor.initialize(controller.address, vsp.address)
 
-    vsdTOKEN1.controller.returns(controller.address)
-    vsdTOKEN2.controller.returns(controller.address)
+    msdTOKEN1.controller.returns(controller.address)
+    msdTOKEN2.controller.returns(controller.address)
 
     debtToken1.debtIndex.returns(parseEther('1'))
     debtToken2.debtIndex.returns(parseEther('1'))
@@ -63,7 +63,7 @@ describe('RewardDistributor', function () {
       const speed = parseEther('1')
 
       // when
-      const tx = rewardDistributor.connect(alice.address).updateTokenSpeed(vsdTOKEN1.address, speed)
+      const tx = rewardDistributor.connect(alice.address).updateTokenSpeed(msdTOKEN1.address, speed)
 
       // then
       await expect(tx).revertedWith('not-governor')
@@ -71,43 +71,43 @@ describe('RewardDistributor', function () {
 
     it('should turn on', async function () {
       // given
-      const before = await rewardDistributor.tokenSpeeds(vsdTOKEN1.address)
+      const before = await rewardDistributor.tokenSpeeds(msdTOKEN1.address)
       expect(before).eq(0)
 
       // when
       const speed = parseEther('1')
-      await rewardDistributor.updateTokenSpeed(vsdTOKEN1.address, speed)
+      await rewardDistributor.updateTokenSpeed(msdTOKEN1.address, speed)
 
       // then
-      const after = await rewardDistributor.tokenSpeeds(vsdTOKEN1.address)
+      const after = await rewardDistributor.tokenSpeeds(msdTOKEN1.address)
       expect(after).eq(speed)
     })
 
     it('should update speed', async function () {
       // given
       const before = parseEther('1')
-      await rewardDistributor.updateTokenSpeed(vsdTOKEN1.address, before)
+      await rewardDistributor.updateTokenSpeed(msdTOKEN1.address, before)
 
       // when
       const newSpeed = parseEther('2')
-      await rewardDistributor.updateTokenSpeed(vsdTOKEN1.address, newSpeed)
+      await rewardDistributor.updateTokenSpeed(msdTOKEN1.address, newSpeed)
 
       // then
-      const after = await rewardDistributor.tokenSpeeds(vsdTOKEN1.address)
+      const after = await rewardDistributor.tokenSpeeds(msdTOKEN1.address)
       expect(after).eq(newSpeed)
     })
 
     it('should turn off', async function () {
       // given
       const before = parseEther('1')
-      await rewardDistributor.updateTokenSpeed(vsdTOKEN1.address, before)
+      await rewardDistributor.updateTokenSpeed(msdTOKEN1.address, before)
 
       // when
       const newSpeed = 0
-      await rewardDistributor.updateTokenSpeed(vsdTOKEN1.address, newSpeed)
+      await rewardDistributor.updateTokenSpeed(msdTOKEN1.address, newSpeed)
 
       // then
-      const after = await rewardDistributor.tokenSpeeds(vsdTOKEN1.address)
+      const after = await rewardDistributor.tokenSpeeds(msdTOKEN1.address)
       expect(after).eq(newSpeed)
     })
   })
@@ -121,7 +121,7 @@ describe('RewardDistributor', function () {
       const tx = rewardDistributor
         .connect(alice.address)
         .updateTokenSpeeds(
-          [vsdTOKEN1.address, vsdTOKEN2.address, debtToken1.address, debtToken2.address],
+          [msdTOKEN1.address, msdTOKEN2.address, debtToken1.address, debtToken2.address],
           [speed, speed, speed, speed]
         )
 
@@ -131,20 +131,20 @@ describe('RewardDistributor', function () {
 
     it('should update speeds', async function () {
       // given
-      expect(await rewardDistributor.tokenSpeeds(vsdTOKEN1.address)).eq(0)
-      expect(await rewardDistributor.tokenSpeeds(vsdTOKEN2.address)).eq(0)
+      expect(await rewardDistributor.tokenSpeeds(msdTOKEN1.address)).eq(0)
+      expect(await rewardDistributor.tokenSpeeds(msdTOKEN2.address)).eq(0)
       expect(await rewardDistributor.tokenSpeeds(debtToken1.address)).eq(0)
       expect(await rewardDistributor.tokenSpeeds(debtToken2.address)).eq(0)
 
       // when
       await rewardDistributor.updateTokenSpeeds(
-        [vsdTOKEN1.address, vsdTOKEN2.address, debtToken1.address, debtToken2.address],
+        [msdTOKEN1.address, msdTOKEN2.address, debtToken1.address, debtToken2.address],
         [parseEther('1'), parseEther('2'), parseEther('3'), parseEther('4')]
       )
 
       // then
-      expect(await rewardDistributor.tokenSpeeds(vsdTOKEN1.address)).eq(parseEther('1'))
-      expect(await rewardDistributor.tokenSpeeds(vsdTOKEN2.address)).eq(parseEther('2'))
+      expect(await rewardDistributor.tokenSpeeds(msdTOKEN1.address)).eq(parseEther('1'))
+      expect(await rewardDistributor.tokenSpeeds(msdTOKEN2.address)).eq(parseEther('2'))
       expect(await rewardDistributor.tokenSpeeds(debtToken1.address)).eq(parseEther('3'))
       expect(await rewardDistributor.tokenSpeeds(debtToken2.address)).eq(parseEther('4'))
     })
@@ -154,24 +154,24 @@ describe('RewardDistributor', function () {
     const speed = parseEther('1')
 
     beforeEach(async function () {
-      await rewardDistributor.updateTokenSpeed(vsdTOKEN1.address, speed)
+      await rewardDistributor.updateTokenSpeed(msdTOKEN1.address, speed)
 
-      vsdTOKEN1.totalSupply.returns(0)
-      vsdTOKEN1.balanceOf.returns(0)
+      msdTOKEN1.totalSupply.returns(0)
+      msdTOKEN1.balanceOf.returns(0)
 
-      const {index: indexBefore} = await rewardDistributor.tokenStates(vsdTOKEN1.address)
-      const aliceIndexBefore = await rewardDistributor.accountIndexOf(vsdTOKEN1.address, alice.address)
-      const bobIndexBefore = await rewardDistributor.accountIndexOf(vsdTOKEN1.address, bob.address)
+      const {index: indexBefore} = await rewardDistributor.tokenStates(msdTOKEN1.address)
+      const aliceIndexBefore = await rewardDistributor.accountIndexOf(msdTOKEN1.address, alice.address)
+      const bobIndexBefore = await rewardDistributor.accountIndexOf(msdTOKEN1.address, bob.address)
       expect(indexBefore).eq(parseEther('1'))
       expect(aliceIndexBefore).eq(0)
       expect(bobIndexBefore).eq(0)
 
-      await rewardDistributor.updateBeforeMintOrBurn(vsdTOKEN1.address, alice.address)
-      await rewardDistributor.updateBeforeMintOrBurn(vsdTOKEN1.address, bob.address)
+      await rewardDistributor.updateBeforeMintOrBurn(msdTOKEN1.address, alice.address)
+      await rewardDistributor.updateBeforeMintOrBurn(msdTOKEN1.address, bob.address)
 
-      const {index: indexAfter} = await rewardDistributor.tokenStates(vsdTOKEN1.address)
-      const aliceIndexAfter = await rewardDistributor.accountIndexOf(vsdTOKEN1.address, alice.address)
-      const bobIndexAfter = await rewardDistributor.accountIndexOf(vsdTOKEN1.address, bob.address)
+      const {index: indexAfter} = await rewardDistributor.tokenStates(msdTOKEN1.address)
+      const aliceIndexAfter = await rewardDistributor.accountIndexOf(msdTOKEN1.address, alice.address)
+      const bobIndexAfter = await rewardDistributor.accountIndexOf(msdTOKEN1.address, bob.address)
       expect(indexAfter).eq(DEFAULT_INDEX)
       expect(aliceIndexAfter).eq(DEFAULT_INDEX)
       expect(bobIndexAfter).eq(DEFAULT_INDEX)
@@ -187,19 +187,19 @@ describe('RewardDistributor', function () {
         // when
         const totalSupply = parseEther('100')
         const balanceOf = parseEther('100')
-        vsdTOKEN1.totalSupply.returns(totalSupply)
-        vsdTOKEN1.balanceOf.returns(balanceOf)
+        msdTOKEN1.totalSupply.returns(totalSupply)
+        msdTOKEN1.balanceOf.returns(balanceOf)
 
         await increaseTimeOfNextBlock(10)
-        await rewardDistributor.updateBeforeMintOrBurn(vsdTOKEN1.address, alice.address)
+        await rewardDistributor.updateBeforeMintOrBurn(msdTOKEN1.address, alice.address)
 
         // then
         const expectedTotalAccured = parseEther('10')
         const expectedUserAccured = parseEther('10')
         const accrualRatio = expectedTotalAccured.mul(parseEther('1')).div(totalSupply)
 
-        const {index: indexAfter} = await rewardDistributor.tokenStates(vsdTOKEN1.address)
-        const aliceIndexAfter = await rewardDistributor.accountIndexOf(vsdTOKEN1.address, alice.address)
+        const {index: indexAfter} = await rewardDistributor.tokenStates(msdTOKEN1.address)
+        const aliceIndexAfter = await rewardDistributor.accountIndexOf(msdTOKEN1.address, alice.address)
         const tokensAccruedOfUser = await rewardDistributor.tokensAccruedOf(alice.address)
 
         expect(tokensAccruedOfUser).eq(expectedUserAccured)
@@ -211,19 +211,19 @@ describe('RewardDistributor', function () {
         // when
         const totalSupply = parseEther('100')
         const balanceOf = parseEther('50')
-        vsdTOKEN1.totalSupply.returns(totalSupply)
-        vsdTOKEN1.balanceOf.returns(balanceOf)
+        msdTOKEN1.totalSupply.returns(totalSupply)
+        msdTOKEN1.balanceOf.returns(balanceOf)
 
         await increaseTimeOfNextBlock(10)
-        await rewardDistributor.updateBeforeMintOrBurn(vsdTOKEN1.address, alice.address)
+        await rewardDistributor.updateBeforeMintOrBurn(msdTOKEN1.address, alice.address)
 
         // then
         const expectedTotalAccured = parseEther('10')
         const expectedUserAccured = parseEther('5')
         const accrualRatio = expectedTotalAccured.mul(parseEther('1')).div(totalSupply)
 
-        const {index: indexAfter} = await rewardDistributor.tokenStates(vsdTOKEN1.address)
-        const aliceIndexAfter = await rewardDistributor.accountIndexOf(vsdTOKEN1.address, alice.address)
+        const {index: indexAfter} = await rewardDistributor.tokenStates(msdTOKEN1.address)
+        const aliceIndexAfter = await rewardDistributor.accountIndexOf(msdTOKEN1.address, alice.address)
         const tokensAccruedOfUser = await rewardDistributor.tokensAccruedOf(alice.address)
 
         expect(tokensAccruedOfUser).eq(expectedUserAccured)
@@ -235,22 +235,22 @@ describe('RewardDistributor', function () {
         // given
         const totalSupply1 = parseEther('100')
         const balance1 = parseEther('100')
-        vsdTOKEN1.totalSupply.returns(totalSupply1)
-        vsdTOKEN1.balanceOf.returns(balance1)
+        msdTOKEN1.totalSupply.returns(totalSupply1)
+        msdTOKEN1.balanceOf.returns(balance1)
 
         await increaseTimeOfNextBlock(10)
-        await rewardDistributor.updateBeforeMintOrBurn(vsdTOKEN1.address, alice.address)
+        await rewardDistributor.updateBeforeMintOrBurn(msdTOKEN1.address, alice.address)
         const tokensAccruedOfUser1 = await rewardDistributor.tokensAccruedOf(alice.address)
         expect(tokensAccruedOfUser1).eq(parseEther('10'))
 
         // when
         const totalSupply2 = parseEther('100')
         const balance2 = parseEther('50')
-        vsdTOKEN1.totalSupply.returns(totalSupply2)
-        vsdTOKEN1.balanceOf.returns(balance2)
+        msdTOKEN1.totalSupply.returns(totalSupply2)
+        msdTOKEN1.balanceOf.returns(balance2)
 
         await increaseTimeOfNextBlock(10)
-        await rewardDistributor.updateBeforeMintOrBurn(vsdTOKEN1.address, alice.address)
+        await rewardDistributor.updateBeforeMintOrBurn(msdTOKEN1.address, alice.address)
 
         // then
         const tokensAccruedOfUser2 = await rewardDistributor.tokensAccruedOf(alice.address)
@@ -261,22 +261,22 @@ describe('RewardDistributor', function () {
         // given
         const totalSupply1 = parseEther('100')
         const balance1 = parseEther('50')
-        vsdTOKEN1.totalSupply.returns(totalSupply1)
-        vsdTOKEN1.balanceOf.returns(balance1)
+        msdTOKEN1.totalSupply.returns(totalSupply1)
+        msdTOKEN1.balanceOf.returns(balance1)
 
         await increaseTimeOfNextBlock(10)
-        await rewardDistributor.updateBeforeMintOrBurn(vsdTOKEN1.address, alice.address)
+        await rewardDistributor.updateBeforeMintOrBurn(msdTOKEN1.address, alice.address)
         const tokensAccruedBefore = await rewardDistributor.tokensAccruedOf(alice.address)
         expect(tokensAccruedBefore).eq(parseEther('5'))
 
         // when
         const totalSupply2 = parseEther('100')
         const balance2 = parseEther('100')
-        vsdTOKEN1.totalSupply.returns(totalSupply2)
-        vsdTOKEN1.balanceOf.returns(balance2)
+        msdTOKEN1.totalSupply.returns(totalSupply2)
+        msdTOKEN1.balanceOf.returns(balance2)
 
         await increaseTimeOfNextBlock(10)
-        await rewardDistributor.updateBeforeMintOrBurn(vsdTOKEN1.address, alice.address)
+        await rewardDistributor.updateBeforeMintOrBurn(msdTOKEN1.address, alice.address)
 
         // then
         const tokensAccruedAfter = await rewardDistributor.tokensAccruedOf(alice.address)
@@ -287,14 +287,14 @@ describe('RewardDistributor', function () {
     describe('updateBeforeTransfer', function () {
       it('should update rewards on transfer', async function () {
         // given
-        vsdTOKEN1.totalSupply.returns(parseEther('100'))
+        msdTOKEN1.totalSupply.returns(parseEther('100'))
         const balanceOfAlice1 = parseEther('50')
         const balanceOfBob1 = parseEther('50')
-        vsdTOKEN1.balanceOf.whenCalledWith(alice.address).returns(balanceOfAlice1)
-        vsdTOKEN1.balanceOf.whenCalledWith(bob.address).returns(balanceOfBob1)
+        msdTOKEN1.balanceOf.whenCalledWith(alice.address).returns(balanceOfAlice1)
+        msdTOKEN1.balanceOf.whenCalledWith(bob.address).returns(balanceOfBob1)
 
         await increaseTimeOfNextBlock(10)
-        await rewardDistributor.updateBeforeTransfer(vsdTOKEN1.address, alice.address, bob.address)
+        await rewardDistributor.updateBeforeTransfer(msdTOKEN1.address, alice.address, bob.address)
 
         const aliceTokensAccrued1 = await rewardDistributor.tokensAccruedOf(alice.address)
         const bobTokensAccrued1 = await rewardDistributor.tokensAccruedOf(bob.address)
@@ -304,11 +304,11 @@ describe('RewardDistributor', function () {
         // when
         const balanceOfAlice2 = parseEther('25')
         const balanceOfBob2 = parseEther('75')
-        vsdTOKEN1.balanceOf.whenCalledWith(alice.address).returns(balanceOfAlice2)
-        vsdTOKEN1.balanceOf.whenCalledWith(bob.address).returns(balanceOfBob2)
+        msdTOKEN1.balanceOf.whenCalledWith(alice.address).returns(balanceOfAlice2)
+        msdTOKEN1.balanceOf.whenCalledWith(bob.address).returns(balanceOfBob2)
 
         await increaseTimeOfNextBlock(10)
-        await rewardDistributor.updateBeforeTransfer(vsdTOKEN1.address, alice.address, bob.address)
+        await rewardDistributor.updateBeforeTransfer(msdTOKEN1.address, alice.address, bob.address)
 
         // then
         const aliceTokensAccrued2 = await rewardDistributor.tokensAccruedOf(alice.address)
@@ -325,16 +325,16 @@ describe('RewardDistributor', function () {
     beforeEach(async function () {
       await vsp.mint(rewardDistributor.address, parseEther('1000'))
 
-      await rewardDistributor.updateTokenSpeed(vsdTOKEN1.address, speedPerToken)
-      await rewardDistributor.updateTokenSpeed(vsdTOKEN2.address, speedPerToken)
+      await rewardDistributor.updateTokenSpeed(msdTOKEN1.address, speedPerToken)
+      await rewardDistributor.updateTokenSpeed(msdTOKEN2.address, speedPerToken)
       await rewardDistributor.updateTokenSpeed(debtToken1.address, speedPerToken)
       await rewardDistributor.updateTokenSpeed(debtToken2.address, speedPerToken)
 
-      vsdTOKEN1.totalSupply.returns(0)
-      vsdTOKEN1.balanceOf.returns(0)
+      msdTOKEN1.totalSupply.returns(0)
+      msdTOKEN1.balanceOf.returns(0)
 
-      vsdTOKEN2.totalSupply.returns(0)
-      vsdTOKEN2.balanceOf.returns(0)
+      msdTOKEN2.totalSupply.returns(0)
+      msdTOKEN2.balanceOf.returns(0)
 
       debtToken1.totalSupply.returns(0)
       debtToken1.balanceOf.returns(0)
@@ -344,11 +344,11 @@ describe('RewardDistributor', function () {
 
       await ethers.provider.send('evm_setAutomine', [false])
 
-      await rewardDistributor.updateBeforeMintOrBurn(vsdTOKEN1.address, alice.address)
-      await rewardDistributor.updateBeforeMintOrBurn(vsdTOKEN1.address, bob.address)
+      await rewardDistributor.updateBeforeMintOrBurn(msdTOKEN1.address, alice.address)
+      await rewardDistributor.updateBeforeMintOrBurn(msdTOKEN1.address, bob.address)
 
-      await rewardDistributor.updateBeforeMintOrBurn(vsdTOKEN2.address, alice.address)
-      await rewardDistributor.updateBeforeMintOrBurn(vsdTOKEN2.address, bob.address)
+      await rewardDistributor.updateBeforeMintOrBurn(msdTOKEN2.address, alice.address)
+      await rewardDistributor.updateBeforeMintOrBurn(msdTOKEN2.address, bob.address)
 
       await rewardDistributor.updateBeforeMintOrBurn(debtToken1.address, alice.address)
       await rewardDistributor.updateBeforeMintOrBurn(debtToken1.address, bob.address)
@@ -358,13 +358,13 @@ describe('RewardDistributor', function () {
 
       await ethers.provider.send('evm_mine', [])
 
-      vsdTOKEN1.totalSupply.returns(parseEther('100'))
-      vsdTOKEN1.balanceOf.whenCalledWith(alice.address).returns(parseEther('50'))
-      vsdTOKEN1.balanceOf.whenCalledWith(bob.address).returns(parseEther('50'))
+      msdTOKEN1.totalSupply.returns(parseEther('100'))
+      msdTOKEN1.balanceOf.whenCalledWith(alice.address).returns(parseEther('50'))
+      msdTOKEN1.balanceOf.whenCalledWith(bob.address).returns(parseEther('50'))
 
-      vsdTOKEN2.totalSupply.returns(parseEther('100'))
-      vsdTOKEN2.balanceOf.whenCalledWith(alice.address).returns(parseEther('50'))
-      vsdTOKEN2.balanceOf.whenCalledWith(bob.address).returns(parseEther('50'))
+      msdTOKEN2.totalSupply.returns(parseEther('100'))
+      msdTOKEN2.balanceOf.whenCalledWith(alice.address).returns(parseEther('50'))
+      msdTOKEN2.balanceOf.whenCalledWith(bob.address).returns(parseEther('50'))
 
       debtToken1.totalSupply.returns(parseEther('100'))
       debtToken1.balanceOf.whenCalledWith(alice.address).returns(parseEther('50'))
@@ -403,7 +403,7 @@ describe('RewardDistributor', function () {
       expect(before).eq(0)
 
       // when
-      await rewardDistributor['claimRewards(address,address[])'](alice.address, [vsdTOKEN1.address, vsdTOKEN2.address])
+      await rewardDistributor['claimRewards(address,address[])'](alice.address, [msdTOKEN1.address, msdTOKEN2.address])
       await mineBlock()
 
       // then
