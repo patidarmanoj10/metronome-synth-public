@@ -3,8 +3,8 @@
 pragma solidity 0.8.9;
 
 import "../access/Governable.sol";
-import "../interface/oracle/IUniswapV3CrossPoolOracle.sol";
-import "../interface/oracle/IPriceProvider.sol";
+import "../interfaces/oracle/IUniswapV3CrossPoolOracle.sol";
+import "../interfaces/oracle/IPriceProvider.sol";
 import "../lib/OracleHelpers.sol";
 
 /**

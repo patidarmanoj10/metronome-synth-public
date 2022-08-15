@@ -5,8 +5,8 @@ pragma solidity 0.8.9;
 import "../dependencies/openzeppelin/utils/Context.sol";
 import "../dependencies/openzeppelin/proxy/utils/Initializable.sol";
 import "../utils/TokenHolder.sol";
-import "../interface/IGovernable.sol";
-import "../interface/IController.sol";
+import "../interfaces/IGovernable.sol";
+import "../interfaces/IController.sol";
 
 /**
  * @title Reusable contract that handles accesses

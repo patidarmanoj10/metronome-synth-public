@@ -3,7 +3,7 @@
 pragma solidity 0.8.9;
 
 import "./dependencies/openzeppelin/utils/Context.sol";
-import "./interface/IPausable.sol";
+import "./interfaces/IPausable.sol";
 import "./access/Governable.sol";
 
 /**

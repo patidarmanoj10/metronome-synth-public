@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.9;
 
-import "../interface/IDebtToken.sol";
+import "../interfaces/IDebtToken.sol";
 
 abstract contract DebtTokenStorageV1 is IDebtToken {
     /**

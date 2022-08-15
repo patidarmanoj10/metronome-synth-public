@@ -4,7 +4,7 @@
 
 pragma solidity 0.8.9;
 
-import "../interface/oracle/IOracle.sol";
+import "../interfaces/oracle/IOracle.sol";
 
 contract DefaultOracleMock is IOracle {
     mapping(IERC20 => uint256) public prices;

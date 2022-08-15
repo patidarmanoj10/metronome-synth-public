@@ -88,6 +88,9 @@ const config: HardhatUserConfig = {
     overwrite: true,
     runOnCompile: true,
   },
+  typechain: {
+    outDir: 'typechain',
+  },
   mocha: {
     timeout: 200000,
     // Note: We can enable parallelism here instead of using the `--parallel`

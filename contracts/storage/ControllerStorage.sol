@@ -4,9 +4,9 @@ pragma solidity 0.8.9;
 
 import "../dependencies/openzeppelin/utils/structs/EnumerableSet.sol";
 import "../lib/MappedEnumerableSet.sol";
-import "../interface/IController.sol";
-import "../interface/ITreasury.sol";
-import "../interface/IRewardsDistributor.sol";
+import "../interfaces/IController.sol";
+import "../interfaces/ITreasury.sol";
+import "../interfaces/IRewardsDistributor.sol";
 
 abstract contract ControllerStorageV1 is IController {
     /**

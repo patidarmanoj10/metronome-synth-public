@@ -5,7 +5,7 @@ pragma solidity 0.8.9;
 import "../dependencies/openzeppelin/utils/math/Math.sol";
 import "../dependencies/openzeppelin/utils/math/SafeCast.sol";
 import "../dependencies/chainlink/interfaces/AggregatorV3Interface.sol";
-import "../interface/oracle/IPriceProvider.sol";
+import "../interfaces/oracle/IPriceProvider.sol";
 
 /**
  * @title ChainLink's price provider
