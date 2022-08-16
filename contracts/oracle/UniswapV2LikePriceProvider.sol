@@ -9,7 +9,7 @@ import "../dependencies/uniswap/lib/libraries/FixedPoint.sol";
 import "../dependencies/uniswap/v2-periphery/libraries/UniswapV2OracleLibrary.sol";
 import "../dependencies/uniswap/v2-periphery/interfaces/IUniswapV2Router02.sol";
 import "../access/Governable.sol";
-import "../interface/oracle/IPriceProvider.sol";
+import "../interfaces/oracle/IPriceProvider.sol";
 import "../lib/OracleHelpers.sol";
 
 /**

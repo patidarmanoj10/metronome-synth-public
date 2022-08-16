@@ -9,7 +9,7 @@ pragma solidity 0.8.9;
 
 import "../lib/WadRayMath.sol";
 import "../Pausable.sol";
-import "../interface/IController.sol";
+import "../interfaces/IController.sol";
 import "../access/Governable.sol";
 
 contract ControllerMock is IController, Governable, Pausable {

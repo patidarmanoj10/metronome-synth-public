@@ -2,8 +2,8 @@
 
 pragma solidity 0.8.9;
 
-import "../../interface/external/ICToken.sol";
-import "../../interface/oracle/IOracle.sol";
+import "../../interfaces/external/ICToken.sol";
+import "../../interfaces/oracle/IOracle.sol";
 import "../../lib/OracleHelpers.sol";
 import "../../lib/WadRayMath.sol";
 

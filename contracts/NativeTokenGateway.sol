@@ -4,9 +4,9 @@ pragma solidity 0.8.9;
 
 import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./access/Governable.sol";
-import "./interface/external/IWETH.sol";
-import "./interface/INativeTokenGateway.sol";
-import "./interface/IDepositToken.sol";
+import "./interfaces/external/IWETH.sol";
+import "./interfaces/INativeTokenGateway.sol";
+import "./interfaces/IDepositToken.sol";
 
 /**
  * @title Helper contract to easily support native tokens (e.g. ETH/AVAX) as collateral

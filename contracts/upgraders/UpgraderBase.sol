@@ -4,7 +4,7 @@ pragma solidity 0.8.9;
 
 import "../dependencies/openzeppelin/proxy/transparent/ProxyAdmin.sol";
 import "../dependencies/openzeppelin//proxy/transparent/TransparentUpgradeableProxy.sol";
-import "../interface/external/IMulticall.sol";
+import "../interfaces/external/IMulticall.sol";
 
 abstract contract UpgraderBase is ProxyAdmin {
     // Note: `Multicall3` contract has same address for all chains

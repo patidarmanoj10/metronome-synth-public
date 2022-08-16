@@ -4,8 +4,8 @@ pragma solidity 0.8.9;
 
 import "../dependencies/openzeppelin/token/ERC20/extensions/IERC20Metadata.sol";
 import "../access/Governable.sol";
-import "../interface/oracle/IOracle.sol";
-import "../interface/oracle/IPriceProvider.sol";
+import "../interfaces/oracle/IOracle.sol";
+import "../interfaces/oracle/IPriceProvider.sol";
 
 /**
  * @title Oracle contract that encapsulates 3rd-party protocols' oracles

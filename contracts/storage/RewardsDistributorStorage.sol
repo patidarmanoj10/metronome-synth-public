@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.9;
 
-import "../interface/IRewardsDistributor.sol";
+import "../interfaces/IRewardsDistributor.sol";
 
 abstract contract RewardsDistributorStorageV1 is IRewardsDistributor {
     /**

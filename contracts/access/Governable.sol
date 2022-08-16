@@ -5,7 +5,7 @@ pragma solidity 0.8.9;
 import "../dependencies/openzeppelin/utils/Context.sol";
 import "../dependencies/openzeppelin/proxy/utils/Initializable.sol";
 import "../utils/TokenHolder.sol";
-import "../interface/IGovernable.sol";
+import "../interfaces/IGovernable.sol";
 
 /**
  * @dev Contract module which provides a basic access control mechanism, where

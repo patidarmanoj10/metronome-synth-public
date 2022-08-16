@@ -4,8 +4,8 @@ pragma solidity 0.8.9;
 
 import "../dependencies/openzeppelin/token/ERC20/extensions/IERC20Metadata.sol";
 import "../access/Governable.sol";
-import "../interface/oracle/IMasterOracle.sol";
-import "../interface/oracle/IOracle.sol";
+import "../interfaces/oracle/IMasterOracle.sol";
+import "../interfaces/oracle/IOracle.sol";
 
 /**
  * @title The Master oracle that is called by `Controller`

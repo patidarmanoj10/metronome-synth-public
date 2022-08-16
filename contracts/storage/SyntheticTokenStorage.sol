@@ -2,8 +2,8 @@
 
 pragma solidity 0.8.9;
 
-import "../interface/ISyntheticToken.sol";
-import "../interface/IDebtToken.sol";
+import "../interfaces/ISyntheticToken.sol";
+import "../interfaces/IDebtToken.sol";
 
 abstract contract SyntheticTokenStorageV1 is ISyntheticToken {
     mapping(address => uint256) public balanceOf;

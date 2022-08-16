@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.9;
 
-import "../interface/IDepositToken.sol";
+import "../interfaces/IDepositToken.sol";
 
 abstract contract DepositTokenStorageV1 is IDepositToken {
     mapping(address => uint256) public balanceOf;
