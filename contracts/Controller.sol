@@ -266,7 +266,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
     /**
      * @notice Burn synthetic token, unlock deposit token and send liquidator liquidation fee
-     * @param _syntheticToken The vsAsset to use for repayment
+     * @param _syntheticToken The msAsset to use for repayment
      * @param _account The account with an unhealthy position
      * @param _amountToRepay The amount to repay in synthetic token
      * @param _depositToken The collateral to seize from
@@ -364,7 +364,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     }
 
     /**
-     * @notice Add synthetic token to vSynth offerings
+     * @notice Add synthetic token to Synth offerings
      */
     function addSyntheticToken(address _syntheticToken) external override onlyGovernor {
         require(_syntheticToken != address(0), "address-is-null");
@@ -375,7 +375,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     }
 
     /**
-     * @notice Remove synthetic token from vSynth offerings
+     * @notice Remove synthetic token from Synth offerings
      */
     function removeSyntheticToken(ISyntheticToken _syntheticToken)
         external
@@ -392,7 +392,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     }
 
     /**
-     * @notice Add deposit token (i.e. collateral) to vSynth
+     * @notice Add deposit token (i.e. collateral) to Synth
      */
     function addDepositToken(address _depositToken) external override onlyGovernor {
         require(_depositToken != address(0), "address-is-null");
@@ -404,7 +404,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     }
 
     /**
-     * @notice Remove deposit token (i.e. collateral) from vSynth
+     * @notice Remove deposit token (i.e. collateral) from Synth
      */
     function removeDepositToken(IDepositToken _depositToken)
         external

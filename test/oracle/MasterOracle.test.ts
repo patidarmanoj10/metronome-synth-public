@@ -27,9 +27,9 @@ describe('MasterOracle', function () {
   let masterOracle: MasterOracle
   let defaultOracle: DefaultOracleMock
   let btcOracle: DefaultOracleMock
-  let vsDOGE: ERC20Mock
-  let vsETH: ERC20Mock
-  let vsBTC: ERC20Mock
+  let msDOGE: ERC20Mock
+  let msETH: ERC20Mock
+  let msBTC: ERC20Mock
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
@@ -38,14 +38,14 @@ describe('MasterOracle', function () {
     const erc20MockFactory = new ERC20Mock__factory(deployer)
     const defaultOracleMockFactory = new DefaultOracleMock__factory(deployer)
 
-    vsETH = await erc20MockFactory.deploy('vsETH', 'vsETH', 18)
-    await vsETH.deployed()
+    msETH = await erc20MockFactory.deploy('msETH', 'msETH', 18)
+    await msETH.deployed()
 
-    vsBTC = await erc20MockFactory.deploy('vsBTC', 'vsBTC', 8)
-    await vsBTC.deployed()
+    msBTC = await erc20MockFactory.deploy('msBTC', 'msBTC', 8)
+    await msBTC.deployed()
 
-    vsDOGE = await erc20MockFactory.deploy('vsDOGE', 'vsDOGE', 18)
-    await vsDOGE.deployed()
+    msDOGE = await erc20MockFactory.deploy('msDOGE', 'msDOGE', 18)
+    await msDOGE.deployed()
 
     defaultOracle = await defaultOracleMockFactory.deploy()
     await defaultOracle.deployed()
@@ -56,20 +56,20 @@ describe('MasterOracle', function () {
     const masterOracleFactory = new MasterOracle__factory(deployer)
     masterOracle = await masterOracleFactory.deploy()
     await masterOracle.deployed()
-    await masterOracle.initialize([vsBTC.address], [btcOracle.address], defaultOracle.address)
+    await masterOracle.initialize([msBTC.address], [btcOracle.address], defaultOracle.address)
 
-    await btcOracle.updatePrice(vsBTC.address, btcPrice)
-    await defaultOracle.updatePrice(vsETH.address, ethPrice)
+    await btcOracle.updatePrice(msBTC.address, btcPrice)
+    await defaultOracle.updatePrice(msETH.address, ethPrice)
   })
 
   describe('addOrUpdate', function () {
     it('should revert if not governor', async function () {
-      const tx = masterOracle.connect(user).addOrUpdate([vsDOGE.address], [defaultOracle.address])
+      const tx = masterOracle.connect(user).addOrUpdate([msDOGE.address], [defaultOracle.address])
       await expect(tx).revertedWith('not-governor')
     })
 
     it('should revert if arrays have invalid length', async function () {
-      const tx1 = masterOracle.addOrUpdate([vsDOGE.address, vsBTC.address], [defaultOracle.address])
+      const tx1 = masterOracle.addOrUpdate([msDOGE.address, msBTC.address], [defaultOracle.address])
       await expect(tx1).revertedWith('invalid-arrays-length')
 
       const tx2 = masterOracle.addOrUpdate([], [])
@@ -83,40 +83,40 @@ describe('MasterOracle', function () {
 
     it('should add new oracle', async function () {
       // given
-      expect(await masterOracle.oracles(vsDOGE.address)).eq(AddressZero)
+      expect(await masterOracle.oracles(msDOGE.address)).eq(AddressZero)
 
       // when
-      const tx = masterOracle.addOrUpdate([vsDOGE.address], [defaultOracle.address])
+      const tx = masterOracle.addOrUpdate([msDOGE.address], [defaultOracle.address])
 
       // then
-      await expect(tx).emit(masterOracle, 'OracleUpdated').withArgs(vsDOGE.address, AddressZero, defaultOracle.address)
-      expect(await masterOracle.oracles(vsDOGE.address)).eq(defaultOracle.address)
+      await expect(tx).emit(masterOracle, 'OracleUpdated').withArgs(msDOGE.address, AddressZero, defaultOracle.address)
+      expect(await masterOracle.oracles(msDOGE.address)).eq(defaultOracle.address)
     })
 
     it('should update an oracle', async function () {
       // given
-      expect(await masterOracle.oracles(vsBTC.address)).eq(btcOracle.address)
+      expect(await masterOracle.oracles(msBTC.address)).eq(btcOracle.address)
 
       // when
-      const tx = masterOracle.addOrUpdate([vsBTC.address], [defaultOracle.address])
+      const tx = masterOracle.addOrUpdate([msBTC.address], [defaultOracle.address])
 
       // then
       await expect(tx)
         .emit(masterOracle, 'OracleUpdated')
-        .withArgs(vsBTC.address, btcOracle.address, defaultOracle.address)
-      expect(await masterOracle.oracles(vsBTC.address)).eq(defaultOracle.address)
+        .withArgs(msBTC.address, btcOracle.address, defaultOracle.address)
+      expect(await masterOracle.oracles(msBTC.address)).eq(defaultOracle.address)
     })
 
     it('should remove an oracle (i.e. set zero address)', async function () {
       // given
-      expect(await masterOracle.oracles(vsBTC.address)).eq(btcOracle.address)
+      expect(await masterOracle.oracles(msBTC.address)).eq(btcOracle.address)
 
       // when
-      const tx = masterOracle.addOrUpdate([vsBTC.address], [AddressZero])
+      const tx = masterOracle.addOrUpdate([msBTC.address], [AddressZero])
 
       // then
-      await expect(tx).emit(masterOracle, 'OracleUpdated').withArgs(vsBTC.address, btcOracle.address, AddressZero)
-      expect(await masterOracle.oracles(vsBTC.address)).eq(AddressZero)
+      await expect(tx).emit(masterOracle, 'OracleUpdated').withArgs(msBTC.address, btcOracle.address, AddressZero)
+      expect(await masterOracle.oracles(msBTC.address)).eq(AddressZero)
     })
   })
 
@@ -148,39 +148,39 @@ describe('MasterOracle', function () {
     it("should convert using assets's oracle", async function () {
       // given
 
-      expect(await masterOracle.oracles(vsBTC.address)).eq(btcOracle.address)
+      expect(await masterOracle.oracles(msBTC.address)).eq(btcOracle.address)
 
       // when
       const amountIn = ONE_BTC
-      const amountOut = await masterOracle.quoteTokenToUsd(vsBTC.address, amountIn)
+      const amountOut = await masterOracle.quoteTokenToUsd(msBTC.address, amountIn)
 
       // then
-      const expectedAmountOut = await btcOracle.getPriceInUsd(vsBTC.address)
+      const expectedAmountOut = await btcOracle.getPriceInUsd(msBTC.address)
       expect(amountOut).eq(expectedAmountOut)
     })
 
     it('should convert using the default oracle', async function () {
       // given
-      expect(await masterOracle.oracles(vsETH.address)).eq(AddressZero)
+      expect(await masterOracle.oracles(msETH.address)).eq(AddressZero)
 
       // when
       const amountIn = ONE_ETH
-      const amountOut = await masterOracle.quoteTokenToUsd(vsETH.address, amountIn)
+      const amountOut = await masterOracle.quoteTokenToUsd(msETH.address, amountIn)
 
       // then
-      const expectedAmountOut = await defaultOracle.getPriceInUsd(vsETH.address)
+      const expectedAmountOut = await defaultOracle.getPriceInUsd(msETH.address)
       expect(amountOut).eq(expectedAmountOut)
     })
 
     it('should revert if there is no default oracle and asset has no oracle', async function () {
       await masterOracle.setDefaultOracle(AddressZero)
-      const tx = masterOracle.quoteTokenToUsd(vsDOGE.address, parseEther('1'))
+      const tx = masterOracle.quoteTokenToUsd(msDOGE.address, parseEther('1'))
       await expect(tx).revertedWith('asset-without-oracle')
     })
 
     it('should convert to from minimum ETH amount (1 wei)', async function () {
       const amountIn = '1'
-      const amountOut = await masterOracle.quoteTokenToUsd(vsETH.address, amountIn)
+      const amountOut = await masterOracle.quoteTokenToUsd(msETH.address, amountIn)
       expect(amountOut).eq(ethPrice.div(toUSD('1')))
     })
   })
@@ -189,11 +189,11 @@ describe('MasterOracle', function () {
     // eslint-disable-next-line quotes
     it("should convert using assets's oracle", async function () {
       // given
-      expect(await masterOracle.oracles(vsBTC.address)).eq(btcOracle.address)
+      expect(await masterOracle.oracles(msBTC.address)).eq(btcOracle.address)
 
       // when
-      const amountIn = await btcOracle.getPriceInUsd(vsBTC.address)
-      const amountOut = await masterOracle.quoteUsdToToken(vsBTC.address, amountIn)
+      const amountIn = await btcOracle.getPriceInUsd(msBTC.address)
+      const amountOut = await masterOracle.quoteUsdToToken(msBTC.address, amountIn)
 
       // then
       expect(amountOut).eq(ONE_BTC)
@@ -201,11 +201,11 @@ describe('MasterOracle', function () {
 
     it('should convert using the default oracle', async function () {
       // given
-      expect(await masterOracle.oracles(vsETH.address)).eq(AddressZero)
+      expect(await masterOracle.oracles(msETH.address)).eq(AddressZero)
 
       // when
-      const amountIn = await defaultOracle.getPriceInUsd(vsETH.address)
-      const amountOut = await masterOracle.quoteUsdToToken(vsETH.address, amountIn)
+      const amountIn = await defaultOracle.getPriceInUsd(msETH.address)
+      const amountOut = await masterOracle.quoteUsdToToken(msETH.address, amountIn)
 
       // then
       expect(amountOut).eq(ONE_ETH)
@@ -213,13 +213,13 @@ describe('MasterOracle', function () {
 
     it('should revert if  there is no default oracle and asset has no oracle', async function () {
       await masterOracle.setDefaultOracle(AddressZero)
-      const tx = masterOracle.quoteUsdToToken(vsDOGE.address, parseEther('1'))
+      const tx = masterOracle.quoteUsdToToken(msDOGE.address, parseEther('1'))
       await expect(tx).revertedWith('asset-without-oracle')
     })
 
     it('should convert from minimum USD amount ($1 wei)', async function () {
       const amountIn = '1'
-      const amountOut = await masterOracle.quoteUsdToToken(vsETH.address, amountIn)
+      const amountOut = await masterOracle.quoteUsdToToken(msETH.address, amountIn)
       expect(amountOut).eq(parseEther('1').div(ethPrice))
     })
   })
@@ -229,7 +229,7 @@ describe('MasterOracle', function () {
     it("should convert using assets' oracles", async function () {
       // when
       const amountIn = ONE_BTC
-      const amountOut = await masterOracle.quote(vsBTC.address, vsETH.address, amountIn)
+      const amountOut = await masterOracle.quote(msBTC.address, msETH.address, amountIn)
 
       // then
       const expectedAmountOut = btcPrice.mul(parseEther('1')).div(ethPrice)
@@ -238,7 +238,7 @@ describe('MasterOracle', function () {
 
     it('should revert if  there is no default oracle and one asset has no oracle', async function () {
       await masterOracle.setDefaultOracle(AddressZero)
-      const tx = masterOracle.quote(vsDOGE.address, vsBTC.address, parseEther('1'))
+      const tx = masterOracle.quote(msDOGE.address, msBTC.address, parseEther('1'))
       await expect(tx).revertedWith('asset-without-oracle')
     })
   })

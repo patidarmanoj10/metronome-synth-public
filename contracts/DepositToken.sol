@@ -221,7 +221,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     }
 
     /**
-     * @notice Deposit collateral and mint vsdTOKEN (tokenized deposit position)
+     * @notice Deposit collateral and mint msdTOKEN (tokenized deposit position)
      * @param _amount The amount of collateral tokens to deposit
      * @param _onBehalfOf The account to deposit to
      */
@@ -259,7 +259,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     }
 
     /**
-     * @notice Burn vsdTOKEN and withdraw collateral
+     * @notice Burn msdTOKEN and withdraw collateral
      * @param _amount The amount of collateral to withdraw
      * @param _to The account that will receive withdrawn collateral
      */

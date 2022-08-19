@@ -24,7 +24,7 @@ abstract contract SyntheticTokenStorageV1 is ISyntheticToken {
     IDebtToken public debtToken;
 
     /**
-     * @notice If a vsAsset isn't active, it disables minting new tokens
+     * @notice If a msAsset isn't active, it disables minting new tokens
      */
     bool public isActive;
 

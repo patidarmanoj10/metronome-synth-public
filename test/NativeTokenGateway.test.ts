@@ -31,7 +31,7 @@ describe('NativeTokenGateway', function () {
   let deployer: SignerWithAddress
   let user: SignerWithAddress
   let nativeToken: IWETH
-  let vsdNativeToken: DepositToken
+  let msdNativeToken: DepositToken
   let treasury: Treasury
   let masterOracleMock: MasterOracleMock
   let controllerMock: ControllerMock
@@ -53,8 +53,8 @@ describe('NativeTokenGateway', function () {
     await masterOracleMock.deployed()
 
     const depositTokenFactory = new DepositToken__factory(deployer)
-    vsdNativeToken = await depositTokenFactory.deploy()
-    await vsdNativeToken.deployed()
+    msdNativeToken = await depositTokenFactory.deploy()
+    await msdNativeToken.deployed()
 
     const treasuryFactory = new Treasury__factory(deployer)
     treasury = await treasuryFactory.deploy()
@@ -62,7 +62,7 @@ describe('NativeTokenGateway', function () {
 
     const controllerMockFactory = new ControllerMock__factory(deployer)
     controllerMock = await controllerMockFactory.deploy(
-      vsdNativeToken.address,
+      msdNativeToken.address,
       masterOracleMock.address,
       ethers.constants.AddressZero
     )
@@ -72,10 +72,10 @@ describe('NativeTokenGateway', function () {
     nativeTokenGateway = await nativeTokenGatewayFactory.deploy(NATIVE_TOKEN_ADDRESS)
     await nativeTokenGateway.deployed()
 
-    await vsdNativeToken.initialize(
+    await msdNativeToken.initialize(
       NATIVE_TOKEN_ADDRESS,
       controllerMock.address,
-      'vsdETH',
+      'msdETH',
       18,
       parseEther('1'),
       MaxUint256
@@ -86,7 +86,7 @@ describe('NativeTokenGateway', function () {
     await tokenMock.deployed()
 
     await controllerMock.updateTreasury(treasury.address)
-    await masterOracleMock.updatePrice(vsdNativeToken.address, toUSD('1'))
+    await masterOracleMock.updatePrice(msdNativeToken.address, toUSD('1'))
     await treasury.initialize(controllerMock.address)
   })
 
@@ -105,7 +105,7 @@ describe('NativeTokenGateway', function () {
       // Note: Each expect below re-runs the transaction (Refs: https://github.com/EthWorks/Waffle/issues/569)
       await expect(tx).changeEtherBalances([user, nativeToken], [value.mul('-1'), value])
       await expect(tx).changeTokenBalance(nativeToken, treasury, value)
-      await expect(tx).changeTokenBalance(vsdNativeToken, user, value)
+      await expect(tx).changeTokenBalance(msdNativeToken, user, value)
     })
 
     it('should allow N deposits', async function () {
@@ -127,7 +127,7 @@ describe('NativeTokenGateway', function () {
     beforeEach(async function () {
       const value = parseEther('100')
       await nativeTokenGateway.connect(user).deposit(controllerMock.address, {value})
-      await vsdNativeToken.connect(user).approve(nativeTokenGateway.address, value)
+      await msdNativeToken.connect(user).approve(nativeTokenGateway.address, value)
     })
 
     it('should withdraw ETH from Controller', async function () {
@@ -139,7 +139,7 @@ describe('NativeTokenGateway', function () {
       // Note: Each expect below re-runs the transaction (Refs: https://github.com/EthWorks/Waffle/issues/569)
       await expect(tx).changeEtherBalances([nativeToken, user], [amount.mul('-1'), amount])
       await expect(tx).changeTokenBalance(nativeToken, treasury, amount.mul('-1'))
-      await expect(tx).changeTokenBalance(vsdNativeToken, user, amount.mul('-1'))
+      await expect(tx).changeTokenBalance(msdNativeToken, user, amount.mul('-1'))
     })
   })
 })

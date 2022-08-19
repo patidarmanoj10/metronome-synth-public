@@ -73,7 +73,7 @@ describe('DepositToken', function () {
     controllerMock.getRewardsDistributors.returns([rewardsDistributorMock.address])
     rewardsDistributorMock.controller.returns(controllerMock.address)
 
-    await metDepositToken.initialize(met.address, controllerMock.address, 'vsdMET', 18, metCR, MaxUint256)
+    await metDepositToken.initialize(met.address, controllerMock.address, 'msdMET', 18, metCR, MaxUint256)
     metDepositToken = metDepositToken.connect(governor)
 
     await masterOracle.updatePrice(metDepositToken.address, metPrice)
@@ -376,7 +376,7 @@ describe('DepositToken', function () {
         await expect(tx).reverted
       })
 
-      it('should deposit MET and mint vsdMET (depositFee == 0)', async function () {
+      it('should deposit MET and mint msdMET (depositFee == 0)', async function () {
         // when
         const toDeposit = parseEther('10')
         const tx = () => metDepositToken.connect(alice).deposit(toDeposit, alice.address)
@@ -389,7 +389,7 @@ describe('DepositToken', function () {
           .withArgs(alice.address, alice.address, toDeposit, 0)
       })
 
-      it('should deposit TOKEN and mint vsdTOKEN when TOKEN has transfer fee', async function () {
+      it('should deposit TOKEN and mint msdTOKEN when TOKEN has transfer fee', async function () {
         // given
         const fee = parseEther('0.1') // 10%
         await met.updateFee(fee)
@@ -407,7 +407,7 @@ describe('DepositToken', function () {
           .withArgs(alice.address, alice.address, amountAfterFee, 0)
       })
 
-      it('should deposit MET and mint vsdMET (depositFee > 0)', async function () {
+      it('should deposit MET and mint msdMET (depositFee > 0)', async function () {
         // given
         const depositFee = parseEther('0.01') // 1%
         controllerMock.depositFee.returns(depositFee)

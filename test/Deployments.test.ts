@@ -54,14 +54,14 @@ describe('Deployments', function () {
   let treasury: Treasury
   let treasuryUpgrader: TreasuryUpgrader
   let depositTokenUpgrader: DepositTokenUpgrader
-  let vsdUSDC: DepositToken
-  let vsdWAVAX: DepositToken
+  let msdUSDC: DepositToken
+  let msdWAVAX: DepositToken
   let syntheticTokenUpgrader: SyntheticTokenUpgrader
-  let vsBTC: SyntheticToken
-  let vsUSD: SyntheticToken
+  let msBTC: SyntheticToken
+  let msUSD: SyntheticToken
   let debtTokenUpgrader: DebtTokenUpgrader
-  let vsBTCDebt: DebtToken
-  let vsUSDDebt: DebtToken
+  let msBTCDebt: DebtToken
+  let msUSDDebt: DebtToken
   let wethGateway: NativeTokenGateway
 
   // Note: Enabling fork to be able to use MultiCall contract
@@ -86,11 +86,11 @@ describe('Deployments', function () {
       USDCDepositToken: {address: usdcDepositTokenAddress},
       WAVAXDepositToken: {address: wavaxDepositTokenAddress},
       SyntheticTokenUpgrader: {address: syntheticTokenUpgraderAddress},
-      VsBTCSynthetic: {address: vsBTCAddress},
-      VsUSDSynthetic: {address: vsUSDAddress},
+      MsBTCSynthetic: {address: msBTCAddress},
+      MsUSDSynthetic: {address: msUSDAddress},
       DebtTokenUpgrader: {address: debtTokenUpgraderAddress},
-      VsBTCDebt: {address: vsBTCDebtTokenAddress},
-      VsUSDDebt: {address: vsUSDDebtTokenAddress},
+      MsBTCDebt: {address: msBTCDebtTokenAddress},
+      MsUSDDebt: {address: msUSDDebtTokenAddress},
       NativeTokenGateway: {address: wethGatewayAddress},
     } = await deployments.fixture()
 
@@ -109,16 +109,16 @@ describe('Deployments', function () {
     wethGateway = NativeTokenGateway__factory.connect(wethGatewayAddress, deployer)
 
     depositTokenUpgrader = DepositTokenUpgrader__factory.connect(depositTokenUpgraderAddress, deployer)
-    vsdUSDC = DepositToken__factory.connect(usdcDepositTokenAddress, deployer)
-    vsdWAVAX = DepositToken__factory.connect(wavaxDepositTokenAddress, deployer)
+    msdUSDC = DepositToken__factory.connect(usdcDepositTokenAddress, deployer)
+    msdWAVAX = DepositToken__factory.connect(wavaxDepositTokenAddress, deployer)
 
     syntheticTokenUpgrader = SyntheticTokenUpgrader__factory.connect(syntheticTokenUpgraderAddress, deployer)
-    vsBTC = SyntheticToken__factory.connect(vsBTCAddress, deployer)
-    vsUSD = SyntheticToken__factory.connect(vsUSDAddress, deployer)
+    msBTC = SyntheticToken__factory.connect(msBTCAddress, deployer)
+    msUSD = SyntheticToken__factory.connect(msUSDAddress, deployer)
 
     debtTokenUpgrader = DebtTokenUpgrader__factory.connect(debtTokenUpgraderAddress, deployer)
-    vsBTCDebt = DebtToken__factory.connect(vsBTCDebtTokenAddress, deployer)
-    vsUSDDebt = DebtToken__factory.connect(vsUSDDebtTokenAddress, deployer)
+    msBTCDebt = DebtToken__factory.connect(msBTCDebtTokenAddress, deployer)
+    msUSDDebt = DebtToken__factory.connect(msUSDDebtTokenAddress, deployer)
   })
 
   const upgradeTestcase = async function ({
@@ -245,28 +245,28 @@ describe('Deployments', function () {
 
   describe('DepositToken', function () {
     it('should have the same proxy admin', async function () {
-      const vsdUSDCProxyAdmin = await depositTokenUpgrader.getProxyAdmin(vsdUSDC.address)
-      const vsdWAVAXProxyAdmin = await depositTokenUpgrader.getProxyAdmin(vsdWAVAX.address)
-      expect(vsdUSDCProxyAdmin).eq(vsdWAVAXProxyAdmin).eq(depositTokenUpgrader.address)
+      const msdUSDCProxyAdmin = await depositTokenUpgrader.getProxyAdmin(msdUSDC.address)
+      const msdWAVAXProxyAdmin = await depositTokenUpgrader.getProxyAdmin(msdWAVAX.address)
+      expect(msdUSDCProxyAdmin).eq(msdWAVAXProxyAdmin).eq(depositTokenUpgrader.address)
     })
 
     it('should have the same implementation', async function () {
-      const vsdUSDCImpl = await depositTokenUpgrader.getProxyImplementation(vsdUSDC.address)
-      const vsdWAVAXImpl = await depositTokenUpgrader.getProxyImplementation(vsdWAVAX.address)
-      expect(vsdUSDCImpl).eq(vsdWAVAXImpl)
+      const msdUSDCImpl = await depositTokenUpgrader.getProxyImplementation(msdUSDC.address)
+      const msdWAVAXImpl = await depositTokenUpgrader.getProxyImplementation(msdWAVAX.address)
+      expect(msdUSDCImpl).eq(msdWAVAXImpl)
     })
 
     describe('USDC DepositToken', function () {
       it('token should have correct params', async function () {
-        expect(await vsdUSDC.controller()).eq(controller.address)
-        expect(await vsdUSDC.underlying()).eq(USDC_ADDRESS)
-        expect(await vsdUSDC.governor()).eq(deployer.address)
+        expect(await msdUSDC.controller()).eq(controller.address)
+        expect(await msdUSDC.underlying()).eq(USDC_ADDRESS)
+        expect(await msdUSDC.governor()).eq(deployer.address)
       })
 
       it('should upgrade implementation', async function () {
         await upgradeTestcase({
           newImplfactory: new DepositToken__factory(deployer),
-          proxy: vsdUSDC,
+          proxy: msdUSDC,
           upgrader: depositTokenUpgrader,
           expectToFail: false,
         })
@@ -275,7 +275,7 @@ describe('Deployments', function () {
       it('should fail if implementation breaks storage', async function () {
         await upgradeTestcase({
           newImplfactory: new DefaultOracleMock__factory(deployer),
-          proxy: vsdUSDC,
+          proxy: msdUSDC,
           upgrader: depositTokenUpgrader,
           expectToFail: true,
         })
@@ -284,15 +284,15 @@ describe('Deployments', function () {
 
     describe('WAVAX DepositToken', function () {
       it('token should have correct params', async function () {
-        expect(await vsdWAVAX.controller()).eq(controller.address)
-        expect(await vsdWAVAX.underlying()).eq(WAVAX_ADDRESS)
-        expect(await vsdWAVAX.governor()).eq(deployer.address)
+        expect(await msdWAVAX.controller()).eq(controller.address)
+        expect(await msdWAVAX.underlying()).eq(WAVAX_ADDRESS)
+        expect(await msdWAVAX.governor()).eq(deployer.address)
       })
 
       it('should upgrade implementation', async function () {
         await upgradeTestcase({
           newImplfactory: new DepositToken__factory(deployer),
-          proxy: vsdWAVAX,
+          proxy: msdWAVAX,
           upgrader: depositTokenUpgrader,
           expectToFail: false,
         })
@@ -301,7 +301,7 @@ describe('Deployments', function () {
       it('should fail if implementation breaks storage', async function () {
         await upgradeTestcase({
           newImplfactory: new DefaultOracleMock__factory(deployer),
-          proxy: vsdWAVAX,
+          proxy: msdWAVAX,
           upgrader: depositTokenUpgrader,
           expectToFail: true,
         })
@@ -311,37 +311,37 @@ describe('Deployments', function () {
 
   describe('SyntheticToken', function () {
     it('should have the same proxy admin', async function () {
-      const vsBTCDebtProxyAdmin = await debtTokenUpgrader.getProxyAdmin(vsBTCDebt.address)
-      const vsUSDDebtProxyAdmin = await debtTokenUpgrader.getProxyAdmin(vsUSDDebt.address)
-      expect(vsBTCDebtProxyAdmin).eq(vsUSDDebtProxyAdmin).eq(debtTokenUpgrader.address)
+      const msBTCDebtProxyAdmin = await debtTokenUpgrader.getProxyAdmin(msBTCDebt.address)
+      const msUSDDebtProxyAdmin = await debtTokenUpgrader.getProxyAdmin(msUSDDebt.address)
+      expect(msBTCDebtProxyAdmin).eq(msUSDDebtProxyAdmin).eq(debtTokenUpgrader.address)
 
-      const vsBTCProxyAdmin = await syntheticTokenUpgrader.getProxyAdmin(vsBTC.address)
-      const vsUSDProxyAdmin = await syntheticTokenUpgrader.getProxyAdmin(vsUSD.address)
-      expect(vsBTCProxyAdmin).eq(vsUSDProxyAdmin).eq(syntheticTokenUpgrader.address)
+      const msBTCProxyAdmin = await syntheticTokenUpgrader.getProxyAdmin(msBTC.address)
+      const msUSDProxyAdmin = await syntheticTokenUpgrader.getProxyAdmin(msUSD.address)
+      expect(msBTCProxyAdmin).eq(msUSDProxyAdmin).eq(syntheticTokenUpgrader.address)
     })
 
     it('should have the same implementation', async function () {
-      const vsBTCDebtImpl = await debtTokenUpgrader.getProxyImplementation(vsBTCDebt.address)
-      const vsUSDDebtImpl = await debtTokenUpgrader.getProxyImplementation(vsUSDDebt.address)
-      expect(vsBTCDebtImpl).eq(vsUSDDebtImpl)
+      const msBTCDebtImpl = await debtTokenUpgrader.getProxyImplementation(msBTCDebt.address)
+      const msUSDDebtImpl = await debtTokenUpgrader.getProxyImplementation(msUSDDebt.address)
+      expect(msBTCDebtImpl).eq(msUSDDebtImpl)
 
-      const vsBTCImpl = await syntheticTokenUpgrader.getProxyImplementation(vsBTC.address)
-      const vsUSDImpl = await syntheticTokenUpgrader.getProxyImplementation(vsUSD.address)
-      expect(vsBTCImpl).eq(vsUSDImpl)
+      const msBTCImpl = await syntheticTokenUpgrader.getProxyImplementation(msBTC.address)
+      const msUSDImpl = await syntheticTokenUpgrader.getProxyImplementation(msUSD.address)
+      expect(msBTCImpl).eq(msUSDImpl)
     })
 
-    describe('vsBTC SyntheticToken', function () {
+    describe('msBTC SyntheticToken', function () {
       it('token should have correct params', async function () {
-        expect(await vsBTC.controller()).eq(controller.address)
-        expect(await vsBTC.debtToken()).eq(vsBTCDebt.address)
-        expect(await vsBTC.governor()).eq(deployer.address)
-        expect(await vsBTC.interestRate()).eq(parseEther('0'))
+        expect(await msBTC.controller()).eq(controller.address)
+        expect(await msBTC.debtToken()).eq(msBTCDebt.address)
+        expect(await msBTC.governor()).eq(deployer.address)
+        expect(await msBTC.interestRate()).eq(parseEther('0'))
       })
 
       it('should upgrade implementation', async function () {
         await upgradeTestcase({
           newImplfactory: new SyntheticToken__factory(deployer),
-          proxy: vsBTC,
+          proxy: msBTC,
           upgrader: syntheticTokenUpgrader,
           expectToFail: false,
         })
@@ -350,25 +350,25 @@ describe('Deployments', function () {
       it('should fail if implementation breaks storage', async function () {
         await upgradeTestcase({
           newImplfactory: new DefaultOracleMock__factory(deployer),
-          proxy: vsBTC,
+          proxy: msBTC,
           upgrader: syntheticTokenUpgrader,
           expectToFail: true,
         })
       })
     })
 
-    describe('vsUSD SyntheticToken', function () {
-      it('vsUSD token should have correct params', async function () {
-        expect(await vsUSD.controller()).eq(controller.address)
-        expect(await vsUSD.debtToken()).eq(vsUSDDebt.address)
-        expect(await vsUSD.governor()).eq(deployer.address)
-        expect(await vsUSD.interestRate()).eq(parseEther('0'))
+    describe('msUSD SyntheticToken', function () {
+      it('msUSD token should have correct params', async function () {
+        expect(await msUSD.controller()).eq(controller.address)
+        expect(await msUSD.debtToken()).eq(msUSDDebt.address)
+        expect(await msUSD.governor()).eq(deployer.address)
+        expect(await msUSD.interestRate()).eq(parseEther('0'))
       })
 
       it('should upgrade implementation', async function () {
         await upgradeTestcase({
           newImplfactory: new SyntheticToken__factory(deployer),
-          proxy: vsUSD,
+          proxy: msUSD,
           upgrader: syntheticTokenUpgrader,
           expectToFail: false,
         })
@@ -377,7 +377,7 @@ describe('Deployments', function () {
       it('should fail if implementation breaks storage', async function () {
         await upgradeTestcase({
           newImplfactory: new DefaultOracleMock__factory(deployer),
-          proxy: vsUSD,
+          proxy: msUSD,
           upgrader: syntheticTokenUpgrader,
           expectToFail: true,
         })
@@ -386,16 +386,16 @@ describe('Deployments', function () {
   })
 
   describe('DebtToken', function () {
-    describe('vsBTC DebtToken', function () {
+    describe('msBTC DebtToken', function () {
       it('token should have correct params', async function () {
-        expect(await vsBTCDebt.controller()).eq(controller.address)
-        expect(await vsBTCDebt.governor()).eq(deployer.address)
+        expect(await msBTCDebt.controller()).eq(controller.address)
+        expect(await msBTCDebt.governor()).eq(deployer.address)
       })
 
       it('should upgrade implementation', async function () {
         await upgradeTestcase({
           newImplfactory: new DebtToken__factory(deployer),
-          proxy: vsBTCDebt,
+          proxy: msBTCDebt,
           upgrader: debtTokenUpgrader,
           expectToFail: false,
         })
@@ -404,23 +404,23 @@ describe('Deployments', function () {
       it('should fail if implementation breaks storage', async function () {
         await upgradeTestcase({
           newImplfactory: new DefaultOracleMock__factory(deployer),
-          proxy: vsBTCDebt,
+          proxy: msBTCDebt,
           upgrader: debtTokenUpgrader,
           expectToFail: true,
         })
       })
     })
 
-    describe('vsUSD DebtToken', function () {
+    describe('msUSD DebtToken', function () {
       it(' token should have correct params', async function () {
-        expect(await vsUSDDebt.controller()).eq(controller.address)
-        expect(await vsUSDDebt.governor()).eq(deployer.address)
+        expect(await msUSDDebt.controller()).eq(controller.address)
+        expect(await msUSDDebt.governor()).eq(deployer.address)
       })
 
       it('should upgrade implementation', async function () {
         await upgradeTestcase({
           newImplfactory: new DebtToken__factory(deployer),
-          proxy: vsUSDDebt,
+          proxy: msUSDDebt,
           upgrader: debtTokenUpgrader,
           expectToFail: false,
         })
@@ -429,7 +429,7 @@ describe('Deployments', function () {
       it('should fail if implementation breaks storage', async function () {
         await upgradeTestcase({
           newImplfactory: new DefaultOracleMock__factory(deployer),
-          proxy: vsUSDDebt,
+          proxy: msUSDDebt,
           upgrader: debtTokenUpgrader,
           expectToFail: true,
         })

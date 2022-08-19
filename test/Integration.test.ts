@@ -30,16 +30,16 @@ describe('Integration tests', function () {
   let usdc: IERC20
   let dai: IERC20
   let usdt: IERC20
-  let vsdWAVAX: DepositToken
-  let vsdWETH: DepositToken
-  let vsdUSDC: DepositToken
-  let vsdDAI: DepositToken
-  let vsdUSDT: DepositToken
-  let vsBTC: SyntheticToken
-  let vsUSD: SyntheticToken
-  let vsUNI: SyntheticToken
-  let vsCRV: SyntheticToken
-  let vsAAVE: SyntheticToken
+  let msdWAVAX: DepositToken
+  let msdWETH: DepositToken
+  let msdUSDC: DepositToken
+  let msdDAI: DepositToken
+  let msdUSDT: DepositToken
+  let msBTC: SyntheticToken
+  let msUSD: SyntheticToken
+  let msUNI: SyntheticToken
+  let msCRV: SyntheticToken
+  let msAAVE: SyntheticToken
 
   before(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
@@ -61,29 +61,29 @@ describe('Integration tests', function () {
       USDCDepositToken: {address: usdcDepositTokenAddress},
       DAIDepositToken: {address: daiDepositTokenAddress},
       USDTDepositToken: {address: usdtDepositTokenAddress},
-      VsBTCSynthetic: {address: vsBTCAddress},
-      VsUSDSynthetic: {address: vsUSDAddress},
-      VsUNISynthetic: {address: vsUNIAddress},
-      VsCRVSynthetic: {address: vsCRVAddress},
-      VsAAVESynthetic: {address: vsAAVEAddress},
+      MsBTCSynthetic: {address: msBTCAddress},
+      MsUSDSynthetic: {address: msUSDAddress},
+      MsUNISynthetic: {address: msUNIAddress},
+      MsCRVSynthetic: {address: msCRVAddress},
+      MsAAVESynthetic: {address: msAAVEAddress},
     } = await deployments.fixture()
 
     controller = Controller__factory.connect(controllerAddress, alice)
     nativeGateway = NativeTokenGateway__factory.connect(wethGatewayAddress, alice)
 
-    // vsdAssets
-    vsdWAVAX = DepositToken__factory.connect(wavaxDepositTokenAddress, alice)
-    vsdWETH = DepositToken__factory.connect(wethDepositTokenAddress, alice)
-    vsdUSDC = DepositToken__factory.connect(usdcDepositTokenAddress, alice)
-    vsdDAI = DepositToken__factory.connect(daiDepositTokenAddress, alice)
-    vsdUSDT = DepositToken__factory.connect(usdtDepositTokenAddress, alice)
+    // msdAssets
+    msdWAVAX = DepositToken__factory.connect(wavaxDepositTokenAddress, alice)
+    msdWETH = DepositToken__factory.connect(wethDepositTokenAddress, alice)
+    msdUSDC = DepositToken__factory.connect(usdcDepositTokenAddress, alice)
+    msdDAI = DepositToken__factory.connect(daiDepositTokenAddress, alice)
+    msdUSDT = DepositToken__factory.connect(usdtDepositTokenAddress, alice)
 
-    // vsAssets
-    vsBTC = SyntheticToken__factory.connect(vsBTCAddress, alice)
-    vsUSD = SyntheticToken__factory.connect(vsUSDAddress, alice)
-    vsUNI = SyntheticToken__factory.connect(vsUNIAddress, alice)
-    vsCRV = SyntheticToken__factory.connect(vsCRVAddress, alice)
-    vsAAVE = SyntheticToken__factory.connect(vsAAVEAddress, alice)
+    // msAssets
+    msBTC = SyntheticToken__factory.connect(msBTCAddress, alice)
+    msUSD = SyntheticToken__factory.connect(msUSDAddress, alice)
+    msUNI = SyntheticToken__factory.connect(msUNIAddress, alice)
+    msCRV = SyntheticToken__factory.connect(msCRVAddress, alice)
+    msAAVE = SyntheticToken__factory.connect(msAAVEAddress, alice)
   })
 
   after(disableForking)
@@ -111,8 +111,8 @@ describe('Integration tests', function () {
     const {_depositInUsd: before} = await controller.depositOf(alice.address)
 
     // when
-    await wavax.approve(vsdWAVAX.address, ethers.constants.MaxUint256)
-    await vsdWAVAX.deposit(amount, alice.address)
+    await wavax.approve(msdWAVAX.address, ethers.constants.MaxUint256)
+    await msdWAVAX.deposit(amount, alice.address)
 
     // then
     const {_depositInUsd: after} = await controller.depositOf(alice.address)
@@ -126,8 +126,8 @@ describe('Integration tests', function () {
     const {_depositInUsd: before} = await controller.depositOf(alice.address)
 
     // when
-    await weth.approve(vsdWETH.address, ethers.constants.MaxUint256)
-    await vsdWETH.deposit(amount, alice.address)
+    await weth.approve(msdWETH.address, ethers.constants.MaxUint256)
+    await msdWETH.deposit(amount, alice.address)
 
     // then
     const {_depositInUsd: after} = await controller.depositOf(alice.address)
@@ -141,8 +141,8 @@ describe('Integration tests', function () {
     const {_depositInUsd: before} = await controller.depositOf(alice.address)
 
     // when
-    await usdc.approve(vsdUSDC.address, ethers.constants.MaxUint256)
-    await vsdUSDC.deposit(amount, alice.address)
+    await usdc.approve(msdUSDC.address, ethers.constants.MaxUint256)
+    await msdUSDC.deposit(amount, alice.address)
 
     // then
     const {_depositInUsd: after} = await controller.depositOf(alice.address)
@@ -156,8 +156,8 @@ describe('Integration tests', function () {
     const {_depositInUsd: before} = await controller.depositOf(alice.address)
 
     // when
-    await dai.approve(vsdDAI.address, ethers.constants.MaxUint256)
-    await vsdDAI.deposit(parseEther('10000'), alice.address)
+    await dai.approve(msdDAI.address, ethers.constants.MaxUint256)
+    await msdDAI.deposit(parseEther('10000'), alice.address)
 
     // then
     const {_depositInUsd: after} = await controller.depositOf(alice.address)
@@ -171,8 +171,8 @@ describe('Integration tests', function () {
     const {_depositInUsd: before} = await controller.depositOf(alice.address)
 
     // when
-    await usdt.approve(vsdUSDT.address, ethers.constants.MaxUint256)
-    await vsdUSDT.deposit(amount, alice.address)
+    await usdt.approve(msdUSDT.address, ethers.constants.MaxUint256)
+    await msdUSDT.deposit(amount, alice.address)
 
     // then
     const {_depositInUsd: after} = await controller.depositOf(alice.address)
@@ -185,60 +185,60 @@ describe('Integration tests', function () {
     expect(_debtInUsd).eq(0)
   })
 
-  it('should mint vsBTC', async function () {
+  it('should mint msBTC', async function () {
     // given
     const before = await controller.debtOf(alice.address)
 
     // when
-    await vsBTC.issue(parseUnits('0.1', 8), alice.address)
+    await msBTC.issue(parseUnits('0.1', 8), alice.address)
 
     // then
     const after = await controller.debtOf(alice.address)
     expect(after.sub(before)).closeTo(toUSD('3877'), toUSD('10'))
   })
 
-  it('should mint vsUSD', async function () {
+  it('should mint msUSD', async function () {
     // given
     const before = await controller.debtOf(alice.address)
 
     // when
-    await vsUSD.issue(parseEther('5000'), alice.address)
+    await msUSD.issue(parseEther('5000'), alice.address)
 
     // then
     const after = await controller.debtOf(alice.address)
     expect(after.sub(before)).eq(toUSD('5000'))
   })
 
-  it('should mint vsUNI', async function () {
+  it('should mint msUNI', async function () {
     // given
     const before = await controller.debtOf(alice.address)
 
     // when
-    await vsUNI.issue(parseEther('100'), alice.address)
+    await msUNI.issue(parseEther('100'), alice.address)
 
     // then
     const after = await controller.debtOf(alice.address)
     expect(after.sub(before)).closeTo(toUSD('859'), toUSD('1'))
   })
 
-  it('should mint vsCRV', async function () {
+  it('should mint msCRV', async function () {
     // given
     const before = await controller.debtOf(alice.address)
 
     // when
-    await vsCRV.issue(parseEther('1000'), alice.address)
+    await msCRV.issue(parseEther('1000'), alice.address)
 
     // then
     const after = await controller.debtOf(alice.address)
     expect(after.sub(before)).closeTo(toUSD('1976'), toUSD('5'))
   })
 
-  it('should mint vsAAVE', async function () {
+  it('should mint msAAVE', async function () {
     // given
     const before = await controller.debtOf(alice.address)
 
     // when
-    await vsAAVE.issue(parseEther('10'), alice.address)
+    await msAAVE.issue(parseEther('10'), alice.address)
 
     // then
     const after = await controller.debtOf(alice.address)
