@@ -146,17 +146,19 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         require(_sender != address(0), "transfer-from-the-zero-address");
         require(_recipient != address(0), "transfer-to-the-zero-address");
 
-        uint256 _senderBalance = balanceOf[_sender];
-        require(_senderBalance >= _amount, "transfer-amount-exceeds-balance");
+        uint256 _senderBalanceBefore = balanceOf[_sender];
+        require(_senderBalanceBefore >= _amount, "transfer-amount-exceeds-balance");
+        uint256 _recipientBalanceBefore = balanceOf[_recipient];
+
         unchecked {
-            balanceOf[_sender] = _senderBalance - _amount;
+            balanceOf[_sender] = _senderBalanceBefore - _amount;
         }
-        balanceOf[_recipient] += _amount;
+        balanceOf[_recipient] = _recipientBalanceBefore + _amount;
 
         emit Transfer(_sender, _recipient, _amount);
 
         unchecked {
-            _addToDepositTokensOfRecipientIfNeeded(_recipient, balanceOf[_recipient] - _amount);
+            _addToDepositTokensOfRecipientIfNeeded(_recipient, _recipientBalanceBefore);
         }
         _removeFromDepositTokensOfSenderIfNeeded(_sender, balanceOf[_sender]);
     }
