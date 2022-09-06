@@ -146,19 +146,22 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         require(_sender != address(0), "transfer-from-the-zero-address");
         require(_recipient != address(0), "transfer-to-the-zero-address");
 
-        uint256 _senderBalance = balanceOf[_sender];
-        require(_senderBalance >= _amount, "transfer-amount-exceeds-balance");
+        uint256 _senderBalanceBefore = balanceOf[_sender];
+        require(_senderBalanceBefore >= _amount, "transfer-amount-exceeds-balance");
+        uint256 _recipientBalanceBefore = balanceOf[_recipient];
+        uint256 _senderBalanceAfter;
+
         unchecked {
-            balanceOf[_sender] = _senderBalance - _amount;
+            _senderBalanceAfter = _senderBalanceBefore - _amount;
         }
-        balanceOf[_recipient] += _amount;
+
+        balanceOf[_sender] = _senderBalanceAfter;
+        balanceOf[_recipient] = _recipientBalanceBefore + _amount;
 
         emit Transfer(_sender, _recipient, _amount);
 
-        unchecked {
-            _addToDepositTokensOfRecipientIfNeeded(_recipient, balanceOf[_recipient] - _amount);
-        }
-        _removeFromDepositTokensOfSenderIfNeeded(_sender, balanceOf[_sender]);
+        _addToDepositTokensOfRecipientIfNeeded(_recipient, _recipientBalanceBefore);
+        _removeFromDepositTokensOfSenderIfNeeded(_sender, _senderBalanceAfter);
     }
 
     function _mint(address _account, uint256 _amount)
@@ -173,27 +176,30 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         lastDepositOf[_account] = block.timestamp;
 
         totalSupply += _amount;
-        balanceOf[_account] += _amount;
+        uint256 _balanceBefore = balanceOf[_account];
+        balanceOf[_account] = _balanceBefore + _amount;
+
         emit Transfer(address(0), _account, _amount);
 
-        unchecked {
-            _addToDepositTokensOfRecipientIfNeeded(_account, balanceOf[_account] - _amount);
-        }
+        _addToDepositTokensOfRecipientIfNeeded(_account, _balanceBefore);
     }
 
     function _burn(address _account, uint256 _amount) private updateRewardsBeforeMintOrBurn(_account) {
         require(_account != address(0), "burn-from-the-zero-address");
 
-        uint256 _accountBalance = balanceOf[_account];
-        require(_accountBalance >= _amount, "burn-amount-exceeds-balance");
+        uint256 _balanceBefore = balanceOf[_account];
+        require(_balanceBefore >= _amount, "burn-amount-exceeds-balance");
+        uint256 _balanceAfter;
         unchecked {
-            balanceOf[_account] = _accountBalance - _amount;
+            _balanceAfter = _balanceBefore - _amount;
         }
+
+        balanceOf[_account] = _balanceAfter;
         totalSupply -= _amount;
 
         emit Transfer(_account, address(0), _amount);
 
-        _removeFromDepositTokensOfSenderIfNeeded(_account, balanceOf[_account]);
+        _removeFromDepositTokensOfSenderIfNeeded(_account, _balanceAfter);
     }
 
     function _approve(
