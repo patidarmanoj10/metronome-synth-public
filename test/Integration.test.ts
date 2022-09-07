@@ -16,12 +16,33 @@ import {
   IERC20,
   IERC20__factory,
 } from '../typechain'
-import {disableForking, enableForking, setTokenBalance} from './helpers'
+import {disableForking, enableForking, impersonateAccount, setTokenBalance} from './helpers'
 import Address from '../helpers/address'
 
-const {WAVAX_ADDRESS, WETH_ADDRESS, USDC_ADDRESS, DAI_ADDRESS, USDT_ADDRESS} = Address
+const {
+  WAVAX_ADDRESS,
+  WETH_ADDRESS,
+  USDC_ADDRESS,
+  DAI_ADDRESS,
+  USDT_ADDRESS,
+  CHAINLINK_PRICE_PROVIDER,
+  USDC_USD_CHAINLINK_AGGREGATOR_ADDRESS,
+  AAVE_USD_CHAINLINK_AGGREGATOR_ADDRESS,
+  AVAX_USD_CHAINLINK_AGGREGATOR_ADDRESS,
+  BTC_USD_CHAINLINK_AGGREGATOR_ADDRESS,
+  CRV_USD_CHAINLINK_AGGREGATOR_ADDRESS,
+  DAI_USD_CHAINLINK_AGGREGATOR_ADDRESS,
+  ETH_USD_CHAINLINK_AGGREGATOR_ADDRESS,
+  UNI_USD_CHAINLINK_AGGREGATOR_ADDRESS,
+  USDT_USD_CHAINLINK_AGGREGATOR_ADDRESS,
+  ONE_ORACLE_ADDRESS_PROVIDER,
+  MASTER_ORACLE_ADDRESS,
+  MS_USD_TOKEN_ORACLE_ADDRESS,
+} = Address
 
-describe('Integration tests', function () {
+// Note: This test suite might be used in order to check all system is working properly
+// Skipping this since CI forks mainnet and these tests run against avalanche's fork
+describe.skip('Integration tests', function () {
   let alice: SignerWithAddress
   let controller: Controller
   let nativeGateway: NativeTokenGateway
@@ -84,6 +105,36 @@ describe('Integration tests', function () {
     msUNI = SyntheticToken__factory.connect(msUNIAddress, alice)
     msCRV = SyntheticToken__factory.connect(msCRVAddress, alice)
     msAAVE = SyntheticToken__factory.connect(msAAVEAddress, alice)
+
+    // OneOracle contracts
+    const addressProvider = new ethers.Contract(
+      ONE_ORACLE_ADDRESS_PROVIDER,
+      ['function governor() view returns(address)'],
+      alice
+    )
+    const governor = await impersonateAccount(await addressProvider.governor())
+    const masterOracle = new ethers.Contract(
+      MASTER_ORACLE_ADDRESS,
+      ['function updateTokenOracle(address,address)'],
+      governor
+    )
+    const chainlinkPriceProvider = new ethers.Contract(
+      CHAINLINK_PRICE_PROVIDER,
+      ['function updateAggregator(address,address)'],
+      governor
+    )
+
+    await chainlinkPriceProvider.updateAggregator(msdUSDC.address, USDC_USD_CHAINLINK_AGGREGATOR_ADDRESS)
+    await chainlinkPriceProvider.updateAggregator(msdWAVAX.address, AVAX_USD_CHAINLINK_AGGREGATOR_ADDRESS)
+    await chainlinkPriceProvider.updateAggregator(msdWETH.address, ETH_USD_CHAINLINK_AGGREGATOR_ADDRESS)
+    await chainlinkPriceProvider.updateAggregator(msdDAI.address, DAI_USD_CHAINLINK_AGGREGATOR_ADDRESS)
+    await chainlinkPriceProvider.updateAggregator(msdUSDT.address, USDT_USD_CHAINLINK_AGGREGATOR_ADDRESS)
+    await chainlinkPriceProvider.updateAggregator(msBTC.address, BTC_USD_CHAINLINK_AGGREGATOR_ADDRESS)
+    await chainlinkPriceProvider.updateAggregator(msUNI.address, UNI_USD_CHAINLINK_AGGREGATOR_ADDRESS)
+    await chainlinkPriceProvider.updateAggregator(msCRV.address, CRV_USD_CHAINLINK_AGGREGATOR_ADDRESS)
+    await chainlinkPriceProvider.updateAggregator(msAAVE.address, AAVE_USD_CHAINLINK_AGGREGATOR_ADDRESS)
+
+    await masterOracle.updateTokenOracle(msUSD.address, MS_USD_TOKEN_ORACLE_ADDRESS)
   })
 
   after(disableForking)
@@ -98,11 +149,7 @@ describe('Integration tests', function () {
     // then
     const {_depositInUsd: after} = await controller.depositOf(alice.address)
 
-    if (network.config.chainId === 43114) {
-      expect(after.sub(before)).closeTo(toUSD('7.24'), toUSD('1')) // Avalanche
-    } else {
-      expect(after.sub(before)).closeTo(toUSD('256.5'), toUSD('1')) // Mainnet
-    }
+    expect(after.sub(before)).closeTo(toUSD('1.87'), toUSD('1'))
   })
 
   it('should deposit WAVAX', async function () {
@@ -116,7 +163,7 @@ describe('Integration tests', function () {
 
     // then
     const {_depositInUsd: after} = await controller.depositOf(alice.address)
-    expect(after.sub(before)).closeTo(toUSD('724'), toUSD('5'))
+    expect(after.sub(before)).closeTo(toUSD('187'), toUSD('5'))
   })
 
   it('should deposit WETH', async function () {
@@ -131,7 +178,7 @@ describe('Integration tests', function () {
 
     // then
     const {_depositInUsd: after} = await controller.depositOf(alice.address)
-    expect(after.sub(before)).closeTo(toUSD('2565'), toUSD('5'))
+    expect(after.sub(before)).closeTo(toUSD('1570'), toUSD('5'))
   })
 
   it('should deposit USDC', async function () {
@@ -181,7 +228,7 @@ describe('Integration tests', function () {
 
   it('should check position after deposits', async function () {
     const {_depositInUsd, _debtInUsd} = await controller.debtPositionOf(alice.address)
-    expect(_depositInUsd).closeTo(toUSD('33313'), toUSD('250'))
+    expect(_depositInUsd).closeTo(toUSD('31758'), toUSD('250'))
     expect(_debtInUsd).eq(0)
   })
 
@@ -194,7 +241,7 @@ describe('Integration tests', function () {
 
     // then
     const after = await controller.debtOf(alice.address)
-    expect(after.sub(before)).closeTo(toUSD('3877'), toUSD('10'))
+    expect(after.sub(before)).closeTo(toUSD('1899'), toUSD('10'))
   })
 
   it('should mint msUSD', async function () {
@@ -218,7 +265,7 @@ describe('Integration tests', function () {
 
     // then
     const after = await controller.debtOf(alice.address)
-    expect(after.sub(before)).closeTo(toUSD('859'), toUSD('1'))
+    expect(after.sub(before)).closeTo(toUSD('599'), toUSD('1'))
   })
 
   it('should mint msCRV', async function () {
@@ -230,7 +277,7 @@ describe('Integration tests', function () {
 
     // then
     const after = await controller.debtOf(alice.address)
-    expect(after.sub(before)).closeTo(toUSD('1976'), toUSD('5'))
+    expect(after.sub(before)).closeTo(toUSD('1097'), toUSD('5'))
   })
 
   it('should mint msAAVE', async function () {
@@ -242,12 +289,12 @@ describe('Integration tests', function () {
 
     // then
     const after = await controller.debtOf(alice.address)
-    expect(after.sub(before)).closeTo(toUSD('1162'), toUSD('1'))
+    expect(after.sub(before)).closeTo(toUSD('850'), toUSD('1'))
   })
 
   it('should check position after issuances', async function () {
     const {_depositInUsd, _debtInUsd} = await controller.debtPositionOf(alice.address)
-    expect(_depositInUsd).closeTo(toUSD('33313'), toUSD('250'))
-    expect(_debtInUsd).closeTo(toUSD('12875'), toUSD('100'))
+    expect(_depositInUsd).closeTo(toUSD('31758'), toUSD('250'))
+    expect(_debtInUsd).closeTo(toUSD('9447'), toUSD('100'))
   })
 })

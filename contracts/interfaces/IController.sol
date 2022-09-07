@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.9;
 
-import "./oracle/IMasterOracle.sol";
+import "./external/IMasterOracle.sol";
 import "./IPausable.sol";
 import "./ISyntheticToken.sol";
 import "./IDepositToken.sol";

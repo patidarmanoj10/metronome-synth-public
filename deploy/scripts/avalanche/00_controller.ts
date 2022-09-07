@@ -1,21 +1,23 @@
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
 import {UpgradableContracts, deployUpgradable, transferGovernorshipIfNeeded} from '../../helpers'
+import Address from '../../../helpers/address'
 
-const MasterOracle = 'MasterOracle'
 const {
   Controller: {alias: Controller},
 } = UpgradableContracts
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {deployments} = hre
-  const {get, getOrNull} = deployments
+  const {getOrNull} = deployments
 
   const wasDeployed = !!(await getOrNull(Controller))
 
-  const masterOracle = await get(MasterOracle)
-
-  await deployUpgradable({hre, contractConfig: UpgradableContracts.Controller, initializeArgs: [masterOracle.address]})
+  await deployUpgradable({
+    hre,
+    contractConfig: UpgradableContracts.Controller,
+    initializeArgs: [Address.MASTER_ORACLE_ADDRESS],
+  })
 
   if (!wasDeployed) {
     await transferGovernorshipIfNeeded(hre, Controller)
@@ -24,4 +26,3 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
 export default func
 func.tags = [Controller]
-func.dependencies = [MasterOracle]

@@ -3,21 +3,14 @@ import Address from '../../../helpers/address'
 import {parseEther} from 'ethers/lib/utils'
 import {toUSD} from '../../../helpers'
 
-const {WAVAX_ADDRESS, AVAX_USD_CHAINLINK_AGGREGATOR_ADDRESS} = Address
+const {USDT_ADDRESS} = Address
 
 const func = buildDepositDeployFunction({
-  underlyingAddress: WAVAX_ADDRESS,
-  underlyingSymbol: 'WAVAX',
-  underlyingDecimals: 18,
+  underlyingAddress: USDT_ADDRESS,
+  underlyingSymbol: 'USDT',
+  underlyingDecimals: 6,
   collateralizationRatio: parseEther('0.5'), // 50%
   maxTotalSupplyInUsd: toUSD('100000'),
-  oracle: {
-    function: 'addOrUpdateAssetThatUsesChainlink',
-    args: {
-      aggregator: AVAX_USD_CHAINLINK_AGGREGATOR_ADDRESS,
-      stalePeriod: 60 * 60 * 6, // 6h
-    },
-  },
 })
 
 export default func
