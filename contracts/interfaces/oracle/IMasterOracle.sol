@@ -2,16 +2,14 @@
 
 pragma solidity 0.8.9;
 
-import "../../dependencies/openzeppelin/token/ERC20/IERC20.sol";
-
 interface IMasterOracle {
-    function quoteTokenToUsd(IERC20 _asset, uint256 _amount) external view returns (uint256 _amountInUsd);
+    function quoteTokenToUsd(address _asset, uint256 _amount) external view returns (uint256 _amountInUsd);
 
-    function quoteUsdToToken(IERC20 _asset, uint256 _amountInUsd) external view returns (uint256 _amount);
+    function quoteUsdToToken(address _asset, uint256 _amountInUsd) external view returns (uint256 _amount);
 
     function quote(
-        IERC20 _assetIn,
-        IERC20 _assetOut,
+        address _assetIn,
+        address _assetOut,
         uint256 _amountIn
     ) external view returns (uint256 _amountOut);
 }

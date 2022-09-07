@@ -66,7 +66,7 @@ contract ControllerMock is IController, Governable, Pausable {
     function debtOf(address _account) public view override returns (uint256 _debtInUsd) {
         if (address(syntheticToken) != address(0)) {
             uint256 _debtBalance = syntheticToken.debtToken().balanceOf(_account);
-            return masterOracle.quoteTokenToUsd(syntheticToken, _debtBalance);
+            return masterOracle.quoteTokenToUsd(address(syntheticToken), _debtBalance);
         }
     }
 
@@ -88,7 +88,7 @@ contract ControllerMock is IController, Governable, Pausable {
     {
         _isHealthy = true;
         uint256 _deposit = depositToken.balanceOf(_account);
-        _depositInUsd = masterOracle.quoteTokenToUsd(depositToken, _deposit);
+        _depositInUsd = masterOracle.quoteTokenToUsd(address(depositToken), _deposit);
         _debtInUsd = debtOf(_account);
         _issuableLimitInUsd = _depositInUsd.wadMul(depositToken.collateralizationRatio());
         _issuableInUsd = _debtInUsd < _issuableLimitInUsd ? _issuableLimitInUsd - _debtInUsd : 0;

@@ -90,13 +90,13 @@ contract MasterOracle is Initializable, IMasterOracle, Governable {
      * @param _asset The asset's address
      * @return _priceInUsd The USD price (18 decimals)
      */
-    function _getPriceInUsd(IERC20 _asset) private view returns (uint256 _priceInUsd) {
-        IOracle _oracle = oracles[address(_asset)];
+    function _getPriceInUsd(address _asset) private view returns (uint256 _priceInUsd) {
+        IOracle _oracle = oracles[_asset];
 
         if (address(_oracle) != address(0)) {
-            _priceInUsd = _oracle.getPriceInUsd(_asset);
+            _priceInUsd = _oracle.getPriceInUsd(IERC20(_asset));
         } else if (address(defaultOracle) != address(0)) {
-            _priceInUsd = defaultOracle.getPriceInUsd(_asset);
+            _priceInUsd = defaultOracle.getPriceInUsd(IERC20(_asset));
         } else {
             revert("asset-without-oracle");
         }
@@ -110,9 +110,9 @@ contract MasterOracle is Initializable, IMasterOracle, Governable {
      * @param _amount The amount to convert
      * @return _amountInUsd The amount in USD (18 decimals)
      */
-    function quoteTokenToUsd(IERC20 _asset, uint256 _amount) public view returns (uint256 _amountInUsd) {
+    function quoteTokenToUsd(address _asset, uint256 _amount) public view returns (uint256 _amountInUsd) {
         uint256 _priceInUsd = _getPriceInUsd(_asset);
-        _amountInUsd = (_amount * _priceInUsd) / 10**IERC20Metadata(address(_asset)).decimals();
+        _amountInUsd = (_amount * _priceInUsd) / 10**IERC20Metadata(_asset).decimals();
     }
 
     /**
@@ -121,7 +121,7 @@ contract MasterOracle is Initializable, IMasterOracle, Governable {
      * @param _amountInUsd The amount in USD (18 decimals)
      * @return _amount The converted amount
      */
-    function quoteUsdToToken(IERC20 _asset, uint256 _amountInUsd) public view returns (uint256 _amount) {
+    function quoteUsdToToken(address _asset, uint256 _amountInUsd) public view returns (uint256 _amount) {
         uint256 _priceInUsd = _getPriceInUsd(_asset);
         _amount = (_amountInUsd * 10**IERC20Metadata(address(_asset)).decimals()) / _priceInUsd;
     }
@@ -134,8 +134,8 @@ contract MasterOracle is Initializable, IMasterOracle, Governable {
      * @return _amountOut The converted amount
      */
     function quote(
-        IERC20 _assetIn,
-        IERC20 _assetOut,
+        address _assetIn,
+        address _assetOut,
         uint256 _amountIn
     ) external view returns (uint256 _amountOut) {
         uint256 _amountInUsd = quoteTokenToUsd(_assetIn, _amountIn);
