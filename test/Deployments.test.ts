@@ -8,9 +8,7 @@ import {
   DebtToken__factory,
   DepositToken,
   DepositToken__factory,
-  DefaultOracleMock__factory,
-  DefaultOracle,
-  DefaultOracle__factory,
+  MasterOracleMock__factory,
   SyntheticToken,
   SyntheticToken__factory,
   Treasury,
@@ -24,31 +22,21 @@ import {
   SyntheticTokenUpgrader__factory,
   DebtTokenUpgrader__factory,
   UpgraderBase,
-  ChainlinkPriceProvider,
-  ChainlinkPriceProvider__factory,
   Controller,
   Controller__factory,
   NativeTokenGateway,
   NativeTokenGateway__factory,
   ControllerUpgrader,
   ControllerUpgrader__factory,
-  MasterOracle__factory,
-  MasterOracle,
-  MasterOracleUpgrader__factory,
-  MasterOracleUpgrader,
 } from '../typechain'
 import {disableForking, enableForking} from './helpers'
 import Address from '../helpers/address'
 import {parseEther} from 'ethers/lib/utils'
 
-const {USDC_ADDRESS, NATIVE_TOKEN_ADDRESS, WAVAX_ADDRESS} = Address
+const {USDC_ADDRESS, NATIVE_TOKEN_ADDRESS, WAVAX_ADDRESS, MASTER_ORACLE_ADDRESS} = Address
 
 describe('Deployments', function () {
   let deployer: SignerWithAddress
-  let chainlinkPriceProvider: ChainlinkPriceProvider
-  let defaultOracle: DefaultOracle
-  let masterOracle: MasterOracle
-  let masterOracleUpgrader: MasterOracleUpgrader
   let controller: Controller
   let controllerUpgrader: ControllerUpgrader
   let treasury: Treasury
@@ -74,10 +62,6 @@ describe('Deployments', function () {
     ;[deployer] = await ethers.getSigners()
 
     const {
-      ChainlinkPriceProvider: {address: chainlinkPriceProviderAddress},
-      DefaultOracle: {address: defaultOracleAddress},
-      MasterOracle: {address: masterOracleAddress},
-      MasterOracleUpgrader: {address: masterOracleUpgraderAddress},
       Controller: {address: controllerAddress},
       ControllerUpgrader: {address: controllerUpgraderAddress},
       Treasury: {address: treasuryAddress},
@@ -93,12 +77,6 @@ describe('Deployments', function () {
       MsUSDDebt: {address: msUSDDebtTokenAddress},
       NativeTokenGateway: {address: wethGatewayAddress},
     } = await deployments.fixture()
-
-    chainlinkPriceProvider = ChainlinkPriceProvider__factory.connect(chainlinkPriceProviderAddress, deployer)
-    defaultOracle = DefaultOracle__factory.connect(defaultOracleAddress, deployer)
-
-    masterOracle = MasterOracle__factory.connect(masterOracleAddress, deployer)
-    masterOracleUpgrader = MasterOracleUpgrader__factory.connect(masterOracleUpgraderAddress, deployer)
 
     controller = Controller__factory.connect(controllerAddress, deployer)
     controllerUpgrader = ControllerUpgrader__factory.connect(controllerUpgraderAddress, deployer)
@@ -151,51 +129,10 @@ describe('Deployments', function () {
     }
   }
 
-  describe('DefaultOracle', function () {
-    it('should have correct params', async function () {
-      const Protocol = {
-        NONE: 0,
-        UNISWAP_V3: 1,
-        UNISWAP_V2: 2,
-        CHAINLINK: 3,
-      }
-
-      expect(await defaultOracle.providerByProtocol(Protocol.CHAINLINK)).eq(chainlinkPriceProvider.address)
-      expect(await defaultOracle.governor()).eq(deployer.address)
-      expect(await defaultOracle.proposedGovernor()).eq(ethers.constants.AddressZero)
-    })
-  })
-
-  describe('MasterOracle', function () {
-    it('should have correct params', async function () {
-      expect(await masterOracle.defaultOracle()).eq(defaultOracle.address)
-      expect(await masterOracle.governor()).eq(deployer.address)
-      expect(await masterOracle.proposedGovernor()).eq(ethers.constants.AddressZero)
-    })
-
-    it('should upgrade implementation', async function () {
-      await upgradeTestcase({
-        newImplfactory: new MasterOracle__factory(deployer),
-        proxy: masterOracle,
-        upgrader: masterOracleUpgrader,
-        expectToFail: false,
-      })
-    })
-
-    it('should fail if implementation breaks storage', async function () {
-      await upgradeTestcase({
-        newImplfactory: new DefaultOracleMock__factory(deployer),
-        proxy: masterOracle,
-        upgrader: masterOracleUpgrader,
-        expectToFail: true,
-      })
-    })
-  })
-
   describe('Controller', function () {
     it('should have correct params', async function () {
       expect(await controller.treasury()).eq(treasury.address)
-      expect(await controller.masterOracle()).eq(masterOracle.address)
+      expect(await controller.masterOracle()).eq(MASTER_ORACLE_ADDRESS)
       expect(await controller.governor()).eq(deployer.address)
       expect(await controller.proposedGovernor()).eq(ethers.constants.AddressZero)
     })
@@ -211,7 +148,7 @@ describe('Deployments', function () {
 
     it('should fail if implementation breaks storage', async function () {
       await upgradeTestcase({
-        newImplfactory: new DefaultOracleMock__factory(deployer),
+        newImplfactory: new MasterOracleMock__factory(deployer),
         proxy: controller,
         upgrader: controllerUpgrader,
         expectToFail: true,
@@ -274,7 +211,7 @@ describe('Deployments', function () {
 
       it('should fail if implementation breaks storage', async function () {
         await upgradeTestcase({
-          newImplfactory: new DefaultOracleMock__factory(deployer),
+          newImplfactory: new MasterOracleMock__factory(deployer),
           proxy: msdUSDC,
           upgrader: depositTokenUpgrader,
           expectToFail: true,
@@ -300,7 +237,7 @@ describe('Deployments', function () {
 
       it('should fail if implementation breaks storage', async function () {
         await upgradeTestcase({
-          newImplfactory: new DefaultOracleMock__factory(deployer),
+          newImplfactory: new MasterOracleMock__factory(deployer),
           proxy: msdWAVAX,
           upgrader: depositTokenUpgrader,
           expectToFail: true,
@@ -349,7 +286,7 @@ describe('Deployments', function () {
 
       it('should fail if implementation breaks storage', async function () {
         await upgradeTestcase({
-          newImplfactory: new DefaultOracleMock__factory(deployer),
+          newImplfactory: new MasterOracleMock__factory(deployer),
           proxy: msBTC,
           upgrader: syntheticTokenUpgrader,
           expectToFail: true,
@@ -376,7 +313,7 @@ describe('Deployments', function () {
 
       it('should fail if implementation breaks storage', async function () {
         await upgradeTestcase({
-          newImplfactory: new DefaultOracleMock__factory(deployer),
+          newImplfactory: new MasterOracleMock__factory(deployer),
           proxy: msUSD,
           upgrader: syntheticTokenUpgrader,
           expectToFail: true,
@@ -403,7 +340,7 @@ describe('Deployments', function () {
 
       it('should fail if implementation breaks storage', async function () {
         await upgradeTestcase({
-          newImplfactory: new DefaultOracleMock__factory(deployer),
+          newImplfactory: new MasterOracleMock__factory(deployer),
           proxy: msBTCDebt,
           upgrader: debtTokenUpgrader,
           expectToFail: true,
@@ -428,7 +365,7 @@ describe('Deployments', function () {
 
       it('should fail if implementation breaks storage', async function () {
         await upgradeTestcase({
-          newImplfactory: new DefaultOracleMock__factory(deployer),
+          newImplfactory: new MasterOracleMock__factory(deployer),
           proxy: msUSDDebt,
           upgrader: debtTokenUpgrader,
           expectToFail: true,

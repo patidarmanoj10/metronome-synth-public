@@ -3,7 +3,7 @@
 pragma solidity 0.8.9;
 
 import "../dependencies/openzeppelin/token/ERC20/extensions/IERC20Metadata.sol";
-import "../interfaces/oracle/IMasterOracle.sol";
+import "../interfaces/external/IMasterOracle.sol";
 
 contract MasterOracleMock is IMasterOracle {
     mapping(address => uint256) public prices;

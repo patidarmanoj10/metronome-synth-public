@@ -18,33 +18,12 @@ interface UpgradableContractsConfig {
   VspRewardsDistributor: ContractConfig
 }
 
-interface OracleChainlinkProps {
-  function: 'addOrUpdateAssetThatUsesChainlink'
-  args: {aggregator: string; stalePeriod: number}
-}
-
-interface OracleUniV2Props {
-  function: 'addOrUpdateAssetThatUsesUniswapV2'
-  args: {underlying: string; stalePeriod: number}
-}
-
-interface OracleUniV3Props {
-  function: 'addOrUpdateAssetThatUsesUniswapV3'
-  args: {underlying: string}
-}
-
-interface OracleUSDPegProps {
-  function: 'addOrUpdateUsdAsset'
-  args?: Record<string, never>
-}
-
 interface SyntheticDeployFunctionProps {
   name: string
   symbol: string
   decimals: number
   interestRate: BigNumber
   maxTotalSupplyInUsd: BigNumber
-  oracle: OracleChainlinkProps | OracleUniV2Props | OracleUniV3Props | OracleUSDPegProps
 }
 
 interface DepositDeployFunctionProps {
@@ -53,7 +32,6 @@ interface DepositDeployFunctionProps {
   underlyingDecimals: number
   collateralizationRatio: BigNumber
   maxTotalSupplyInUsd: BigNumber
-  oracle: OracleChainlinkProps | OracleUniV2Props | OracleUniV3Props | OracleUSDPegProps
 }
 
 interface DeployUpgradableFunctionProps {
@@ -76,7 +54,6 @@ export const UpgradableContracts: UpgradableContractsConfig = {
   },
 }
 
-const DefaultOracle = 'DefaultOracle'
 const {
   DepositToken: DepositTokenConfig,
   DebtToken: DebtTokenConfig,
@@ -135,7 +112,6 @@ export const buildSyntheticDeployFunction = ({
   decimals,
   interestRate,
   maxTotalSupplyInUsd,
-  oracle,
 }: SyntheticDeployFunctionProps): DeployFunction => {
   const debtAlias = `${capitalize(symbol)}Debt`
   const syntheticAlias = `${capitalize(symbol)}Synthetic`
@@ -169,13 +145,11 @@ export const buildSyntheticDeployFunction = ({
     if (!wasDeployed) {
       await execute(debtAlias, {from: deployer, log: true}, 'setSyntheticToken', syntheticTokenAddress)
       await execute(Controller, {from: deployer, log: true}, 'addSyntheticToken', syntheticTokenAddress)
-      const oracleArgs = [syntheticTokenAddress, ...Object.values(oracle.args || {})]
-      await execute(DefaultOracle, {from: deployer, log: true}, oracle.function, ...oracleArgs)
     }
   }
 
   deployFunction.tags = [syntheticAlias]
-  deployFunction.dependencies = [DefaultOracle, Controller]
+  deployFunction.dependencies = [Controller]
 
   return deployFunction
 }
@@ -186,7 +160,6 @@ export const buildDepositDeployFunction = ({
   underlyingDecimals,
   collateralizationRatio,
   maxTotalSupplyInUsd,
-  oracle,
 }: DepositDeployFunctionProps): DeployFunction => {
   const alias = `${underlyingSymbol}DepositToken`
   const symbol = `msd${underlyingSymbol}`
@@ -215,13 +188,11 @@ export const buildDepositDeployFunction = ({
 
     if (!wasDeployed) {
       await execute(Controller, {from: deployer, log: true}, 'addDepositToken', msdAddress)
-      const oracleArgs = [msdAddress, ...Object.values(oracle.args || {})]
-      await execute(DefaultOracle, {from: deployer, log: true}, oracle.function, ...oracleArgs)
     }
   }
 
   deployFunction.tags = [alias]
-  deployFunction.dependencies = [DefaultOracle, Controller]
+  deployFunction.dependencies = [Controller]
 
   return deployFunction
 }
