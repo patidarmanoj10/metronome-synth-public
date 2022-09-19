@@ -84,9 +84,9 @@ abstract contract ControllerStorageV1 is IController {
     mapping(IERC20 => IDepositToken) public depositTokenOf;
 
     /**
-     * @notice Available synthetic tokens
+     * @notice Available debt tokens
      */
-    EnumerableSet.AddressSet internal syntheticTokens;
+    EnumerableSet.AddressSet internal debtTokens;
 
     /**
      * @notice Per-account deposit tokens (i.e. tokens that user has balance > 0)
@@ -102,4 +102,9 @@ abstract contract ControllerStorageV1 is IController {
      * @notice RewardsDistributor contracts
      */
     IRewardsDistributor[] internal rewardsDistributors;
+
+    /**
+     * @notice Get the debt token's address from given synthetic asset
+     */
+    mapping(ISyntheticToken => IDebtToken) public debtTokenOf;
 }

@@ -66,7 +66,12 @@ describe('SyntheticToken', function () {
     await msUSD.deployed()
 
     const controllerMockFactory = new ControllerMock__factory(deployer)
-    controllerMock = await controllerMockFactory.deploy(msdMET.address, masterOracleMock.address, msUSD.address)
+    controllerMock = await controllerMockFactory.deploy(
+      msdMET.address,
+      masterOracleMock.address,
+      msUSD.address,
+      msUSDDebt.address
+    )
     await controllerMock.deployed()
     await controllerMock.transferGovernorship(governor.address)
 
@@ -74,9 +79,8 @@ describe('SyntheticToken', function () {
     await controllerMock.updateTreasury(treasury.address)
 
     await msdMET.initialize(met.address, controllerMock.address, 'msdMET', 18, metCR, MaxUint256)
-    await msUSD.initialize(name, symbol, 18, controllerMock.address, msUSDDebt.address, interestRate, MaxUint256)
-    await msUSDDebt.initialize('msUSD Debt', 'msUSD-Debt', 18, controllerMock.address)
-    await msUSDDebt.setSyntheticToken(msUSD.address)
+    await msUSD.initialize(name, symbol, 18, controllerMock.address, interestRate, MaxUint256)
+    await msUSDDebt.initialize('msUSD Debt', 'msUSD-Debt', controllerMock.address, msUSD.address)
 
     await masterOracleMock.updatePrice(msUSD.address, toUSD('1')) // 1 msAsset = $1
     await masterOracleMock.updatePrice(msdMET.address, toUSD('1')) // 1 collateralToken = $1
@@ -127,15 +131,7 @@ describe('SyntheticToken', function () {
       const syntheticTokenFactory = new SyntheticToken__factory(deployer)
       const notListedSynthetic = await syntheticTokenFactory.deploy()
       await notListedSynthetic.deployed()
-      await notListedSynthetic.initialize(
-        name,
-        symbol,
-        18,
-        controllerMock.address,
-        msUSDDebt.address,
-        interestRate,
-        MaxUint256
-      )
+      await notListedSynthetic.initialize(name, symbol, 18, controllerMock.address, interestRate, MaxUint256)
 
       // when
       const toIssue = parseEther('1')

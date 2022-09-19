@@ -19,11 +19,6 @@ abstract contract SyntheticTokenStorageV1 is ISyntheticToken {
     uint8 public decimals;
 
     /**
-     * @notice Non-transferable token that represents users' debts
-     */
-    IDebtToken public debtToken;
-
-    /**
      * @notice If a msAsset isn't active, it disables minting new tokens
      */
     bool public isActive;

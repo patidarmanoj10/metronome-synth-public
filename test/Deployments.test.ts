@@ -270,7 +270,6 @@ describe('Deployments', function () {
     describe('msBTC SyntheticToken', function () {
       it('token should have correct params', async function () {
         expect(await msBTC.controller()).eq(controller.address)
-        expect(await msBTC.debtToken()).eq(msBTCDebt.address)
         expect(await msBTC.governor()).eq(deployer.address)
         expect(await msBTC.interestRate()).eq(parseEther('0'))
       })
@@ -297,7 +296,6 @@ describe('Deployments', function () {
     describe('msUSD SyntheticToken', function () {
       it('msUSD token should have correct params', async function () {
         expect(await msUSD.controller()).eq(controller.address)
-        expect(await msUSD.debtToken()).eq(msUSDDebt.address)
         expect(await msUSD.governor()).eq(deployer.address)
         expect(await msUSD.interestRate()).eq(parseEther('0'))
       })

@@ -64,6 +64,7 @@ describe('NativeTokenGateway', function () {
     controllerMock = await controllerMockFactory.deploy(
       msdNativeToken.address,
       masterOracleMock.address,
+      ethers.constants.AddressZero,
       ethers.constants.AddressZero
     )
     await controllerMock.deployed()

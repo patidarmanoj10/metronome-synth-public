@@ -91,40 +91,22 @@ async function fixture() {
 
   await treasury.initialize(controller.address)
 
-  await msEth.initialize(
-    'Metronome Synth ETH',
-    'msETH',
-    18,
-    controller.address,
-    msEthDebtToken.address,
-    interestRate,
-    MaxUint256
-  )
+  await msEth.initialize('Metronome Synth ETH', 'msETH', 18, controller.address, interestRate, MaxUint256)
 
-  await msEthDebtToken.initialize('msETH Debt', 'msETH-Debt', 18, controller.address)
-  await msEthDebtToken.setSyntheticToken(msEth.address)
+  await msEthDebtToken.initialize('msETH Debt', 'msETH-Debt', controller.address, msEth.address)
 
-  await msDoge.initialize(
-    'Metronome Synth DOGE',
-    'msDOGE',
-    18,
-    controller.address,
-    msDogeDebtToken.address,
-    interestRate,
-    MaxUint256
-  )
+  await msDoge.initialize('Metronome Synth DOGE', 'msDOGE', 18, controller.address, interestRate, MaxUint256)
 
-  await msDogeDebtToken.initialize('msDOGE Debt', 'msDOGE-Debt', 18, controller.address)
-  await msDogeDebtToken.setSyntheticToken(msDoge.address)
+  await msDogeDebtToken.initialize('msDOGE Debt', 'msDOGE-Debt', controller.address, msDoge.address)
 
   await controller.initialize(masterOracleMock.address)
   await controller.updateMaxLiquidable(parseEther('1')) // 100%
   await controller.updateTreasury(treasury.address)
   expect(await controller.liquidatorLiquidationFee()).eq(liquidatorLiquidationFee)
   await controller.addDepositToken(msdMET.address)
-  await controller.addSyntheticToken(msEth.address)
+  await controller.addDebtToken(msEthDebtToken.address)
   await controller.addDepositToken(msdDAI.address)
-  await controller.addSyntheticToken(msDoge.address)
+  await controller.addDebtToken(msDogeDebtToken.address)
 
   // mint some collaterals to users
   await met.mint(alice.address, parseEther(`${1e6}`))
@@ -1126,73 +1108,62 @@ describe('Controller', function () {
   })
 
   describe('whitelisting', function () {
-    describe('addSyntheticToken', function () {
+    let syntheticToken: FakeContract
+    let debtToken: FakeContract
+
+    beforeEach(async function () {
+      const controllerFake = await smock.fake('Controller')
+      syntheticToken = await smock.fake('SyntheticToken')
+      debtToken = await smock.fake('DebtToken')
+      controllerFake.debtOf.returns(debtToken.address)
+      syntheticToken.controller.returns(controllerFake.address)
+      debtToken.syntheticToken.returns(syntheticToken.address)
+    })
+
+    describe('addDebtToken', function () {
       it('should revert if not governor', async function () {
-        const tx = controller.connect(alice).addSyntheticToken(msEth.address)
+        const tx = controller.connect(alice).addDebtToken(msEthDebtToken.address)
         await expect(tx).revertedWith('not-governor')
       })
 
-      it('should add synthetic token', async function () {
-        const someTokenAddress = met.address
-        const syntheticTokensBefore = await controller.getSyntheticTokens()
-        await controller.addSyntheticToken(someTokenAddress)
-        const syntheticTokensAfter = await controller.getSyntheticTokens()
-        expect(syntheticTokensAfter.length).eq(syntheticTokensBefore.length + 1)
+      it('should add debt token', async function () {
+        const debtTokensBefore = await controller.getDebtTokens()
+        await controller.addDebtToken(debtToken.address)
+        const debtTokensAfter = await controller.getDebtTokens()
+        expect(debtTokensAfter.length).eq(debtTokensBefore.length + 1)
       })
     })
 
-    describe('removeSyntheticToken', function () {
-      it('should remove synthetic token', async function () {
+    describe('removeDebtToken', function () {
+      it('should remove debt token', async function () {
         // given
-        const debtTokenFactory = new DebtToken__factory(deployer)
-        const debtToken = await debtTokenFactory.deploy()
-
-        const syntheticTokenFactory = new SyntheticToken__factory(deployer)
-        const msAsset = await syntheticTokenFactory.deploy()
-        await msAsset.initialize(
-          'Metronome Synth BTC',
-          'msBTC',
-          8,
-          controller.address,
-          debtToken.address,
-          interestRate,
-          MaxUint256
-        )
-
-        await debtToken.initialize('Metronome Synth BTC debt', 'msBTC-Debt', 8, controller.address)
-        await debtToken.setSyntheticToken(msAsset.address)
-
-        expect(await msAsset.totalSupply()).eq(0)
-        await controller.addSyntheticToken(msAsset.address)
-        const syntheticTokensBefore = await controller.getSyntheticTokens()
+        await controller.addDebtToken(debtToken.address)
+        const debtTokensBefore = await controller.getDebtTokens()
 
         // when
-        await controller.removeSyntheticToken(msAsset.address)
+        await controller.removeDebtToken(debtToken.address)
 
         // then
-        const syntheticTokensAfter = await controller.getSyntheticTokens()
-        expect(syntheticTokensAfter.length).eq(syntheticTokensBefore.length - 1)
+        const debtTokensAfter = await controller.getDebtTokens()
+        expect(debtTokensAfter.length).eq(debtTokensBefore.length - 1)
       })
 
       it('should revert if not governor', async function () {
         // when
-        const tx = controller.connect(alice).removeSyntheticToken(msEth.address)
+        const tx = controller.connect(alice).removeDebtToken(debtToken.address)
 
         // then
         await expect(tx).revertedWith('not-governor')
       })
 
-      it('should revert if msAsset has any supply', async function () {
+      it('should revert if debt token has any supply', async function () {
         // given
-        const ERC20MockFactory = new ERC20Mock__factory(deployer)
-        const msAsset = await ERC20MockFactory.deploy('Metronome Synth BTC', 'msBTC', 8)
-        await msAsset.deployed()
-        await controller.addSyntheticToken(msAsset.address)
-        await msAsset.mint(deployer.address, parseEther('100'))
-        expect(await msAsset.totalSupply()).gt(0)
+        await controller.addDebtToken(debtToken.address)
+        debtToken.totalSupply.returns(1)
+        expect(await debtToken.totalSupply()).gt(0)
 
         // when
-        const tx = controller.removeSyntheticToken(msAsset.address)
+        const tx = controller.removeDebtToken(debtToken.address)
 
         // then
         await expect(tx).revertedWith('supply-gt-0')
@@ -1372,10 +1343,10 @@ describe('Controller', function () {
     beforeEach(async function () {
       syntheticToken = await smock.fake('SyntheticToken')
       debtToken = await smock.fake('DebtToken')
-      syntheticToken.debtToken.returns(debtToken.address)
+      syntheticToken.controller.returns(controller.address)
       debtToken.syntheticToken.returns(syntheticToken.address)
 
-      await controller.addSyntheticToken(syntheticToken.address)
+      await controller.addDebtToken(debtToken.address)
       await setEtherBalance(debtToken.address, parseEther('1'))
     })
 
