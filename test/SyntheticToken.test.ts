@@ -80,7 +80,7 @@ describe('SyntheticToken', function () {
 
     await msdMET.initialize(met.address, controllerMock.address, 'msdMET', 18, metCR, MaxUint256)
     await msUSD.initialize(name, symbol, 18, controllerMock.address, interestRate, MaxUint256)
-    await msUSDDebt.initialize('msUSD Debt', 'msUSD-Debt', 18, controllerMock.address, msUSD.address)
+    await msUSDDebt.initialize('msUSD Debt', 'msUSD-Debt', controllerMock.address, msUSD.address)
 
     await masterOracleMock.updatePrice(msUSD.address, toUSD('1')) // 1 msAsset = $1
     await masterOracleMock.updatePrice(msdMET.address, toUSD('1')) // 1 collateralToken = $1

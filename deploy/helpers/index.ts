@@ -141,7 +141,7 @@ export const buildSyntheticDeployFunction = ({
         ...DebtTokenConfig,
         alias: debtAlias,
       },
-      initializeArgs: [`${name}-Debt`, `${symbol}-Debt`, decimals, controllerAddress, syntheticTokenAddress],
+      initializeArgs: [`${name}-Debt`, `${symbol}-Debt`, controllerAddress, syntheticTokenAddress],
     })
 
     if (!wasDeployed) {

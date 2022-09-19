@@ -46,19 +46,17 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
     function initialize(
         string calldata _name,
         string calldata _symbol,
-        uint8 _decimals,
         IController _controller,
         ISyntheticToken _syntheticToken
     ) public initializer {
         require(address(_controller) != address(0), "controller-address-is-zero");
         require(address(_syntheticToken) != address(0), "synthetic-is-null");
-        require(_decimals == _syntheticToken.decimals(), "invalid-synthetic-decimals");
 
         __Manageable_init();
 
         name = _name;
         symbol = _symbol;
-        decimals = _decimals;
+        decimals = _syntheticToken.decimals();
         controller = _controller;
         syntheticToken = _syntheticToken;
         lastTimestampAccrued = block.timestamp;

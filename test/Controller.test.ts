@@ -93,11 +93,11 @@ async function fixture() {
 
   await msEth.initialize('Metronome Synth ETH', 'msETH', 18, controller.address, interestRate, MaxUint256)
 
-  await msEthDebtToken.initialize('msETH Debt', 'msETH-Debt', 18, controller.address, msEth.address)
+  await msEthDebtToken.initialize('msETH Debt', 'msETH-Debt', controller.address, msEth.address)
 
   await msDoge.initialize('Metronome Synth DOGE', 'msDOGE', 18, controller.address, interestRate, MaxUint256)
 
-  await msDogeDebtToken.initialize('msDOGE Debt', 'msDOGE-Debt', 18, controller.address, msDoge.address)
+  await msDogeDebtToken.initialize('msDOGE Debt', 'msDOGE-Debt', controller.address, msDoge.address)
 
   await controller.initialize(masterOracleMock.address)
   await controller.updateMaxLiquidable(parseEther('1')) // 100%

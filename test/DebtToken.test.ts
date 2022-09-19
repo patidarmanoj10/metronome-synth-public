@@ -18,7 +18,7 @@ import {BigNumber} from 'ethers'
 
 chai.use(smock.matchers)
 
-const {MaxUint256, AddressZero} = ethers.constants
+const {MaxUint256} = ethers.constants
 
 let SECONDS_PER_YEAR: BigNumber
 
@@ -75,7 +75,7 @@ describe('DebtToken', function () {
       MaxUint256
     )
 
-    await debtToken.initialize(name, symbol, 18, controllerMock.address, syntheticToken.address)
+    await debtToken.initialize(name, symbol, controllerMock.address, syntheticToken.address)
 
     // eslint-disable-next-line new-cap
     SECONDS_PER_YEAR = await syntheticToken.SECONDS_PER_YEAR()
