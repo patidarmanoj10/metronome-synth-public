@@ -4,16 +4,18 @@ import {UpgradableContracts, deployUpgradable, transferGovernorshipIfNeeded} fro
 import Address from '../../../helpers/address'
 
 const {
+  PoolRegistry: {alias: PoolRegistry},
   Controller: {alias: Controller},
 } = UpgradableContracts
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
-  const {deployments} = hre
-  const {getOrNull} = deployments
+  const {getNamedAccounts, deployments} = hre
+  const {getOrNull, execute} = deployments
+  const {deployer} = await getNamedAccounts()
 
   const wasDeployed = !!(await getOrNull(Controller))
 
-  await deployUpgradable({
+  const {address: poolAddress} = await deployUpgradable({
     hre,
     contractConfig: UpgradableContracts.Controller,
     initializeArgs: [Address.MASTER_ORACLE_ADDRESS],
@@ -21,8 +23,10 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   if (!wasDeployed) {
     await transferGovernorshipIfNeeded(hre, Controller)
+    await execute(PoolRegistry, {from: deployer, log: true}, 'registerPool', poolAddress)
   }
 }
 
 export default func
+func.dependencies = [PoolRegistry]
 func.tags = [Controller]

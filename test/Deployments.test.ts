@@ -28,6 +28,10 @@ import {
   NativeTokenGateway__factory,
   ControllerUpgrader,
   ControllerUpgrader__factory,
+  PoolRegistry__factory,
+  PoolRegistry,
+  PoolRegistryUpgrader,
+  PoolRegistryUpgrader__factory,
 } from '../typechain'
 import {disableForking, enableForking} from './helpers'
 import Address from '../helpers/address'
@@ -51,6 +55,8 @@ describe('Deployments', function () {
   let msBTCDebt: DebtToken
   let msUSDDebt: DebtToken
   let wethGateway: NativeTokenGateway
+  let poolRegistry: PoolRegistry
+  let poolRegistryUpgrader: PoolRegistryUpgrader
 
   // Note: Enabling fork to be able to use MultiCall contract
   before(enableForking)
@@ -76,6 +82,8 @@ describe('Deployments', function () {
       MsBTCDebt: {address: msBTCDebtTokenAddress},
       MsUSDDebt: {address: msUSDDebtTokenAddress},
       NativeTokenGateway: {address: wethGatewayAddress},
+      PoolRegistry: {address: poolRegistryAddress},
+      PoolRegistryUpgrader: {address: poolRegistryUpgraderAddress},
     } = await deployments.fixture()
 
     controller = Controller__factory.connect(controllerAddress, deployer)
@@ -97,6 +105,9 @@ describe('Deployments', function () {
     debtTokenUpgrader = DebtTokenUpgrader__factory.connect(debtTokenUpgraderAddress, deployer)
     msBTCDebt = DebtToken__factory.connect(msBTCDebtTokenAddress, deployer)
     msUSDDebt = DebtToken__factory.connect(msUSDDebtTokenAddress, deployer)
+
+    poolRegistry = PoolRegistry__factory.connect(poolRegistryAddress, deployer)
+    poolRegistryUpgrader = PoolRegistryUpgrader__factory.connect(poolRegistryUpgraderAddress, deployer)
   })
 
   const upgradeTestcase = async function ({
@@ -367,6 +378,21 @@ describe('Deployments', function () {
           proxy: msUSDDebt,
           upgrader: debtTokenUpgrader,
           expectToFail: true,
+        })
+      })
+    })
+
+    describe('PoolRegistry', function () {
+      it('should have correct params', async function () {
+        expect(await poolRegistry.governor()).eq(deployer.address)
+      })
+
+      it('should upgrade implementation', async function () {
+        await upgradeTestcase({
+          newImplfactory: new PoolRegistry__factory(deployer),
+          proxy: poolRegistry,
+          upgrader: poolRegistryUpgrader,
+          expectToFail: false,
         })
       })
     })

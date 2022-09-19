@@ -1,4 +1,3 @@
-/* eslint-disable arrow-body-style */
 import {BigNumber} from 'ethers'
 import {DeployFunction} from 'hardhat-deploy/types'
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
@@ -10,7 +9,7 @@ interface ContractConfig {
 }
 
 interface UpgradableContractsConfig {
-  MasterOracle: ContractConfig
+  PoolRegistry: ContractConfig
   Controller: ContractConfig
   Treasury: ContractConfig
   DepositToken: ContractConfig
@@ -42,7 +41,7 @@ interface DeployUpgradableFunctionProps {
 }
 
 export const UpgradableContracts: UpgradableContractsConfig = {
-  MasterOracle: {alias: 'MasterOracle', contract: 'MasterOracle', adminContract: 'MasterOracleUpgrader'},
+  PoolRegistry: {alias: 'PoolRegistry', contract: 'PoolRegistry', adminContract: 'PoolRegistryUpgrader'},
   Controller: {alias: 'Controller', contract: 'Controller', adminContract: 'ControllerUpgrader'},
   Treasury: {alias: 'Treasury', contract: 'Treasury', adminContract: 'TreasuryUpgrader'},
   DepositToken: {alias: '', contract: 'DepositToken', adminContract: 'DepositTokenUpgrader'},
