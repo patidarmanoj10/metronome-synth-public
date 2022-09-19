@@ -56,7 +56,7 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
         if (!controller.isDepositTokenExists(IDepositToken(address(_token)))) {
             ISyntheticToken _syntheticToken = IDebtToken(address(_token)).syntheticToken();
             require(controller.isSyntheticTokenExists(_syntheticToken), "invalid-token");
-            require(address(_syntheticToken.debtToken()) == address(_token), "invalid-token");
+            require(address(controller.debtTokenOf(_syntheticToken)) == address(_token), "invalid-token");
         }
         _;
     }

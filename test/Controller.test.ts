@@ -91,31 +91,13 @@ async function fixture() {
 
   await treasury.initialize(controller.address)
 
-  await msEth.initialize(
-    'Metronome Synth ETH',
-    'msETH',
-    18,
-    controller.address,
-    msEthDebtToken.address,
-    interestRate,
-    MaxUint256
-  )
+  await msEth.initialize('Metronome Synth ETH', 'msETH', 18, controller.address, interestRate, MaxUint256)
 
-  await msEthDebtToken.initialize('msETH Debt', 'msETH-Debt', 18, controller.address)
-  await msEthDebtToken.setSyntheticToken(msEth.address)
+  await msEthDebtToken.initialize('msETH Debt', 'msETH-Debt', 18, controller.address, msEth.address)
 
-  await msDoge.initialize(
-    'Metronome Synth DOGE',
-    'msDOGE',
-    18,
-    controller.address,
-    msDogeDebtToken.address,
-    interestRate,
-    MaxUint256
-  )
+  await msDoge.initialize('Metronome Synth DOGE', 'msDOGE', 18, controller.address, interestRate, MaxUint256)
 
-  await msDogeDebtToken.initialize('msDOGE Debt', 'msDOGE-Debt', 18, controller.address)
-  await msDogeDebtToken.setSyntheticToken(msDoge.address)
+  await msDogeDebtToken.initialize('msDOGE Debt', 'msDOGE-Debt', 18, controller.address, msDoge.address)
 
   await controller.initialize(masterOracleMock.address)
   await controller.updateMaxLiquidable(parseEther('1')) // 100%
@@ -1130,9 +1112,11 @@ describe('Controller', function () {
     let debtToken: FakeContract
 
     beforeEach(async function () {
+      const controllerFake = await smock.fake('Controller')
       syntheticToken = await smock.fake('SyntheticToken')
       debtToken = await smock.fake('DebtToken')
-      syntheticToken.debtToken.returns(debtToken.address)
+      controllerFake.debtOf.returns(debtToken.address)
+      syntheticToken.controller.returns(controllerFake.address)
       debtToken.syntheticToken.returns(syntheticToken.address)
     })
 
@@ -1359,7 +1343,7 @@ describe('Controller', function () {
     beforeEach(async function () {
       syntheticToken = await smock.fake('SyntheticToken')
       debtToken = await smock.fake('DebtToken')
-      syntheticToken.debtToken.returns(debtToken.address)
+      syntheticToken.controller.returns(controller.address)
       debtToken.syntheticToken.returns(syntheticToken.address)
 
       await controller.addDebtToken(debtToken.address)

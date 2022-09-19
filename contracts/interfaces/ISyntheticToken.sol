@@ -14,8 +14,6 @@ interface ISyntheticToken is IERC20Metadata {
 
     function interestRatePerSecond() external view returns (uint256);
 
-    function debtToken() external view returns (IDebtToken);
-
     function mint(address _to, uint256 amount) external;
 
     function burn(address _from, uint256 amount) external;

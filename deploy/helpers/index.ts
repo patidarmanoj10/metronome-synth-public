@@ -123,14 +123,6 @@ export const buildSyntheticDeployFunction = ({
     const {deployer} = await getNamedAccounts()
 
     const {address: controllerAddress} = await get(Controller)
-    const {address: debtTokenAddress} = await deployUpgradable({
-      hre,
-      contractConfig: {
-        ...DebtTokenConfig,
-        alias: debtAlias,
-      },
-      initializeArgs: [`${name}-Debt`, `${symbol}-Debt`, decimals, controllerAddress],
-    })
 
     const wasDeployed = !!(await getOrNull(syntheticAlias))
 
@@ -140,11 +132,19 @@ export const buildSyntheticDeployFunction = ({
         ...SyntheticTokenConfig,
         alias: syntheticAlias,
       },
-      initializeArgs: [name, symbol, decimals, controllerAddress, debtTokenAddress, interestRate, maxTotalSupplyInUsd],
+      initializeArgs: [name, symbol, decimals, controllerAddress, interestRate, maxTotalSupplyInUsd],
+    })
+
+    const {address: debtTokenAddress} = await deployUpgradable({
+      hre,
+      contractConfig: {
+        ...DebtTokenConfig,
+        alias: debtAlias,
+      },
+      initializeArgs: [`${name}-Debt`, `${symbol}-Debt`, decimals, controllerAddress, syntheticTokenAddress],
     })
 
     if (!wasDeployed) {
-      await execute(debtAlias, {from: deployer, log: true}, 'setSyntheticToken', syntheticTokenAddress)
       await execute(Controller, {from: deployer, log: true}, 'addDebtToken', debtTokenAddress)
     }
   }

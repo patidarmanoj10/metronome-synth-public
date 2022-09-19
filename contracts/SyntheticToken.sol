@@ -44,11 +44,9 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
         string calldata _symbol,
         uint8 _decimals,
         IController _controller,
-        IDebtToken _debtToken,
         uint256 _interestRate,
         uint256 _maxTotalSupplyInUsd
     ) public initializer {
-        require(address(_debtToken) != address(0), "debt-token-is-null");
         require(address(_controller) != address(0), "controller-address-is-zero");
 
         __Manageable_init();
@@ -57,7 +55,6 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
         name = _name;
         symbol = _symbol;
         decimals = _decimals;
-        debtToken = _debtToken;
         isActive = true;
         interestRate = _interestRate;
         maxTotalSupplyInUsd = _maxTotalSupplyInUsd;
@@ -200,8 +197,10 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
 
         if (_debtFloorInUsd > 0) {
             require(
-                _masterOracle.quoteTokenToUsd(address(this), debtToken.balanceOf(_account) + _amount) >=
-                    _debtFloorInUsd,
+                _masterOracle.quoteTokenToUsd(
+                    address(this),
+                    controller.debtTokenOf(this).balanceOf(_account) + _amount
+                ) >= _debtFloorInUsd,
                 "debt-lt-floor"
             );
         }
@@ -216,7 +215,7 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
         }
 
         _mint(_to, _amountToIssue);
-        debtToken.mint(_account, _amount);
+        controller.debtTokenOf(this).mint(_account, _amount);
 
         emit SyntheticTokenIssued(_account, _to, _amount, _feeAmount);
     }
@@ -249,13 +248,13 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
         if (_debtFloorInUsd > 0) {
             uint256 _newDebtInUsd = controller.masterOracle().quoteTokenToUsd(
                 address(this),
-                debtToken.balanceOf(_onBehalfOf) - _amountToRepay
+                controller.debtTokenOf(this).balanceOf(_onBehalfOf) - _amountToRepay
             );
             require(_newDebtInUsd == 0 || _newDebtInUsd >= _debtFloorInUsd, "debt-lt-floor");
         }
 
         _burn(_payer, _amountToRepay);
-        debtToken.burn(_onBehalfOf, _amountToRepay);
+        controller.debtTokenOf(this).burn(_onBehalfOf, _amountToRepay);
 
         emit DebtRepaid(_payer, _onBehalfOf, _amount, _feeAmount);
     }
@@ -313,7 +312,7 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
      * @notice Accrue interest
      */
     function accrueInterest() public {
-        uint256 _interestAmountAccrued = debtToken.accrueInterest();
+        uint256 _interestAmountAccrued = controller.debtTokenOf(this).accrueInterest();
 
         if (_interestAmountAccrued > 0) {
             // Note: We can save some gas by incrementing only and mint all accrued amount later

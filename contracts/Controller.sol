@@ -304,7 +304,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
         require(!_isHealthy, "position-is-healthy");
 
-        IDebtToken _debtToken = _syntheticToken.debtToken();
+        IDebtToken _debtToken = debtTokenOf[_syntheticToken];
         uint256 _debtTokenBalance = _debtToken.balanceOf(_account);
 
         require(_amountToRepay.wadDiv(_debtTokenBalance) <= maxLiquidable, "amount-gt-max-liquidable");

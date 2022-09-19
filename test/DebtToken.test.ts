@@ -71,17 +71,17 @@ describe('DebtToken', function () {
       'msETH',
       18,
       controllerMock.address,
-      debtToken.address,
       interestRate,
       MaxUint256
     )
 
-    await debtToken.initialize(name, symbol, 18, controllerMock.address)
-    await debtToken.setSyntheticToken(syntheticToken.address)
+    await debtToken.initialize(name, symbol, 18, controllerMock.address, syntheticToken.address)
 
     // eslint-disable-next-line new-cap
     SECONDS_PER_YEAR = await syntheticToken.SECONDS_PER_YEAR()
     await masterOracleMock.updatePrice(syntheticToken.address, parseEther('4000')) // 1 msETH = $4,000
+
+    controllerMock.debtTokenOf.returns(debtToken.address)
   })
 
   it('default values', async function () {
@@ -391,73 +391,6 @@ describe('DebtToken', function () {
       // then
       const totalDebt = await debtToken.totalSupply()
       expect(totalDebt).closeTo(parseEther('110'), parseEther('0.1'))
-    })
-  })
-
-  describe('setSyntheticToken', function () {
-    let syntheticTokenFake: FakeContract
-
-    beforeEach(async function () {
-      syntheticTokenFake = await smock.fake('SyntheticToken')
-
-      const debtTokenFactory = new DebtToken__factory(deployer)
-      debtToken = await debtTokenFactory.deploy()
-      await debtToken.deployed()
-      await debtToken.initialize(name, symbol, 18, controllerMock.address)
-
-      expect(await debtToken.syntheticToken()).eq(AddressZero)
-    })
-
-    it('should revert if not governor', async function () {
-      const tx = debtToken.connect(user1).setSyntheticToken(syntheticTokenFake.address)
-      await expect(tx).revertedWith('not-governor')
-    })
-
-    it('should revert if address is null', async function () {
-      const tx = debtToken.setSyntheticToken(AddressZero)
-      await expect(tx).revertedWith('synthetic-is-null')
-    })
-
-    it('should revert if synthetic token is not pointing to the debt token', async function () {
-      // given
-      syntheticTokenFake.debtToken.returns(() => user1.address)
-
-      // when-then
-      const tx = debtToken.setSyntheticToken(syntheticTokenFake.address)
-      await expect(tx).revertedWith('invalid-synthetic-debt-token')
-    })
-
-    it('should revert if decimals are not the same', async function () {
-      // given
-      syntheticTokenFake.debtToken.returns(() => debtToken.address)
-      syntheticTokenFake.decimals.returns(() => 4)
-
-      // when-then
-      const tx = debtToken.setSyntheticToken(syntheticTokenFake.address)
-      await expect(tx).revertedWith('invalid-synthetic-decimals')
-    })
-
-    it('should revert if already assigned', async function () {
-      // given
-      syntheticTokenFake.debtToken.returns(() => debtToken.address)
-      syntheticTokenFake.decimals.returns(() => 18)
-      await debtToken.setSyntheticToken(syntheticTokenFake.address)
-
-      // when-then
-      const tx = debtToken.setSyntheticToken(syntheticTokenFake.address)
-      await expect(tx).revertedWith('synthetic-already-assigned')
-    })
-
-    it('should  set synthetic token', async function () {
-      // given
-      syntheticTokenFake.debtToken.returns(() => debtToken.address)
-      syntheticTokenFake.decimals.returns(() => 18)
-
-      // when
-      await debtToken.setSyntheticToken(syntheticTokenFake.address)
-
-      // then
-      expect(await debtToken.syntheticToken()).eq(syntheticTokenFake.address)
     })
   })
 })
