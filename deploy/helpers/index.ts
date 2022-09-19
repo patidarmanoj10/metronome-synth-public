@@ -1,3 +1,4 @@
+/* eslint-disable arrow-body-style */
 import {BigNumber} from 'ethers'
 import {DeployFunction} from 'hardhat-deploy/types'
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
@@ -144,7 +145,7 @@ export const buildSyntheticDeployFunction = ({
 
     if (!wasDeployed) {
       await execute(debtAlias, {from: deployer, log: true}, 'setSyntheticToken', syntheticTokenAddress)
-      await execute(Controller, {from: deployer, log: true}, 'addSyntheticToken', syntheticTokenAddress)
+      await execute(Controller, {from: deployer, log: true}, 'addDebtToken', debtTokenAddress)
     }
   }
 

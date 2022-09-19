@@ -19,11 +19,11 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
 
     string public constant VERSION = "1.0.0";
 
-    /// @notice Emitted when synthetic token is enabled
-    event SyntheticTokenAdded(address indexed syntheticToken);
+    /// @notice Emitted when debt token is enabled
+    event DebtTokenAdded(IDebtToken indexed debtToken);
 
-    /// @notice Emitted when synthetic token is disabled
-    event SyntheticTokenRemoved(ISyntheticToken indexed syntheticToken);
+    /// @notice Emitted when debt token is disabled
+    event DebtTokenRemoved(IDebtToken indexed debtToken);
 
     /// @notice Emitted when deposit token is enabled
     event DepositTokenAdded(address indexed depositToken);
@@ -91,6 +91,14 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     event RewardsDistributorAdded(IRewardsDistributor _distributor);
 
     /**
+     * @dev Throws if debt token doesn't exist
+     */
+    modifier onlyIfDebtTokenExists(IDebtToken _debtToken) {
+        require(isDebtTokenExists(_debtToken), "synthetic-inexistent");
+        _;
+    }
+
+    /**
      * @dev Throws if synthetic token doesn't exist
      */
     modifier onlyIfSyntheticTokenExists(ISyntheticToken _syntheticToken) {
@@ -118,11 +126,7 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
      * @dev Throws if `msg.sender` isn't a debt token
      */
     modifier onlyIfMsgSenderIsDebtToken() {
-        ISyntheticToken _syntheticToken = IDebtToken(_msgSender()).syntheticToken();
-        require(
-            syntheticTokens.contains(address(_syntheticToken)) && _msgSender() == address(_syntheticToken.debtToken()),
-            "caller-is-not-debt-token"
-        );
+        require(isDebtTokenExists(IDebtToken(_msgSender())), "caller-is-not-debt-token");
         _;
     }
 
@@ -142,12 +146,12 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     }
 
     /**
-     * @notice Get all synthetic tokens
+     * @notice Get all debt tokens
      * @dev WARNING: This operation will copy the entire storage to memory, which can be quite expensive. This is designed
      * to mostly be used by view accessors that are queried without any gas fees.
      */
-    function getSyntheticTokens() external view override returns (address[] memory) {
-        return syntheticTokens.values();
+    function getDebtTokens() external view override returns (address[] memory) {
+        return debtTokens.values();
     }
 
     /**
@@ -185,12 +189,21 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     }
 
     /**
+     * @notice Check if token is part of the debt offerings
+     * @param _debtToken Asset to check
+     * @return true if exist
+     */
+    function isDebtTokenExists(IDebtToken _debtToken) public view override returns (bool) {
+        return debtTokens.contains(address(_debtToken));
+    }
+
+    /**
      * @notice Check if token is part of the synthetic offerings
      * @param _syntheticToken Asset to check
      * @return true if exist
      */
     function isSyntheticTokenExists(ISyntheticToken _syntheticToken) public view override returns (bool) {
-        return syntheticTokens.contains(address(_syntheticToken));
+        return address(debtTokenOf[_syntheticToken]) != address(0);
     }
 
     /**
@@ -374,31 +387,35 @@ contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
     }
 
     /**
-     * @notice Add synthetic token to Synth offerings
+     * @notice Add debt token to offerings
+     * @dev Must keep `debtTokenOf` mapping updated
      */
-    function addSyntheticToken(address _syntheticToken) external override onlyGovernor {
-        require(_syntheticToken != address(0), "address-is-null");
+    function addDebtToken(IDebtToken _debtToken) external override onlyGovernor {
+        require(address(_debtToken) != address(0), "address-is-null");
+        ISyntheticToken _syntheticToken = _debtToken.syntheticToken();
+        require(address(_syntheticToken) != address(0), "synthetic-is-null");
 
-        require(syntheticTokens.add(_syntheticToken), "synthetic-exists");
+        require(debtTokens.add(address(_debtToken)), "debt-exists");
 
-        emit SyntheticTokenAdded(_syntheticToken);
+        debtTokenOf[_syntheticToken] = _debtToken;
+
+        emit DebtTokenAdded(_debtToken);
     }
 
     /**
-     * @notice Remove synthetic token from Synth offerings
+     * @notice Remove debt token from offerings
+     * @dev Must keep `debtTokenOf` mapping updated
      */
-    function removeSyntheticToken(ISyntheticToken _syntheticToken)
-        external
-        override
-        onlyGovernor
-        onlyIfSyntheticTokenExists(_syntheticToken)
-    {
-        require(_syntheticToken.totalSupply() == 0, "supply-gt-0");
-        require(_syntheticToken.debtToken().totalSupply() == 0, "synthetic-with-debt-supply");
+    function removeDebtToken(IDebtToken _debtToken) external override onlyGovernor onlyIfDebtTokenExists(_debtToken) {
+        require(_debtToken.totalSupply() == 0, "supply-gt-0");
+        ISyntheticToken _syntheticToken = _debtToken.syntheticToken();
+        require(_syntheticToken.totalSupply() == 0, "synthetic-supply-gt-0");
 
-        require(syntheticTokens.remove(address(_syntheticToken)), "synthetic-doesnt-exist");
+        require(debtTokens.remove(address(_debtToken)), "debt-doesnt-exist");
 
-        emit SyntheticTokenRemoved(_syntheticToken);
+        delete debtTokenOf[_syntheticToken];
+
+        emit DebtTokenRemoved(_debtToken);
     }
 
     /**

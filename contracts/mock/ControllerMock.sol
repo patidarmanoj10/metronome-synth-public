@@ -59,7 +59,7 @@ contract ControllerMock is IController, Governable, Pausable {
         revert("mock-does-not-implement");
     }
 
-    function getSyntheticTokens() external pure override returns (address[] memory) {
+    function getDebtTokens() external pure override returns (address[] memory) {
         revert("mock-does-not-implement");
     }
 
@@ -94,11 +94,11 @@ contract ControllerMock is IController, Governable, Pausable {
         _issuableInUsd = _debtInUsd < _issuableLimitInUsd ? _issuableLimitInUsd - _debtInUsd : 0;
     }
 
-    function addSyntheticToken(address) external pure override {
+    function addDebtToken(IDebtToken) external pure override {
         revert("mock-does-not-implement");
     }
 
-    function removeSyntheticToken(ISyntheticToken) external pure override {
+    function removeDebtToken(IDebtToken) external pure override {
         revert("mock-does-not-implement");
     }
 
@@ -171,12 +171,20 @@ contract ControllerMock is IController, Governable, Pausable {
         return address(_syntheticToken) == address(syntheticToken);
     }
 
+    function isDebtTokenExists(IDebtToken) external pure returns (bool) {
+        return true;
+    }
+
     function isDepositTokenExists(IDepositToken) external pure override returns (bool) {
         return true;
     }
 
     function updateTreasury(ITreasury _treasury) external override {
         treasury = _treasury;
+    }
+
+    function debtTokenOf(ISyntheticToken) external pure override returns (IDebtToken) {
+        revert("mock-does-not-implement");
     }
 
     function depositTokenOf(IERC20) external view override returns (IDepositToken) {

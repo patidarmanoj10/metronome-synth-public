@@ -25,13 +25,17 @@ interface IController is IPausable {
 
     function isSyntheticTokenExists(ISyntheticToken _syntheticToken) external view returns (bool);
 
+    function isDebtTokenExists(IDebtToken _debtToken) external view returns (bool);
+
     function isDepositTokenExists(IDepositToken _depositToken) external view returns (bool);
 
     function depositTokenOf(IERC20 _underlying) external view returns (IDepositToken);
 
+    function debtTokenOf(ISyntheticToken _syntheticToken) external view returns (IDebtToken);
+
     function getDepositTokens() external view returns (address[] memory);
 
-    function getSyntheticTokens() external view returns (address[] memory);
+    function getDebtTokens() external view returns (address[] memory);
 
     function getRewardsDistributors() external view returns (IRewardsDistributor[] memory);
 
@@ -50,9 +54,9 @@ interface IController is IPausable {
             uint256 _issuableInUsd
         );
 
-    function addSyntheticToken(address _synthetic) external;
+    function addDebtToken(IDebtToken _debtToken) external;
 
-    function removeSyntheticToken(ISyntheticToken _synthetic) external;
+    function removeDebtToken(IDebtToken _debtToken) external;
 
     function addDepositToken(address _depositToken) external;
 
