@@ -10,7 +10,7 @@ interface ContractConfig {
 
 interface UpgradableContractsConfig {
   PoolRegistry: ContractConfig
-  Controller: ContractConfig
+  Pool: ContractConfig
   Treasury: ContractConfig
   DepositToken: ContractConfig
   SyntheticToken: ContractConfig
@@ -42,7 +42,7 @@ interface DeployUpgradableFunctionProps {
 
 export const UpgradableContracts: UpgradableContractsConfig = {
   PoolRegistry: {alias: 'PoolRegistry', contract: 'PoolRegistry', adminContract: 'PoolRegistryUpgrader'},
-  Controller: {alias: 'Controller', contract: 'Controller', adminContract: 'ControllerUpgrader'},
+  Pool: {alias: 'Pool', contract: 'Pool', adminContract: 'PoolUpgrader'},
   Treasury: {alias: 'Treasury', contract: 'Treasury', adminContract: 'TreasuryUpgrader'},
   DepositToken: {alias: '', contract: 'DepositToken', adminContract: 'DepositTokenUpgrader'},
   SyntheticToken: {alias: '', contract: 'SyntheticToken', adminContract: 'SyntheticTokenUpgrader'},
@@ -58,7 +58,7 @@ const {
   DepositToken: DepositTokenConfig,
   DebtToken: DebtTokenConfig,
   SyntheticToken: SyntheticTokenConfig,
-  Controller: {alias: Controller},
+  Pool: {alias: Pool},
 } = UpgradableContracts
 
 const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1)
@@ -121,7 +121,7 @@ export const buildSyntheticDeployFunction = ({
     const {execute, get, getOrNull} = deployments
     const {deployer} = await getNamedAccounts()
 
-    const {address: controllerAddress} = await get(Controller)
+    const {address: poolAddress} = await get(Pool)
 
     const wasDeployed = !!(await getOrNull(syntheticAlias))
 
@@ -131,7 +131,7 @@ export const buildSyntheticDeployFunction = ({
         ...SyntheticTokenConfig,
         alias: syntheticAlias,
       },
-      initializeArgs: [name, symbol, decimals, controllerAddress, interestRate, maxTotalSupplyInUsd],
+      initializeArgs: [name, symbol, decimals, poolAddress, interestRate, maxTotalSupplyInUsd],
     })
 
     const {address: debtTokenAddress} = await deployUpgradable({
@@ -140,16 +140,16 @@ export const buildSyntheticDeployFunction = ({
         ...DebtTokenConfig,
         alias: debtAlias,
       },
-      initializeArgs: [`${name}-Debt`, `${symbol}-Debt`, controllerAddress, syntheticTokenAddress],
+      initializeArgs: [`${name}-Debt`, `${symbol}-Debt`, poolAddress, syntheticTokenAddress],
     })
 
     if (!wasDeployed) {
-      await execute(Controller, {from: deployer, log: true}, 'addDebtToken', debtTokenAddress)
+      await execute(Pool, {from: deployer, log: true}, 'addDebtToken', debtTokenAddress)
     }
   }
 
   deployFunction.tags = [syntheticAlias]
-  deployFunction.dependencies = [Controller]
+  deployFunction.dependencies = [Pool]
 
   return deployFunction
 }
@@ -169,7 +169,7 @@ export const buildDepositDeployFunction = ({
     const {execute, get, getOrNull} = deployments
     const {deployer} = await getNamedAccounts()
 
-    const {address: controllerAddress} = await get(Controller)
+    const {address: poolAddress} = await get(Pool)
 
     const wasDeployed = !!(await getOrNull(alias))
 
@@ -178,7 +178,7 @@ export const buildDepositDeployFunction = ({
       contractConfig: {...DepositTokenConfig, alias},
       initializeArgs: [
         underlyingAddress,
-        controllerAddress,
+        poolAddress,
         symbol,
         underlyingDecimals,
         collateralizationRatio,
@@ -187,12 +187,12 @@ export const buildDepositDeployFunction = ({
     })
 
     if (!wasDeployed) {
-      await execute(Controller, {from: deployer, log: true}, 'addDepositToken', msdAddress)
+      await execute(Pool, {from: deployer, log: true}, 'addDepositToken', msdAddress)
     }
   }
 
   deployFunction.tags = [alias]
-  deployFunction.dependencies = [Controller]
+  deployFunction.dependencies = [Pool]
 
   return deployFunction
 }

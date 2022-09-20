@@ -2,7 +2,7 @@ import {BigNumber} from '@ethersproject/bignumber'
 import {parseEther, parseUnits} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {ethers, network} from 'hardhat'
-import {Controller, DepositToken} from '../../typechain'
+import {Pool, DepositToken} from '../../typechain'
 import Address from '../../helpers/address'
 
 const {hexlify, solidityKeccak256, zeroPad, getAddress} = ethers.utils
@@ -34,14 +34,14 @@ export const DEFAULT_TWAP_PERIOD = HOUR.mul('2')
  * => (D - LIMIT)/[(-1 * FEE * CR) + 1] = X
  */
 export const getMinLiquidationAmountInUsd = async function (
-  controller: Controller,
+  pool: Pool,
   accountAddress: string,
   depositToken: DepositToken
 ): Promise<BigNumber> {
-  const {_issuableLimitInUsd, _debtInUsd} = await controller.debtPositionOf(accountAddress)
+  const {_issuableLimitInUsd, _debtInUsd} = await pool.debtPositionOf(accountAddress)
   const fee = parseEther('1')
-    .add(await controller.liquidatorLiquidationFee())
-    .add(await controller.protocolLiquidationFee())
+    .add(await pool.liquidatorLiquidationFee())
+    .add(await pool.protocolLiquidationFee())
   const cr = await depositToken.collateralizationRatio()
 
   const numerator = _debtInUsd.sub(_issuableLimitInUsd)
@@ -55,12 +55,9 @@ export const getMinLiquidationAmountInUsd = async function (
  * L = liquidation fee
  * Calculates USD value needed = C/(1 + L)
  */
-export const getMaxLiquidationAmountInUsd = async function (
-  controller: Controller,
-  accountAddress: string
-): Promise<BigNumber> {
-  const {_depositInUsd} = await controller.debtPositionOf(accountAddress)
-  const fee = (await controller.liquidatorLiquidationFee()).add(await controller.protocolLiquidationFee())
+export const getMaxLiquidationAmountInUsd = async function (pool: Pool, accountAddress: string): Promise<BigNumber> {
+  const {_depositInUsd} = await pool.debtPositionOf(accountAddress)
+  const fee = (await pool.liquidatorLiquidationFee()).add(await pool.protocolLiquidationFee())
 
   const numerator = _depositInUsd
   const denominator = parseEther('1').add(fee)

@@ -18,7 +18,7 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
      * @dev Throws if caller isn't authorized
      */
     modifier onlyIfAuthorized() {
-        require(_msgSender() == address(controller) || _msgSender() == address(syntheticToken), "not-authorized");
+        require(_msgSender() == address(pool) || _msgSender() == address(syntheticToken), "not-authorized");
         _;
     }
 
@@ -35,7 +35,7 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
      * @dev Should be called before balance changes (i.e. mint/burn)
      */
     modifier updateRewardsBeforeMintOrBurn(address _account) {
-        IRewardsDistributor[] memory _rewardsDistributors = controller.getRewardsDistributors();
+        IRewardsDistributor[] memory _rewardsDistributors = pool.getRewardsDistributors();
         uint256 _length = _rewardsDistributors.length;
         for (uint256 i; i < _length; ++i) {
             _rewardsDistributors[i].updateBeforeMintOrBurn(syntheticToken, _account);
@@ -46,10 +46,10 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
     function initialize(
         string calldata _name,
         string calldata _symbol,
-        IController _controller,
+        IPool _pool,
         ISyntheticToken _syntheticToken
     ) public initializer {
-        require(address(_controller) != address(0), "controller-address-is-zero");
+        require(address(_pool) != address(0), "pool-address-is-zero");
         require(address(_syntheticToken) != address(0), "synthetic-is-null");
 
         __Manageable_init();
@@ -57,7 +57,7 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
         name = _name;
         symbol = _symbol;
         decimals = _syntheticToken.decimals();
-        controller = _controller;
+        pool = _pool;
         syntheticToken = _syntheticToken;
         lastTimestampAccrued = block.timestamp;
         debtIndex = 1e18;
@@ -159,13 +159,13 @@ contract DebtToken is Manageable, DebtTokenStorageV1 {
 
     function _addToDebtTokensOfRecipientIfNeeded(address _recipient, uint256 _recipientBalanceBefore) private {
         if (_recipientBalanceBefore == 0) {
-            controller.addToDebtTokensOfAccount(_recipient);
+            pool.addToDebtTokensOfAccount(_recipient);
         }
     }
 
     function _removeFromDebtTokensOfSenderIfNeeded(address _sender, uint256 _senderBalanceAfter) private {
         if (_senderBalanceAfter == 0) {
-            controller.removeFromDebtTokensOfAccount(_sender);
+            pool.removeFromDebtTokensOfAccount(_sender);
         }
     }
 

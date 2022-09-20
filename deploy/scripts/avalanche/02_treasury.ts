@@ -3,7 +3,7 @@ import {DeployFunction} from 'hardhat-deploy/types'
 import {UpgradableContracts, deployUpgradable} from '../../helpers'
 
 const {
-  Controller: {alias: Controller},
+  Pool: {alias: Pool},
   Treasury: {alias: Treasury},
 } = UpgradableContracts
 
@@ -14,19 +14,19 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   const wasDeployed = !!(await getOrNull(Treasury))
 
-  const controller = await get(Controller)
+  const pool = await get(Pool)
 
   const {address: treasuryAddress} = await deployUpgradable({
     hre,
     contractConfig: UpgradableContracts.Treasury,
-    initializeArgs: [controller.address],
+    initializeArgs: [pool.address],
   })
 
   if (!wasDeployed) {
-    await execute(Controller, {from: deployer, log: true}, 'updateTreasury', treasuryAddress)
+    await execute(Pool, {from: deployer, log: true}, 'updateTreasury', treasuryAddress)
   }
 }
 
 export default func
 func.tags = [Treasury]
-func.dependencies = [Controller]
+func.dependencies = [Pool]

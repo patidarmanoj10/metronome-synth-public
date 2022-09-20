@@ -24,7 +24,7 @@ let SECONDS_PER_YEAR: BigNumber
 
 describe('DebtToken', function () {
   let deployer: SignerWithAddress
-  let controllerMock: FakeContract
+  let poolMock: FakeContract
   let user1: SignerWithAddress
   let user2: SignerWithAddress
   let treasury: SignerWithAddress
@@ -51,37 +51,30 @@ describe('DebtToken', function () {
     masterOracleMock = <MasterOracleMock>await masterOracleMockFactory.deploy()
     await masterOracleMock.deployed()
 
-    controllerMock = await smock.fake('Controller')
-    controllerMock.treasury.returns(treasury.address)
-    controllerMock.governor.returns(deployer.address)
-    controllerMock.masterOracle.returns(masterOracleMock.address)
-    await setEtherBalance(controllerMock.address, parseEther('10'))
+    poolMock = await smock.fake('Pool')
+    poolMock.treasury.returns(treasury.address)
+    poolMock.governor.returns(deployer.address)
+    poolMock.masterOracle.returns(masterOracleMock.address)
+    await setEtherBalance(poolMock.address, parseEther('10'))
 
     const rewardsDistributorMockFactory = await smock.mock('RewardsDistributor')
     rewardsDistributorMock = await rewardsDistributorMockFactory.deploy()
-    controllerMock.getRewardsDistributors.returns([rewardsDistributorMock.address])
-    rewardsDistributorMock.controller.returns(controllerMock.address)
+    poolMock.getRewardsDistributors.returns([rewardsDistributorMock.address])
+    rewardsDistributorMock.pool.returns(poolMock.address)
 
     const debtTokenFactory = new DebtToken__factory(deployer)
     debtToken = await debtTokenFactory.deploy()
     await debtToken.deployed()
 
-    await syntheticToken.initialize(
-      'Metronome Synth ETH',
-      'msETH',
-      18,
-      controllerMock.address,
-      interestRate,
-      MaxUint256
-    )
+    await syntheticToken.initialize('Metronome Synth ETH', 'msETH', 18, poolMock.address, interestRate, MaxUint256)
 
-    await debtToken.initialize(name, symbol, controllerMock.address, syntheticToken.address)
+    await debtToken.initialize(name, symbol, poolMock.address, syntheticToken.address)
 
     // eslint-disable-next-line new-cap
     SECONDS_PER_YEAR = await syntheticToken.SECONDS_PER_YEAR()
     await masterOracleMock.updatePrice(syntheticToken.address, parseEther('4000')) // 1 msETH = $4,000
 
-    controllerMock.debtTokenOf.returns(debtToken.address)
+    poolMock.debtTokenOf.returns(debtToken.address)
   })
 
   it('default values', async function () {
@@ -108,7 +101,7 @@ describe('DebtToken', function () {
 
     it('should not remove address(0) from the users array', async function () {
       // given
-      controllerMock.removeFromDebtTokensOfAccount.reset()
+      poolMock.removeFromDebtTokensOfAccount.reset()
       expect(await debtToken.balanceOf(user1.address)).eq(0)
       expect(await debtToken.balanceOf(ethers.constants.AddressZero)).eq(0)
 
@@ -119,12 +112,12 @@ describe('DebtToken', function () {
       await debtToken.connect(syntheticTokenWallet).mint(user1.address, parseEther('1'), {gasLimit})
 
       // then
-      expect(controllerMock.removeFromDebtTokensOfAccount).callCount(0)
+      expect(poolMock.removeFromDebtTokensOfAccount).callCount(0)
     })
 
     it('should add debt token to user array only if balance was 0 before mint', async function () {
       // given
-      controllerMock.addToDebtTokensOfAccount.reset()
+      poolMock.addToDebtTokensOfAccount.reset()
       expect(await debtToken.balanceOf(user1.address)).eq(0)
 
       // when
@@ -136,7 +129,7 @@ describe('DebtToken', function () {
       await debtToken.connect(syntheticTokenWallet).mint(user1.address, parseEther('1'), {gasLimit})
 
       // then
-      expect(controllerMock.addToDebtTokensOfAccount).callCount(1)
+      expect(poolMock.addToDebtTokensOfAccount).callCount(1)
     })
 
     it('should trigger rewards update', async function () {
@@ -164,7 +157,7 @@ describe('DebtToken', function () {
       it('should burn', async function () {
         expect(await debtToken.balanceOf(user1.address)).eq(amount)
 
-        await debtToken.connect(controllerMock.wallet).burn(user1.address, amount)
+        await debtToken.connect(poolMock.wallet).burn(user1.address, amount)
 
         expect(await debtToken.balanceOf(user1.address)).eq(0)
       })
@@ -176,7 +169,7 @@ describe('DebtToken', function () {
 
       it('should not add address(0) to the users array', async function () {
         // given
-        controllerMock.addToDebtTokensOfAccount.reset()
+        poolMock.addToDebtTokensOfAccount.reset()
         expect(await debtToken.balanceOf(user1.address)).eq(amount)
         expect(await debtToken.balanceOf(ethers.constants.AddressZero)).eq(0)
 
@@ -184,29 +177,29 @@ describe('DebtToken', function () {
         // Note: Set `gasLimit` prevents messing up the calls counter
         // See more: https://github.com/defi-wonderland/smock/issues/99
         const gasLimit = 250000
-        await debtToken.connect(controllerMock.wallet).burn(user1.address, amount, {gasLimit})
+        await debtToken.connect(poolMock.wallet).burn(user1.address, amount, {gasLimit})
 
         // then
-        expect(controllerMock.addToDebtTokensOfAccount).callCount(0)
+        expect(poolMock.addToDebtTokensOfAccount).callCount(0)
       })
 
       it('should remove debt token from user array only if burning all', async function () {
         // given
-        controllerMock.removeFromDebtTokensOfAccount.reset()
+        poolMock.removeFromDebtTokensOfAccount.reset()
         expect(await debtToken.balanceOf(user1.address)).eq(amount)
 
         // when
         // Note: Set `gasLimit` prevents messing up the calls counter
         // See more: https://github.com/defi-wonderland/smock/issues/99
         const gasLimit = 250000
-        await debtToken.connect(controllerMock.wallet).burn(user1.address, amount.div('4'), {gasLimit})
-        await debtToken.connect(controllerMock.wallet).burn(user1.address, amount.div('4'), {gasLimit})
-        await debtToken.connect(controllerMock.wallet).burn(user1.address, amount.div('4'), {gasLimit})
-        await debtToken.connect(controllerMock.wallet).burn(user1.address, amount.div('4'), {gasLimit})
+        await debtToken.connect(poolMock.wallet).burn(user1.address, amount.div('4'), {gasLimit})
+        await debtToken.connect(poolMock.wallet).burn(user1.address, amount.div('4'), {gasLimit})
+        await debtToken.connect(poolMock.wallet).burn(user1.address, amount.div('4'), {gasLimit})
+        await debtToken.connect(poolMock.wallet).burn(user1.address, amount.div('4'), {gasLimit})
 
         // then
         expect(await debtToken.balanceOf(user1.address)).eq(0)
-        expect(controllerMock.removeFromDebtTokensOfAccount).callCount(1)
+        expect(poolMock.removeFromDebtTokensOfAccount).callCount(1)
       })
 
       it('should trigger rewards update', async function () {
@@ -214,7 +207,7 @@ describe('DebtToken', function () {
         rewardsDistributorMock.updateBeforeMintOrBurn.reset()
 
         // when
-        await debtToken.connect(controllerMock.wallet).burn(user1.address, amount)
+        await debtToken.connect(poolMock.wallet).burn(user1.address, amount)
 
         // then
         // Note: Use `callCount` instead (Refs: https://github.com/defi-wonderland/smock/issues/85)

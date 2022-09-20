@@ -11,7 +11,7 @@ describe('Treasury', function () {
   let deployer: SignerWithAddress
   let user: SignerWithAddress
   let depositTokenMock: FakeContract
-  let controllerMock: FakeContract
+  let poolMock: FakeContract
   let met: ERC20Mock
   let treasury: Treasury
 
@@ -23,8 +23,8 @@ describe('Treasury', function () {
     met = await metFactory.deploy('Metronome', 'MET', 18)
     await met.deployed()
 
-    controllerMock = await smock.fake('Controller')
-    controllerMock.isDepositTokenExists.returns(true)
+    poolMock = await smock.fake('Pool')
+    poolMock.isDepositTokenExists.returns(true)
 
     depositTokenMock = await smock.fake('DepositToken')
     depositTokenMock.underlying.returns(met.address)
@@ -33,7 +33,7 @@ describe('Treasury', function () {
     const treasuryFactory = new Treasury__factory(deployer)
     treasury = await treasuryFactory.deploy()
     await treasury.deployed()
-    await treasury.initialize(controllerMock.address)
+    await treasury.initialize(poolMock.address)
 
     await met.mint(deployer.address, parseEther('1000'))
   })
@@ -45,7 +45,7 @@ describe('Treasury', function () {
     })
 
     it('should revert if not deposit token', async function () {
-      controllerMock.isDepositTokenExists.returns(false)
+      poolMock.isDepositTokenExists.returns(false)
       const tx = treasury.connect(user).pull(user.address, 0)
       await expect(tx).revertedWith('not-deposit-token')
     })

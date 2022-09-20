@@ -15,7 +15,7 @@ describe('PoolRegistry', function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[deployer, user] = await ethers.getSigners()
 
-    pool = await smock.fake('Controller')
+    pool = await smock.fake('Pool')
 
     const poolRegistryFactory = new PoolRegistry__factory(deployer)
     poolRegistry = await poolRegistryFactory.deploy()

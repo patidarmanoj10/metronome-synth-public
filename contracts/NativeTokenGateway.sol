@@ -24,22 +24,22 @@ contract NativeTokenGateway is ReentrancyGuard, Governable, INativeTokenGateway 
 
     /**
      * @notice deposits NATIVE_TOKEN as collateral using native. A corresponding amount of the deposit token is minted.
-     * @param _controller The Controller contract
+     * @param _pool The Pool contract
      */
-    function deposit(IController _controller) external payable override {
+    function deposit(IPool _pool) external payable override {
         nativeToken.deposit{value: msg.value}();
-        IDepositToken _msdToken = _controller.depositTokenOf(nativeToken);
+        IDepositToken _msdToken = _pool.depositTokenOf(nativeToken);
         nativeToken.safeApprove(address(_msdToken), msg.value);
         _msdToken.deposit(msg.value, _msgSender());
     }
 
     /**
      * @notice withdraws the NATIVE_TOKEN deposit of msg.sender.
-     * @param _controller The Controller contract
+     * @param _pool The Pool contract
      * @param _amount The amount of deposit tokens to withdraw and receive native ETH
      */
-    function withdraw(IController _controller, uint256 _amount) external override nonReentrant {
-        IDepositToken _msdToken = _controller.depositTokenOf(nativeToken);
+    function withdraw(IPool _pool, uint256 _amount) external override nonReentrant {
+        IDepositToken _msdToken = _pool.depositTokenOf(nativeToken);
         _msdToken.safeTransferFrom(_msgSender(), address(this), _amount);
         _msdToken.withdraw(_amount, address(this));
         nativeToken.withdraw(_amount);

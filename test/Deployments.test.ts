@@ -22,16 +22,16 @@ import {
   SyntheticTokenUpgrader__factory,
   DebtTokenUpgrader__factory,
   UpgraderBase,
-  Controller,
-  Controller__factory,
+  Pool,
+  Pool__factory,
   NativeTokenGateway,
   NativeTokenGateway__factory,
-  ControllerUpgrader,
-  ControllerUpgrader__factory,
   PoolRegistry__factory,
   PoolRegistry,
   PoolRegistryUpgrader,
   PoolRegistryUpgrader__factory,
+  PoolUpgrader,
+  PoolUpgrader__factory,
 } from '../typechain'
 import {disableForking, enableForking} from './helpers'
 import Address from '../helpers/address'
@@ -41,8 +41,8 @@ const {USDC_ADDRESS, NATIVE_TOKEN_ADDRESS, WAVAX_ADDRESS, MASTER_ORACLE_ADDRESS}
 
 describe('Deployments', function () {
   let deployer: SignerWithAddress
-  let controller: Controller
-  let controllerUpgrader: ControllerUpgrader
+  let pool: Pool
+  let poolUpgrader: PoolUpgrader
   let treasury: Treasury
   let treasuryUpgrader: TreasuryUpgrader
   let depositTokenUpgrader: DepositTokenUpgrader
@@ -68,8 +68,8 @@ describe('Deployments', function () {
     ;[deployer] = await ethers.getSigners()
 
     const {
-      Controller: {address: controllerAddress},
-      ControllerUpgrader: {address: controllerUpgraderAddress},
+      Pool: {address: poolAddress},
+      PoolUpgrader: {address: poolUpgraderAddress},
       Treasury: {address: treasuryAddress},
       TreasuryUpgrader: {address: treasuryUpgraderAddress},
       DepositTokenUpgrader: {address: depositTokenUpgraderAddress},
@@ -86,8 +86,8 @@ describe('Deployments', function () {
       PoolRegistryUpgrader: {address: poolRegistryUpgraderAddress},
     } = await deployments.fixture()
 
-    controller = Controller__factory.connect(controllerAddress, deployer)
-    controllerUpgrader = ControllerUpgrader__factory.connect(controllerUpgraderAddress, deployer)
+    pool = Pool__factory.connect(poolAddress, deployer)
+    poolUpgrader = PoolUpgrader__factory.connect(poolUpgraderAddress, deployer)
 
     treasury = Treasury__factory.connect(treasuryAddress, deployer)
     treasuryUpgrader = TreasuryUpgrader__factory.connect(treasuryUpgraderAddress, deployer)
@@ -140,19 +140,19 @@ describe('Deployments', function () {
     }
   }
 
-  describe('Controller', function () {
+  describe('Pool', function () {
     it('should have correct params', async function () {
-      expect(await controller.treasury()).eq(treasury.address)
-      expect(await controller.masterOracle()).eq(MASTER_ORACLE_ADDRESS)
-      expect(await controller.governor()).eq(deployer.address)
-      expect(await controller.proposedGovernor()).eq(ethers.constants.AddressZero)
+      expect(await pool.treasury()).eq(treasury.address)
+      expect(await pool.masterOracle()).eq(MASTER_ORACLE_ADDRESS)
+      expect(await pool.governor()).eq(deployer.address)
+      expect(await pool.proposedGovernor()).eq(ethers.constants.AddressZero)
     })
 
     it('should upgrade implementation', async function () {
       await upgradeTestcase({
-        newImplfactory: new Controller__factory(deployer),
-        proxy: controller,
-        upgrader: controllerUpgrader,
+        newImplfactory: new Pool__factory(deployer),
+        proxy: pool,
+        upgrader: poolUpgrader,
         expectToFail: false,
       })
     })
@@ -160,8 +160,8 @@ describe('Deployments', function () {
     it('should fail if implementation breaks storage', async function () {
       await upgradeTestcase({
         newImplfactory: new MasterOracleMock__factory(deployer),
-        proxy: controller,
-        upgrader: controllerUpgrader,
+        proxy: pool,
+        upgrader: poolUpgrader,
         expectToFail: true,
       })
     })
@@ -169,7 +169,7 @@ describe('Deployments', function () {
 
   describe('Treasury', function () {
     it('should have correct params', async function () {
-      expect(await treasury.controller()).eq(controller.address)
+      expect(await treasury.pool()).eq(pool.address)
       expect(await treasury.governor()).eq(deployer.address)
     })
 
@@ -206,7 +206,7 @@ describe('Deployments', function () {
 
     describe('USDC DepositToken', function () {
       it('token should have correct params', async function () {
-        expect(await msdUSDC.controller()).eq(controller.address)
+        expect(await msdUSDC.pool()).eq(pool.address)
         expect(await msdUSDC.underlying()).eq(USDC_ADDRESS)
         expect(await msdUSDC.governor()).eq(deployer.address)
       })
@@ -232,7 +232,7 @@ describe('Deployments', function () {
 
     describe('WAVAX DepositToken', function () {
       it('token should have correct params', async function () {
-        expect(await msdWAVAX.controller()).eq(controller.address)
+        expect(await msdWAVAX.pool()).eq(pool.address)
         expect(await msdWAVAX.underlying()).eq(WAVAX_ADDRESS)
         expect(await msdWAVAX.governor()).eq(deployer.address)
       })
@@ -280,7 +280,7 @@ describe('Deployments', function () {
 
     describe('msBTC SyntheticToken', function () {
       it('token should have correct params', async function () {
-        expect(await msBTC.controller()).eq(controller.address)
+        expect(await msBTC.pool()).eq(pool.address)
         expect(await msBTC.governor()).eq(deployer.address)
         expect(await msBTC.interestRate()).eq(parseEther('0'))
       })
@@ -306,7 +306,7 @@ describe('Deployments', function () {
 
     describe('msUSD SyntheticToken', function () {
       it('msUSD token should have correct params', async function () {
-        expect(await msUSD.controller()).eq(controller.address)
+        expect(await msUSD.pool()).eq(pool.address)
         expect(await msUSD.governor()).eq(deployer.address)
         expect(await msUSD.interestRate()).eq(parseEther('0'))
       })
@@ -334,7 +334,7 @@ describe('Deployments', function () {
   describe('DebtToken', function () {
     describe('msBTC DebtToken', function () {
       it('token should have correct params', async function () {
-        expect(await msBTCDebt.controller()).eq(controller.address)
+        expect(await msBTCDebt.pool()).eq(pool.address)
         expect(await msBTCDebt.governor()).eq(deployer.address)
       })
 
@@ -359,7 +359,7 @@ describe('Deployments', function () {
 
     describe('msUSD DebtToken', function () {
       it(' token should have correct params', async function () {
-        expect(await msUSDDebt.controller()).eq(controller.address)
+        expect(await msUSDDebt.pool()).eq(pool.address)
         expect(await msUSDDebt.governor()).eq(deployer.address)
       })
 

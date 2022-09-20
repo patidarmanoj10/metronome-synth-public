@@ -11,8 +11,8 @@ import {
   DebtToken__factory,
   MasterOracleMock__factory,
   MasterOracleMock,
-  ControllerMock,
-  ControllerMock__factory,
+  PoolMock,
+  PoolMock__factory,
   ERC20Mock__factory,
   ERC20Mock,
   DepositToken__factory,
@@ -29,7 +29,7 @@ describe('SyntheticToken', function () {
   let user: SignerWithAddress
   let otherUser: SignerWithAddress
   let treasury: SignerWithAddress
-  let controllerMock: ControllerMock
+  let poolMock: PoolMock
   let met: ERC20Mock
   let msdMET: DepositToken
   let msUSD: SyntheticToken
@@ -65,22 +65,17 @@ describe('SyntheticToken', function () {
     msUSD = await syntheticTokenFactory.deploy()
     await msUSD.deployed()
 
-    const controllerMockFactory = new ControllerMock__factory(deployer)
-    controllerMock = await controllerMockFactory.deploy(
-      msdMET.address,
-      masterOracleMock.address,
-      msUSD.address,
-      msUSDDebt.address
-    )
-    await controllerMock.deployed()
-    await controllerMock.transferGovernorship(governor.address)
+    const poolMockFactory = new PoolMock__factory(deployer)
+    poolMock = await poolMockFactory.deploy(msdMET.address, masterOracleMock.address, msUSD.address, msUSDDebt.address)
+    await poolMock.deployed()
+    await poolMock.transferGovernorship(governor.address)
 
     // Initializations & Setup
-    await controllerMock.updateTreasury(treasury.address)
+    await poolMock.updateTreasury(treasury.address)
 
-    await msdMET.initialize(met.address, controllerMock.address, 'msdMET', 18, metCR, MaxUint256)
-    await msUSD.initialize(name, symbol, 18, controllerMock.address, interestRate, MaxUint256)
-    await msUSDDebt.initialize('msUSD Debt', 'msUSD-Debt', controllerMock.address, msUSD.address)
+    await msdMET.initialize(met.address, poolMock.address, 'msdMET', 18, metCR, MaxUint256)
+    await msUSD.initialize(name, symbol, 18, poolMock.address, interestRate, MaxUint256)
+    await msUSDDebt.initialize('msUSD Debt', 'msUSD-Debt', poolMock.address, msUSD.address)
 
     await masterOracleMock.updatePrice(msUSD.address, toUSD('1')) // 1 msAsset = $1
     await masterOracleMock.updatePrice(msdMET.address, toUSD('1')) // 1 collateralToken = $1
@@ -104,7 +99,7 @@ describe('SyntheticToken', function () {
 
     it('should not revert if paused', async function () {
       // given
-      await controllerMock.pause()
+      await poolMock.pause()
 
       // when
       const toIssue = parseEther('0.1')
@@ -116,7 +111,7 @@ describe('SyntheticToken', function () {
 
     it('should revert if shutdown', async function () {
       // given
-      await controllerMock.shutdown()
+      await poolMock.shutdown()
 
       // when
       const toIssue = parseEther('0.1')
@@ -131,7 +126,7 @@ describe('SyntheticToken', function () {
       const syntheticTokenFactory = new SyntheticToken__factory(deployer)
       const notListedSynthetic = await syntheticTokenFactory.deploy()
       await notListedSynthetic.deployed()
-      await notListedSynthetic.initialize(name, symbol, 18, controllerMock.address, interestRate, MaxUint256)
+      await notListedSynthetic.initialize(name, symbol, 18, poolMock.address, interestRate, MaxUint256)
 
       // when
       const toIssue = parseEther('1')
@@ -173,7 +168,7 @@ describe('SyntheticToken', function () {
 
     it('should revert if new debt < debt floor', async function () {
       // given
-      await controllerMock.updateDebtFloor(parseEther('10000')) // $10,000
+      await poolMock.updateDebtFloor(parseEther('10000')) // $10,000
 
       // when
       const toIssue = parseEther('1') // $4,000
@@ -193,14 +188,14 @@ describe('SyntheticToken', function () {
 
       // Note: the calls below will make additional transfers
       await expect(tx).changeTokenBalances(msUSDDebt, [user], [toIssue])
-      await expect(tx).changeTokenBalances(met, [controllerMock], [0])
+      await expect(tx).changeTokenBalances(met, [poolMock], [0])
       await expect(tx()).emit(msUSD, 'SyntheticTokenIssued').withArgs(user.address, user.address, toIssue, 0)
     })
 
     it('should issue msAsset (issueFee > 0)', async function () {
       // given
       const issueFee = parseEther('0.1') // 10%
-      await controllerMock.updateIssueFee(issueFee)
+      await poolMock.updateIssueFee(issueFee)
 
       // when
       const amount = parseEther('1')
@@ -217,7 +212,7 @@ describe('SyntheticToken', function () {
     })
 
     it('should issue max issuable amount (issueFee == 0)', async function () {
-      const {_issuableInUsd} = await controllerMock.debtPositionOf(user.address)
+      const {_issuableInUsd} = await poolMock.debtPositionOf(user.address)
       const amount = await masterOracleMock.quoteUsdToToken(msUSD.address, _issuableInUsd)
       const tx = msUSD.connect(user).issue(amount, user.address)
       await expect(tx).emit(msUSD, 'SyntheticTokenIssued').withArgs(user.address, user.address, amount, 0)
@@ -226,9 +221,9 @@ describe('SyntheticToken', function () {
     it('should issue max issuable amount (issueFee > 0)', async function () {
       // given
       const issueFee = parseEther('0.1') // 10%
-      await controllerMock.updateIssueFee(issueFee)
+      await poolMock.updateIssueFee(issueFee)
 
-      const {_issuableInUsd} = await controllerMock.debtPositionOf(user.address)
+      const {_issuableInUsd} = await poolMock.debtPositionOf(user.address)
       const amount = await masterOracleMock.quoteUsdToToken(msUSD.address, _issuableInUsd)
       const expectedFee = amount.mul(issueFee).div(parseEther('1'))
       const tx = msUSD.connect(user).issue(amount, user.address)
@@ -245,7 +240,7 @@ describe('SyntheticToken', function () {
       describe('repay', function () {
         it('should not revert if paused', async function () {
           // given
-          await controllerMock.pause()
+          await poolMock.pause()
           const amount = await msUSD.balanceOf(user.address)
 
           // when
@@ -257,7 +252,7 @@ describe('SyntheticToken', function () {
 
         it('should revert if shutdown', async function () {
           // given
-          await controllerMock.shutdown()
+          await poolMock.shutdown()
           const amount = await msUSD.balanceOf(user.address)
 
           // when
@@ -288,7 +283,7 @@ describe('SyntheticToken', function () {
 
         it('should revert if new debt < debt floor', async function () {
           // given
-          await controllerMock.updateDebtFloor(parseEther('3000')) // $3,000
+          await poolMock.updateDebtFloor(parseEther('3000')) // $3,000
 
           const amount = await msUSD.balanceOf(user.address)
           expect(amount).eq(parseEther('1')) // $4,000
@@ -303,21 +298,21 @@ describe('SyntheticToken', function () {
 
         it('should allow repay all when debt floor is set', async function () {
           // given
-          await controllerMock.updateRepayFee(0)
-          await controllerMock.updateDebtFloor(parseEther('3000')) // $3,000
+          await poolMock.updateRepayFee(0)
+          await poolMock.updateDebtFloor(parseEther('3000')) // $3,000
           const amount = await msUSD.balanceOf(user.address)
 
           // when
           await msUSD.connect(user).repay(user.address, amount)
 
           // then
-          const debtAfter = await controllerMock.debtOf(user.address)
+          const debtAfter = await poolMock.debtOf(user.address)
           expect(debtAfter).eq(0)
         })
 
         it('should repay if amount == debt (repayFee == 0)', async function () {
           // given
-          await controllerMock.updateRepayFee(0)
+          await poolMock.updateRepayFee(0)
           const lockedCollateralBefore = await msdMET.lockedBalanceOf(user.address)
           expect(lockedCollateralBefore).gt(0)
 
@@ -334,7 +329,7 @@ describe('SyntheticToken', function () {
 
         it('should repay if amount < debt (repayFee == 0)', async function () {
           // given
-          await controllerMock.updateRepayFee(0)
+          await poolMock.updateRepayFee(0)
           const lockedCollateralBefore = await msdMET.lockedBalanceOf(user.address)
           expect(lockedCollateralBefore).gt(0)
 
@@ -352,8 +347,8 @@ describe('SyntheticToken', function () {
         it('should repay if amount == debt (repayFee > 0)', async function () {
           // given
           const repayFee = parseEther('0.1') // 10%
-          await controllerMock.updateRepayFee(repayFee)
-          const {_debtInUsd: debtInUsdBefore} = await controllerMock.debtPositionOf(user.address)
+          await poolMock.updateRepayFee(repayFee)
+          const {_debtInUsd: debtInUsdBefore} = await poolMock.debtPositionOf(user.address)
           const msUsdBefore = await msUSD.balanceOf(user.address)
           expect(msUsdBefore).eq(debtInUsdBefore)
 
@@ -366,15 +361,15 @@ describe('SyntheticToken', function () {
 
           // then
           expect(await msUSD.balanceOf(user.address)).eq(0)
-          const {_debtInUsd: debtInUsdAfter} = await controllerMock.debtPositionOf(user.address)
+          const {_debtInUsd: debtInUsdAfter} = await poolMock.debtPositionOf(user.address)
           expect(debtInUsdAfter).eq(expectedFee)
         })
 
         it('should repay if amount < debt (repayFee > 0)', async function () {
           // given
           const repayFee = parseEther('0.1') // 10%
-          await controllerMock.updateRepayFee(repayFee)
-          const {_debtInUsd: debtInUsdBefore} = await controllerMock.debtPositionOf(user.address)
+          await poolMock.updateRepayFee(repayFee)
+          const {_debtInUsd: debtInUsdBefore} = await poolMock.debtPositionOf(user.address)
           const msUsdBefore = await msUSD.balanceOf(user.address)
           expect(msUsdBefore).eq(debtInUsdBefore)
 
@@ -389,21 +384,21 @@ describe('SyntheticToken', function () {
           // then
           const msUsdAfter = await msUSD.balanceOf(user.address)
           expect(msUsdAfter).eq(halfBalance)
-          const {_debtInUsd: debtInUsdAfter} = await controllerMock.debtPositionOf(user.address)
+          const {_debtInUsd: debtInUsdAfter} = await poolMock.debtPositionOf(user.address)
           expect(debtInUsdAfter).eq(halfBalance.add(expectedFee))
         })
 
         it('should repay all debt (repayFee > 0)', async function () {
           // given
           const repayFee = parseEther('0.1') // 10%
-          await controllerMock.updateRepayFee(repayFee)
+          await poolMock.updateRepayFee(repayFee)
 
           await met.mint(otherUser.address, parseEther('1000'))
           await met.connect(otherUser).approve(msdMET.address, ethers.constants.MaxUint256)
           await msdMET.connect(otherUser).deposit(depositAmount, otherUser.address)
           await msUSD.connect(otherUser).issue(parseEther('1'), user.address)
 
-          const {_debtInUsd: debtBefore} = await controllerMock.debtPositionOf(user.address)
+          const {_debtInUsd: debtBefore} = await poolMock.debtPositionOf(user.address)
           expect(debtBefore).gt(0)
 
           // when
@@ -411,7 +406,7 @@ describe('SyntheticToken', function () {
           await msUSD.connect(user).repay(user.address, amount)
 
           // then
-          const {_debtInUsd: debtAfter} = await controllerMock.debtPositionOf(user.address)
+          const {_debtInUsd: debtAfter} = await poolMock.debtPositionOf(user.address)
           expect(debtAfter).eq(0)
         })
       })
@@ -423,13 +418,13 @@ describe('SyntheticToken', function () {
       expect(await msUSD.balanceOf(user.address)).eq(0)
       const amount = parseEther('100')
       const call = msUSD.interface.encodeFunctionData('mint', [user.address, amount])
-      await controllerMock.mockCall(msUSD.address, call)
+      await poolMock.mockCall(msUSD.address, call)
       expect(await msUSD.balanceOf(user.address)).eq(amount)
     })
 
-    it('should revert if not controller', async function () {
+    it('should revert if not pool', async function () {
       const tx = msUSD.connect(user).mint(user.address, parseEther('10'))
-      await expect(tx).revertedWith('not-controller')
+      await expect(tx).revertedWith('not-pool')
     })
 
     it('should revert if surpass max total supply', async function () {
@@ -440,7 +435,7 @@ describe('SyntheticToken', function () {
 
       // when
       const call = msUSD.interface.encodeFunctionData('mint', [user.address, max.add('1')])
-      const tx = controllerMock.mockCall(msUSD.address, call)
+      const tx = poolMock.mockCall(msUSD.address, call)
 
       // then
       await expect(tx).revertedWith('surpass-max-total-supply')
@@ -452,7 +447,7 @@ describe('SyntheticToken', function () {
 
       // when
       const call = msUSD.interface.encodeFunctionData('mint', [deployer.address, '1'])
-      const tx = controllerMock.mockCall(msUSD.address, call)
+      const tx = poolMock.mockCall(msUSD.address, call)
 
       // then
       await expect(tx).revertedWith('synthetic-inactive')
@@ -464,21 +459,21 @@ describe('SyntheticToken', function () {
 
     beforeEach(async function () {
       const call = msUSD.interface.encodeFunctionData('mint', [user.address, amount])
-      await controllerMock.mockCall(msUSD.address, call)
+      await poolMock.mockCall(msUSD.address, call)
     })
 
     it('should burn', async function () {
       expect(await msUSD.balanceOf(user.address)).eq(amount)
 
       const call = msUSD.interface.encodeFunctionData('burn', [user.address, amount])
-      await controllerMock.mockCall(msUSD.address, call)
+      await poolMock.mockCall(msUSD.address, call)
 
       expect(await msUSD.balanceOf(user.address)).eq(0)
     })
 
-    it('should revert if not controller', async function () {
+    it('should revert if not pool', async function () {
       const tx = msUSD.connect(user).burn(user.address, parseEther('10'))
-      await expect(tx).revertedWith('not-controller')
+      await expect(tx).revertedWith('not-pool')
     })
   })
 
@@ -546,7 +541,7 @@ describe('SyntheticToken', function () {
       await msUSD.updateInterestRate(parseEther('0.1')) // 10%
 
       const mintCall = msUSD.interface.encodeFunctionData('mint', [user.address, principal])
-      await controllerMock.mockCall(msUSD.address, mintCall)
+      await poolMock.mockCall(msUSD.address, mintCall)
       const msUSDWallet = await impersonateAccount(msUSD.address)
       await msUSDDebt.connect(msUSDWallet).mint(user.address, principal)
 

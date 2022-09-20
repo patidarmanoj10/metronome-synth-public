@@ -29,7 +29,7 @@ describe('DepositToken', function () {
   let bob: SignerWithAddress
   let treasury: Treasury
   let met: ERC20Mock
-  let controllerMock: FakeContract
+  let poolMock: FakeContract
   let metDepositToken: DepositToken
   let masterOracle: MasterOracleMock
   let rewardsDistributorMock: MockContract
@@ -58,26 +58,26 @@ describe('DepositToken', function () {
     metDepositToken = await depositTokenFactory.deploy()
     await metDepositToken.deployed()
 
-    controllerMock = await smock.fake('Controller')
-    await setEtherBalance(controllerMock.address, parseEther('10'))
-    controllerMock.masterOracle.returns(masterOracle.address)
-    controllerMock.governor.returns(governor.address)
-    controllerMock.paused.returns(false)
-    controllerMock.everythingStopped.returns(false)
-    controllerMock.depositFee.returns('0')
-    controllerMock.isDepositTokenExists.returns(true)
-    controllerMock.treasury.returns(treasury.address)
+    poolMock = await smock.fake('Pool')
+    await setEtherBalance(poolMock.address, parseEther('10'))
+    poolMock.masterOracle.returns(masterOracle.address)
+    poolMock.governor.returns(governor.address)
+    poolMock.paused.returns(false)
+    poolMock.everythingStopped.returns(false)
+    poolMock.depositFee.returns('0')
+    poolMock.isDepositTokenExists.returns(true)
+    poolMock.treasury.returns(treasury.address)
 
     const rewardsDistributorMockFactory = await smock.mock('RewardsDistributor')
     rewardsDistributorMock = await rewardsDistributorMockFactory.deploy()
-    controllerMock.getRewardsDistributors.returns([rewardsDistributorMock.address])
-    rewardsDistributorMock.controller.returns(controllerMock.address)
+    poolMock.getRewardsDistributors.returns([rewardsDistributorMock.address])
+    rewardsDistributorMock.pool.returns(poolMock.address)
 
-    await metDepositToken.initialize(met.address, controllerMock.address, 'msdMET', 18, metCR, MaxUint256)
+    await metDepositToken.initialize(met.address, poolMock.address, 'msdMET', 18, metCR, MaxUint256)
     metDepositToken = metDepositToken.connect(governor)
 
     await masterOracle.updatePrice(metDepositToken.address, metPrice)
-    await treasury.initialize(controllerMock.address)
+    await treasury.initialize(poolMock.address)
   })
 
   describe('mint', function () {
@@ -88,7 +88,7 @@ describe('DepositToken', function () {
 
       // when
       const amount = parseEther('100')
-      await metDepositToken.connect(controllerMock.wallet).mint(alice.address, amount)
+      await metDepositToken.connect(poolMock.wallet).mint(alice.address, amount)
 
       // then
       expect(await metDepositToken.balanceOf(alice.address)).eq(amount)
@@ -98,7 +98,7 @@ describe('DepositToken', function () {
 
     it('should not remove address(0) from the users array', async function () {
       // given
-      controllerMock.removeFromDepositTokensOfAccount.reset()
+      poolMock.removeFromDepositTokensOfAccount.reset()
       expect(await metDepositToken.balanceOf(alice.address)).eq(0)
       expect(await metDepositToken.balanceOf(ethers.constants.AddressZero)).eq(0)
 
@@ -106,27 +106,27 @@ describe('DepositToken', function () {
       // Note: Set `gasLimit` prevents messing up the calls counter
       // See more: https://github.com/defi-wonderland/smock/issues/99
       const gasLimit = 250000
-      await metDepositToken.connect(controllerMock.wallet).mint(alice.address, parseEther('1'), {gasLimit})
+      await metDepositToken.connect(poolMock.wallet).mint(alice.address, parseEther('1'), {gasLimit})
 
       // then
-      expect(controllerMock.removeFromDepositTokensOfAccount).callCount(0)
+      expect(poolMock.removeFromDepositTokensOfAccount).callCount(0)
     })
 
     it('should add deposit token to user array only if balance was 0 before mint', async function () {
       // given
-      controllerMock.addToDepositTokensOfAccount.reset()
+      poolMock.addToDepositTokensOfAccount.reset()
       expect(await metDepositToken.balanceOf(alice.address)).eq(0)
 
       // when
       // Note: Set `gasLimit` prevents messing up the calls counter
       // See more: https://github.com/defi-wonderland/smock/issues/99
       const gasLimit = 250000
-      await metDepositToken.connect(controllerMock.wallet).mint(alice.address, parseEther('1'), {gasLimit})
-      await metDepositToken.connect(controllerMock.wallet).mint(alice.address, parseEther('1'), {gasLimit})
-      await metDepositToken.connect(controllerMock.wallet).mint(alice.address, parseEther('1'), {gasLimit})
+      await metDepositToken.connect(poolMock.wallet).mint(alice.address, parseEther('1'), {gasLimit})
+      await metDepositToken.connect(poolMock.wallet).mint(alice.address, parseEther('1'), {gasLimit})
+      await metDepositToken.connect(poolMock.wallet).mint(alice.address, parseEther('1'), {gasLimit})
 
       // then
-      expect(controllerMock.addToDepositTokensOfAccount).callCount(1)
+      expect(poolMock.addToDepositTokensOfAccount).callCount(1)
     })
 
     it('should revert if surpass max total supply', async function () {
@@ -137,15 +137,15 @@ describe('DepositToken', function () {
 
       // when
       const amount = parseEther('101') // $404
-      const tx = metDepositToken.connect(controllerMock.wallet).mint(alice.address, amount)
+      const tx = metDepositToken.connect(poolMock.wallet).mint(alice.address, amount)
 
       // then
       await expect(tx).revertedWith('surpass-max-total-supply')
     })
 
-    it('should revert if not controller', async function () {
+    it('should revert if not pool', async function () {
       const tx = metDepositToken.connect(alice).mint(alice.address, parseEther('10'))
-      await expect(tx).revertedWith('not-controller')
+      await expect(tx).revertedWith('not-pool')
     })
 
     it('should trigger rewards update', async function () {
@@ -153,7 +153,7 @@ describe('DepositToken', function () {
       rewardsDistributorMock.updateBeforeMintOrBurn.reset()
 
       // when
-      await metDepositToken.connect(controllerMock.wallet).mint(alice.address, parseEther('100'))
+      await metDepositToken.connect(poolMock.wallet).mint(alice.address, parseEther('100'))
 
       // then
       // Note: Use `callCount` instead (Refs: https://github.com/defi-wonderland/smock/issues/85)
@@ -187,7 +187,7 @@ describe('DepositToken', function () {
       await met.connect(alice).approve(metDepositToken.address, ethers.constants.MaxUint256)
       await metDepositToken.connect(alice).deposit(depositedAmount, alice.address)
       expect(await metDepositToken.balanceOf(alice.address)).eq(depositedAmount)
-      controllerMock.debtPositionOf.returns(debtPositionOf_returnsAllUnlocked(depositedAmount))
+      poolMock.debtPositionOf.returns(debtPositionOf_returnsAllUnlocked(depositedAmount))
     })
 
     describe('withdraw', function () {
@@ -220,7 +220,7 @@ describe('DepositToken', function () {
       describe('when minimum deposit time == 0', function () {
         it('should revert not if paused', async function () {
           // given
-          controllerMock.paused.returns(true)
+          poolMock.paused.returns(true)
 
           // when
           const toWithdraw = 1
@@ -232,8 +232,8 @@ describe('DepositToken', function () {
 
         it('should revert if shutdown', async function () {
           // given
-          controllerMock.paused.returns(true)
-          controllerMock.everythingStopped.returns(true)
+          poolMock.paused.returns(true)
+          poolMock.everythingStopped.returns(true)
 
           // when
           const toWithdraw = 1
@@ -281,7 +281,7 @@ describe('DepositToken', function () {
         it('should withdraw if amount <= unlocked collateral amount (withdrawFee > 0)', async function () {
           // given
           const withdrawFee = parseEther('0.1') // 10%
-          controllerMock.withdrawFee.returns(withdrawFee)
+          poolMock.withdrawFee.returns(withdrawFee)
           const metBalanceBefore = await met.balanceOf(alice.address)
           const depositBefore = await metDepositToken.balanceOf(alice.address)
           const toWithdraw = await metDepositToken.unlockedBalanceOf(alice.address)
@@ -340,7 +340,7 @@ describe('DepositToken', function () {
 
       it('should revert if paused', async function () {
         // given
-        controllerMock.paused.returns(true)
+        poolMock.paused.returns(true)
 
         // when
         const toDeposit = parseEther('10')
@@ -352,8 +352,8 @@ describe('DepositToken', function () {
 
       it('should revert if shutdown', async function () {
         // given
-        controllerMock.paused.returns(true)
-        controllerMock.everythingStopped.returns(true)
+        poolMock.paused.returns(true)
+        poolMock.everythingStopped.returns(true)
 
         // when
         const toDeposit = parseEther('10')
@@ -383,7 +383,7 @@ describe('DepositToken', function () {
 
         // then
         await expect(tx).changeTokenBalances(met, [alice, treasury], [toDeposit.mul('-1'), toDeposit])
-        await expect(tx).changeTokenBalances(metDepositToken, [alice, controllerMock], [toDeposit, 0])
+        await expect(tx).changeTokenBalances(metDepositToken, [alice, poolMock], [toDeposit, 0])
         await expect(tx())
           .emit(metDepositToken, 'CollateralDeposited')
           .withArgs(alice.address, alice.address, toDeposit, 0)
@@ -401,7 +401,7 @@ describe('DepositToken', function () {
         // then
         const amountAfterFee = toDeposit.sub(toDeposit.mul(fee).div(parseEther('1')))
         await expect(tx).changeTokenBalances(met, [alice, treasury], [toDeposit.mul('-1'), amountAfterFee])
-        await expect(tx).changeTokenBalances(metDepositToken, [alice, controllerMock], [amountAfterFee, 0])
+        await expect(tx).changeTokenBalances(metDepositToken, [alice, poolMock], [amountAfterFee, 0])
         await expect(tx())
           .emit(metDepositToken, 'CollateralDeposited')
           .withArgs(alice.address, alice.address, amountAfterFee, 0)
@@ -410,7 +410,7 @@ describe('DepositToken', function () {
       it('should deposit MET and mint msdMET (depositFee > 0)', async function () {
         // given
         const depositFee = parseEther('0.01') // 1%
-        controllerMock.depositFee.returns(depositFee)
+        poolMock.depositFee.returns(depositFee)
 
         // when
         const toDeposit = parseEther('100')
@@ -422,7 +422,7 @@ describe('DepositToken', function () {
         await expect(tx).changeTokenBalances(met, [alice, treasury], [toDeposit.mul('-1'), toDeposit])
         await expect(tx).changeTokenBalances(
           metDepositToken,
-          [alice, controllerMock, treasury],
+          [alice, poolMock, treasury],
           [expectedAmounAfterFee, 0, expectedFeeAmount]
         )
         await expect(tx())
@@ -437,7 +437,7 @@ describe('DepositToken', function () {
 
         // then
         await expect(tx).changeTokenBalances(met, [alice, treasury], [toDeposit.mul('-1'), toDeposit])
-        await expect(tx).changeTokenBalances(metDepositToken, [controllerMock, bob], [0, toDeposit])
+        await expect(tx).changeTokenBalances(metDepositToken, [poolMock, bob], [0, toDeposit])
         await expect(tx())
           .emit(metDepositToken, 'CollateralDeposited')
           .withArgs(alice.address, bob.address, toDeposit, 0)
@@ -459,18 +459,18 @@ describe('DepositToken', function () {
 
     describe('burn', function () {
       it('should burn', async function () {
-        await metDepositToken.connect(controllerMock.wallet).burn(alice.address, depositedAmount)
+        await metDepositToken.connect(poolMock.wallet).burn(alice.address, depositedAmount)
         expect(await metDepositToken.balanceOf(alice.address)).eq(0)
       })
 
-      it('should revert if not controller', async function () {
+      it('should revert if not pool', async function () {
         const tx = metDepositToken.connect(alice).burn(alice.address, parseEther('10'))
-        await expect(tx).revertedWith('not-controller')
+        await expect(tx).revertedWith('not-pool')
       })
 
       it('should not add address(0) to the users array', async function () {
         // given
-        controllerMock.addToDepositTokensOfAccount.reset()
+        poolMock.addToDepositTokensOfAccount.reset()
         expect(await metDepositToken.balanceOf(alice.address)).eq(depositedAmount)
         expect(await metDepositToken.balanceOf(ethers.constants.AddressZero)).eq(0)
 
@@ -478,29 +478,29 @@ describe('DepositToken', function () {
         // Note: Set `gasLimit` prevents messing up the calls counter
         // See more: https://github.com/defi-wonderland/smock/issues/99
         const gasLimit = 250000
-        await metDepositToken.connect(controllerMock.wallet).burn(alice.address, depositedAmount, {gasLimit})
+        await metDepositToken.connect(poolMock.wallet).burn(alice.address, depositedAmount, {gasLimit})
 
         // then
-        expect(controllerMock.addToDepositTokensOfAccount).callCount(0)
+        expect(poolMock.addToDepositTokensOfAccount).callCount(0)
       })
 
       it('should remove deposit token from user array only if burning all', async function () {
         // given
-        controllerMock.removeFromDepositTokensOfAccount.reset()
+        poolMock.removeFromDepositTokensOfAccount.reset()
         expect(await metDepositToken.balanceOf(alice.address)).eq(depositedAmount)
 
         // when
         // Note: Set `gasLimit` prevents messing up the calls counter
         // See more: https://github.com/defi-wonderland/smock/issues/99
         const gasLimit = 250000
-        await metDepositToken.connect(controllerMock.wallet).burn(alice.address, depositedAmount.div('4'), {gasLimit})
-        await metDepositToken.connect(controllerMock.wallet).burn(alice.address, depositedAmount.div('4'), {gasLimit})
-        await metDepositToken.connect(controllerMock.wallet).burn(alice.address, depositedAmount.div('4'), {gasLimit})
-        await metDepositToken.connect(controllerMock.wallet).burn(alice.address, depositedAmount.div('4'), {gasLimit})
+        await metDepositToken.connect(poolMock.wallet).burn(alice.address, depositedAmount.div('4'), {gasLimit})
+        await metDepositToken.connect(poolMock.wallet).burn(alice.address, depositedAmount.div('4'), {gasLimit})
+        await metDepositToken.connect(poolMock.wallet).burn(alice.address, depositedAmount.div('4'), {gasLimit})
+        await metDepositToken.connect(poolMock.wallet).burn(alice.address, depositedAmount.div('4'), {gasLimit})
 
         // then
         expect(await metDepositToken.balanceOf(alice.address)).eq(0)
-        expect(controllerMock.removeFromDepositTokensOfAccount).callCount(1)
+        expect(poolMock.removeFromDepositTokensOfAccount).callCount(1)
       })
 
       it('should trigger rewards update', async function () {
@@ -508,7 +508,7 @@ describe('DepositToken', function () {
         rewardsDistributorMock.updateBeforeMintOrBurn.reset()
 
         // when
-        await metDepositToken.connect(controllerMock.wallet).burn(alice.address, depositedAmount)
+        await metDepositToken.connect(poolMock.wallet).burn(alice.address, depositedAmount)
 
         // then
         // Note: Use `callCount` instead (Refs: https://github.com/defi-wonderland/smock/issues/85)
@@ -542,7 +542,7 @@ describe('DepositToken', function () {
 
       it('should revert if amount > free amount', async function () {
         // given
-        controllerMock.debtPositionOf.returns(debtPositionOf_returnsAllLocked(depositedAmount))
+        poolMock.debtPositionOf.returns(debtPositionOf_returnsAllLocked(depositedAmount))
 
         // when
         const _unlockedDeposit = await metDepositToken.unlockedBalanceOf(alice.address)
@@ -555,8 +555,8 @@ describe('DepositToken', function () {
       // eslint-disable-next-line quotes
       it("should add and remove deposit token from users' arrays only once", async function () {
         // given
-        controllerMock.addToDepositTokensOfAccount.reset()
-        controllerMock.removeFromDepositTokensOfAccount.reset()
+        poolMock.addToDepositTokensOfAccount.reset()
+        poolMock.removeFromDepositTokensOfAccount.reset()
         expect(await metDepositToken.balanceOf(deployer.address)).eq(0)
         expect(await metDepositToken.balanceOf(alice.address)).eq(depositedAmount)
 
@@ -573,11 +573,11 @@ describe('DepositToken', function () {
         // then
         expect(await metDepositToken.balanceOf(alice.address)).eq(0)
         expect(await metDepositToken.balanceOf(deployer.address)).eq(depositedAmount)
-        expect(controllerMock.addToDepositTokensOfAccount).callCount(1)
-        expect(controllerMock.addToDepositTokensOfAccount).calledWith(deployer.address)
+        expect(poolMock.addToDepositTokensOfAccount).callCount(1)
+        expect(poolMock.addToDepositTokensOfAccount).calledWith(deployer.address)
 
-        expect(controllerMock.removeFromDepositTokensOfAccount).callCount(1)
-        expect(controllerMock.removeFromDepositTokensOfAccount).calledWith(alice.address)
+        expect(poolMock.removeFromDepositTokensOfAccount).callCount(1)
+        expect(poolMock.removeFromDepositTokensOfAccount).calledWith(alice.address)
       })
 
       it('should trigger rewards update', async function () {
@@ -649,16 +649,15 @@ describe('DepositToken', function () {
     })
 
     describe('seize', function () {
-      it('should revert if not controller', async function () {
+      it('should revert if not pool', async function () {
         const tx = metDepositToken.connect(alice).seize(alice.address, deployer.address, parseEther('10'))
-        await expect(tx).revertedWith('not-controller')
+        await expect(tx).revertedWith('not-pool')
       })
 
       it('should seize tokens', async function () {
         const amountToSeize = parseEther('10')
 
-        const tx = () =>
-          metDepositToken.connect(controllerMock.wallet).seize(alice.address, deployer.address, amountToSeize)
+        const tx = () => metDepositToken.connect(poolMock.wallet).seize(alice.address, deployer.address, amountToSeize)
 
         await expect(tx).changeTokenBalances(
           metDepositToken,
@@ -672,7 +671,7 @@ describe('DepositToken', function () {
         rewardsDistributorMock.updateBeforeTransfer.reset()
 
         // when
-        await metDepositToken.connect(controllerMock.wallet).seize(alice.address, bob.address, parseEther('1'))
+        await metDepositToken.connect(poolMock.wallet).seize(alice.address, bob.address, parseEther('1'))
 
         // then
         // Note: Use `callCount` instead (Refs: https://github.com/defi-wonderland/smock/issues/85)

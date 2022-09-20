@@ -19,17 +19,17 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
      * @dev Throws if caller isn't a deposit token
      */
     modifier onlyIfDepositToken() {
-        require(controller.isDepositTokenExists(IDepositToken(_msgSender())), "not-deposit-token");
+        require(pool.isDepositTokenExists(IDepositToken(_msgSender())), "not-deposit-token");
         _;
     }
 
-    function initialize(IController _controller) public initializer {
-        require(address(_controller) != address(0), "controller-address-is-zero");
+    function initialize(IPool _pool) public initializer {
+        require(address(_pool) != address(0), "pool-address-is-zero");
 
         __ReentrancyGuard_init();
         __Manageable_init();
 
-        controller = _controller;
+        pool = _pool;
     }
 
     /**
@@ -44,8 +44,8 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
      * @notice Transfer all funds to another contract
      * @dev This function can become too expensive depending on the length of the arrays
      */
-    function migrateTo(address _newTreasury) external override onlyController {
-        address[] memory _depositTokens = controller.getDepositTokens();
+    function migrateTo(address _newTreasury) external override onlyPool {
+        address[] memory _depositTokens = pool.getDepositTokens();
         uint256 _depositTokensLength = _depositTokens.length;
 
         for (uint256 i; i < _depositTokensLength; ++i) {
@@ -63,7 +63,7 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
             }
         }
 
-        address[] memory _debtTokens = controller.getDebtTokens();
+        address[] memory _debtTokens = pool.getDebtTokens();
         uint256 _debtTokensLength = _debtTokens.length;
 
         for (uint256 i; i < _debtTokensLength; ++i) {
