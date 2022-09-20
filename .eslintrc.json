@@ -46,6 +46,7 @@
     "jsdoc/require-jsdoc": "off",
     "max-len": ["error", {"code": 120}],
     "semi": ["error", "never"],
-    "quotes": ["error", "single"]
+    "quotes": ["error", "single"],
+    "arrow-body-style": "off"
   }
 }
