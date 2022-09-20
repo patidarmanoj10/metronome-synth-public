@@ -17,7 +17,7 @@ describe('RewardDistributor', function () {
   let alice: SignerWithAddress
   let bob: SignerWithAddress
   let vsp: ERC20Mock
-  let controller: FakeContract
+  let pool: FakeContract
   let debtToken1: FakeContract
   let msdTOKEN1: FakeContract
   let debtToken2: FakeContract
@@ -32,7 +32,7 @@ describe('RewardDistributor', function () {
     vsp = await erc20MockFactory.deploy('VesperToken', 'VSP', 18)
     await vsp.deployed()
 
-    controller = await smock.fake('Controller')
+    pool = await smock.fake('Pool')
     debtToken1 = await smock.fake('DebtToken')
     msdTOKEN1 = await smock.fake('DepositToken')
     debtToken2 = await smock.fake('DebtToken')
@@ -43,18 +43,18 @@ describe('RewardDistributor', function () {
     rewardDistributor.deployed()
 
     // Setup
-    await rewardDistributor.initialize(controller.address, vsp.address)
+    await rewardDistributor.initialize(pool.address, vsp.address)
 
-    msdTOKEN1.controller.returns(controller.address)
-    msdTOKEN2.controller.returns(controller.address)
+    msdTOKEN1.pool.returns(pool.address)
+    msdTOKEN2.pool.returns(pool.address)
 
     debtToken1.debtIndex.returns(parseEther('1'))
     debtToken2.debtIndex.returns(parseEther('1'))
 
-    controller.isDepositTokenExists.returns(true)
-    controller.isSyntheticTokenExists.returns(true)
-    controller.governor.returns(deployer.address)
-    controller.getRewardsDistributors.returns([rewardDistributor.address])
+    pool.isDepositTokenExists.returns(true)
+    pool.isSyntheticTokenExists.returns(true)
+    pool.governor.returns(deployer.address)
+    pool.getRewardsDistributors.returns([rewardDistributor.address])
   })
 
   describe('updateTokenSpeed', function () {

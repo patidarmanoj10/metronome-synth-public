@@ -8,8 +8,8 @@ import {
   DepositToken__factory,
   ERC20Mock,
   ERC20Mock__factory,
-  ControllerMock,
-  ControllerMock__factory,
+  PoolMock,
+  PoolMock__factory,
   IWETH,
   IWETH__factory,
   MasterOracleMock,
@@ -34,7 +34,7 @@ describe('NativeTokenGateway', function () {
   let msdNativeToken: DepositToken
   let treasury: Treasury
   let masterOracleMock: MasterOracleMock
-  let controllerMock: ControllerMock
+  let poolMock: PoolMock
   let nativeTokenGateway: NativeTokenGateway
   let tokenMock: ERC20Mock
 
@@ -60,35 +60,28 @@ describe('NativeTokenGateway', function () {
     treasury = await treasuryFactory.deploy()
     await treasury.deployed()
 
-    const controllerMockFactory = new ControllerMock__factory(deployer)
-    controllerMock = await controllerMockFactory.deploy(
+    const poolMockFactory = new PoolMock__factory(deployer)
+    poolMock = await poolMockFactory.deploy(
       msdNativeToken.address,
       masterOracleMock.address,
       ethers.constants.AddressZero,
       ethers.constants.AddressZero
     )
-    await controllerMock.deployed()
+    await poolMock.deployed()
 
     const nativeTokenGatewayFactory = new NativeTokenGateway__factory(deployer)
     nativeTokenGateway = await nativeTokenGatewayFactory.deploy(NATIVE_TOKEN_ADDRESS)
     await nativeTokenGateway.deployed()
 
-    await msdNativeToken.initialize(
-      NATIVE_TOKEN_ADDRESS,
-      controllerMock.address,
-      'msdETH',
-      18,
-      parseEther('1'),
-      MaxUint256
-    )
+    await msdNativeToken.initialize(NATIVE_TOKEN_ADDRESS, poolMock.address, 'msdETH', 18, parseEther('1'), MaxUint256)
 
     const erc20MockFactory = new ERC20Mock__factory(deployer)
     tokenMock = await erc20MockFactory.deploy('Name', 'SYMBOL', 18)
     await tokenMock.deployed()
 
-    await controllerMock.updateTreasury(treasury.address)
+    await poolMock.updateTreasury(treasury.address)
     await masterOracleMock.updatePrice(msdNativeToken.address, toUSD('1'))
-    await treasury.initialize(controllerMock.address)
+    await treasury.initialize(poolMock.address)
   })
 
   it('should not receive ETH if sender is not WETH contract', async function () {
@@ -97,10 +90,10 @@ describe('NativeTokenGateway', function () {
   })
 
   describe('deposit', function () {
-    it('should deposit ETH to Controller', async function () {
+    it('should deposit ETH to Pool', async function () {
       // when
       const value = parseEther('1')
-      const tx = () => nativeTokenGateway.connect(user).deposit(controllerMock.address, {value})
+      const tx = () => nativeTokenGateway.connect(user).deposit(poolMock.address, {value})
 
       // then
       // Note: Each expect below re-runs the transaction (Refs: https://github.com/EthWorks/Waffle/issues/569)
@@ -115,8 +108,8 @@ describe('NativeTokenGateway', function () {
 
       // when
       const value = parseEther('1')
-      await nativeTokenGateway.connect(user).deposit(controllerMock.address, {value})
-      await nativeTokenGateway.connect(user).deposit(controllerMock.address, {value})
+      await nativeTokenGateway.connect(user).deposit(poolMock.address, {value})
+      await nativeTokenGateway.connect(user).deposit(poolMock.address, {value})
 
       // then
       const after = await ethers.provider.getBalance(user.address)
@@ -127,14 +120,14 @@ describe('NativeTokenGateway', function () {
   describe('withdraw', function () {
     beforeEach(async function () {
       const value = parseEther('100')
-      await nativeTokenGateway.connect(user).deposit(controllerMock.address, {value})
+      await nativeTokenGateway.connect(user).deposit(poolMock.address, {value})
       await msdNativeToken.connect(user).approve(nativeTokenGateway.address, value)
     })
 
-    it('should withdraw ETH from Controller', async function () {
+    it('should withdraw ETH from Pool', async function () {
       // when
       const amount = parseEther('1')
-      const tx = () => nativeTokenGateway.connect(user).withdraw(controllerMock.address, amount)
+      const tx = () => nativeTokenGateway.connect(user).withdraw(poolMock.address, amount)
 
       // then
       // Note: Each expect below re-runs the transaction (Refs: https://github.com/EthWorks/Waffle/issues/569)

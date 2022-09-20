@@ -27,7 +27,7 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
      * @dev Throws if synthetic token doesn't exist
      */
     modifier onlyIfSyntheticTokenExists() {
-        require(controller.isSyntheticTokenExists(this), "synthetic-inexistent");
+        require(pool.isSyntheticTokenExists(this), "synthetic-inexistent");
         _;
     }
 
@@ -43,15 +43,15 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
         string calldata _name,
         string calldata _symbol,
         uint8 _decimals,
-        IController _controller,
+        IPool _pool,
         uint256 _interestRate,
         uint256 _maxTotalSupplyInUsd
     ) public initializer {
-        require(address(_controller) != address(0), "controller-address-is-zero");
+        require(address(_pool) != address(0), "pool-address-is-zero");
 
         __Manageable_init();
 
-        controller = _controller;
+        pool = _pool;
         name = _name;
         symbol = _symbol;
         decimals = _decimals;
@@ -136,7 +136,7 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
 
     function _mint(address account, uint256 amount) private onlyIfSyntheticTokenIsActive {
         require(account != address(0), "mint-to-the-zero-address");
-        uint256 _newTotalSupplyInUsd = controller.masterOracle().quoteTokenToUsd(address(this), totalSupply + amount);
+        uint256 _newTotalSupplyInUsd = pool.masterOracle().quoteTokenToUsd(address(this), totalSupply + amount);
         require(_newTotalSupplyInUsd <= maxTotalSupplyInUsd, "surpass-max-total-supply");
 
         totalSupply += amount;
@@ -187,35 +187,33 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
 
         accrueInterest();
 
-        (, , , , uint256 _issuableInUsd) = controller.debtPositionOf(_account);
+        (, , , , uint256 _issuableInUsd) = pool.debtPositionOf(_account);
 
-        IMasterOracle _masterOracle = controller.masterOracle();
+        IMasterOracle _masterOracle = pool.masterOracle();
 
         require(_amount <= _masterOracle.quoteUsdToToken(address(this), _issuableInUsd), "not-enough-collateral");
 
-        uint256 _debtFloorInUsd = controller.debtFloorInUsd();
+        uint256 _debtFloorInUsd = pool.debtFloorInUsd();
 
         if (_debtFloorInUsd > 0) {
             require(
-                _masterOracle.quoteTokenToUsd(
-                    address(this),
-                    controller.debtTokenOf(this).balanceOf(_account) + _amount
-                ) >= _debtFloorInUsd,
+                _masterOracle.quoteTokenToUsd(address(this), pool.debtTokenOf(this).balanceOf(_account) + _amount) >=
+                    _debtFloorInUsd,
                 "debt-lt-floor"
             );
         }
 
-        uint256 _issueFee = controller.issueFee();
+        uint256 _issueFee = pool.issueFee();
         uint256 _amountToIssue = _amount;
         uint256 _feeAmount;
         if (_issueFee > 0) {
             _feeAmount = _amount.wadMul(_issueFee);
-            _mint(address(controller.treasury()), _feeAmount);
+            _mint(address(pool.treasury()), _feeAmount);
             _amountToIssue -= _feeAmount;
         }
 
         _mint(_to, _amountToIssue);
-        controller.debtTokenOf(this).mint(_account, _amount);
+        pool.debtTokenOf(this).mint(_account, _amount);
 
         emit SyntheticTokenIssued(_account, _to, _amount, _feeAmount);
     }
@@ -233,28 +231,28 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
 
         address _payer = _msgSender();
 
-        uint256 _repayFee = controller.repayFee();
+        uint256 _repayFee = pool.repayFee();
         uint256 _amountToRepay = _amount;
         uint256 _feeAmount;
         if (_repayFee > 0) {
             // Note: `_amountToRepay = _amount - repayFeeAmount`
             _amountToRepay = _amount.wadDiv(1e18 + _repayFee);
             _feeAmount = _amount - _amountToRepay;
-            _transfer(_payer, address(controller.treasury()), _feeAmount);
+            _transfer(_payer, address(pool.treasury()), _feeAmount);
         }
 
-        uint256 _debtFloorInUsd = controller.debtFloorInUsd();
+        uint256 _debtFloorInUsd = pool.debtFloorInUsd();
 
         if (_debtFloorInUsd > 0) {
-            uint256 _newDebtInUsd = controller.masterOracle().quoteTokenToUsd(
+            uint256 _newDebtInUsd = pool.masterOracle().quoteTokenToUsd(
                 address(this),
-                controller.debtTokenOf(this).balanceOf(_onBehalfOf) - _amountToRepay
+                pool.debtTokenOf(this).balanceOf(_onBehalfOf) - _amountToRepay
             );
             require(_newDebtInUsd == 0 || _newDebtInUsd >= _debtFloorInUsd, "debt-lt-floor");
         }
 
         _burn(_payer, _amountToRepay);
-        controller.debtTokenOf(this).burn(_onBehalfOf, _amountToRepay);
+        pool.debtTokenOf(this).burn(_onBehalfOf, _amountToRepay);
 
         emit DebtRepaid(_payer, _onBehalfOf, _amount, _feeAmount);
     }
@@ -264,7 +262,7 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
      * @param _to The account to mint to
      * @param _amount The amount to mint
      */
-    function mint(address _to, uint256 _amount) external override onlyController {
+    function mint(address _to, uint256 _amount) external override onlyPool {
         _mint(_to, _amount);
     }
 
@@ -273,7 +271,7 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
      * @param _from The account to burn from
      * @param _amount The amount to burn
      */
-    function burn(address _from, uint256 _amount) external override onlyController {
+    function burn(address _from, uint256 _amount) external override onlyPool {
         _burn(_from, _amount);
     }
 
@@ -312,11 +310,11 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
      * @notice Accrue interest
      */
     function accrueInterest() public {
-        uint256 _interestAmountAccrued = controller.debtTokenOf(this).accrueInterest();
+        uint256 _interestAmountAccrued = pool.debtTokenOf(this).accrueInterest();
 
         if (_interestAmountAccrued > 0) {
             // Note: We can save some gas by incrementing only and mint all accrued amount later
-            _mint(address(controller.treasury()), _interestAmountAccrued);
+            _mint(address(pool.treasury()), _interestAmountAccrued);
         }
     }
 }

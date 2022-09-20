@@ -6,30 +6,30 @@ import "../dependencies/openzeppelin/utils/Context.sol";
 import "../dependencies/openzeppelin/proxy/utils/Initializable.sol";
 import "../utils/TokenHolder.sol";
 import "../interfaces/IGovernable.sol";
-import "../interfaces/IController.sol";
+import "../interfaces/IPool.sol";
 
 /**
  * @title Reusable contract that handles accesses
  */
 abstract contract Manageable is Context, TokenHolder, Initializable {
     /**
-     * @notice Controller contract
+     * @notice Pool contract
      */
-    IController public controller;
+    IPool public pool;
 
     // solhint-disable-next-line func-name-mixedcase
     function __Manageable_init() internal initializer {}
 
     /**
-     * @notice Requires that the caller is the Controller contract
+     * @notice Requires that the caller is the Pool contract
      */
-    modifier onlyController() {
-        require(_msgSender() == address(controller), "not-controller");
+    modifier onlyPool() {
+        require(_msgSender() == address(pool), "not-pool");
         _;
     }
 
     /**
-     * @notice Requires that the caller is the Controller contract
+     * @notice Requires that the caller is the Pool contract
      */
     modifier onlyGovernor() {
         require(_msgSender() == governor(), "not-governor");
@@ -37,28 +37,28 @@ abstract contract Manageable is Context, TokenHolder, Initializable {
     }
 
     modifier whenNotPaused() {
-        require(!controller.paused(), "paused");
+        require(!pool.paused(), "paused");
         _;
     }
 
     modifier whenNotShutdown() {
-        require(!controller.everythingStopped(), "not-shutdown");
+        require(!pool.everythingStopped(), "not-shutdown");
         _;
     }
 
     function governor() public view returns (address _governor) {
-        _governor = IGovernable(address(controller)).governor();
+        _governor = IGovernable(address(pool)).governor();
     }
 
     function _requireCanSweep() internal view override onlyGovernor {}
 
     /**
-     * @notice Update Controller contract
-     * @param _controller The new Controller contract
+     * @notice Update Pool contract
+     * @param _pool The new Pool contract
      */
-    function setController(IController _controller) external onlyGovernor {
-        require(address(_controller) != address(0), "new-controller-address-is-zero");
-        controller = _controller;
+    function setPool(IPool _pool) external onlyGovernor {
+        require(address(_pool) != address(0), "new-pool-address-is-zero");
+        pool = _pool;
     }
 
     uint256[49] private __gap;

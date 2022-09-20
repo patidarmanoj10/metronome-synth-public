@@ -9,10 +9,10 @@ pragma solidity 0.8.9;
 
 import "../lib/WadRayMath.sol";
 import "../Pausable.sol";
-import "../interfaces/IController.sol";
+import "../interfaces/IPool.sol";
 import "../access/Governable.sol";
 
-contract ControllerMock is IController, Governable, Pausable {
+contract PoolMock is IPool, Governable, Pausable {
     using WadRayMath for uint256;
 
     ITreasury public treasury;

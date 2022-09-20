@@ -4,14 +4,14 @@ pragma solidity 0.8.9;
 
 import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./dependencies/openzeppelin/utils/math/Math.sol";
-import "./storage/ControllerStorage.sol";
+import "./storage/PoolStorage.sol";
 import "./lib/WadRayMath.sol";
 import "./Pausable.sol";
 
 /**
- * @title Controller contract
+ * @title Pool contract
  */
-contract Controller is ReentrancyGuard, Pausable, ControllerStorageV1 {
+contract Pool is ReentrancyGuard, Pausable, PoolStorageV1 {
     using SafeERC20 for IERC20;
     using WadRayMath for uint256;
     using EnumerableSet for EnumerableSet.AddressSet;

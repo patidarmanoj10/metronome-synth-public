@@ -32,11 +32,11 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     event RewardClaimed(address account, uint256 amount);
 
     /**
-     * @dev Throws if this contract isn't registered on controller
+     * @dev Throws if this contract isn't registered on pool
      */
     modifier onlyIfDistributorExists() {
         bool _distributorAdded = false;
-        IRewardsDistributor[] memory _rewardsDistributors = controller.getRewardsDistributors();
+        IRewardsDistributor[] memory _rewardsDistributors = pool.getRewardsDistributors();
         uint256 _length = _rewardsDistributors.length;
         for (uint256 i; i < _length; ++i) {
             if (_rewardsDistributors[i] == this) {
@@ -53,21 +53,21 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
      * @dev Should be a DepositToken (suppliers) or DebtToken (borrowers)
      */
     modifier onlyIfTokenExists(IERC20 _token) {
-        if (!controller.isDepositTokenExists(IDepositToken(address(_token)))) {
+        if (!pool.isDepositTokenExists(IDepositToken(address(_token)))) {
             ISyntheticToken _syntheticToken = IDebtToken(address(_token)).syntheticToken();
-            require(controller.isSyntheticTokenExists(_syntheticToken), "invalid-token");
-            require(address(controller.debtTokenOf(_syntheticToken)) == address(_token), "invalid-token");
+            require(pool.isSyntheticTokenExists(_syntheticToken), "invalid-token");
+            require(address(pool.debtTokenOf(_syntheticToken)) == address(_token), "invalid-token");
         }
         _;
     }
 
-    function initialize(IController _controller, IERC20 _rewardToken) external initializer {
+    function initialize(IPool _pool, IERC20 _rewardToken) external initializer {
         __Manageable_init();
 
-        require(address(_controller) != address(0), "controller-is-null");
+        require(address(_pool) != address(0), "pool-is-null");
         require(address(_rewardToken) != address(0), "reward-token-is-null");
 
-        controller = _controller;
+        pool = _pool;
         rewardToken = _rewardToken;
     }
 

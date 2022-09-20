@@ -55,7 +55,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @dev Throws if deposit token doesn't exist
      */
     modifier onlyIfDepositTokenExists() {
-        require(controller.isDepositTokenExists(this), "collateral-inexistent");
+        require(pool.isDepositTokenExists(this), "collateral-inexistent");
         _;
     }
 
@@ -64,7 +64,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @dev Should be called before balance changes (i.e. mint/burn)
      */
     modifier updateRewardsBeforeMintOrBurn(address _account) {
-        IRewardsDistributor[] memory _rewardsDistributors = controller.getRewardsDistributors();
+        IRewardsDistributor[] memory _rewardsDistributors = pool.getRewardsDistributors();
         uint256 _length = _rewardsDistributors.length;
         for (uint256 i; i < _length; ++i) {
             _rewardsDistributors[i].updateBeforeMintOrBurn(this, _account);
@@ -77,7 +77,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @dev Should be called before balance changes (i.e. transfer)
      */
     modifier updateRewardsBeforeTransfer(address _sender, address _recipient) {
-        IRewardsDistributor[] memory _rewardsDistributors = controller.getRewardsDistributors();
+        IRewardsDistributor[] memory _rewardsDistributors = pool.getRewardsDistributors();
         uint256 _length = _rewardsDistributors.length;
         for (uint256 i; i < _length; ++i) {
             _rewardsDistributors[i].updateBeforeTransfer(this, _sender, _recipient);
@@ -95,19 +95,19 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
 
     function initialize(
         IERC20 _underlying,
-        IController _controller,
+        IPool _pool,
         string calldata _symbol,
         uint8 _decimals,
         uint128 _collateralizationRatio,
         uint256 _maxTotalSupplyInUsd
     ) public initializer {
         require(address(_underlying) != address(0), "underlying-is-null");
-        require(address(_controller) != address(0), "controller-address-is-zero");
+        require(address(_pool) != address(0), "pool-address-is-zero");
         require(_collateralizationRatio <= 1e18, "collateralization-ratio-gt-100%");
 
         __Manageable_init();
 
-        controller = _controller;
+        pool = _pool;
         name = "Tokenized deposit position";
         symbol = _symbol;
         underlying = _underlying;
@@ -171,7 +171,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     {
         require(_account != address(0), "mint-to-the-zero-address");
 
-        uint256 _newTotalSupplyInUsd = controller.masterOracle().quoteTokenToUsd(address(this), totalSupply + _amount);
+        uint256 _newTotalSupplyInUsd = pool.masterOracle().quoteTokenToUsd(address(this), totalSupply + _amount);
         require(_newTotalSupplyInUsd <= maxTotalSupplyInUsd, "surpass-max-total-supply");
         lastDepositOf[_account] = block.timestamp;
 
@@ -216,13 +216,13 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
 
     function _addToDepositTokensOfRecipientIfNeeded(address _recipient, uint256 _recipientBalanceBefore) private {
         if (_recipientBalanceBefore == 0) {
-            controller.addToDepositTokensOfAccount(_recipient);
+            pool.addToDepositTokensOfAccount(_recipient);
         }
     }
 
     function _removeFromDepositTokensOfSenderIfNeeded(address _sender, uint256 _senderBalanceAfter) private {
         if (_senderBalanceAfter == 0) {
-            controller.removeFromDepositTokensOfAccount(_sender);
+            pool.removeFromDepositTokensOfAccount(_sender);
         }
     }
 
@@ -242,7 +242,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         require(_amount > 0, "amount-is-zero");
 
         address _sender = _msgSender();
-        ITreasury _treasury = controller.treasury();
+        ITreasury _treasury = pool.treasury();
 
         uint256 _balanceBefore = underlying.balanceOf(address(_treasury));
 
@@ -250,7 +250,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
 
         _amount = underlying.balanceOf(address(_treasury)) - _balanceBefore;
 
-        uint256 _depositFee = controller.depositFee();
+        uint256 _depositFee = pool.depositFee();
         uint256 _amountToDeposit = _amount;
         uint256 _feeAmount;
         if (_depositFee > 0) {
@@ -282,9 +282,9 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
 
         require(_amount <= unlockedBalanceOf(_account), "amount-gt-unlocked");
 
-        ITreasury _treasury = controller.treasury();
+        ITreasury _treasury = pool.treasury();
 
-        uint256 _withdrawFee = controller.withdrawFee();
+        uint256 _withdrawFee = pool.withdrawFee();
         uint256 _amountToWithdraw = _amount;
         uint256 _feeAmount;
         if (_withdrawFee > 0) {
@@ -304,7 +304,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @param _to The account to mint to
      * @param _amount The amount to mint
      */
-    function mint(address _to, uint256 _amount) external override onlyController {
+    function mint(address _to, uint256 _amount) external override onlyPool {
         _mint(_to, _amount);
     }
 
@@ -322,7 +322,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @param _from The account to burn from
      * @param _amount The amount to burn
      */
-    function burn(address _from, uint256 _amount) external override onlyController {
+    function burn(address _from, uint256 _amount) external override onlyPool {
         _burn(_from, _amount);
     }
 
@@ -369,13 +369,13 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @return _unlockedBalance The amount that user can transfer or withdraw
      */
     function unlockedBalanceOf(address _account) public view override returns (uint256 _unlockedBalance) {
-        (, , , , uint256 _issuableInUsd) = controller.debtPositionOf(_account);
+        (, , , , uint256 _issuableInUsd) = pool.debtPositionOf(_account);
 
         if (_issuableInUsd > 0) {
             uint256 _unlockedInUsd = _issuableInUsd.wadDiv(collateralizationRatio);
             _unlockedBalance = Math.min(
                 balanceOf[_account],
-                controller.masterOracle().quoteUsdToToken(address(this), _unlockedInUsd)
+                pool.masterOracle().quoteUsdToToken(address(this), _unlockedInUsd)
             );
         }
     }
@@ -402,7 +402,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         address _from,
         address _to,
         uint256 _amount
-    ) external override onlyController {
+    ) external override onlyPool {
         _transfer(_from, _to, _amount);
     }
 

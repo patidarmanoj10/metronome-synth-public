@@ -9,8 +9,8 @@ import {
   DepositToken__factory,
   SyntheticToken,
   SyntheticToken__factory,
-  Controller,
-  Controller__factory,
+  Pool,
+  Pool__factory,
   NativeTokenGateway,
   NativeTokenGateway__factory,
   IERC20,
@@ -44,7 +44,7 @@ const {
 // Skipping this since CI forks mainnet and these tests run against avalanche's fork
 describe.skip('Integration tests', function () {
   let alice: SignerWithAddress
-  let controller: Controller
+  let pool: Pool
   let nativeGateway: NativeTokenGateway
   let wavax: IERC20
   let weth: IERC20
@@ -75,7 +75,7 @@ describe.skip('Integration tests', function () {
     usdt = IERC20__factory.connect(USDT_ADDRESS, alice)
 
     const {
-      Controller: {address: controllerAddress},
+      Pool: {address: poolAddress},
       NativeTokenGateway: {address: wethGatewayAddress},
       WAVAXDepositToken: {address: wavaxDepositTokenAddress},
       WETHDepositToken: {address: wethDepositTokenAddress},
@@ -89,7 +89,7 @@ describe.skip('Integration tests', function () {
       MsAAVESynthetic: {address: msAAVEAddress},
     } = await deployments.fixture()
 
-    controller = Controller__factory.connect(controllerAddress, alice)
+    pool = Pool__factory.connect(poolAddress, alice)
     nativeGateway = NativeTokenGateway__factory.connect(wethGatewayAddress, alice)
 
     // msdAssets
@@ -141,13 +141,13 @@ describe.skip('Integration tests', function () {
 
   it('should deposit NATIVE', async function () {
     // given
-    const {_depositInUsd: before} = await controller.depositOf(alice.address)
+    const {_depositInUsd: before} = await pool.depositOf(alice.address)
 
     // when
-    await nativeGateway.deposit(controller.address, {value: parseEther('0.1')})
+    await nativeGateway.deposit(pool.address, {value: parseEther('0.1')})
 
     // then
-    const {_depositInUsd: after} = await controller.depositOf(alice.address)
+    const {_depositInUsd: after} = await pool.depositOf(alice.address)
 
     expect(after.sub(before)).closeTo(toUSD('1.87'), toUSD('1'))
   })
@@ -155,14 +155,14 @@ describe.skip('Integration tests', function () {
   it('should deposit WAVAX', async function () {
     const amount = parseEther('10')
     await setTokenBalance(wavax.address, alice.address, amount)
-    const {_depositInUsd: before} = await controller.depositOf(alice.address)
+    const {_depositInUsd: before} = await pool.depositOf(alice.address)
 
     // when
     await wavax.approve(msdWAVAX.address, ethers.constants.MaxUint256)
     await msdWAVAX.deposit(amount, alice.address)
 
     // then
-    const {_depositInUsd: after} = await controller.depositOf(alice.address)
+    const {_depositInUsd: after} = await pool.depositOf(alice.address)
     expect(after.sub(before)).closeTo(toUSD('187'), toUSD('5'))
   })
 
@@ -170,14 +170,14 @@ describe.skip('Integration tests', function () {
     // given
     const amount = parseEther('1')
     await setTokenBalance(weth.address, alice.address, amount)
-    const {_depositInUsd: before} = await controller.depositOf(alice.address)
+    const {_depositInUsd: before} = await pool.depositOf(alice.address)
 
     // when
     await weth.approve(msdWETH.address, ethers.constants.MaxUint256)
     await msdWETH.deposit(amount, alice.address)
 
     // then
-    const {_depositInUsd: after} = await controller.depositOf(alice.address)
+    const {_depositInUsd: after} = await pool.depositOf(alice.address)
     expect(after.sub(before)).closeTo(toUSD('1570'), toUSD('5'))
   })
 
@@ -185,14 +185,14 @@ describe.skip('Integration tests', function () {
     // given
     const amount = parseUnits('10000', 6)
     await setTokenBalance(usdc.address, alice.address, amount)
-    const {_depositInUsd: before} = await controller.depositOf(alice.address)
+    const {_depositInUsd: before} = await pool.depositOf(alice.address)
 
     // when
     await usdc.approve(msdUSDC.address, ethers.constants.MaxUint256)
     await msdUSDC.deposit(amount, alice.address)
 
     // then
-    const {_depositInUsd: after} = await controller.depositOf(alice.address)
+    const {_depositInUsd: after} = await pool.depositOf(alice.address)
     expect(after.sub(before)).closeTo(toUSD('10000'), toUSD('1'))
   })
 
@@ -200,14 +200,14 @@ describe.skip('Integration tests', function () {
     // given
     const amount = parseEther('10000')
     await setTokenBalance(dai.address, alice.address, amount)
-    const {_depositInUsd: before} = await controller.depositOf(alice.address)
+    const {_depositInUsd: before} = await pool.depositOf(alice.address)
 
     // when
     await dai.approve(msdDAI.address, ethers.constants.MaxUint256)
     await msdDAI.deposit(parseEther('10000'), alice.address)
 
     // then
-    const {_depositInUsd: after} = await controller.depositOf(alice.address)
+    const {_depositInUsd: after} = await pool.depositOf(alice.address)
     expect(after.sub(before)).closeTo(toUSD('10000'), toUSD('15'))
   })
 
@@ -215,85 +215,85 @@ describe.skip('Integration tests', function () {
     // given
     const amount = parseUnits('10000', 6)
     await setTokenBalance(usdt.address, alice.address, amount)
-    const {_depositInUsd: before} = await controller.depositOf(alice.address)
+    const {_depositInUsd: before} = await pool.depositOf(alice.address)
 
     // when
     await usdt.approve(msdUSDT.address, ethers.constants.MaxUint256)
     await msdUSDT.deposit(amount, alice.address)
 
     // then
-    const {_depositInUsd: after} = await controller.depositOf(alice.address)
+    const {_depositInUsd: after} = await pool.depositOf(alice.address)
     expect(after.sub(before)).closeTo(toUSD('10000'), toUSD('5'))
   })
 
   it('should check position after deposits', async function () {
-    const {_depositInUsd, _debtInUsd} = await controller.debtPositionOf(alice.address)
+    const {_depositInUsd, _debtInUsd} = await pool.debtPositionOf(alice.address)
     expect(_depositInUsd).closeTo(toUSD('31758'), toUSD('250'))
     expect(_debtInUsd).eq(0)
   })
 
   it('should mint msBTC', async function () {
     // given
-    const before = await controller.debtOf(alice.address)
+    const before = await pool.debtOf(alice.address)
 
     // when
     await msBTC.issue(parseUnits('0.1', 8), alice.address)
 
     // then
-    const after = await controller.debtOf(alice.address)
+    const after = await pool.debtOf(alice.address)
     expect(after.sub(before)).closeTo(toUSD('1899'), toUSD('10'))
   })
 
   it('should mint msUSD', async function () {
     // given
-    const before = await controller.debtOf(alice.address)
+    const before = await pool.debtOf(alice.address)
 
     // when
     await msUSD.issue(parseEther('5000'), alice.address)
 
     // then
-    const after = await controller.debtOf(alice.address)
+    const after = await pool.debtOf(alice.address)
     expect(after.sub(before)).eq(toUSD('5000'))
   })
 
   it('should mint msUNI', async function () {
     // given
-    const before = await controller.debtOf(alice.address)
+    const before = await pool.debtOf(alice.address)
 
     // when
     await msUNI.issue(parseEther('100'), alice.address)
 
     // then
-    const after = await controller.debtOf(alice.address)
+    const after = await pool.debtOf(alice.address)
     expect(after.sub(before)).closeTo(toUSD('599'), toUSD('1'))
   })
 
   it('should mint msCRV', async function () {
     // given
-    const before = await controller.debtOf(alice.address)
+    const before = await pool.debtOf(alice.address)
 
     // when
     await msCRV.issue(parseEther('1000'), alice.address)
 
     // then
-    const after = await controller.debtOf(alice.address)
+    const after = await pool.debtOf(alice.address)
     expect(after.sub(before)).closeTo(toUSD('1097'), toUSD('5'))
   })
 
   it('should mint msAAVE', async function () {
     // given
-    const before = await controller.debtOf(alice.address)
+    const before = await pool.debtOf(alice.address)
 
     // when
     await msAAVE.issue(parseEther('10'), alice.address)
 
     // then
-    const after = await controller.debtOf(alice.address)
+    const after = await pool.debtOf(alice.address)
     expect(after.sub(before)).closeTo(toUSD('850'), toUSD('1'))
   })
 
   it('should check position after issuances', async function () {
-    const {_depositInUsd, _debtInUsd} = await controller.debtPositionOf(alice.address)
+    const {_depositInUsd, _debtInUsd} = await pool.debtPositionOf(alice.address)
     expect(_depositInUsd).closeTo(toUSD('31758'), toUSD('250'))
     expect(_debtInUsd).closeTo(toUSD('9447'), toUSD('100'))
   })

@@ -2,10 +2,10 @@
 
 pragma solidity 0.8.9;
 
-import "./IController.sol";
+import "./IPool.sol";
 
 interface INativeTokenGateway {
-    function deposit(IController _controller) external payable;
+    function deposit(IPool _pool) external payable;
 
-    function withdraw(IController _controller, uint256 _amount) external;
+    function withdraw(IPool _pool, uint256 _amount) external;
 }

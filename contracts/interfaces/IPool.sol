@@ -10,9 +10,9 @@ import "./ITreasury.sol";
 import "./IRewardsDistributor.sol";
 
 /**
- * @notice Controller interface
+ * @notice Pool interface
  */
-interface IController is IPausable {
+interface IPool is IPausable {
     function debtFloorInUsd() external returns (uint256);
 
     function depositFee() external returns (uint256);

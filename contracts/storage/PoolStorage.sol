@@ -4,11 +4,11 @@ pragma solidity 0.8.9;
 
 import "../dependencies/openzeppelin/utils/structs/EnumerableSet.sol";
 import "../lib/MappedEnumerableSet.sol";
-import "../interfaces/IController.sol";
+import "../interfaces/IPool.sol";
 import "../interfaces/ITreasury.sol";
 import "../interfaces/IRewardsDistributor.sol";
 
-abstract contract ControllerStorageV1 is IController {
+abstract contract PoolStorageV1 is IPool {
     /**
      * @notice The debt floor (in USD) for each synthetic token
      * This parameters is used to keep incentive for liquidators (i.e. cover gas and provide enough profit)

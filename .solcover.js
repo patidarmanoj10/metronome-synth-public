@@ -28,11 +28,11 @@ module.exports = {
     'dependencies/uniswap/v2-periphery/interfaces/IUniswapV2Router01.sol',
     'dependencies/uniswap/v2-periphery/interfaces/IUniswapV2Router02.sol',
     'dependencies/uniswap/v2-periphery/libraries/UniswapV2OracleLibrary.sol',
-    'mock/ControllerMock.sol',
+    'mock/PoolMock.sol',
     'mock/DebtTokenMock.sol',
     'mock/DefaultOracleMock.sol',
     'mock/ERC20Mock.sol',
     'mock/MasterOracleMock.sol',
     'mock/RewardDistributorMock.sol',
-  ]
+  ],
 }
