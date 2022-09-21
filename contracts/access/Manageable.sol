@@ -6,12 +6,12 @@ import "../dependencies/openzeppelin/utils/Context.sol";
 import "../dependencies/openzeppelin/proxy/utils/Initializable.sol";
 import "../utils/TokenHolder.sol";
 import "../interfaces/IGovernable.sol";
-import "../interfaces/IPool.sol";
+import "../interfaces/IManageable.sol";
 
 /**
  * @title Reusable contract that handles accesses
  */
-abstract contract Manageable is Context, TokenHolder, Initializable {
+abstract contract Manageable is IManageable, Context, TokenHolder, Initializable {
     /**
      * @notice Pool contract
      */

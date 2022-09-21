@@ -59,6 +59,7 @@ const {
   DebtToken: DebtTokenConfig,
   SyntheticToken: SyntheticTokenConfig,
   Pool: {alias: Pool},
+  PoolRegistry: {alias: PoolRegistry},
 } = UpgradableContracts
 
 const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1)
@@ -121,6 +122,7 @@ export const buildSyntheticDeployFunction = ({
     const {execute, get, getOrNull} = deployments
     const {deployer} = await getNamedAccounts()
 
+    const {address: poolRegistryAddress} = await get(PoolRegistry)
     const {address: poolAddress} = await get(Pool)
 
     const wasDeployed = !!(await getOrNull(syntheticAlias))
@@ -131,7 +133,7 @@ export const buildSyntheticDeployFunction = ({
         ...SyntheticTokenConfig,
         alias: syntheticAlias,
       },
-      initializeArgs: [name, symbol, decimals, poolAddress, interestRate, maxTotalSupplyInUsd],
+      initializeArgs: [name, symbol, decimals, poolRegistryAddress],
     })
 
     const {address: debtTokenAddress} = await deployUpgradable({
@@ -140,7 +142,14 @@ export const buildSyntheticDeployFunction = ({
         ...DebtTokenConfig,
         alias: debtAlias,
       },
-      initializeArgs: [`${name}-Debt`, `${symbol}-Debt`, poolAddress, syntheticTokenAddress],
+      initializeArgs: [
+        `${name}-Debt`,
+        `${symbol}-Debt`,
+        poolAddress,
+        syntheticTokenAddress,
+        interestRate,
+        maxTotalSupplyInUsd,
+      ],
     })
 
     if (!wasDeployed) {

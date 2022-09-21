@@ -85,20 +85,18 @@ async function fixture() {
   const pool = await poolFactory.deploy()
   await pool.deployed()
 
+  const poolRegistryMock = await smock.fake('PoolRegistry')
+  poolRegistryMock.governor.returns(deployer.address)
+  poolRegistryMock.poolExists.returns((address: string) => address == pool.address)
+
   // Deployment tasks
   await msdMET.initialize(met.address, pool.address, 'msdMET', 18, metCR, MaxUint256)
-
   await msdDAI.initialize(dai.address, pool.address, 'msdDAI', 18, daiCR, MaxUint256)
-
   await treasury.initialize(pool.address)
-
-  await msEth.initialize('Metronome Synth ETH', 'msETH', 18, pool.address, interestRate, MaxUint256)
-
-  await msEthDebtToken.initialize('msETH Debt', 'msETH-Debt', pool.address, msEth.address)
-
-  await msDoge.initialize('Metronome Synth DOGE', 'msDOGE', 18, pool.address, interestRate, MaxUint256)
-
-  await msDogeDebtToken.initialize('msDOGE Debt', 'msDOGE-Debt', pool.address, msDoge.address)
+  await msEth.initialize('Metronome Synth ETH', 'msETH', 18, poolRegistryMock.address)
+  await msEthDebtToken.initialize('msETH Debt', 'msETH-Debt', pool.address, msEth.address, interestRate, MaxUint256)
+  await msDoge.initialize('Metronome Synth DOGE', 'msDOGE', 18, poolRegistryMock.address)
+  await msDogeDebtToken.initialize('msDOGE Debt', 'msDOGE-Debt', pool.address, msDoge.address, interestRate, MaxUint256)
 
   await pool.initialize(masterOracleMock.address)
   await pool.updateMaxLiquidable(parseEther('1')) // 100%
@@ -132,6 +130,7 @@ async function fixture() {
     msEth,
     msDoge,
     pool,
+    poolRegistryMock,
   }
 }
 
@@ -151,6 +150,7 @@ describe('Pool', function () {
   let msdDAI: DepositToken
   let masterOracle: MasterOracleMock
   let pool: Pool
+  let poolRegistryMock: FakeContract
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
@@ -167,6 +167,7 @@ describe('Pool', function () {
       msEth,
       msDoge,
       pool,
+      poolRegistryMock,
     } = await loadFixture(fixture))
   })
 
@@ -204,7 +205,7 @@ describe('Pool', function () {
       const {_issuableInUsd: _issuableInUsdBefore} = await pool.debtPositionOf(alice.address)
 
       const amountToIssue = await masterOracle.quoteUsdToToken(msEth.address, _issuableInUsdBefore)
-      await msEth.connect(alice).issue(amountToIssue, alice.address)
+      await msEthDebtToken.connect(alice).issue(amountToIssue, alice.address)
 
       const {_isHealthy, _issuableInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
 
@@ -242,7 +243,7 @@ describe('Pool', function () {
       const userMintAmount = parseEther('1')
 
       beforeEach(async function () {
-        await msEth.connect(alice).issue(userMintAmount, alice.address)
+        await msEthDebtToken.connect(alice).issue(userMintAmount, alice.address)
       })
 
       describe('swap', function () {
@@ -404,7 +405,7 @@ describe('Pool', function () {
         beforeEach(async function () {
           await met.connect(liquidator).approve(msdMET.address, ethers.constants.MaxUint256)
           await msdMET.connect(liquidator).deposit(liquidatorDepositAmount, liquidator.address)
-          await msEth.connect(liquidator).issue(liquidatorMintAmount, liquidator.address)
+          await msEthDebtToken.connect(liquidator).issue(liquidatorMintAmount, liquidator.address)
         })
 
         it('should revert if amount to repay == 0', async function () {
@@ -491,7 +492,7 @@ describe('Pool', function () {
           it('should revert if liquidator has not enough msAsset to repay', async function () {
             // given
             const liquidatorMsEthBalanceBefore = await msEth.balanceOf(liquidator.address)
-            await msEth.connect(liquidator).repay(liquidator.address, liquidatorMsEthBalanceBefore)
+            await msEthDebtToken.connect(liquidator).repay(liquidator.address, liquidatorMsEthBalanceBefore)
             const amountToRepayInUsd = await getMinLiquidationAmountInUsd(pool, alice.address, msdMET)
             const amountToRepayInMsEth = amountToRepayInUsd.mul(parseEther('1')).div(ethPrice)
             expect(await msEth.balanceOf(liquidator.address)).lt(amountToRepayInMsEth)
@@ -1065,7 +1066,7 @@ describe('Pool', function () {
             const {_issuableInUsd} = await pool.debtPositionOf(alice.address)
             const maxIssuableDoge = await masterOracle.quoteUsdToToken(msDoge.address, _issuableInUsd)
 
-            await msDoge.connect(alice).issue(maxIssuableDoge, alice.address)
+            await msDogeDebtToken.connect(alice).issue(maxIssuableDoge, alice.address)
 
             const {_isHealthy, _issuableInUsd: _mintableInUsdAfter} = await pool.debtPositionOf(alice.address)
             expect(_isHealthy).true
@@ -1085,7 +1086,7 @@ describe('Pool', function () {
 
             // when
             const amountToRepay = await msDogeDebtToken.balanceOf(alice.address)
-            await msDoge.connect(liquidator).issue(amountToRepay, liquidator.address)
+            await msDogeDebtToken.connect(liquidator).issue(amountToRepay, liquidator.address)
             await pool.connect(liquidator).liquidate(msDoge.address, alice.address, amountToRepay, msdMET.address)
 
             // then
@@ -1102,11 +1103,9 @@ describe('Pool', function () {
     let debtToken: FakeContract
 
     beforeEach(async function () {
-      const poolFake = await smock.fake('Pool')
       syntheticToken = await smock.fake('SyntheticToken')
       debtToken = await smock.fake('DebtToken')
-      poolFake.debtOf.returns(debtToken.address)
-      syntheticToken.pool.returns(poolFake.address)
+      syntheticToken.poolRegistry.returns(poolRegistryMock.address)
       debtToken.syntheticToken.returns(syntheticToken.address)
     })
 
@@ -1245,7 +1244,7 @@ describe('Pool', function () {
       await msdMET.deposit(parseEther('10000'), deployer.address)
 
       await msdMET.transfer(treasury.address, balance)
-      await msEth.issue(balance, deployer.address)
+      await msEthDebtToken.issue(balance, deployer.address)
       await msEth.transfer(treasury.address, balance)
 
       expect(await met.balanceOf(treasury.address)).gt(0)
@@ -1333,7 +1332,7 @@ describe('Pool', function () {
     beforeEach(async function () {
       syntheticToken = await smock.fake('SyntheticToken')
       debtToken = await smock.fake('DebtToken')
-      syntheticToken.pool.returns(pool.address)
+      syntheticToken.poolRegistry.returns(poolRegistryMock.address)
       debtToken.syntheticToken.returns(syntheticToken.address)
 
       await pool.addDebtToken(debtToken.address)

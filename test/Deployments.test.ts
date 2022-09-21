@@ -36,6 +36,7 @@ import {
 import {disableForking, enableForking} from './helpers'
 import Address from '../helpers/address'
 import {parseEther} from 'ethers/lib/utils'
+import {toUSD} from '../helpers'
 
 const {USDC_ADDRESS, NATIVE_TOKEN_ADDRESS, WAVAX_ADDRESS, MASTER_ORACLE_ADDRESS} = Address
 
@@ -280,9 +281,8 @@ describe('Deployments', function () {
 
     describe('msBTC SyntheticToken', function () {
       it('token should have correct params', async function () {
-        expect(await msBTC.pool()).eq(pool.address)
-        expect(await msBTC.governor()).eq(deployer.address)
-        expect(await msBTC.interestRate()).eq(parseEther('0'))
+        expect(await msBTC.poolRegistry()).eq(poolRegistry.address)
+        expect(await msBTC.isActive()).eq(true)
       })
 
       it('should upgrade implementation', async function () {
@@ -306,9 +306,8 @@ describe('Deployments', function () {
 
     describe('msUSD SyntheticToken', function () {
       it('msUSD token should have correct params', async function () {
-        expect(await msUSD.pool()).eq(pool.address)
-        expect(await msUSD.governor()).eq(deployer.address)
-        expect(await msUSD.interestRate()).eq(parseEther('0'))
+        expect(await msUSD.poolRegistry()).eq(poolRegistry.address)
+        expect(await msUSD.isActive()).eq(true)
       })
 
       it('should upgrade implementation', async function () {
@@ -336,6 +335,8 @@ describe('Deployments', function () {
       it('token should have correct params', async function () {
         expect(await msBTCDebt.pool()).eq(pool.address)
         expect(await msBTCDebt.governor()).eq(deployer.address)
+        expect(await msBTCDebt.interestRate()).eq(parseEther('0'))
+        expect(await msBTCDebt.maxTotalSupplyInUsd()).eq(toUSD('50000'))
       })
 
       it('should upgrade implementation', async function () {
@@ -361,6 +362,8 @@ describe('Deployments', function () {
       it(' token should have correct params', async function () {
         expect(await msUSDDebt.pool()).eq(pool.address)
         expect(await msUSDDebt.governor()).eq(deployer.address)
+        expect(await msUSDDebt.interestRate()).eq(parseEther('0'))
+        expect(await msUSDDebt.maxTotalSupplyInUsd()).eq(toUSD('50000'))
       })
 
       it('should upgrade implementation', async function () {
