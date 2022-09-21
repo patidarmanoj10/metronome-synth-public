@@ -4,8 +4,9 @@
 import {BigNumber} from '@ethersproject/bignumber'
 import {parseEther} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
+import {loadFixture} from '@nomicfoundation/hardhat-network-helpers'
 import chai, {expect} from 'chai'
-import {ethers, waffle} from 'hardhat'
+import {ethers} from 'hardhat'
 import {
   DepositToken,
   DepositToken__factory,
@@ -166,7 +167,7 @@ describe('Pool', function () {
       msEth,
       msDoge,
       pool,
-    } = await waffle.loadFixture(fixture))
+    } = await loadFixture(fixture))
   })
 
   describe('when user deposited multi-collateral', function () {
@@ -1163,7 +1164,7 @@ describe('Pool', function () {
   describe('updateMasterOracle', function () {
     it('should revert if not gorvernor', async function () {
       // when
-      const tx = pool.connect(alice.address).updateMasterOracle(ethers.constants.AddressZero)
+      const tx = pool.connect(alice).updateMasterOracle(ethers.constants.AddressZero)
 
       // then
       await expect(tx).revertedWith('not-governor')
@@ -1217,7 +1218,7 @@ describe('Pool', function () {
 
     it('should revert if caller is not governor', async function () {
       // when
-      const tx = pool.connect(alice.address).updateTreasury(treasury.address)
+      const tx = pool.connect(alice).updateTreasury(treasury.address)
 
       // then
       await expect(tx).revertedWith('not-governor')
@@ -1403,7 +1404,7 @@ describe('Pool', function () {
   describe('updateDepositFee', function () {
     it('should revert if caller is not governor', async function () {
       // when
-      const tx = pool.connect(alice.address).updateDepositFee(parseEther('1'))
+      const tx = pool.connect(alice).updateDepositFee(parseEther('1'))
 
       // then
       await expect(tx).revertedWith('not-governor')
@@ -1444,7 +1445,7 @@ describe('Pool', function () {
   describe('updateIssueFee', function () {
     it('should revert if caller is not governor', async function () {
       // when
-      const tx = pool.connect(alice.address).updateIssueFee(parseEther('1'))
+      const tx = pool.connect(alice).updateIssueFee(parseEther('1'))
 
       // then
       await expect(tx).revertedWith('not-governor')
@@ -1485,7 +1486,7 @@ describe('Pool', function () {
   describe('updateWithdrawFee', function () {
     it('should revert if caller is not governor', async function () {
       // when
-      const tx = pool.connect(alice.address).updateWithdrawFee(parseEther('1'))
+      const tx = pool.connect(alice).updateWithdrawFee(parseEther('1'))
 
       // then
       await expect(tx).revertedWith('not-governor')
@@ -1526,7 +1527,7 @@ describe('Pool', function () {
   describe('updateRepayFee', function () {
     it('should revert if caller is not governor', async function () {
       // when
-      const tx = pool.connect(alice.address).updateRepayFee(parseEther('1'))
+      const tx = pool.connect(alice).updateRepayFee(parseEther('1'))
 
       // then
       await expect(tx).revertedWith('not-governor')
@@ -1567,7 +1568,7 @@ describe('Pool', function () {
   describe('updateSwapFee', function () {
     it('should revert if caller is not governor', async function () {
       // when
-      const tx = pool.connect(alice.address).updateSwapFee(parseEther('1'))
+      const tx = pool.connect(alice).updateSwapFee(parseEther('1'))
 
       // then
       await expect(tx).revertedWith('not-governor')
@@ -1608,7 +1609,7 @@ describe('Pool', function () {
   describe('updateLiquidatorLiquidationFee', function () {
     it('should revert if caller is not governor', async function () {
       // when
-      const tx = pool.connect(alice.address).updateLiquidatorLiquidationFee(parseEther('1'))
+      const tx = pool.connect(alice).updateLiquidatorLiquidationFee(parseEther('1'))
 
       // then
       await expect(tx).revertedWith('not-governor')
@@ -1651,7 +1652,7 @@ describe('Pool', function () {
   describe('updateProtocolLiquidationFee', function () {
     it('should revert if caller is not governor', async function () {
       // when
-      const tx = pool.connect(alice.address).updateProtocolLiquidationFee(parseEther('1'))
+      const tx = pool.connect(alice).updateProtocolLiquidationFee(parseEther('1'))
 
       // then
       await expect(tx).revertedWith('not-governor')
@@ -1694,7 +1695,7 @@ describe('Pool', function () {
   describe('updateMaxLiquidable', function () {
     it('should revert if caller is not governor', async function () {
       // when
-      const tx = pool.connect(alice.address).updateMaxLiquidable(parseEther('1'))
+      const tx = pool.connect(alice).updateMaxLiquidable(parseEther('1'))
 
       // then
       await expect(tx).revertedWith('not-governor')
@@ -1734,7 +1735,7 @@ describe('Pool', function () {
   describe('updateDebtFloor', function () {
     it('should revert if caller is not governor', async function () {
       // when
-      const tx = pool.connect(alice.address).updateDebtFloor(parseEther('1'))
+      const tx = pool.connect(alice).updateDebtFloor(parseEther('1'))
 
       // then
       await expect(tx).revertedWith('not-governor')
@@ -1765,7 +1766,7 @@ describe('Pool', function () {
   describe('addRewardsDistributor', function () {
     it('should revert if caller is not governor', async function () {
       // when
-      const tx = pool.connect(alice.address).addRewardsDistributor(ethers.constants.AddressZero)
+      const tx = pool.connect(alice).addRewardsDistributor(ethers.constants.AddressZero)
 
       // then
       await expect(tx).revertedWith('not-governor')

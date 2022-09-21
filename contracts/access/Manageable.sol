@@ -42,7 +42,7 @@ abstract contract Manageable is Context, TokenHolder, Initializable {
     }
 
     modifier whenNotShutdown() {
-        require(!pool.everythingStopped(), "not-shutdown");
+        require(!pool.everythingStopped(), "shutdown");
         _;
     }
 
