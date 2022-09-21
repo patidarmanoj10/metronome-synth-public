@@ -422,7 +422,7 @@ describe('Pool', function () {
           await expect(tx).revertedWith('can-not-liquidate-own-position')
         })
 
-        it('should revert if position is healty', async function () {
+        it('should revert if position is healthy', async function () {
           // given
           const {_isHealthy} = await pool.debtPositionOf(alice.address)
           expect(_isHealthy).true
@@ -434,7 +434,7 @@ describe('Pool', function () {
           await expect(tx).revertedWith('position-is-healthy')
         })
 
-        describe('when the position is unhealthy (colalteral:debt >= 1)', function () {
+        describe('when the position is unhealthy (collateral:debt >= 1)', function () {
           const newMetPrice = toUSD('0.95')
 
           beforeEach(async function () {
@@ -898,7 +898,7 @@ describe('Pool', function () {
             await expect(tx).revertedWith('amount-too-high')
           })
 
-          it('should liquidate by repaying max possible amount (liquidafeFee == 0)', async function () {
+          it('should liquidate by repaying max possible amount (liquidateFee == 0)', async function () {
             // given
             await pool.updateProtocolLiquidationFee(0)
             const depositBefore = await msdMET.balanceOf(alice.address)
@@ -929,7 +929,7 @@ describe('Pool', function () {
             expect(await msEthDebtToken.balanceOf(liquidator.address)).eq(liquidatorMintAmount)
           })
 
-          it('should liquidate by repaying max possible amount (liquidafeFee > 0)', async function () {
+          it('should liquidate by repaying max possible amount (liquidateFee > 0)', async function () {
             // given
             const protocolLiquidationFee = parseEther('0.01') // 1%
             await pool.updateProtocolLiquidationFee(protocolLiquidationFee)
@@ -968,7 +968,7 @@ describe('Pool', function () {
             expect(await msEthDebtToken.balanceOf(liquidator.address)).eq(liquidatorMintAmount)
           })
 
-          it('should liquidate by not repaying all debt (liquidaFee == 0)', async function () {
+          it('should liquidate by not repaying all debt (liquidateFee == 0)', async function () {
             // given
             await pool.updateProtocolLiquidationFee(0)
             const {_depositInUsd: collateralInUsdBefore} = await pool.debtPositionOf(alice.address)
@@ -1008,7 +1008,7 @@ describe('Pool', function () {
             expect(await msEthDebtToken.balanceOf(liquidator.address)).eq(liquidatorMintAmount)
           })
 
-          it('should liquidate by not repaying all debt (liquidaFee > 0)', async function () {
+          it('should liquidate by not repaying all debt (liquidateFee > 0)', async function () {
             // given
             const protocolLiquidationFee = parseEther('0.01') // 1%
             await pool.updateProtocolLiquidationFee(protocolLiquidationFee)
@@ -1161,7 +1161,7 @@ describe('Pool', function () {
   })
 
   describe('updateMasterOracle', function () {
-    it('should revert if not gorvernor', async function () {
+    it('should revert if not governor', async function () {
       // when
       const tx = pool.connect(alice.address).updateMasterOracle(ethers.constants.AddressZero)
 

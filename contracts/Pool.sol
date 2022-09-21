@@ -408,12 +408,9 @@ contract Pool is ReentrancyGuard, Pausable, PoolStorageV1 {
      */
     function removeDebtToken(IDebtToken _debtToken) external override onlyGovernor onlyIfDebtTokenExists(_debtToken) {
         require(_debtToken.totalSupply() == 0, "supply-gt-0");
-        ISyntheticToken _syntheticToken = _debtToken.syntheticToken();
-        require(_syntheticToken.totalSupply() == 0, "synthetic-supply-gt-0");
-
         require(debtTokens.remove(address(_debtToken)), "debt-doesnt-exist");
 
-        delete debtTokenOf[_syntheticToken];
+        delete debtTokenOf[_debtToken.syntheticToken()];
 
         emit DebtTokenRemoved(_debtToken);
     }
