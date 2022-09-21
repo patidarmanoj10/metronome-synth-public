@@ -33,6 +33,7 @@ describe('DebtToken', function () {
   let user1: SignerWithAddress
   let user2: SignerWithAddress
   let treasury: SignerWithAddress
+  let feeCollector: SignerWithAddress
   let poolRegistryMock: FakeContract
   let poolMock: MockContract
   let msUSD: SyntheticToken
@@ -50,7 +51,7 @@ describe('DebtToken', function () {
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
-    ;[deployer, governor, user1, user2, treasury] = await ethers.getSigners()
+    ;[deployer, governor, user1, user2, treasury, feeCollector] = await ethers.getSigners()
 
     poolRegistryMock = await smock.fake('PoolRegistry')
 
@@ -76,7 +77,13 @@ describe('DebtToken', function () {
     await msUSDDebt.deployed()
 
     const poolMockFactory = await smock.mock('PoolMock')
-    poolMock = await poolMockFactory.deploy(msdMET.address, masterOracleMock.address, msUSD.address, msUSDDebt.address)
+    poolMock = await poolMockFactory.deploy(
+      msdMET.address,
+      masterOracleMock.address,
+      msUSD.address,
+      msUSDDebt.address,
+      poolRegistryMock.address
+    )
     await poolMock.deployed()
     await poolMock.updateTreasury(treasury.address)
     await setEtherBalance(poolMock.address, parseEther('10'))
@@ -93,6 +100,7 @@ describe('DebtToken', function () {
 
     poolRegistryMock.poolExists.returns((address: string) => address == poolMock.address)
     poolRegistryMock.governor.returns(governor.address)
+    poolRegistryMock.feeCollector.returns(feeCollector.address)
 
     const rewardsDistributorMockFactory = await smock.mock('RewardsDistributor')
     rewardsDistributorMock = await rewardsDistributorMockFactory.deploy()
@@ -246,7 +254,7 @@ describe('DebtToken', function () {
       const expectedFee = amount.mul(issueFee).div(parseEther('1'))
       const expectedAmountAfterFee = amount.sub(expectedFee)
       const tx = () => msUSDDebt.connect(user1).issue(amount, user1.address)
-      await expect(tx).changeTokenBalances(msUSD, [user1, treasury], [expectedAmountAfterFee, expectedFee])
+      await expect(tx).changeTokenBalances(msUSD, [user1, feeCollector], [expectedAmountAfterFee, expectedFee])
 
       // then
       // Note: the calls below will make additional transfers
@@ -774,6 +782,29 @@ describe('DebtToken', function () {
       const totalDebt = await msUSDDebt.totalSupply()
       expect(totalDebt).closeTo(parseEther('110'), parseEther('0.1'))
     })
+
+    it('should mint accrued fee to feeCollector', async function () {
+      // given
+      await msUSDDebt.updateInterestRate(parseEther('0.1')) // 10%
+      await msUSD.connect(poolMock.wallet).mint(user1.address, principal)
+
+      await increaseTime(SECONDS_PER_YEAR)
+
+      // when
+      await msUSDDebt.accrueInterest()
+
+      // then
+      const totalCredit = await msUSD.totalSupply()
+      const totalDebt = await msUSDDebt.totalSupply()
+      const debtOfUser = await msUSDDebt.balanceOf(user1.address)
+      const creditOfUser = await msUSD.balanceOf(user1.address)
+      const creditOfFeeCollector = await msUSD.balanceOf(feeCollector.address)
+      expect(totalDebt).closeTo(parseEther('110'), parseEther('0.01'))
+      expect(totalCredit).eq(totalDebt)
+      expect(totalDebt).closeTo(debtOfUser, parseEther('0.000001'))
+      expect(creditOfUser).eq(principal)
+      expect(totalCredit).eq(creditOfUser.add(creditOfFeeCollector))
+    })
   })
 
   describe('updateMaxTotalSupplyInUsd', function () {
@@ -815,32 +846,6 @@ describe('DebtToken', function () {
     it('should revert if not governor', async function () {
       const tx = msUSDDebt.connect(user1).updateInterestRate(parseEther('0.12'))
       await expect(tx).revertedWith('not-governor')
-    })
-  })
-
-  describe('acrueInterest', function () {
-    it('should mint accrued fee to treasury', async function () {
-      // given
-      const principal = parseEther('100')
-      await msUSDDebt.updateInterestRate(parseEther('0.1')) // 10%
-      await msUSD.connect(poolMock.wallet).mint(user1.address, principal)
-      await msUSDDebt.connect(msUSDWallet).mint(user1.address, principal)
-      await increaseTime(SECONDS_PER_YEAR)
-
-      // when
-      await msUSDDebt.accrueInterest()
-
-      // then
-      const totalCredit = await msUSD.totalSupply()
-      const totalDebt = await msUSDDebt.totalSupply()
-      const debtOfUser = await msUSDDebt.balanceOf(user1.address)
-      const creditOfUser = await msUSD.balanceOf(user1.address)
-      const creditOfTreasury = await msUSD.balanceOf(treasury.address)
-      expect(totalDebt).closeTo(parseEther('110'), parseEther('0.01'))
-      expect(totalCredit).eq(totalDebt)
-      expect(totalDebt).closeTo(debtOfUser, parseEther('0.000001'))
-      expect(creditOfUser).eq(principal)
-      expect(totalCredit).eq(creditOfUser.add(creditOfTreasury))
     })
   })
 })

@@ -4,10 +4,7 @@ pragma solidity 0.8.9;
 
 import "../dependencies/openzeppelin/utils/structs/EnumerableSet.sol";
 import "../lib/MappedEnumerableSet.sol";
-import "../interfaces/IPoolRegistry.sol";
 import "../interfaces/IPool.sol";
-import "../interfaces/ITreasury.sol";
-import "../interfaces/IRewardsDistributor.sol";
 
 abstract contract PoolStorageV1 is IPool {
     /**

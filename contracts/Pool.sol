@@ -128,6 +128,13 @@ contract Pool is ReentrancyGuard, Pausable, PoolStorageV1 {
     }
 
     /**
+     * @notice Returns fee collector address
+     */
+    function feeCollector() external view returns (address) {
+        return poolRegistry.feeCollector();
+    }
+
+    /**
      * @notice Get all debt tokens
      * @dev WARNING: This operation will copy the entire storage to memory, which can be quite expensive. This is designed
      * to mostly be used by view accessors that are queried without any gas fees.

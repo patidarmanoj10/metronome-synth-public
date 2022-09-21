@@ -205,15 +205,15 @@ describe('RewardDistributor', function () {
         await rewardDistributor.updateBeforeMintOrBurn(msdTOKEN1.address, alice.address)
 
         // then
-        const expectedTotalAccured = parseEther('10')
-        const expectedUserAccured = parseEther('10')
-        const accrualRatio = expectedTotalAccured.mul(parseEther('1')).div(totalSupply)
+        const expectedTotalAccrued = parseEther('10')
+        const expectedUserAccrued = parseEther('10')
+        const accrualRatio = expectedTotalAccrued.mul(parseEther('1')).div(totalSupply)
 
         const {index: indexAfter} = await rewardDistributor.tokenStates(msdTOKEN1.address)
         const aliceIndexAfter = await rewardDistributor.accountIndexOf(msdTOKEN1.address, alice.address)
         const tokensAccruedOfUser = await rewardDistributor.tokensAccruedOf(alice.address)
 
-        expect(tokensAccruedOfUser).eq(expectedUserAccured)
+        expect(tokensAccruedOfUser).eq(expectedUserAccrued)
         expect(indexAfter).eq(DEFAULT_INDEX.add(accrualRatio))
         expect(aliceIndexAfter).eq(indexAfter)
       })
@@ -229,15 +229,15 @@ describe('RewardDistributor', function () {
         await rewardDistributor.updateBeforeMintOrBurn(msdTOKEN1.address, alice.address)
 
         // then
-        const expectedTotalAccured = parseEther('10')
-        const expectedUserAccured = parseEther('5')
-        const accrualRatio = expectedTotalAccured.mul(parseEther('1')).div(totalSupply)
+        const expectedTotalAccrued = parseEther('10')
+        const expectedUserAccrued = parseEther('5')
+        const accrualRatio = expectedTotalAccrued.mul(parseEther('1')).div(totalSupply)
 
         const {index: indexAfter} = await rewardDistributor.tokenStates(msdTOKEN1.address)
         const aliceIndexAfter = await rewardDistributor.accountIndexOf(msdTOKEN1.address, alice.address)
         const tokensAccruedOfUser = await rewardDistributor.tokensAccruedOf(alice.address)
 
-        expect(tokensAccruedOfUser).eq(expectedUserAccured)
+        expect(tokensAccruedOfUser).eq(expectedUserAccrued)
         expect(indexAfter).eq(DEFAULT_INDEX.add(accrualRatio))
         expect(aliceIndexAfter).eq(indexAfter)
       })

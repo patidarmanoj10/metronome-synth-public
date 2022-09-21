@@ -12,13 +12,14 @@ describe('PoolRegistry', function () {
   let deployer: SignerWithAddress
   let alice: SignerWithAddress
   let bob: SignerWithAddress
+  let feeCollector: SignerWithAddress
   let pool: FakeContract
   let poolRegistry: PoolRegistry
   let masterOracleMock: MasterOracleMock
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
-    ;[deployer, alice, bob] = await ethers.getSigners()
+    ;[deployer, alice, bob, feeCollector] = await ethers.getSigners()
 
     const masterOracleMockFactory = new MasterOracleMock__factory(deployer)
     masterOracleMock = await masterOracleMockFactory.deploy()
@@ -29,7 +30,7 @@ describe('PoolRegistry', function () {
     const poolRegistryFactory = new PoolRegistry__factory(deployer)
     poolRegistry = await poolRegistryFactory.deploy()
     await poolRegistry.deployed()
-    await poolRegistry.initialize(masterOracleMock.address)
+    await poolRegistry.initialize(masterOracleMock.address, feeCollector.address)
   })
 
   describe('registerPool', function () {
@@ -92,6 +93,43 @@ describe('PoolRegistry', function () {
       await expect(tx).emit(poolRegistry, 'PoolUnregistered').withArgs(pool.address)
       const after = await poolRegistry.getPools()
       expect(after).to.deep.eq([])
+    })
+  })
+
+  describe('updateFeeCollector', function () {
+    it('should revert if not governor', async function () {
+      const tx = poolRegistry.connect(bob).updateFeeCollector(bob.address)
+      await expect(tx).revertedWith('not-governor')
+    })
+
+    it('should revert if feeCollector is null', async function () {
+      const tx = poolRegistry.updateFeeCollector(ethers.constants.AddressZero)
+      await expect(tx).revertedWith('fee-collector-is-null')
+    })
+
+    it('should revert if using the same address', async function () {
+      // given
+      expect(await poolRegistry.feeCollector()).eq(feeCollector.address)
+
+      // when
+      const tx = poolRegistry.updateFeeCollector(feeCollector.address)
+
+      // then
+      await expect(tx).revertedWith('new-same-as-current')
+    })
+
+    it('should update fee collector', async function () {
+      // given
+      const before = await poolRegistry.feeCollector()
+      expect(before).to.eq(feeCollector.address)
+
+      // when
+      const tx = poolRegistry.updateFeeCollector(alice.address)
+
+      // then
+      await expect(tx).emit(poolRegistry, 'FeeCollectorUpdated').withArgs(before, alice.address)
+      const after = await poolRegistry.feeCollector()
+      expect(after).to.eq(alice.address)
     })
   })
 

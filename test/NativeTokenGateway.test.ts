@@ -65,6 +65,7 @@ describe('NativeTokenGateway', function () {
       msdNativeToken.address,
       masterOracleMock.address,
       ethers.constants.AddressZero,
+      ethers.constants.AddressZero,
       ethers.constants.AddressZero
     )
     await poolMock.deployed()

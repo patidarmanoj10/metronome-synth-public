@@ -282,7 +282,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
 
         if (_interestAmountAccrued > 0) {
             // Note: We can save some gas by incrementing only and mint all accrued amount later
-            syntheticToken.mint(address(pool.treasury()), _interestAmountAccrued);
+            syntheticToken.mint(pool.feeCollector(), _interestAmountAccrued);
         }
     }
 
@@ -328,7 +328,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
         uint256 _feeAmount;
         if (_issueFee > 0) {
             _feeAmount = _amount.wadMul(_issueFee);
-            syntheticToken.mint(address(pool.treasury()), _feeAmount);
+            syntheticToken.mint(pool.feeCollector(), _feeAmount);
             _amountToIssue -= _feeAmount;
         }
 
@@ -358,7 +358,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
             // Note: `_amountToRepay = _amount - repayFeeAmount`
             _amountToRepay = _amount.wadDiv(1e18 + _repayFee);
             _feeAmount = _amount - _amountToRepay;
-            syntheticToken.seize(_payer, address(pool.treasury()), _feeAmount);
+            syntheticToken.seize(_payer, pool.feeCollector(), _feeAmount);
         }
 
         uint256 _debtFloorInUsd = pool.debtFloorInUsd();

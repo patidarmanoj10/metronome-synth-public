@@ -111,19 +111,19 @@ describe('Deployments', function () {
     poolRegistryUpgrader = PoolRegistryUpgrader__factory.connect(poolRegistryUpgraderAddress, deployer)
   })
 
-  const upgradeTestcase = async function ({
+  const upgradeTestCase = async function ({
     proxy,
     upgrader,
-    newImplfactory,
+    newImplFactory,
     expectToFail,
   }: {
     proxy: Contract
     upgrader: UpgraderBase
-    newImplfactory: ContractFactory
+    newImplFactory: ContractFactory
     expectToFail: boolean
   }) {
     // given
-    const newImpl = await newImplfactory.deploy()
+    const newImpl = await newImplFactory.deploy()
     await newImpl.deployed()
 
     const oldImpl = await upgrader.getProxyImplementation(proxy.address)
@@ -149,8 +149,8 @@ describe('Deployments', function () {
     })
 
     it('should upgrade implementation', async function () {
-      await upgradeTestcase({
-        newImplfactory: new Pool__factory(deployer),
+      await upgradeTestCase({
+        newImplFactory: new Pool__factory(deployer),
         proxy: pool,
         upgrader: poolUpgrader,
         expectToFail: false,
@@ -158,8 +158,8 @@ describe('Deployments', function () {
     })
 
     it('should fail if implementation breaks storage', async function () {
-      await upgradeTestcase({
-        newImplfactory: new MasterOracleMock__factory(deployer),
+      await upgradeTestCase({
+        newImplFactory: new MasterOracleMock__factory(deployer),
         proxy: pool,
         upgrader: poolUpgrader,
         expectToFail: true,
@@ -174,8 +174,8 @@ describe('Deployments', function () {
     })
 
     it('should upgrade implementation', async function () {
-      await upgradeTestcase({
-        newImplfactory: new Treasury__factory(deployer),
+      await upgradeTestCase({
+        newImplFactory: new Treasury__factory(deployer),
         proxy: treasury,
         upgrader: treasuryUpgrader,
         expectToFail: false,
@@ -212,8 +212,8 @@ describe('Deployments', function () {
       })
 
       it('should upgrade implementation', async function () {
-        await upgradeTestcase({
-          newImplfactory: new DepositToken__factory(deployer),
+        await upgradeTestCase({
+          newImplFactory: new DepositToken__factory(deployer),
           proxy: msdUSDC,
           upgrader: depositTokenUpgrader,
           expectToFail: false,
@@ -221,8 +221,8 @@ describe('Deployments', function () {
       })
 
       it('should fail if implementation breaks storage', async function () {
-        await upgradeTestcase({
-          newImplfactory: new MasterOracleMock__factory(deployer),
+        await upgradeTestCase({
+          newImplFactory: new MasterOracleMock__factory(deployer),
           proxy: msdUSDC,
           upgrader: depositTokenUpgrader,
           expectToFail: true,
@@ -238,8 +238,8 @@ describe('Deployments', function () {
       })
 
       it('should upgrade implementation', async function () {
-        await upgradeTestcase({
-          newImplfactory: new DepositToken__factory(deployer),
+        await upgradeTestCase({
+          newImplFactory: new DepositToken__factory(deployer),
           proxy: msdWAVAX,
           upgrader: depositTokenUpgrader,
           expectToFail: false,
@@ -247,8 +247,8 @@ describe('Deployments', function () {
       })
 
       it('should fail if implementation breaks storage', async function () {
-        await upgradeTestcase({
-          newImplfactory: new MasterOracleMock__factory(deployer),
+        await upgradeTestCase({
+          newImplFactory: new MasterOracleMock__factory(deployer),
           proxy: msdWAVAX,
           upgrader: depositTokenUpgrader,
           expectToFail: true,
@@ -285,8 +285,8 @@ describe('Deployments', function () {
       })
 
       it('should upgrade implementation', async function () {
-        await upgradeTestcase({
-          newImplfactory: new SyntheticToken__factory(deployer),
+        await upgradeTestCase({
+          newImplFactory: new SyntheticToken__factory(deployer),
           proxy: msBTC,
           upgrader: syntheticTokenUpgrader,
           expectToFail: false,
@@ -294,8 +294,8 @@ describe('Deployments', function () {
       })
 
       it('should fail if implementation breaks storage', async function () {
-        await upgradeTestcase({
-          newImplfactory: new MasterOracleMock__factory(deployer),
+        await upgradeTestCase({
+          newImplFactory: new MasterOracleMock__factory(deployer),
           proxy: msBTC,
           upgrader: syntheticTokenUpgrader,
           expectToFail: true,
@@ -310,8 +310,8 @@ describe('Deployments', function () {
       })
 
       it('should upgrade implementation', async function () {
-        await upgradeTestcase({
-          newImplfactory: new SyntheticToken__factory(deployer),
+        await upgradeTestCase({
+          newImplFactory: new SyntheticToken__factory(deployer),
           proxy: msUSD,
           upgrader: syntheticTokenUpgrader,
           expectToFail: false,
@@ -319,8 +319,8 @@ describe('Deployments', function () {
       })
 
       it('should fail if implementation breaks storage', async function () {
-        await upgradeTestcase({
-          newImplfactory: new MasterOracleMock__factory(deployer),
+        await upgradeTestCase({
+          newImplFactory: new MasterOracleMock__factory(deployer),
           proxy: msUSD,
           upgrader: syntheticTokenUpgrader,
           expectToFail: true,
@@ -340,8 +340,8 @@ describe('Deployments', function () {
       })
 
       it('should upgrade implementation', async function () {
-        await upgradeTestcase({
-          newImplfactory: new DebtToken__factory(deployer),
+        await upgradeTestCase({
+          newImplFactory: new DebtToken__factory(deployer),
           proxy: msBTCDebt,
           upgrader: debtTokenUpgrader,
           expectToFail: false,
@@ -349,8 +349,8 @@ describe('Deployments', function () {
       })
 
       it('should fail if implementation breaks storage', async function () {
-        await upgradeTestcase({
-          newImplfactory: new MasterOracleMock__factory(deployer),
+        await upgradeTestCase({
+          newImplFactory: new MasterOracleMock__factory(deployer),
           proxy: msBTCDebt,
           upgrader: debtTokenUpgrader,
           expectToFail: true,
@@ -368,8 +368,8 @@ describe('Deployments', function () {
       })
 
       it('should upgrade implementation', async function () {
-        await upgradeTestcase({
-          newImplfactory: new DebtToken__factory(deployer),
+        await upgradeTestCase({
+          newImplFactory: new DebtToken__factory(deployer),
           proxy: msUSDDebt,
           upgrader: debtTokenUpgrader,
           expectToFail: false,
@@ -377,8 +377,8 @@ describe('Deployments', function () {
       })
 
       it('should fail if implementation breaks storage', async function () {
-        await upgradeTestcase({
-          newImplfactory: new MasterOracleMock__factory(deployer),
+        await upgradeTestCase({
+          newImplFactory: new MasterOracleMock__factory(deployer),
           proxy: msUSDDebt,
           upgrader: debtTokenUpgrader,
           expectToFail: true,
@@ -393,8 +393,8 @@ describe('Deployments', function () {
       })
 
       it('should upgrade implementation', async function () {
-        await upgradeTestcase({
-          newImplfactory: new PoolRegistry__factory(deployer),
+        await upgradeTestCase({
+          newImplFactory: new PoolRegistry__factory(deployer),
           proxy: poolRegistry,
           upgrader: poolRegistryUpgrader,
           expectToFail: false,

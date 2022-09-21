@@ -242,20 +242,20 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         require(_amount > 0, "amount-is-zero");
 
         address _sender = _msgSender();
-        ITreasury _treasury = pool.treasury();
+        address _treasury = address(pool.treasury());
 
-        uint256 _balanceBefore = underlying.balanceOf(address(_treasury));
+        uint256 _balanceBefore = underlying.balanceOf(_treasury);
 
-        underlying.safeTransferFrom(_sender, address(_treasury), _amount);
+        underlying.safeTransferFrom(_sender, _treasury, _amount);
 
-        _amount = underlying.balanceOf(address(_treasury)) - _balanceBefore;
+        _amount = underlying.balanceOf(_treasury) - _balanceBefore;
 
         uint256 _depositFee = pool.depositFee();
         uint256 _amountToDeposit = _amount;
         uint256 _feeAmount;
         if (_depositFee > 0) {
             _feeAmount = _amount.wadMul(_depositFee);
-            _mint(address(_treasury), _feeAmount);
+            _mint(pool.feeCollector(), _feeAmount);
             _amountToDeposit -= _feeAmount;
         }
 
@@ -282,19 +282,17 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
 
         require(_amount <= unlockedBalanceOf(_account), "amount-gt-unlocked");
 
-        ITreasury _treasury = pool.treasury();
-
         uint256 _withdrawFee = pool.withdrawFee();
         uint256 _amountToWithdraw = _amount;
         uint256 _feeAmount;
         if (_withdrawFee > 0) {
             _feeAmount = _amount.wadMul(_withdrawFee);
-            _transfer(_account, address(_treasury), _feeAmount);
+            _transfer(_account, pool.feeCollector(), _feeAmount);
             _amountToWithdraw -= _feeAmount;
         }
 
         _burnForWithdraw(_account, _amountToWithdraw);
-        _treasury.pull(_to, _amountToWithdraw);
+        pool.treasury().pull(_to, _amountToWithdraw);
 
         emit CollateralWithdrawn(_account, _to, _amount, _feeAmount);
     }

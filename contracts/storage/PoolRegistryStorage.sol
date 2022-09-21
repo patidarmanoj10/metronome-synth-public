@@ -16,6 +16,10 @@ abstract contract PoolRegistryStorageV1 is IPoolRegistry {
      * @notice Pools collection
      */
     EnumerableSet.AddressSet internal pools;
+    /**
+     * @notice Fee collector address
+     */
+    address public feeCollector;
 
     /**
      * @notice The fee charged when swapping synthetic tokens

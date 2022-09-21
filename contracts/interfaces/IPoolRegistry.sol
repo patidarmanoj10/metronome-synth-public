@@ -9,6 +9,8 @@ import "./ISyntheticToken.sol";
 interface IPoolRegistry is IGovernable {
     function poolExists(address pool_) external view returns (bool);
 
+    function feeCollector() external view returns (address);
+
     function getPools() external view returns (address[] memory);
 
     function registerPool(address pool_) external;
