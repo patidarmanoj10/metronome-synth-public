@@ -3,7 +3,7 @@
 pragma solidity 0.8.9;
 
 import "../interfaces/ISyntheticToken.sol";
-import "../interfaces/IDebtToken.sol";
+import "../interfaces/IPoolRegistry.sol";
 
 abstract contract SyntheticTokenStorageV1 is ISyntheticToken {
     mapping(address => uint256) public balanceOf;
@@ -14,18 +14,13 @@ abstract contract SyntheticTokenStorageV1 is ISyntheticToken {
     string public symbol;
 
     uint256 public totalSupply;
-    uint256 public maxTotalSupplyInUsd;
+
+    IPoolRegistry public poolRegistry;
 
     uint8 public decimals;
 
     /**
-     * @notice If a msAsset isn't active, it disables minting new tokens
+     * @notice If true, disables msAsset minting globally
      */
     bool public isActive;
-
-    /**
-     * @notice Interest rate
-     * @dev Use 0.1e18 for 10% APR
-     */
-    uint256 public interestRate;
 }

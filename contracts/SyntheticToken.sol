@@ -2,34 +2,23 @@
 
 pragma solidity 0.8.9;
 
-import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
-import "./access/Manageable.sol";
+import "./dependencies/openzeppelin/utils/Context.sol";
+import "./dependencies/openzeppelin/proxy/utils/Initializable.sol";
+import "./interfaces/IPool.sol";
+import "./interfaces/IManageable.sol";
 import "./lib/WadRayMath.sol";
 import "./storage/SyntheticTokenStorage.sol";
 
 /**
  * @title Synthetic Token contract
  */
-contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 {
+contract SyntheticToken is Context, Initializable, SyntheticTokenStorageV1 {
     using WadRayMath for uint256;
 
     string public constant VERSION = "1.0.0";
 
-    uint256 public constant SECONDS_PER_YEAR = 365 days;
-
-    /// @notice Emitted when synthetic token is issued
-    event SyntheticTokenIssued(address indexed account, address indexed to, uint256 amount, uint256 fee);
-
-    /// @notice Emitted when synthetic's debt is repaid
-    event DebtRepaid(address indexed payer, address indexed account, uint256 amount, uint256 fee);
-
-    /**
-     * @dev Throws if synthetic token doesn't exist
-     */
-    modifier onlyIfSyntheticTokenExists() {
-        require(pool.isSyntheticTokenExists(this), "synthetic-inexistent");
-        _;
-    }
+    /// @notice Emitted when active flag is updated
+    event SyntheticTokenActiveUpdated(bool oldActive, bool newActive);
 
     /**
      * @dev Throws if synthetic token isn't enabled
@@ -39,38 +28,44 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
         _;
     }
 
+    /**
+     * @notice Check if caller is authorized to mint/burn (i.e. if is a valid Pool or a valid DebtToken)
+     * @dev It's a short-term solution that will probably be redesigned (See more: https://github.com/bloqpriv/metronome-synth/issues/480)
+     */
+    modifier onlyIfAuthorized() {
+        bool isPool = poolRegistry.poolExists(_msgSender());
+        if (isPool) {
+            require(IPool(_msgSender()).isSyntheticTokenExists(this), "invalid-pool");
+        } else {
+            IPool _pool = IManageable(_msgSender()).pool();
+            require(poolRegistry.poolExists(address(_pool)), "invalid-pool");
+            require(_pool.isDebtTokenExists(IDebtToken(_msgSender())), "invalid-debt-token");
+            require(IDebtToken(_msgSender()).syntheticToken() == this, "invalid-debt-token");
+        }
+        _;
+    }
+
+    /**
+     * @notice Throws if caller isn't the governor
+     */
+    modifier onlyGovernor() {
+        require(_msgSender() == poolRegistry.governor(), "not-governor");
+        _;
+    }
+
     function initialize(
         string calldata _name,
         string calldata _symbol,
         uint8 _decimals,
-        IPool _pool,
-        uint256 _interestRate,
-        uint256 _maxTotalSupplyInUsd
+        IPoolRegistry _poolRegistry
     ) public initializer {
-        require(address(_pool) != address(0), "pool-address-is-zero");
+        require(address(_poolRegistry) != address(0), "pool-registry-is-null");
 
-        __Manageable_init();
-
-        pool = _pool;
+        poolRegistry = _poolRegistry;
         name = _name;
         symbol = _symbol;
         decimals = _decimals;
         isActive = true;
-        interestRate = _interestRate;
-        maxTotalSupplyInUsd = _maxTotalSupplyInUsd;
-    }
-
-    /// @notice Emitted when max total supply is updated
-    event MaxTotalSupplyUpdated(uint256 oldMaxTotalSupply, uint256 newMaxTotalSupply);
-
-    /// @notice Emitted when active flag is updated
-    event SyntheticTokenActiveUpdated(bool oldActive, bool newActive);
-
-    /// @notice Emitted when interest rate is updated
-    event InterestRateUpdated(uint256 oldInterestRate, uint256 newInterestRate);
-
-    function interestRatePerSecond() external view virtual override returns (uint256) {
-        return interestRate / SECONDS_PER_YEAR;
     }
 
     function transfer(address recipient, uint256 amount) external override returns (bool) {
@@ -136,8 +131,6 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
 
     function _mint(address account, uint256 amount) private onlyIfSyntheticTokenIsActive {
         require(account != address(0), "mint-to-the-zero-address");
-        uint256 _newTotalSupplyInUsd = pool.masterOracle().quoteTokenToUsd(address(this), totalSupply + amount);
-        require(_newTotalSupplyInUsd <= maxTotalSupplyInUsd, "surpass-max-total-supply");
 
         totalSupply += amount;
         balanceOf[account] += amount;
@@ -170,99 +163,11 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
     }
 
     /**
-     * @notice Lock collateral and mint synthetic token
-     * @param _amount The amount to mint
-     */
-    function issue(uint256 _amount, address _to)
-        external
-        override
-        whenNotShutdown
-        nonReentrant
-        onlyIfSyntheticTokenExists
-        onlyIfSyntheticTokenIsActive
-    {
-        require(_amount > 0, "amount-is-zero");
-
-        address _account = _msgSender();
-
-        accrueInterest();
-
-        (, , , , uint256 _issuableInUsd) = pool.debtPositionOf(_account);
-
-        IMasterOracle _masterOracle = pool.masterOracle();
-
-        require(_amount <= _masterOracle.quoteUsdToToken(address(this), _issuableInUsd), "not-enough-collateral");
-
-        uint256 _debtFloorInUsd = pool.debtFloorInUsd();
-
-        if (_debtFloorInUsd > 0) {
-            require(
-                _masterOracle.quoteTokenToUsd(address(this), pool.debtTokenOf(this).balanceOf(_account) + _amount) >=
-                    _debtFloorInUsd,
-                "debt-lt-floor"
-            );
-        }
-
-        uint256 _issueFee = pool.issueFee();
-        uint256 _amountToIssue = _amount;
-        uint256 _feeAmount;
-        if (_issueFee > 0) {
-            _feeAmount = _amount.wadMul(_issueFee);
-            _mint(address(pool.treasury()), _feeAmount);
-            _amountToIssue -= _feeAmount;
-        }
-
-        _mint(_to, _amountToIssue);
-        pool.debtTokenOf(this).mint(_account, _amount);
-
-        emit SyntheticTokenIssued(_account, _to, _amount, _feeAmount);
-    }
-
-    /**
-     * @notice Send synthetic token to decrease debt
-     * @dev The msg.sender is the payer and the account beneficed
-     * @param _onBehalfOf The account that will have debt decreased
-     * @param _amount The amount of synthetic token to burn (this is the gross amount, the repay fee will be subtracted from it)
-     */
-    function repay(address _onBehalfOf, uint256 _amount) external override whenNotShutdown nonReentrant {
-        require(_amount > 0, "amount-is-zero");
-
-        accrueInterest();
-
-        address _payer = _msgSender();
-
-        uint256 _repayFee = pool.repayFee();
-        uint256 _amountToRepay = _amount;
-        uint256 _feeAmount;
-        if (_repayFee > 0) {
-            // Note: `_amountToRepay = _amount - repayFeeAmount`
-            _amountToRepay = _amount.wadDiv(1e18 + _repayFee);
-            _feeAmount = _amount - _amountToRepay;
-            _transfer(_payer, address(pool.treasury()), _feeAmount);
-        }
-
-        uint256 _debtFloorInUsd = pool.debtFloorInUsd();
-
-        if (_debtFloorInUsd > 0) {
-            uint256 _newDebtInUsd = pool.masterOracle().quoteTokenToUsd(
-                address(this),
-                pool.debtTokenOf(this).balanceOf(_onBehalfOf) - _amountToRepay
-            );
-            require(_newDebtInUsd == 0 || _newDebtInUsd >= _debtFloorInUsd, "debt-lt-floor");
-        }
-
-        _burn(_payer, _amountToRepay);
-        pool.debtTokenOf(this).burn(_onBehalfOf, _amountToRepay);
-
-        emit DebtRepaid(_payer, _onBehalfOf, _amount, _feeAmount);
-    }
-
-    /**
      * @notice Mint synthetic token
      * @param _to The account to mint to
      * @param _amount The amount to mint
      */
-    function mint(address _to, uint256 _amount) external override onlyPool {
+    function mint(address _to, uint256 _amount) external override onlyIfAuthorized {
         _mint(_to, _amount);
     }
 
@@ -271,19 +176,23 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
      * @param _from The account to burn from
      * @param _amount The amount to burn
      */
-    function burn(address _from, uint256 _amount) external override onlyPool {
+    function burn(address _from, uint256 _amount) external override onlyIfAuthorized {
         _burn(_from, _amount);
     }
 
     /**
-     * @notice Update max total supply (in USD)
-     * @param _newMaxTotalSupplyInUsd The new max total supply (in USD)
+     * @notice Seize synthetic tokens
+     * @dev Same as _transfer
+     * @param _from The account to seize from
+     * @param _to The beneficiary account
+     * @param _amount The amount to seize
      */
-    function updateMaxTotalSupplyInUsd(uint256 _newMaxTotalSupplyInUsd) external override onlyGovernor {
-        uint256 _currentMaxTotalSupplyInUsd = maxTotalSupplyInUsd;
-        require(_newMaxTotalSupplyInUsd != _currentMaxTotalSupplyInUsd, "new-same-as-current");
-        emit MaxTotalSupplyUpdated(_currentMaxTotalSupplyInUsd, _newMaxTotalSupplyInUsd);
-        maxTotalSupplyInUsd = _newMaxTotalSupplyInUsd;
+    function seize(
+        address _from,
+        address _to,
+        uint256 _amount
+    ) external override onlyIfAuthorized {
+        _transfer(_from, _to, _amount);
     }
 
     /**
@@ -293,28 +202,5 @@ contract SyntheticToken is ReentrancyGuard, Manageable, SyntheticTokenStorageV1 
         bool _isActive = isActive;
         emit SyntheticTokenActiveUpdated(_isActive, !_isActive);
         isActive = !_isActive;
-    }
-
-    /**
-     * @notice Update interest rate (APR)
-     */
-    function updateInterestRate(uint256 _newInterestRate) external onlyGovernor {
-        accrueInterest();
-        uint256 _currentInterestRate = interestRate;
-        require(_newInterestRate != _currentInterestRate, "new-same-as-current");
-        emit InterestRateUpdated(_currentInterestRate, _newInterestRate);
-        interestRate = _newInterestRate;
-    }
-
-    /**
-     * @notice Accrue interest
-     */
-    function accrueInterest() public {
-        uint256 _interestAmountAccrued = pool.debtTokenOf(this).accrueInterest();
-
-        if (_interestAmountAccrued > 0) {
-            // Note: We can save some gas by incrementing only and mint all accrued amount later
-            _mint(address(pool.treasury()), _interestAmountAccrued);
-        }
     }
 }

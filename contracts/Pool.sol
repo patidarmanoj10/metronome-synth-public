@@ -3,7 +3,6 @@
 pragma solidity 0.8.9;
 
 import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
-import "./dependencies/openzeppelin/utils/math/Math.sol";
 import "./storage/PoolStorage.sol";
 import "./lib/WadRayMath.sol";
 import "./Pausable.sol";
@@ -111,6 +110,7 @@ contract Pool is ReentrancyGuard, Pausable, PoolStorageV1 {
      */
     modifier onlyIfSyntheticTokenIsActive(ISyntheticToken _syntheticToken) {
         require(_syntheticToken.isActive(), "synthetic-inactive");
+        require(debtTokenOf[_syntheticToken].isActive(), "debt-token-inactive");
         _;
     }
 
@@ -298,13 +298,13 @@ contract Pool is ReentrancyGuard, Pausable, PoolStorageV1 {
         address _liquidator = _msgSender();
         require(_liquidator != _account, "can-not-liquidate-own-position");
 
-        _syntheticToken.accrueInterest();
+        IDebtToken _debtToken = debtTokenOf[_syntheticToken];
+        _debtToken.accrueInterest();
 
         (bool _isHealthy, , , , ) = debtPositionOf(_account);
 
         require(!_isHealthy, "position-is-healthy");
 
-        IDebtToken _debtToken = debtTokenOf[_syntheticToken];
         uint256 _debtTokenBalance = _debtToken.balanceOf(_account);
 
         require(_amountToRepay.wadDiv(_debtTokenBalance) <= maxLiquidable, "amount-gt-max-liquidable");
@@ -362,9 +362,6 @@ contract Pool is ReentrancyGuard, Pausable, PoolStorageV1 {
         onlyIfSyntheticTokenIsActive(_syntheticTokenOut)
         returns (uint256 _amountOut)
     {
-        _syntheticTokenIn.accrueInterest();
-        _syntheticTokenOut.accrueInterest();
-
         address _account = _msgSender();
 
         require(_amountIn > 0, "amount-in-is-0");

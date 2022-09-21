@@ -15,6 +15,8 @@ import {
   NativeTokenGateway__factory,
   IERC20,
   IERC20__factory,
+  DebtToken__factory,
+  DebtToken,
 } from '../typechain'
 import {disableForking, enableForking, impersonateAccount, setTokenBalance} from './helpers'
 import Address from '../helpers/address'
@@ -61,6 +63,11 @@ describe.skip('Integration tests', function () {
   let msUNI: SyntheticToken
   let msCRV: SyntheticToken
   let msAAVE: SyntheticToken
+  let msBTCDebt: DebtToken
+  let msUSDDebt: DebtToken
+  let msUNIDebt: DebtToken
+  let msCRVDebt: DebtToken
+  let msAAVEDebt: DebtToken
 
   before(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
@@ -87,6 +94,11 @@ describe.skip('Integration tests', function () {
       MsUNISynthetic: {address: msUNIAddress},
       MsCRVSynthetic: {address: msCRVAddress},
       MsAAVESynthetic: {address: msAAVEAddress},
+      MsBTCDebt: {address: msBTCDebtAddress},
+      MsUSDDebt: {address: msUSDDebtAddress},
+      MsUNIDebt: {address: msUNIDebtAddress},
+      MsCRVDebt: {address: msCRVDebtAddress},
+      MsAAVEDebt: {address: msAAVEDebtAddress},
     } = await deployments.fixture()
 
     pool = Pool__factory.connect(poolAddress, alice)
@@ -105,6 +117,13 @@ describe.skip('Integration tests', function () {
     msUNI = SyntheticToken__factory.connect(msUNIAddress, alice)
     msCRV = SyntheticToken__factory.connect(msCRVAddress, alice)
     msAAVE = SyntheticToken__factory.connect(msAAVEAddress, alice)
+
+    // msAssets-Debts
+    msBTCDebt = DebtToken__factory.connect(msBTCDebtAddress, alice)
+    msUSDDebt = DebtToken__factory.connect(msUSDDebtAddress, alice)
+    msUNIDebt = DebtToken__factory.connect(msUNIDebtAddress, alice)
+    msCRVDebt = DebtToken__factory.connect(msCRVDebtAddress, alice)
+    msAAVEDebt = DebtToken__factory.connect(msAAVEDebtAddress, alice)
 
     // OneOracle contracts
     const addressProvider = new ethers.Contract(
@@ -237,7 +256,7 @@ describe.skip('Integration tests', function () {
     const before = await pool.debtOf(alice.address)
 
     // when
-    await msBTC.issue(parseUnits('0.1', 8), alice.address)
+    await msBTCDebt.issue(parseUnits('0.1', 8), alice.address)
 
     // then
     const after = await pool.debtOf(alice.address)
@@ -249,7 +268,7 @@ describe.skip('Integration tests', function () {
     const before = await pool.debtOf(alice.address)
 
     // when
-    await msUSD.issue(parseEther('5000'), alice.address)
+    await msUSDDebt.issue(parseEther('5000'), alice.address)
 
     // then
     const after = await pool.debtOf(alice.address)
@@ -261,7 +280,7 @@ describe.skip('Integration tests', function () {
     const before = await pool.debtOf(alice.address)
 
     // when
-    await msUNI.issue(parseEther('100'), alice.address)
+    await msUNIDebt.issue(parseEther('100'), alice.address)
 
     // then
     const after = await pool.debtOf(alice.address)
@@ -273,7 +292,7 @@ describe.skip('Integration tests', function () {
     const before = await pool.debtOf(alice.address)
 
     // when
-    await msCRV.issue(parseEther('1000'), alice.address)
+    await msCRVDebt.issue(parseEther('1000'), alice.address)
 
     // then
     const after = await pool.debtOf(alice.address)
@@ -285,7 +304,7 @@ describe.skip('Integration tests', function () {
     const before = await pool.debtOf(alice.address)
 
     // when
-    await msAAVE.issue(parseEther('10'), alice.address)
+    await msAAVEDebt.issue(parseEther('10'), alice.address)
 
     // then
     const after = await pool.debtOf(alice.address)
