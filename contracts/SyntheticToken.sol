@@ -29,18 +29,21 @@ contract SyntheticToken is Context, Initializable, SyntheticTokenStorageV1 {
     }
 
     /**
-     * @notice Check if caller is authorized to mint/burn (i.e. if is a valid Pool or a valid DebtToken)
+     * @notice Check if caller is authorized to mint/burn (i.e. if is a valid Pool, a valid PoolRegistry or a valid DebtToken)
      * @dev It's a short-term solution that will probably be redesigned (See more: https://github.com/bloqpriv/metronome-synth/issues/480)
      */
     modifier onlyIfAuthorized() {
-        bool isPool = poolRegistry.poolExists(_msgSender());
-        if (isPool) {
-            require(IPool(_msgSender()).isSyntheticTokenExists(this), "invalid-pool");
-        } else {
-            IPool _pool = IManageable(_msgSender()).pool();
-            require(poolRegistry.poolExists(address(_pool)), "invalid-pool");
-            require(_pool.isDebtTokenExists(IDebtToken(_msgSender())), "invalid-debt-token");
-            require(IDebtToken(_msgSender()).syntheticToken() == this, "invalid-debt-token");
+        bool isPoolRegistry = address(poolRegistry) == _msgSender();
+        if (!isPoolRegistry) {
+            bool isPool = poolRegistry.poolExists(_msgSender());
+            if (isPool) {
+                require(IPool(_msgSender()).isSyntheticTokenExists(this), "invalid-pool");
+            } else {
+                IPool _pool = IManageable(_msgSender()).pool();
+                require(poolRegistry.poolExists(address(_pool)), "invalid-pool");
+                require(_pool.isDebtTokenExists(IDebtToken(_msgSender())), "invalid-debt-token");
+                require(IDebtToken(_msgSender()).syntheticToken() == this, "invalid-debt-token");
+            }
         }
         _;
     }

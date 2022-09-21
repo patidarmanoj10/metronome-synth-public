@@ -122,14 +122,6 @@ contract PoolMock is IPool, Governable, Pausable {
         revert("mock-does-not-implement");
     }
 
-    function swap(
-        ISyntheticToken,
-        ISyntheticToken,
-        uint256
-    ) external pure override returns (uint256) {
-        revert("mock-does-not-implement");
-    }
-
     function updateMasterOracle(IMasterOracle _newMasterOracle) external {
         masterOracle = _newMasterOracle;
     }
@@ -152,10 +144,6 @@ contract PoolMock is IPool, Governable, Pausable {
 
     function updateRepayFee(uint256 _newRepayFee) external override {
         repayFee = _newRepayFee;
-    }
-
-    function updateSwapFee(uint256) external pure override {
-        revert("mock-does-not-implement");
     }
 
     function updateLiquidatorLiquidationFee(uint256) external pure override {

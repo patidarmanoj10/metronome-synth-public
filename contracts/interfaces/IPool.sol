@@ -69,14 +69,6 @@ interface IPool is IPausable {
         IDepositToken _depositToken
     ) external;
 
-    function swap(
-        ISyntheticToken _syntheticTokenIn,
-        ISyntheticToken _syntheticTokenOut,
-        uint256 _amountIn
-    ) external returns (uint256 _amountOut);
-
-    function updateMasterOracle(IMasterOracle _newOracle) external;
-
     function updateDebtFloor(uint256 _newDebtFloorInUsd) external;
 
     function updateDepositFee(uint256 _newDepositFee) external;
@@ -86,8 +78,6 @@ interface IPool is IPausable {
     function updateWithdrawFee(uint256 _newWithdrawFee) external;
 
     function updateRepayFee(uint256 _newRepayFee) external;
-
-    function updateSwapFee(uint256 _newSwapFee) external;
 
     function updateLiquidatorLiquidationFee(uint256 _newLiquidatorLiquidationFee) external;
 

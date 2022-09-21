@@ -144,7 +144,6 @@ describe('Deployments', function () {
   describe('Pool', function () {
     it('should have correct params', async function () {
       expect(await pool.treasury()).eq(treasury.address)
-      expect(await pool.masterOracle()).eq(MASTER_ORACLE_ADDRESS)
       expect(await pool.governor()).eq(deployer.address)
       expect(await pool.proposedGovernor()).eq(ethers.constants.AddressZero)
     })
@@ -390,6 +389,7 @@ describe('Deployments', function () {
     describe('PoolRegistry', function () {
       it('should have correct params', async function () {
         expect(await poolRegistry.governor()).eq(deployer.address)
+        expect(await poolRegistry.masterOracle()).eq(MASTER_ORACLE_ADDRESS)
       })
 
       it('should upgrade implementation', async function () {
