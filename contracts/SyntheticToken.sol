@@ -3,7 +3,7 @@
 pragma solidity 0.8.9;
 
 import "./dependencies/openzeppelin/utils/Context.sol";
-import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
+import "./dependencies/openzeppelin/proxy/utils/Initializable.sol";
 import "./interfaces/IPool.sol";
 import "./interfaces/IManageable.sol";
 import "./lib/WadRayMath.sol";
@@ -12,7 +12,7 @@ import "./storage/SyntheticTokenStorage.sol";
 /**
  * @title Synthetic Token contract
  */
-contract SyntheticToken is Context, ReentrancyGuard, SyntheticTokenStorageV1 {
+contract SyntheticToken is Context, Initializable, SyntheticTokenStorageV1 {
     using WadRayMath for uint256;
 
     string public constant VERSION = "1.0.0";
