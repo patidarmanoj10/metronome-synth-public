@@ -63,7 +63,7 @@ describe('RewardDistributor', function () {
       const speed = parseEther('1')
 
       // when
-      const tx = rewardDistributor.connect(alice.address).updateTokenSpeed(msdTOKEN1.address, speed)
+      const tx = rewardDistributor.connect(alice).updateTokenSpeed(msdTOKEN1.address, speed)
 
       // then
       await expect(tx).revertedWith('not-governor')
@@ -119,7 +119,7 @@ describe('RewardDistributor', function () {
 
       // when
       const tx = rewardDistributor
-        .connect(alice.address)
+        .connect(alice)
         .updateTokenSpeeds(
           [msdTOKEN1.address, msdTOKEN2.address, debtToken1.address, debtToken2.address],
           [speed, speed, speed, speed]
