@@ -39,4 +39,9 @@ abstract contract DebtTokenStorageV1 is IDebtToken {
      * @dev Use 0.1e18 for 10% APR
      */
     uint256 public interestRate;
+
+    /**
+     * @notice If true, disables msAsset minting on this pool
+     */
+    bool public isActive;
 }

@@ -20,7 +20,7 @@ abstract contract SyntheticTokenStorageV1 is ISyntheticToken {
     uint8 public decimals;
 
     /**
-     * @notice If a msAsset isn't active, it disables minting new tokens
+     * @notice If true, disables msAsset minting globally
      */
     bool public isActive;
 }

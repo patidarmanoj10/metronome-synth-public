@@ -111,6 +111,7 @@ contract Pool is ReentrancyGuard, Pausable, PoolStorageV1 {
      */
     modifier onlyIfSyntheticTokenIsActive(ISyntheticToken _syntheticToken) {
         require(_syntheticToken.isActive(), "synthetic-inactive");
+        require(debtTokenOf[_syntheticToken].isActive(), "debt-token-inactive");
         _;
     }
 

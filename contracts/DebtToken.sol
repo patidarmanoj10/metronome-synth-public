@@ -29,6 +29,9 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
     /// @notice Emitted when synthetic's debt is repaid
     event DebtRepaid(address indexed payer, address indexed account, uint256 amount, uint256 fee);
 
+    /// @notice Emitted when active flag is updated
+    event DebtTokenActiveUpdated(bool oldActive, bool newActive);
+
     /**
      * @dev Throws if caller isn't authorized
      */
@@ -50,6 +53,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
      */
     modifier onlyIfSyntheticTokenIsActive() {
         require(syntheticToken.isActive(), "synthetic-inactive");
+        require(isActive, "debt-token-inactive");
         _;
     }
 
@@ -96,6 +100,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
         debtIndex = 1e18;
         interestRate = _interestRate;
         maxTotalSupplyInUsd = _maxTotalSupplyInUsd;
+        isActive = true;
     }
 
     function interestRatePerSecond() public view override returns (uint256) {
@@ -392,5 +397,14 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
         require(_newInterestRate != _currentInterestRate, "new-same-as-current");
         emit InterestRateUpdated(_currentInterestRate, _newInterestRate);
         interestRate = _newInterestRate;
+    }
+
+    /**
+     * @notice Enable/Disable the Debt Token
+     */
+    function toggleIsActive() external override onlyGovernor {
+        bool _isActive = isActive;
+        emit DebtTokenActiveUpdated(_isActive, !_isActive);
+        isActive = !_isActive;
     }
 }

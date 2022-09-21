@@ -291,6 +291,18 @@ describe('Pool', function () {
           await expect(tx).revertedWith('synthetic-inactive')
         })
 
+        it('should revert if debt token out is not active', async function () {
+          // given
+          await msDogeDebtToken.toggleIsActive()
+
+          // when
+          const amountIn = await msEth.balanceOf(alice.address)
+          const tx = pool.connect(alice).swap(msEth.address, msDoge.address, amountIn)
+
+          // then
+          await expect(tx).revertedWith('debt-token-inactive')
+        })
+
         it('should revert if user has not enough balance', async function () {
           // given
           const msAssetInBalance = await msEth.balanceOf(alice.address)

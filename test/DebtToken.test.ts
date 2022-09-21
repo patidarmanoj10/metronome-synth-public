@@ -81,7 +81,6 @@ describe('DebtToken', function () {
     poolMock = await poolMockFactory.deploy(msdMET.address, masterOracleMock.address, msUSD.address, msUSDDebt.address)
     await poolMock.deployed()
     await poolMock.updateTreasury(treasury.address)
-    await poolMock.transferGovernorship(governor.address)
     await setEtherBalance(poolMock.address, parseEther('10'))
 
     await msdMET.initialize(met.address, poolMock.address, 'msdMET', 18, metCR, MaxUint256)
@@ -181,6 +180,18 @@ describe('DebtToken', function () {
 
       // then
       await expect(tx).revertedWith('synthetic-inactive')
+    })
+
+    it('should revert if synthetic is inactive', async function () {
+      // given
+      await msUSDDebt.toggleIsActive()
+
+      // when
+      const toIssue = parseEther('1')
+      const tx = msUSDDebt.connect(user1).issue(toIssue, user1.address)
+
+      // then
+      await expect(tx).revertedWith('debt-token-inactive')
     })
 
     it('should revert if user1 has not enough collateral deposited', async function () {

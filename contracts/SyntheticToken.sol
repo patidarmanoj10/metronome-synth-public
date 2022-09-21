@@ -17,6 +17,9 @@ contract SyntheticToken is Context, ReentrancyGuard, SyntheticTokenStorageV1 {
 
     string public constant VERSION = "1.0.0";
 
+    /// @notice Emitted when active flag is updated
+    event SyntheticTokenActiveUpdated(bool oldActive, bool newActive);
+
     /**
      * @dev Throws if synthetic token isn't enabled
      */
@@ -64,9 +67,6 @@ contract SyntheticToken is Context, ReentrancyGuard, SyntheticTokenStorageV1 {
         decimals = _decimals;
         isActive = true;
     }
-
-    /// @notice Emitted when active flag is updated
-    event SyntheticTokenActiveUpdated(bool oldActive, bool newActive);
 
     function transfer(address recipient, uint256 amount) external override returns (bool) {
         _transfer(_msgSender(), recipient, amount);
@@ -196,7 +196,7 @@ contract SyntheticToken is Context, ReentrancyGuard, SyntheticTokenStorageV1 {
     }
 
     /**
-     * @notice Enable/Disable the Synthetic Token globally
+     * @notice Enable/Disable the Synthetic Token
      */
     function toggleIsActive() external override onlyGovernor {
         bool _isActive = isActive;

@@ -337,6 +337,7 @@ describe('Deployments', function () {
         expect(await msBTCDebt.governor()).eq(deployer.address)
         expect(await msBTCDebt.interestRate()).eq(parseEther('0'))
         expect(await msBTCDebt.maxTotalSupplyInUsd()).eq(toUSD('50000'))
+        expect(await msBTCDebt.isActive()).eq(true)
       })
 
       it('should upgrade implementation', async function () {
@@ -364,6 +365,7 @@ describe('Deployments', function () {
         expect(await msUSDDebt.governor()).eq(deployer.address)
         expect(await msUSDDebt.interestRate()).eq(parseEther('0'))
         expect(await msUSDDebt.maxTotalSupplyInUsd()).eq(toUSD('50000'))
+        expect(await msUSDDebt.isActive()).eq(true)
       })
 
       it('should upgrade implementation', async function () {
