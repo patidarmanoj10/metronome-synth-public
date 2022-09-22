@@ -15,7 +15,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   await deployUpgradable({
     hre,
     contractConfig: UpgradableContracts.PoolRegistry,
-    initializeArgs: [Address.MASTER_ORACLE_ADDRESS],
+    initializeArgs: [Address.MASTER_ORACLE_ADDRESS, Address.FEE_COLLECTOR],
   })
 
   if (!wasDeployed) {

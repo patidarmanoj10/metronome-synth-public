@@ -17,6 +17,9 @@ contract PoolRegistry is ReentrancyGuard, Pausable, PoolRegistryStorageV1 {
 
     string public constant VERSION = "1.0.0";
 
+    /// @notice Emitted when fee collector is updated
+    event FeeCollectorUpdated(address indexed oldFeeCollector, address indexed newFeeCollector);
+
     /// @notice Emitted when a pool is registered
     event PoolRegistered(address pool);
 
@@ -42,38 +45,40 @@ contract PoolRegistry is ReentrancyGuard, Pausable, PoolRegistryStorageV1 {
     /**
      * @dev Throws if synthetic token doesn't exist
      */
-    modifier onlyIfSyntheticTokenExists(ISyntheticToken _syntheticToken) {
-        require(isSyntheticTokenExists(_syntheticToken), "synthetic-inexistent");
+    modifier onlyIfSyntheticTokenExists(ISyntheticToken syntheticToken_) {
+        require(isSyntheticTokenExists(syntheticToken_), "synthetic-inexistent");
         _;
     }
 
     /**
      * @dev Throws if synthetic token isn't enabled
      */
-    modifier onlyIfSyntheticTokenIsActive(ISyntheticToken _syntheticToken) {
-        require(_syntheticToken.isActive(), "synthetic-inactive");
+    modifier onlyIfSyntheticTokenIsActive(ISyntheticToken syntheticToken_) {
+        require(syntheticToken_.isActive(), "synthetic-inactive");
         _;
     }
 
-    function initialize(IMasterOracle _masterOracle) public initializer {
-        require(address(_masterOracle) != address(0), "oracle-is-null");
+    function initialize(IMasterOracle masterOracle_, address feeCollector_) public initializer {
+        require(address(masterOracle_) != address(0), "oracle-is-null");
+        require(feeCollector_ != address(0), "fee-collector-is-null");
 
         __Governable_init();
 
-        masterOracle = _masterOracle;
+        masterOracle = masterOracle_;
+        feeCollector = feeCollector_;
 
         swapFee = 6e15; // 0.6%
     }
 
     /**
      * @notice Check if token is part of the synthetic offerings
-     * @param _syntheticToken Asset to check
+     * @param syntheticToken_ Asset to check
      * @return true if exist
      */
-    function isSyntheticTokenExists(ISyntheticToken _syntheticToken) public view override returns (bool) {
+    function isSyntheticTokenExists(ISyntheticToken syntheticToken_) public view override returns (bool) {
         uint256 _length = pools.length();
         for (uint256 i; i < _length; ++i) {
-            if (IPool(pools.at(i)).isSyntheticTokenExists(_syntheticToken)) {
+            if (IPool(pools.at(i)).isSyntheticTokenExists(syntheticToken_)) {
                 return true;
             }
         }
@@ -117,66 +122,75 @@ contract PoolRegistry is ReentrancyGuard, Pausable, PoolRegistryStorageV1 {
 
     /**
      * @notice Swap synthetic tokens
-     * @param _syntheticTokenIn Synthetic token to sell
-     * @param _syntheticTokenOut Synthetic token to buy
-     * @param _amountIn Amount to swap
+     * @param syntheticTokenIn_ Synthetic token to sell
+     * @param syntheticTokenOut_ Synthetic token to buy
+     * @param amountIn_ Amount to swap
      */
     function swap(
-        ISyntheticToken _syntheticTokenIn,
-        ISyntheticToken _syntheticTokenOut,
-        uint256 _amountIn
+        ISyntheticToken syntheticTokenIn_,
+        ISyntheticToken syntheticTokenOut_,
+        uint256 amountIn_
     )
         external
         override
         whenNotShutdown
         nonReentrant
-        onlyIfSyntheticTokenExists(_syntheticTokenIn)
-        onlyIfSyntheticTokenExists(_syntheticTokenOut)
-        onlyIfSyntheticTokenIsActive(_syntheticTokenOut)
+        onlyIfSyntheticTokenExists(syntheticTokenIn_)
+        onlyIfSyntheticTokenExists(syntheticTokenOut_)
+        onlyIfSyntheticTokenIsActive(syntheticTokenOut_)
         returns (uint256 _amountOut)
     {
         address _account = _msgSender();
 
-        require(_amountIn > 0, "amount-in-is-0");
-        require(_amountIn <= _syntheticTokenIn.balanceOf(_account), "amount-in-gt-balance");
-        _syntheticTokenIn.burn(_account, _amountIn);
+        require(amountIn_ > 0, "amount-in-is-0");
+        require(amountIn_ <= syntheticTokenIn_.balanceOf(_account), "amount-in-gt-balance");
+        syntheticTokenIn_.burn(_account, amountIn_);
 
-        _amountOut = masterOracle.quote(address(_syntheticTokenIn), address(_syntheticTokenOut), _amountIn);
+        _amountOut = masterOracle.quote(address(syntheticTokenIn_), address(syntheticTokenOut_), amountIn_);
 
         uint256 _feeAmount;
         if (swapFee > 0) {
             _feeAmount = _amountOut.wadMul(swapFee);
-            // FIXME: See more: https://github.com/bloqpriv/metronome-synth/issues/497
-            // _syntheticTokenOut.mint(address(treasury), _feeAmount);
-            _syntheticTokenOut.mint(address(this), _feeAmount);
+            syntheticTokenOut_.mint(feeCollector, _feeAmount);
             _amountOut -= _feeAmount;
         }
 
-        _syntheticTokenOut.mint(_account, _amountOut);
+        syntheticTokenOut_.mint(_account, _amountOut);
 
-        emit SyntheticTokenSwapped(_account, _syntheticTokenIn, _syntheticTokenOut, _amountIn, _amountOut, _feeAmount);
+        emit SyntheticTokenSwapped(_account, syntheticTokenIn_, syntheticTokenOut_, amountIn_, _amountOut, _feeAmount);
+    }
+
+    /**
+     * @notice OnlyGovernor:: Update fee collector
+     */
+    function updateFeeCollector(address newFeeCollector_) external onlyGovernor {
+        require(newFeeCollector_ != address(0), "fee-collector-is-null");
+        address _currentFeeCollector = feeCollector;
+        require(newFeeCollector_ != _currentFeeCollector, "new-same-as-current");
+        emit FeeCollectorUpdated(_currentFeeCollector, newFeeCollector_);
+        feeCollector = newFeeCollector_;
     }
 
     /**
      * @notice Update swap fee
      */
-    function updateSwapFee(uint256 _newSwapFee) external override onlyGovernor {
-        require(_newSwapFee <= 1e18, "max-is-100%");
+    function updateSwapFee(uint256 newSwapFee_) external override onlyGovernor {
+        require(newSwapFee_ <= 1e18, "max-is-100%");
         uint256 _currentSwapFee = swapFee;
-        require(_newSwapFee != _currentSwapFee, "new-same-as-current");
-        emit SwapFeeUpdated(_currentSwapFee, _newSwapFee);
-        swapFee = _newSwapFee;
+        require(newSwapFee_ != _currentSwapFee, "new-same-as-current");
+        emit SwapFeeUpdated(_currentSwapFee, newSwapFee_);
+        swapFee = newSwapFee_;
     }
 
     /**
      * @notice Update master oracle contract
      */
-    function updateMasterOracle(IMasterOracle _newMasterOracle) external override onlyGovernor {
-        require(address(_newMasterOracle) != address(0), "address-is-null");
+    function updateMasterOracle(IMasterOracle newMasterOracle_) external override onlyGovernor {
+        require(address(newMasterOracle_) != address(0), "address-is-null");
         IMasterOracle _currentMasterOracle = masterOracle;
-        require(_newMasterOracle != _currentMasterOracle, "new-same-as-current");
+        require(newMasterOracle_ != _currentMasterOracle, "new-same-as-current");
 
-        emit MasterOracleUpdated(_currentMasterOracle, _newMasterOracle);
-        masterOracle = _newMasterOracle;
+        emit MasterOracleUpdated(_currentMasterOracle, newMasterOracle_);
+        masterOracle = newMasterOracle_;
     }
 }

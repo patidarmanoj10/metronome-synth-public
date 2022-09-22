@@ -27,6 +27,7 @@ describe('DepositToken', function () {
   let governor: SignerWithAddress
   let alice: SignerWithAddress
   let bob: SignerWithAddress
+  let feeCollector: SignerWithAddress
   let treasury: Treasury
   let met: ERC20Mock
   let poolMock: FakeContract
@@ -39,7 +40,7 @@ describe('DepositToken', function () {
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
-    ;[deployer, governor, alice, bob] = await ethers.getSigners()
+    ;[deployer, governor, alice, bob, feeCollector] = await ethers.getSigners()
 
     const masterOracleMock = new MasterOracleMock__factory(deployer)
     masterOracle = <MasterOracleMock>await masterOracleMock.deploy()
@@ -62,6 +63,7 @@ describe('DepositToken', function () {
     await setEtherBalance(poolMock.address, parseEther('10'))
     poolMock.masterOracle.returns(masterOracle.address)
     poolMock.governor.returns(governor.address)
+    poolMock.feeCollector.returns(feeCollector.address)
     poolMock.paused.returns(false)
     poolMock.everythingStopped.returns(false)
     poolMock.depositFee.returns('0')
@@ -416,14 +418,14 @@ describe('DepositToken', function () {
         const toDeposit = parseEther('100')
         const tx = () => metDepositToken.connect(alice).deposit(toDeposit, alice.address)
         const expectedFeeAmount = parseEther('1')
-        const expectedAmounAfterFee = parseEther('99') // -1% fee
+        const expectedAmountAfterFee = parseEther('99') // -1% fee
 
         // then
         await expect(tx).changeTokenBalances(met, [alice, treasury], [toDeposit.mul('-1'), toDeposit])
         await expect(tx).changeTokenBalances(
           metDepositToken,
-          [alice, poolMock, treasury],
-          [expectedAmounAfterFee, 0, expectedFeeAmount]
+          [alice, poolMock, feeCollector],
+          [expectedAmountAfterFee, 0, expectedFeeAmount]
         )
         await expect(tx())
           .emit(metDepositToken, 'CollateralDeposited')

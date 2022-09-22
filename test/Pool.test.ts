@@ -41,7 +41,7 @@ const dogePrice = toUSD('0.4') // 1 DOGE = $0.4
 const interestRate = parseEther('0')
 
 async function fixture() {
-  const [deployer, alice, , liquidator] = await ethers.getSigners()
+  const [deployer, alice, , liquidator, feeCollector] = await ethers.getSigners()
   const masterOracleMockFactory = new MasterOracleMock__factory(deployer)
   const masterOracleMock = await masterOracleMockFactory.deploy()
   await masterOracleMock.deployed()
@@ -89,6 +89,7 @@ async function fixture() {
   poolRegistryMock.governor.returns(deployer.address)
   poolRegistryMock.poolExists.returns((address: string) => address == pool.address)
   poolRegistryMock.masterOracle.returns(masterOracleMock.address)
+  poolRegistryMock.feeCollector.returns(feeCollector.address)
 
   // Deployment tasks
   await msdMET.initialize(met.address, pool.address, 'msdMET', 18, metCR, MaxUint256)

@@ -20,6 +20,7 @@ contract PoolMock is IPool, Governable, Pausable {
     IDebtToken public debtToken;
     IDepositToken public depositToken;
     IMasterOracle public masterOracle;
+    IPoolRegistry public poolRegistry;
     uint256 public issueFee;
     uint256 public depositFee;
     uint256 public repayFee;
@@ -30,12 +31,18 @@ contract PoolMock is IPool, Governable, Pausable {
         IDepositToken _depositToken,
         IMasterOracle _masterOracle,
         ISyntheticToken _syntheticToken,
-        IDebtToken _debtToken
+        IDebtToken _debtToken,
+        IPoolRegistry _poolRegistry
     ) {
         depositToken = _depositToken;
         masterOracle = _masterOracle;
         syntheticToken = _syntheticToken;
         debtToken = _debtToken;
+        poolRegistry = _poolRegistry;
+    }
+
+    function feeCollector() external view returns (address) {
+        return poolRegistry.feeCollector();
     }
 
     function getDepositTokens() external pure override returns (address[] memory) {

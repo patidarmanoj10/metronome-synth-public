@@ -8,6 +8,7 @@ import "./ISyntheticToken.sol";
 import "./IDepositToken.sol";
 import "./ITreasury.sol";
 import "./IRewardsDistributor.sol";
+import "./IPoolRegistry.sol";
 
 /**
  * @notice Pool interface
@@ -22,6 +23,8 @@ interface IPool is IPausable {
     function withdrawFee() external returns (uint256);
 
     function repayFee() external returns (uint256);
+
+    function feeCollector() external view returns (address);
 
     function isSyntheticTokenExists(ISyntheticToken _syntheticToken) external view returns (bool);
 
@@ -90,6 +93,8 @@ interface IPool is IPausable {
     function treasury() external view returns (ITreasury);
 
     function masterOracle() external view returns (IMasterOracle);
+
+    function poolRegistry() external view returns (IPoolRegistry);
 
     function addToDepositTokensOfAccount(address _account) external;
 

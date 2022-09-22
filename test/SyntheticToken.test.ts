@@ -27,6 +27,7 @@ describe('SyntheticToken', function () {
   let governor: SignerWithAddress
   let user: SignerWithAddress
   let treasury: SignerWithAddress
+  let feeCollector: SignerWithAddress
   let poolRegistryMock: FakeContract
   let poolMock: MockContract
   let met: ERC20Mock
@@ -42,7 +43,7 @@ describe('SyntheticToken', function () {
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
-    ;[deployer, governor, user, treasury] = await ethers.getSigners()
+    ;[deployer, governor, user, treasury, feeCollector] = await ethers.getSigners()
 
     poolRegistryMock = await smock.fake('PoolRegistry')
 
@@ -67,7 +68,13 @@ describe('SyntheticToken', function () {
     await msUSD.deployed()
 
     const poolMockFactory = await smock.mock('PoolMock')
-    poolMock = await poolMockFactory.deploy(msdMET.address, masterOracleMock.address, msUSD.address, msUSDDebt.address)
+    poolMock = await poolMockFactory.deploy(
+      msdMET.address,
+      masterOracleMock.address,
+      msUSD.address,
+      msUSDDebt.address,
+      poolRegistryMock.address
+    )
     await poolMock.deployed()
     await poolMock.transferGovernorship(governor.address)
     await poolMock.updateTreasury(treasury.address)
@@ -81,6 +88,7 @@ describe('SyntheticToken', function () {
     await masterOracleMock.updatePrice(msdMET.address, toUSD('1'))
 
     poolRegistryMock.governor.returns(governor.address)
+    poolRegistryMock.feeCollector.returns(feeCollector.address)
     poolRegistryMock.poolExists.returns((address: string) => address == poolMock.address)
     poolMock.isSyntheticTokenExists.returns((address: string) => address == msUSD.address)
     poolMock.isDebtTokenExists.returns((address: string) => address == msUSDDebt.address)
