@@ -546,4 +546,12 @@ contract Pool is ReentrancyGuard, Pausable, PoolStorageV1 {
     function masterOracle() public view override returns (IMasterOracle) {
         return poolRegistry.masterOracle();
     }
+
+    function paused() public view override(IPausable, Pausable) returns (bool) {
+        return super.paused() || poolRegistry.paused();
+    }
+
+    function everythingStopped() public view override(IPausable, Pausable) returns (bool) {
+        return super.everythingStopped() || poolRegistry.everythingStopped();
+    }
 }

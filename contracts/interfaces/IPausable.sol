@@ -3,7 +3,7 @@
 pragma solidity 0.8.9;
 
 interface IPausable {
-    function paused() external returns (bool);
+    function paused() external view returns (bool);
 
-    function everythingStopped() external returns (bool);
+    function everythingStopped() external view returns (bool);
 }

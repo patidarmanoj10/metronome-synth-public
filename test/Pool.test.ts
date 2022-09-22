@@ -1111,6 +1111,36 @@ describe('Pool', function () {
     })
   })
 
+  describe('Pause/Shutdown via PoolRegistry', function () {
+    it('should pause pool if poolRegistry is paused', async function () {
+      // given is not paused
+      expect(await pool.paused()).to.false
+
+      // when poolRegistry is paused
+      poolRegistryMock.paused.returns(true)
+
+      // then pool is paused too
+      expect(await pool.paused()).to.true
+
+      // Reset mock
+      poolRegistryMock.paused.returns(false)
+    })
+
+    it('should shutdown pool if poolRegistry is shutdown', async function () {
+      // given is not shutdown
+      expect(await pool.everythingStopped()).to.false
+
+      // when poolRegistry is shutdown
+      poolRegistryMock.everythingStopped.returns(true)
+
+      // then pool is shutdown too
+      expect(await pool.everythingStopped()).to.true
+
+      // Reset mock
+      poolRegistryMock.everythingStopped.returns(false)
+    })
+  })
+
   describe('whitelisting', function () {
     let syntheticToken: FakeContract
     let debtToken: FakeContract
