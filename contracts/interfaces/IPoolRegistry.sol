@@ -3,10 +3,11 @@
 pragma solidity 0.8.9;
 
 import "./external/IMasterOracle.sol";
+import "./IPausable.sol";
 import "./IGovernable.sol";
 import "./ISyntheticToken.sol";
 
-interface IPoolRegistry is IGovernable {
+interface IPoolRegistry is IPausable, IGovernable {
     function poolExists(address pool_) external view returns (bool);
 
     function feeCollector() external view returns (address);
