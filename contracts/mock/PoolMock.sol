@@ -38,26 +38,6 @@ contract PoolMock is IPool, Governable, Pausable {
         debtToken = _debtToken;
     }
 
-    function mockCall(address _to, bytes memory _data) public {
-        (bool success, bytes memory data) = _to.call(_data);
-        require(success, extractRevertReason(data));
-    }
-
-    function extractRevertReason(bytes memory revertData) internal pure returns (string memory reason) {
-        uint256 l = revertData.length;
-        if (l < 68) return "";
-        uint256 t;
-        assembly {
-            revertData := add(revertData, 4)
-            t := mload(revertData) // Save the content of the length slot
-            mstore(revertData, sub(l, 4)) // Set proper length
-        }
-        reason = abi.decode(revertData, (string));
-        assembly {
-            mstore(revertData, t) // Restore the content of the length slot
-        }
-    }
-
     function getDepositTokens() external pure override returns (address[] memory) {
         revert("mock-does-not-implement");
     }
@@ -120,10 +100,6 @@ contract PoolMock is IPool, Governable, Pausable {
         IDepositToken
     ) external pure override {
         revert("mock-does-not-implement");
-    }
-
-    function updateMasterOracle(IMasterOracle _newMasterOracle) external {
-        masterOracle = _newMasterOracle;
     }
 
     function updateDebtFloor(uint256 _newDebtFloorInUsd) external override {
