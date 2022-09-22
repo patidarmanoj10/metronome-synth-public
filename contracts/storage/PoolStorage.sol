@@ -4,6 +4,7 @@ pragma solidity 0.8.9;
 
 import "../dependencies/openzeppelin/utils/structs/EnumerableSet.sol";
 import "../lib/MappedEnumerableSet.sol";
+import "../interfaces/IPoolRegistry.sol";
 import "../interfaces/IPool.sol";
 import "../interfaces/ITreasury.sol";
 import "../interfaces/IRewardsDistributor.sol";
@@ -40,12 +41,6 @@ abstract contract PoolStorageV1 is IPool {
     uint256 public repayFee;
 
     /**
-     * @notice The fee charged when swapping synthetic tokens
-     * @dev Use 18 decimals (e.g. 1e16 = 1%)
-     */
-    uint256 public swapFee;
-
-    /**
      * @notice The fee charged from liquidated deposit that goes to the liquidator
      * @dev Use 18 decimals (e.g. 1e16 = 1%)
      */
@@ -64,9 +59,9 @@ abstract contract PoolStorageV1 is IPool {
     uint256 public maxLiquidable;
 
     /**
-     * @notice Prices oracle
+     * @notice PoolRegistry
      */
-    IMasterOracle public masterOracle;
+    IPoolRegistry public poolRegistry;
 
     /**
      * @notice Treasury contract

@@ -40,16 +40,6 @@ contract Pool is ReentrancyGuard, Pausable, PoolStorageV1 {
         uint256 fee
     );
 
-    /// @notice Emitted when synthetic token is swapped
-    event SyntheticTokenSwapped(
-        address indexed account,
-        ISyntheticToken indexed syntheticTokenIn,
-        ISyntheticToken indexed syntheticTokenOut,
-        uint256 amountIn,
-        uint256 amountOut,
-        uint256 fee
-    );
-
     /// @notice Emitted when protocol liquidation fee is updated
     event DebtFloorUpdated(uint256 oldDebtFloorInUsd, uint256 newDebtFloorInUsd);
 
@@ -65,9 +55,6 @@ contract Pool is ReentrancyGuard, Pausable, PoolStorageV1 {
     /// @notice Emitted when repay fee is updated
     event RepayFeeUpdated(uint256 oldRepayFee, uint256 newRepayFee);
 
-    /// @notice Emitted when swap fee is updated
-    event SwapFeeUpdated(uint256 oldSwapFee, uint256 newSwapFee);
-
     /// @notice Emitted when refinance fee is updated
     event RefinanceFeeUpdated(uint256 oldRefinanceFee, uint256 newRefinanceFee);
 
@@ -79,9 +66,6 @@ contract Pool is ReentrancyGuard, Pausable, PoolStorageV1 {
 
     /// @notice Emitted when protocol liquidation fee is updated
     event ProtocolLiquidationFeeUpdated(uint256 oldProtocolLiquidationFee, uint256 newProtocolLiquidationFee);
-
-    /// @notice Emitted when master oracle contract is updated
-    event MasterOracleUpdated(IMasterOracle indexed oldOracle, IMasterOracle indexed newOracle);
 
     /// @notice Emitted when treasury contract is updated
     event TreasuryUpdated(ITreasury indexed oldTreasury, ITreasury indexed newTreasury);
@@ -130,16 +114,14 @@ contract Pool is ReentrancyGuard, Pausable, PoolStorageV1 {
         _;
     }
 
-    function initialize(IMasterOracle _masterOracle) public initializer {
-        require(address(_masterOracle) != address(0), "oracle-is-null");
-
+    function initialize(IPoolRegistry poolRegistry_) public initializer {
+        require(address(poolRegistry_) != address(0), "pool-registry-is-null");
         __ReentrancyGuard_init();
         __Governable_init();
 
-        masterOracle = _masterOracle;
+        poolRegistry = poolRegistry_;
 
         repayFee = 3e15; // 0.3%
-        swapFee = 6e15; // 0.6%
         liquidatorLiquidationFee = 1e17; // 10%
         protocolLiquidationFee = 8e16; // 8%
         maxLiquidable = 0.5e18; // 50%
@@ -225,7 +207,7 @@ contract Pool is ReentrancyGuard, Pausable, PoolStorageV1 {
         for (uint256 i; i < _length; ++i) {
             IDebtToken _debtToken = IDebtToken(debtTokensOfAccount.at(_account, i));
             ISyntheticToken _syntheticToken = _debtToken.syntheticToken();
-            _debtInUsd += masterOracle.quoteTokenToUsd(address(_syntheticToken), _debtToken.balanceOf(_account));
+            _debtInUsd += masterOracle().quoteTokenToUsd(address(_syntheticToken), _debtToken.balanceOf(_account));
         }
     }
 
@@ -244,7 +226,7 @@ contract Pool is ReentrancyGuard, Pausable, PoolStorageV1 {
         uint256 _length = depositTokensOfAccount.length(_account);
         for (uint256 i; i < _length; ++i) {
             IDepositToken _depositToken = IDepositToken(depositTokensOfAccount.at(_account, i));
-            uint256 _amountInUsd = masterOracle.quoteTokenToUsd(
+            uint256 _amountInUsd = masterOracle().quoteTokenToUsd(
                 address(_depositToken),
                 _depositToken.balanceOf(_account)
             );
@@ -310,14 +292,14 @@ contract Pool is ReentrancyGuard, Pausable, PoolStorageV1 {
         require(_amountToRepay.wadDiv(_debtTokenBalance) <= maxLiquidable, "amount-gt-max-liquidable");
 
         if (debtFloorInUsd > 0) {
-            uint256 _newDebtInUsd = masterOracle.quoteTokenToUsd(
+            uint256 _newDebtInUsd = masterOracle().quoteTokenToUsd(
                 address(_syntheticToken),
                 _debtTokenBalance - _amountToRepay
             );
             require(_newDebtInUsd == 0 || _newDebtInUsd >= debtFloorInUsd, "remaining-debt-lt-floor");
         }
 
-        uint256 _amountToRepayInCollateral = masterOracle.quote(
+        uint256 _amountToRepayInCollateral = masterOracle().quote(
             address(_syntheticToken),
             address(_depositToken),
             _amountToRepay
@@ -340,47 +322,6 @@ contract Pool is ReentrancyGuard, Pausable, PoolStorageV1 {
         }
 
         emit PositionLiquidated(_liquidator, _account, _syntheticToken, _amountToRepay, _depositToSeize, _toProtocol);
-    }
-
-    /**
-     * @notice Swap synthetic tokens
-     * @param _syntheticTokenIn Synthetic token to sell
-     * @param _syntheticTokenOut Synthetic token to buy
-     * @param _amountIn Amount to swap
-     */
-    function swap(
-        ISyntheticToken _syntheticTokenIn,
-        ISyntheticToken _syntheticTokenOut,
-        uint256 _amountIn
-    )
-        external
-        override
-        whenNotShutdown
-        nonReentrant
-        onlyIfSyntheticTokenExists(_syntheticTokenIn)
-        onlyIfSyntheticTokenExists(_syntheticTokenOut)
-        onlyIfSyntheticTokenIsActive(_syntheticTokenOut)
-        returns (uint256 _amountOut)
-    {
-        address _account = _msgSender();
-
-        require(_amountIn > 0, "amount-in-is-0");
-        require(_amountIn <= _syntheticTokenIn.balanceOf(_account), "amount-in-gt-balance");
-
-        _syntheticTokenIn.burn(_account, _amountIn);
-
-        _amountOut = masterOracle.quote(address(_syntheticTokenIn), address(_syntheticTokenOut), _amountIn);
-
-        uint256 _feeAmount;
-        if (swapFee > 0) {
-            _feeAmount = _amountOut.wadMul(swapFee);
-            _syntheticTokenOut.mint(address(treasury), _feeAmount);
-            _amountOut -= _feeAmount;
-        }
-
-        _syntheticTokenOut.mint(_account, _amountOut);
-
-        emit SyntheticTokenSwapped(_account, _syntheticTokenIn, _syntheticTokenOut, _amountIn, _amountOut, _feeAmount);
     }
 
     /**
@@ -484,18 +425,6 @@ contract Pool is ReentrancyGuard, Pausable, PoolStorageV1 {
     }
 
     /**
-     * @notice Update master oracle contract
-     */
-    function updateMasterOracle(IMasterOracle _newMasterOracle) external override onlyGovernor {
-        require(address(_newMasterOracle) != address(0), "address-is-null");
-        IMasterOracle _currentMasterOracle = masterOracle;
-        require(_newMasterOracle != _currentMasterOracle, "new-same-as-current");
-
-        emit MasterOracleUpdated(_currentMasterOracle, _newMasterOracle);
-        masterOracle = _newMasterOracle;
-    }
-
-    /**
      * @notice Update deposit fee
      */
     function updateDepositFee(uint256 _newDepositFee) external override onlyGovernor {
@@ -537,17 +466,6 @@ contract Pool is ReentrancyGuard, Pausable, PoolStorageV1 {
         require(_newRepayFee != _currentRepayFee, "new-same-as-current");
         emit RepayFeeUpdated(_currentRepayFee, _newRepayFee);
         repayFee = _newRepayFee;
-    }
-
-    /**
-     * @notice Update swap fee
-     */
-    function updateSwapFee(uint256 _newSwapFee) external override onlyGovernor {
-        require(_newSwapFee <= 1e18, "max-is-100%");
-        uint256 _currentSwapFee = swapFee;
-        require(_newSwapFee != _currentSwapFee, "new-same-as-current");
-        emit SwapFeeUpdated(_currentSwapFee, _newSwapFee);
-        swapFee = _newSwapFee;
     }
 
     /**
@@ -620,5 +538,12 @@ contract Pool is ReentrancyGuard, Pausable, PoolStorageV1 {
 
         rewardsDistributors.push(_distributor);
         emit RewardsDistributorAdded(_distributor);
+    }
+
+    /**
+     * @notice Get MasterOracle contract
+     */
+    function masterOracle() public view override returns (IMasterOracle) {
+        return poolRegistry.masterOracle();
     }
 }

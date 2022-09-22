@@ -43,7 +43,7 @@ const interestRate = parseEther('0')
 async function fixture() {
   const [deployer, alice, , liquidator] = await ethers.getSigners()
   const masterOracleMockFactory = new MasterOracleMock__factory(deployer)
-  const masterOracleMock = <MasterOracleMock>await masterOracleMockFactory.deploy()
+  const masterOracleMock = await masterOracleMockFactory.deploy()
   await masterOracleMock.deployed()
 
   const erc20MockFactory = new ERC20Mock__factory(deployer)
@@ -88,6 +88,7 @@ async function fixture() {
   const poolRegistryMock = await smock.fake('PoolRegistry')
   poolRegistryMock.governor.returns(deployer.address)
   poolRegistryMock.poolExists.returns((address: string) => address == pool.address)
+  poolRegistryMock.masterOracle.returns(masterOracleMock.address)
 
   // Deployment tasks
   await msdMET.initialize(met.address, pool.address, 'msdMET', 18, metCR, MaxUint256)
@@ -98,7 +99,7 @@ async function fixture() {
   await msDoge.initialize('Metronome Synth DOGE', 'msDOGE', 18, poolRegistryMock.address)
   await msDogeDebtToken.initialize('msDOGE Debt', 'msDOGE-Debt', pool.address, msDoge.address, interestRate, MaxUint256)
 
-  await pool.initialize(masterOracleMock.address)
+  await pool.initialize(poolRegistryMock.address)
   await pool.updateMaxLiquidable(parseEther('1')) // 100%
   await pool.updateTreasury(treasury.address)
   expect(await pool.liquidatorLiquidationFee()).eq(liquidatorLiquidationFee)
@@ -246,169 +247,169 @@ describe('Pool', function () {
         await msEthDebtToken.connect(alice).issue(userMintAmount, alice.address)
       })
 
-      describe('swap', function () {
-        it('should not revert if paused', async function () {
-          // given
-          await pool.pause()
+      // describe('swap', function () {
+      //   it('should not revert if paused', async function () {
+      //     // given
+      //     await pool.pause()
 
-          // when
-          const amount = parseEther('0.1')
-          const tx = pool.connect(alice).swap(msEth.address, msDoge.address, amount)
+      //     // when
+      //     const amount = parseEther('0.1')
+      //     const tx = pool.connect(alice).swap(msEth.address, msDoge.address, amount)
 
-          // then
-          await expect(tx).emit(pool, 'SyntheticTokenSwapped')
-        })
+      //     // then
+      //     await expect(tx).emit(pool, 'SyntheticTokenSwapped')
+      //   })
 
-        it('should revert if shutdown', async function () {
-          // given
-          await pool.shutdown()
+      //   it('should revert if shutdown', async function () {
+      //     // given
+      //     await pool.shutdown()
 
-          // when
-          const amount = parseEther('0.1')
-          const tx = pool.connect(alice).swap(msEth.address, msDoge.address, amount)
+      //     // when
+      //     const amount = parseEther('0.1')
+      //     const tx = pool.connect(alice).swap(msEth.address, msDoge.address, amount)
 
-          // then
-          await expect(tx).revertedWith('shutdown')
-        })
+      //     // then
+      //     await expect(tx).revertedWith('shutdown')
+      //   })
 
-        it('should revert if amount == 0', async function () {
-          // when
-          const tx = pool.connect(alice).swap(msEth.address, msDoge.address, 0)
+      //   it('should revert if amount == 0', async function () {
+      //     // when
+      //     const tx = pool.connect(alice).swap(msEth.address, msDoge.address, 0)
 
-          // then
-          await expect(tx).revertedWith('amount-in-is-0')
-        })
+      //     // then
+      //     await expect(tx).revertedWith('amount-in-is-0')
+      //   })
 
-        it('should revert if synthetic out is not active', async function () {
-          // given
-          await msDoge.toggleIsActive()
+      //   it('should revert if synthetic out is not active', async function () {
+      //     // given
+      //     await msDoge.toggleIsActive()
 
-          // when
-          const amountIn = await msEth.balanceOf(alice.address)
-          const tx = pool.connect(alice).swap(msEth.address, msDoge.address, amountIn)
+      //     // when
+      //     const amountIn = await msEth.balanceOf(alice.address)
+      //     const tx = pool.connect(alice).swap(msEth.address, msDoge.address, amountIn)
 
-          // then
-          await expect(tx).revertedWith('synthetic-inactive')
-        })
+      //     // then
+      //     await expect(tx).revertedWith('synthetic-inactive')
+      //   })
 
-        it('should revert if debt token out is not active', async function () {
-          // given
-          await msDogeDebtToken.toggleIsActive()
+      //   it('should revert if debt token out is not active', async function () {
+      //     // given
+      //     await msDogeDebtToken.toggleIsActive()
 
-          // when
-          const amountIn = await msEth.balanceOf(alice.address)
-          const tx = pool.connect(alice).swap(msEth.address, msDoge.address, amountIn)
+      //     // when
+      //     const amountIn = await msEth.balanceOf(alice.address)
+      //     const tx = pool.connect(alice).swap(msEth.address, msDoge.address, amountIn)
 
-          // then
-          await expect(tx).revertedWith('debt-token-inactive')
-        })
+      //     // then
+      //     await expect(tx).revertedWith('debt-token-inactive')
+      //   })
 
-        it('should revert if user has not enough balance', async function () {
-          // given
-          const msAssetInBalance = await msEth.balanceOf(alice.address)
+      //   it('should revert if user has not enough balance', async function () {
+      //     // given
+      //     const msAssetInBalance = await msEth.balanceOf(alice.address)
 
-          // when
-          const amountIn = msAssetInBalance.add('1')
-          const tx = pool.connect(alice).swap(msEth.address, msDoge.address, amountIn)
+      //     // when
+      //     const amountIn = msAssetInBalance.add('1')
+      //     const tx = pool.connect(alice).swap(msEth.address, msDoge.address, amountIn)
 
-          // then
-          await expect(tx).revertedWith('amount-in-gt-balance')
-        })
+      //     // then
+      //     await expect(tx).revertedWith('amount-in-gt-balance')
+      //   })
 
-        it('should swap synthetic tokens (swapFee == 0)', async function () {
-          // given
-          await pool.updateSwapFee(0)
-          const msAssetInBalanceBefore = await msEth.balanceOf(alice.address)
-          const msAssetInDebtBalanceBefore = await msEthDebtToken.balanceOf(alice.address)
-          const msAssetOutBalanceBefore = await msDoge.balanceOf(alice.address)
-          const msAssetOutDebtBalanceBefore = await msDogeDebtToken.balanceOf(alice.address)
-          expect(msAssetOutBalanceBefore).eq(0)
-          expect(msAssetOutDebtBalanceBefore).eq(0)
-          const debtInUsdBefore = await pool.debtOf(alice.address)
+      //   it('should swap synthetic tokens (swapFee == 0)', async function () {
+      //     // given
+      //     await pool.updateSwapFee(0)
+      //     const msAssetInBalanceBefore = await msEth.balanceOf(alice.address)
+      //     const msAssetInDebtBalanceBefore = await msEthDebtToken.balanceOf(alice.address)
+      //     const msAssetOutBalanceBefore = await msDoge.balanceOf(alice.address)
+      //     const msAssetOutDebtBalanceBefore = await msDogeDebtToken.balanceOf(alice.address)
+      //     expect(msAssetOutBalanceBefore).eq(0)
+      //     expect(msAssetOutDebtBalanceBefore).eq(0)
+      //     const debtInUsdBefore = await pool.debtOf(alice.address)
 
-          // when
-          const msAssetIn = msEth.address
-          const msAssetOut = msDoge.address
-          const amountIn = msAssetInBalanceBefore
-          const amountInUsd = amountIn.mul(ethPrice).div(parseEther('1'))
-          const tx = await pool.connect(alice).swap(msAssetIn, msAssetOut, amountIn)
+      //     // when
+      //     const msAssetIn = msEth.address
+      //     const msAssetOut = msDoge.address
+      //     const amountIn = msAssetInBalanceBefore
+      //     const amountInUsd = amountIn.mul(ethPrice).div(parseEther('1'))
+      //     const tx = await pool.connect(alice).swap(msAssetIn, msAssetOut, amountIn)
 
-          // then
-          const expectedAmountOut = amountInUsd.mul(parseEther('1')).div(dogePrice)
+      //     // then
+      //     const expectedAmountOut = amountInUsd.mul(parseEther('1')).div(dogePrice)
 
-          await expect(tx)
-            .emit(pool, 'SyntheticTokenSwapped')
-            .withArgs(alice.address, msAssetIn, msAssetOut, amountIn, expectedAmountOut, 0)
+      //     await expect(tx)
+      //       .emit(pool, 'SyntheticTokenSwapped')
+      //       .withArgs(alice.address, msAssetIn, msAssetOut, amountIn, expectedAmountOut, 0)
 
-          const msAssetInBalanceAfter = await msEth.balanceOf(alice.address)
-          const msAssetInDebtBalanceAfter = await msEthDebtToken.balanceOf(alice.address)
-          const msAssetOutBalanceAfter = await msDoge.balanceOf(alice.address)
-          const msAssetOutDebtBalanceAfter = await msDogeDebtToken.balanceOf(alice.address)
-          const debtInUsdAfter = await pool.debtOf(alice.address)
+      //     const msAssetInBalanceAfter = await msEth.balanceOf(alice.address)
+      //     const msAssetInDebtBalanceAfter = await msEthDebtToken.balanceOf(alice.address)
+      //     const msAssetOutBalanceAfter = await msDoge.balanceOf(alice.address)
+      //     const msAssetOutDebtBalanceAfter = await msDogeDebtToken.balanceOf(alice.address)
+      //     const debtInUsdAfter = await pool.debtOf(alice.address)
 
-          expect(debtInUsdAfter).eq(debtInUsdBefore)
-          expect(msAssetInBalanceAfter).eq(msAssetInBalanceBefore.sub(amountIn))
-          expect(msAssetInDebtBalanceAfter).eq(msAssetInDebtBalanceBefore)
-          expect(msAssetOutBalanceAfter).eq(msAssetOutBalanceBefore.add(expectedAmountOut))
-          expect(msAssetOutDebtBalanceAfter).eq(msAssetOutDebtBalanceBefore)
-        })
+      //     expect(debtInUsdAfter).eq(debtInUsdBefore)
+      //     expect(msAssetInBalanceAfter).eq(msAssetInBalanceBefore.sub(amountIn))
+      //     expect(msAssetInDebtBalanceAfter).eq(msAssetInDebtBalanceBefore)
+      //     expect(msAssetOutBalanceAfter).eq(msAssetOutBalanceBefore.add(expectedAmountOut))
+      //     expect(msAssetOutDebtBalanceAfter).eq(msAssetOutDebtBalanceBefore)
+      //   })
 
-        it('should swap synthetic tokens (swapFee > 0)', async function () {
-          // given
-          const swapFee = parseEther('0.1') // 10%
-          await pool.updateSwapFee(swapFee)
-          const msAssetInBalanceBefore = await msEth.balanceOf(alice.address)
-          const msAssetInDebtBalanceBefore = await msEthDebtToken.balanceOf(alice.address)
-          const msAssetOutBalanceBefore = await msDoge.balanceOf(alice.address)
-          const msAssetOutDebtBalanceBefore = await msDogeDebtToken.balanceOf(alice.address)
-          expect(msAssetOutBalanceBefore).eq(0)
-          expect(msAssetOutDebtBalanceBefore).eq(0)
-          const debtInUsdBefore = await pool.debtOf(alice.address)
+      //   it('should swap synthetic tokens (swapFee > 0)', async function () {
+      //     // given
+      //     const swapFee = parseEther('0.1') // 10%
+      //     await pool.updateSwapFee(swapFee)
+      //     const msAssetInBalanceBefore = await msEth.balanceOf(alice.address)
+      //     const msAssetInDebtBalanceBefore = await msEthDebtToken.balanceOf(alice.address)
+      //     const msAssetOutBalanceBefore = await msDoge.balanceOf(alice.address)
+      //     const msAssetOutDebtBalanceBefore = await msDogeDebtToken.balanceOf(alice.address)
+      //     expect(msAssetOutBalanceBefore).eq(0)
+      //     expect(msAssetOutDebtBalanceBefore).eq(0)
+      //     const debtInUsdBefore = await pool.debtOf(alice.address)
 
-          // when
-          const msAssetIn = msEth.address
-          const msAssetOut = msDoge.address
-          const amountIn = msAssetInBalanceBefore
-          const amountInUsd = amountIn.mul(ethPrice).div(parseEther('1'))
-          const tx = await pool.connect(alice).swap(msAssetIn, msAssetOut, amountIn)
+      //     // when
+      //     const msAssetIn = msEth.address
+      //     const msAssetOut = msDoge.address
+      //     const amountIn = msAssetInBalanceBefore
+      //     const amountInUsd = amountIn.mul(ethPrice).div(parseEther('1'))
+      //     const tx = await pool.connect(alice).swap(msAssetIn, msAssetOut, amountIn)
 
-          // then
-          const expectedAmountOut = amountInUsd.mul(parseEther('1')).div(dogePrice)
-          const expectedFee = expectedAmountOut.mul(swapFee).div(parseEther('1'))
-          const expectedAmountOutAfterFee = expectedAmountOut.sub(expectedFee)
+      //     // then
+      //     const expectedAmountOut = amountInUsd.mul(parseEther('1')).div(dogePrice)
+      //     const expectedFee = expectedAmountOut.mul(swapFee).div(parseEther('1'))
+      //     const expectedAmountOutAfterFee = expectedAmountOut.sub(expectedFee)
 
-          await expect(tx)
-            .emit(pool, 'SyntheticTokenSwapped')
-            .withArgs(alice.address, msAssetIn, msAssetOut, amountIn, expectedAmountOutAfterFee, expectedFee)
+      //     await expect(tx)
+      //       .emit(pool, 'SyntheticTokenSwapped')
+      //       .withArgs(alice.address, msAssetIn, msAssetOut, amountIn, expectedAmountOutAfterFee, expectedFee)
 
-          const msAssetInBalanceAfter = await msEth.balanceOf(alice.address)
-          const msAssetInDebtBalanceAfter = await msEthDebtToken.balanceOf(alice.address)
-          const msAssetOutBalanceAfter = await msDoge.balanceOf(alice.address)
-          const msAssetOutDebtBalanceAfter = await msDogeDebtToken.balanceOf(alice.address)
-          const debtInUsdAfter = await pool.debtOf(alice.address)
+      //     const msAssetInBalanceAfter = await msEth.balanceOf(alice.address)
+      //     const msAssetInDebtBalanceAfter = await msEthDebtToken.balanceOf(alice.address)
+      //     const msAssetOutBalanceAfter = await msDoge.balanceOf(alice.address)
+      //     const msAssetOutDebtBalanceAfter = await msDogeDebtToken.balanceOf(alice.address)
+      //     const debtInUsdAfter = await pool.debtOf(alice.address)
 
-          expect(debtInUsdAfter).eq(debtInUsdBefore)
-          expect(msAssetInBalanceAfter).eq(msAssetInBalanceBefore.sub(amountIn))
-          expect(msAssetInDebtBalanceAfter).eq(msAssetInDebtBalanceBefore)
-          expect(msAssetOutBalanceAfter).eq(msAssetOutBalanceBefore.add(expectedAmountOutAfterFee))
-          expect(msAssetOutDebtBalanceAfter).eq(msAssetOutDebtBalanceBefore)
-        })
+      //     expect(debtInUsdAfter).eq(debtInUsdBefore)
+      //     expect(msAssetInBalanceAfter).eq(msAssetInBalanceBefore.sub(amountIn))
+      //     expect(msAssetInDebtBalanceAfter).eq(msAssetInDebtBalanceBefore)
+      //     expect(msAssetOutBalanceAfter).eq(msAssetOutBalanceBefore.add(expectedAmountOutAfterFee))
+      //     expect(msAssetOutDebtBalanceAfter).eq(msAssetOutDebtBalanceBefore)
+      //   })
 
-        it('should allow user without debt to swap', async function () {
-          // given
-          const amountIn = parseEther('1')
-          await msEth.connect(alice).transfer(bob.address, amountIn)
-          expect(await msEthDebtToken.balanceOf(bob.address)).eq(0)
-          expect(await msDoge.balanceOf(bob.address)).eq(0)
+      //   it('should allow user without debt to swap', async function () {
+      //     // given
+      //     const amountIn = parseEther('1')
+      //     await msEth.connect(alice).transfer(bob.address, amountIn)
+      //     expect(await msEthDebtToken.balanceOf(bob.address)).eq(0)
+      //     expect(await msDoge.balanceOf(bob.address)).eq(0)
 
-          // when
-          await pool.connect(bob).swap(msEth.address, msDoge.address, amountIn)
+      //     // when
+      //     await pool.connect(bob).swap(msEth.address, msDoge.address, amountIn)
 
-          // then
-          expect(await msEth.balanceOf(bob.address)).eq(0)
-          expect(await msDoge.balanceOf(bob.address)).gt(0)
-        })
-      })
+      //     // then
+      //     expect(await msEth.balanceOf(bob.address)).eq(0)
+      //     expect(await msDoge.balanceOf(bob.address)).gt(0)
+      //   })
+      // })
 
       describe('liquidate', function () {
         const liquidatorDepositAmount = parseEther('100000')
@@ -1172,49 +1173,6 @@ describe('Pool', function () {
     })
   })
 
-  describe('updateMasterOracle', function () {
-    it('should revert if not governor', async function () {
-      // when
-      const tx = pool.connect(alice).updateMasterOracle(ethers.constants.AddressZero)
-
-      // then
-      await expect(tx).revertedWith('not-governor')
-    })
-
-    it('should revert if using the same address', async function () {
-      // given
-      expect(await pool.masterOracle()).eq(masterOracle.address)
-
-      // when
-      const tx = pool.updateMasterOracle(masterOracle.address)
-
-      // then
-      await expect(tx).revertedWith('new-same-as-current')
-    })
-
-    it('should revert if address is zero', async function () {
-      // when
-      const tx = pool.updateMasterOracle(ethers.constants.AddressZero)
-
-      // then
-      await expect(tx).revertedWith('address-is-null')
-    })
-
-    it('should update master oracle contract', async function () {
-      // given
-      const currentMasterOracle = await pool.masterOracle()
-      const newMasterOracle = bob.address
-      expect(currentMasterOracle).not.eq(newMasterOracle)
-
-      // when
-      const tx = pool.updateMasterOracle(newMasterOracle)
-
-      // then
-      await expect(tx).emit(pool, 'MasterOracleUpdated').withArgs(currentMasterOracle, newMasterOracle)
-      expect(await pool.masterOracle()).eq(newMasterOracle)
-    })
-  })
-
   describe('updateTreasury', function () {
     it('should revert if using the same address', async function () {
       // given
@@ -1573,47 +1531,6 @@ describe('Pool', function () {
 
       // then
       await expect(tx).emit(pool, 'RepayFeeUpdated').withArgs(currentRepayFee, newRepayFee)
-    })
-  })
-
-  describe('updateSwapFee', function () {
-    it('should revert if caller is not governor', async function () {
-      // when
-      const tx = pool.connect(alice).updateSwapFee(parseEther('1'))
-
-      // then
-      await expect(tx).revertedWith('not-governor')
-    })
-
-    it('should revert if using the current value', async function () {
-      // when
-      const swapFee = await pool.swapFee()
-      const tx = pool.updateSwapFee(swapFee)
-
-      // then
-      await expect(tx).revertedWith('new-same-as-current')
-    })
-
-    it('should revert if swap fee > 100%', async function () {
-      // when
-      const newSwapFee = parseEther('1').add('1')
-      const tx = pool.updateSwapFee(newSwapFee)
-
-      // then
-      await expect(tx).revertedWith('max-is-100%')
-    })
-
-    it('should update swap fee param', async function () {
-      // given
-      const currentSwapFee = await pool.swapFee()
-      const newSwapFee = parseEther('0.01')
-      expect(newSwapFee).not.eq(currentSwapFee)
-
-      // when
-      const tx = pool.updateSwapFee(newSwapFee)
-
-      // then
-      await expect(tx).emit(pool, 'SwapFeeUpdated').withArgs(currentSwapFee, newSwapFee)
     })
   })
 

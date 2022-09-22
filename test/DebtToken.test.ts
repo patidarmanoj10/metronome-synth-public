@@ -13,8 +13,6 @@ import {
   ERC20Mock__factory,
   MasterOracleMock,
   MasterOracleMock__factory,
-  PoolMock,
-  PoolMock__factory,
   SyntheticToken,
   SyntheticToken__factory,
 } from '../typechain'

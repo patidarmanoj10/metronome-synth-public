@@ -9,7 +9,14 @@ contract PoolRegistryUpgrader is UpgraderBase {
         transferOwnership(_owner);
     }
 
-    function _calls() internal pure override returns (bytes[] memory calls) {}
+    function _calls() internal pure override returns (bytes[] memory calls) {
+        calls = new bytes[](2);
+        calls[0] = abi.encodeWithSignature("swapFee()");
+        calls[1] = abi.encodeWithSignature("masterOracle()");
+    }
 
-    function _checkResults(bytes[] memory _beforeResults, bytes[] memory _afterResults) internal pure override {}
+    function _checkResults(bytes[] memory _beforeResults, bytes[] memory _afterResults) internal pure override {
+        _checkUint256Results(_beforeResults, _afterResults, 0, 0);
+        _checkAddressResults(_beforeResults, _afterResults, 1, 1);
+    }
 }
