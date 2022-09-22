@@ -4,6 +4,8 @@ pragma solidity 0.8.9;
 
 import "./dependencies/openzeppelin/utils/math/SafeCast.sol";
 import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
+import "./interfaces/IDebtToken.sol";
+import "./interfaces/IDepositToken.sol";
 import "./access/Manageable.sol";
 import "./storage/RewardsDistributorStorage.sol";
 import "./lib/WadRayMath.sol";
@@ -52,12 +54,12 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
      * @dev Throws if token doesn't exist
      * @dev Should be a DepositToken (suppliers) or DebtToken (borrowers)
      */
-    modifier onlyIfTokenExists(IERC20 _token) {
-        if (!pool.isDepositTokenExists(IDepositToken(address(_token)))) {
-            ISyntheticToken _syntheticToken = IDebtToken(address(_token)).syntheticToken();
-            require(pool.isSyntheticTokenExists(_syntheticToken), "invalid-token");
-            require(address(pool.debtTokenOf(_syntheticToken)) == address(_token), "invalid-token");
-        }
+    modifier onlyIfTokenExists(address _token) {
+        IPool _pool = pool;
+        require(
+            _pool.isDebtTokenExists(IDebtToken(_token)) || _pool.isDepositTokenExists(IDepositToken(_token)),
+            "invalid-token"
+        );
         _;
     }
 
@@ -77,7 +79,7 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     function _updateTokenSpeed(IERC20 _token, uint256 _newSpeed)
         private
         onlyIfDistributorExists
-        onlyIfTokenExists(_token)
+        onlyIfTokenExists(address(_token))
     {
         uint256 _currentSpeed = tokenSpeeds[_token];
         if (_currentSpeed > 0) {

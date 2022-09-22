@@ -69,6 +69,17 @@ describe('RewardDistributor', function () {
       await expect(tx).revertedWith('not-governor')
     })
 
+    it('should revert if not valid token', async function () {
+      // given
+      const speed = parseEther('1')
+      pool.isDepositTokenExists.returns(false)
+      // when
+      const tx = rewardDistributor.updateTokenSpeed(msdTOKEN1.address, speed)
+
+      // then
+      await expect(tx).revertedWith('invalid-token')
+    })
+
     it('should turn on', async function () {
       // given
       const before = await rewardDistributor.tokenSpeeds(msdTOKEN1.address)
