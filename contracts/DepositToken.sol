@@ -36,6 +36,14 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     event CollateralWithdrawn(address indexed account, address indexed to, uint256 amount, uint256 fee);
 
     /**
+     * @dev Throws if sender can't seize
+     */
+    modifier onlyIfCanSeize() {
+        require(_msgSender() == address(pool), "not-pool");
+        _;
+    }
+
+    /**
      * @dev Throws if minimum deposit time haven't passed
      */
     modifier onlyIfMinDepositTimePassed(address _account) {
@@ -382,7 +390,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         address _from,
         address _to,
         uint256 _amount
-    ) external override onlyPool {
+    ) external override onlyIfCanSeize {
         _transfer(_from, _to, _amount);
     }
 

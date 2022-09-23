@@ -29,22 +29,26 @@ contract SyntheticToken is Context, Initializable, SyntheticTokenStorageV1 {
     }
 
     /**
-     * @notice Check if caller is authorized to mint/burn (i.e. if is a valid Pool, a valid PoolRegistry or a valid DebtToken)
-     * @dev It's a short-term solution that will probably be redesigned (See more: https://github.com/bloqpriv/metronome-synth/issues/480)
+     * @dev Throws if sender can't mint
      */
-    modifier onlyIfAuthorized() {
-        bool isPoolRegistry = address(poolRegistry) == _msgSender();
-        if (!isPoolRegistry) {
-            bool isPool = poolRegistry.poolExists(_msgSender());
-            if (isPool) {
-                require(IPool(_msgSender()).isSyntheticTokenExists(this), "invalid-pool");
-            } else {
-                IPool _pool = IManageable(_msgSender()).pool();
-                require(poolRegistry.poolExists(address(_pool)), "invalid-pool");
-                require(_pool.isDebtTokenExists(IDebtToken(_msgSender())), "invalid-debt-token");
-                require(IDebtToken(_msgSender()).syntheticToken() == this, "invalid-debt-token");
-            }
-        }
+    modifier onlyIfCanMint() {
+        require(_isMsgSenderPoolRegistry() || _isMsgSenderDebtToken(), "sender-cant-mint");
+        _;
+    }
+
+    /**
+     * @dev Throws if sender can't burn
+     */
+    modifier onlyIfCanBurn() {
+        require(_isMsgSenderPoolRegistry() || _isMsgSenderPool() || _isMsgSenderDebtToken(), "sender-cant-burn");
+        _;
+    }
+
+    /**
+     * @dev Throws if sender can't seize
+     */
+    modifier onlyIfCanSeize() {
+        require(_isMsgSenderPool() || _isMsgSenderDebtToken(), "sender-cant-seize");
         _;
     }
 
@@ -170,7 +174,7 @@ contract SyntheticToken is Context, Initializable, SyntheticTokenStorageV1 {
      * @param _to The account to mint to
      * @param _amount The amount to mint
      */
-    function mint(address _to, uint256 _amount) external override onlyIfAuthorized {
+    function mint(address _to, uint256 _amount) external override onlyIfCanMint {
         _mint(_to, _amount);
     }
 
@@ -179,7 +183,7 @@ contract SyntheticToken is Context, Initializable, SyntheticTokenStorageV1 {
      * @param _from The account to burn from
      * @param _amount The amount to burn
      */
-    function burn(address _from, uint256 _amount) external override onlyIfAuthorized {
+    function burn(address _from, uint256 _amount) external override onlyIfCanBurn {
         _burn(_from, _amount);
     }
 
@@ -194,7 +198,7 @@ contract SyntheticToken is Context, Initializable, SyntheticTokenStorageV1 {
         address _from,
         address _to,
         uint256 _amount
-    ) external override onlyIfAuthorized {
+    ) external override onlyIfCanSeize {
         _transfer(_from, _to, _amount);
     }
 
@@ -205,5 +209,31 @@ contract SyntheticToken is Context, Initializable, SyntheticTokenStorageV1 {
         bool _isActive = isActive;
         emit SyntheticTokenActiveUpdated(_isActive, !_isActive);
         isActive = !_isActive;
+    }
+
+    /**
+     * @notice Check if the sender is the PoolRegistry contract
+     */
+    function _isMsgSenderPoolRegistry() private view returns (bool) {
+        return _msgSender() == address(poolRegistry);
+    }
+
+    /**
+     * @notice Check if the sender is a valid Pool contract
+     */
+    function _isMsgSenderPool() private view returns (bool) {
+        return poolRegistry.poolExists(_msgSender()) && IPool(_msgSender()).isSyntheticTokenExists(this);
+    }
+
+    /**
+     * @notice Check if the sender is a valid DebtToken contract
+     */
+    function _isMsgSenderDebtToken() private view returns (bool) {
+        IPool _pool = IManageable(_msgSender()).pool();
+
+        return
+            poolRegistry.poolExists(address(_pool)) &&
+            _pool.isDebtTokenExists(IDebtToken(_msgSender())) &&
+            IDebtToken(_msgSender()).syntheticToken() == this;
     }
 }
