@@ -286,7 +286,7 @@ describe('DebtToken', function () {
         .withArgs(user1.address, user1.address, amount, expectedFee)
     })
 
-    describe('when user1 minted some msETH', function () {
+    describe('when user1 issue some msETH', function () {
       const userMintAmount = parseEther('1')
 
       beforeEach(async function () {
@@ -469,86 +469,15 @@ describe('DebtToken', function () {
     })
   })
 
-  describe('mint', function () {
-    it('should mint', async function () {
-      expect(await msUSDDebt.balanceOf(user1.address)).eq(0)
-      const amount = parseEther('100')
-
-      await msUSDDebt.connect(msUSDWallet).mint(user1.address, amount)
-
-      expect(await msUSDDebt.balanceOf(user1.address)).eq(amount)
-    })
-
-    it('should revert if caller is not synthetic token', async function () {
-      const tx = msUSDDebt.connect(user1).mint(user1.address, parseEther('10'))
-      await expect(tx).revertedWith('not-synthetic-token')
-    })
-
-    it('should revert if surpass max total supply', async function () {
-      // given
-      expect(await msUSDDebt.totalSupply()).eq(0)
-      const max = toUSD('100')
-      await msUSDDebt.updateMaxTotalSupplyInUsd(max)
-
-      // when
-      const tx = msUSDDebt.connect(msUSDWallet).mint(user1.address, max.add('1'))
-
-      // then
-      await expect(tx).revertedWith('surpass-max-total-supply')
-    })
-
-    it('should not remove address(0) from the users array', async function () {
-      // given
-      poolMock.removeFromDebtTokensOfAccount.reset()
-      expect(await msUSDDebt.balanceOf(user1.address)).eq(0)
-      expect(await msUSDDebt.balanceOf(ethers.constants.AddressZero)).eq(0)
-
-      // when
-      // Note: Set `gasLimit` prevents messing up the calls counter
-      // See more: https://github.com/defi-wonderland/smock/issues/99
-      const gasLimit = 250000
-      await msUSDDebt.connect(msUSDWallet).mint(user1.address, parseEther('1'), {gasLimit})
-
-      // then
-      expect(poolMock.removeFromDebtTokensOfAccount).callCount(0)
-    })
-
-    it('should add debt token to user1 array only if balance was 0 before mint', async function () {
-      // given
-      poolMock.addToDebtTokensOfAccount.reset()
-      expect(await msUSDDebt.balanceOf(user1.address)).eq(0)
-
-      // when
-      // Note: Set `gasLimit` prevents messing up the calls counter
-      // See more: https://github.com/defi-wonderland/smock/issues/99
-      const gasLimit = 250000
-      await msUSDDebt.connect(msUSDWallet).mint(user1.address, parseEther('1'), {gasLimit})
-      await msUSDDebt.connect(msUSDWallet).mint(user1.address, parseEther('1'), {gasLimit})
-      await msUSDDebt.connect(msUSDWallet).mint(user1.address, parseEther('1'), {gasLimit})
-
-      // then
-      expect(poolMock.addToDebtTokensOfAccount).callCount(1)
-    })
-
-    it('should trigger rewards update', async function () {
-      // given
-      rewardsDistributorMock.updateBeforeMintOrBurn.reset()
-
-      // when
-      await msUSDDebt.connect(msUSDWallet).mint(user1.address, parseEther('1'))
-
-      // then
-      // Note: Use `callCount` instead (Refs: https://github.com/defi-wonderland/smock/issues/85)
-      expect(rewardsDistributorMock.updateBeforeMintOrBurn).called
-      expect(rewardsDistributorMock.updateBeforeMintOrBurn.getCall(0).args[1]).eq(user1.address)
-    })
-  })
-
-  describe('when some token was minted', function () {
+  describe('when some synth was issued', function () {
     const amount = parseEther('100')
 
-    beforeEach('should mint', async function () {
-      await msUSDDebt.connect(msUSDWallet).mint(user1.address, amount)
+    beforeEach('should issue', async function () {
+      const depositAmount = parseEther('1000')
+      await met.mint(user1.address, depositAmount)
+      await met.connect(user1).approve(msdMET.address, ethers.constants.MaxUint256)
+      await msdMET.connect(user1).deposit(depositAmount, user1.address)
+      await msUSDDebt.connect(user1).issue(amount, user1.address)
     })
 
     describe('burn', function () {
@@ -633,8 +562,12 @@ describe('DebtToken', function () {
     const principal = parseEther('100')
 
     beforeEach(async function () {
+      const depositAmount = parseEther('1000')
+      await met.mint(user1.address, depositAmount)
+      await met.connect(user1).approve(msdMET.address, ethers.constants.MaxUint256)
+      await msdMET.connect(user1).deposit(depositAmount, user1.address)
       // given
-      await msUSDDebt.connect(msUSDWallet).mint(user1.address, principal)
+      await msUSDDebt.connect(user1).issue(principal, user1.address)
     })
 
     it('should get updated balance', async function () {
@@ -705,8 +638,12 @@ describe('DebtToken', function () {
     const principal = parseEther('100')
 
     beforeEach(async function () {
+      const depositAmount = parseEther('5000')
+      await met.mint(user1.address, depositAmount)
+      await met.connect(user1).approve(msdMET.address, ethers.constants.MaxUint256)
+      await msdMET.connect(user1).deposit(depositAmount, user1.address)
       // given
-      await msUSDDebt.connect(msUSDWallet).mint(user1.address, principal)
+      await msUSDDebt.connect(user1).issue(principal, user1.address)
     })
 
     it('should accrue interest', async function () {
@@ -786,10 +723,7 @@ describe('DebtToken', function () {
     it('should mint accrued fee to feeCollector', async function () {
       // given
       await msUSDDebt.updateInterestRate(parseEther('0.1')) // 10%
-      await msUSD.connect(poolMock.wallet).mint(user1.address, principal)
-
       await increaseTime(SECONDS_PER_YEAR)
-
       // when
       await msUSDDebt.accrueInterest()
 

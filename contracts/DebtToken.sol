@@ -219,15 +219,6 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
     }
 
     /**
-     * @notice Mint debt token
-     * @param _to The account to mint to
-     * @param _amount The amount to mint
-     */
-    function mint(address _to, uint256 _amount) external override onlyIfSyntheticToken {
-        _mint(_to, _amount);
-    }
-
-    /**
      * @notice Burn debt token
      * @param _from The account to burn from
      * @param _amount The amount to burn
