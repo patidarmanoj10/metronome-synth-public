@@ -13,10 +13,6 @@ interface IDepositToken is IERC20Metadata {
 
     function lockedBalanceOf(address _account) external view returns (uint256);
 
-    function minDepositTime() external view returns (uint256);
-
-    function lastDepositOf(address _account) external view returns (uint256);
-
     function deposit(uint256 _amount, address _onBehalfOf) external;
 
     function withdraw(uint256 _amount, address _to) external;

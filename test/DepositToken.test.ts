@@ -111,132 +111,104 @@ describe('DepositToken', function () {
     })
 
     describe('withdraw', function () {
-      describe('when minimum deposit time is > 0', function () {
-        beforeEach(async function () {
-          await metDepositToken.updateMinDepositTime(HOUR)
-        })
+      it('should revert not if paused', async function () {
+        // given
+        poolMock.paused.returns(true)
 
-        it('should revert if minimum deposit time have not passed', async function () {
-          // when
-          const tx = metDepositToken.connect(alice).withdraw('1', alice.address)
+        // when
+        const toWithdraw = 1
+        const tx = metDepositToken.connect(alice).withdraw(toWithdraw, alice.address)
 
-          // then
-          await expect(tx).revertedWith('min-deposit-time-have-not-passed')
-        })
-
-        it('should withdraw after the minimum deposit period', async function () {
-          // given
-          await increaseTime(HOUR)
-
-          // when
-          const toWithdraw = '1'
-          const tx = () => metDepositToken.connect(alice).withdraw(toWithdraw, alice.address)
-
-          // then
-          await expect(tx).changeTokenBalances(met, [alice], [toWithdraw])
-        })
+        // then
+        await expect(tx).emit(metDepositToken, 'CollateralWithdrawn')
       })
 
-      describe('when minimum deposit time == 0', function () {
-        it('should revert not if paused', async function () {
-          // given
-          poolMock.paused.returns(true)
+      it('should revert if shutdown', async function () {
+        // given
+        poolMock.paused.returns(true)
+        poolMock.everythingStopped.returns(true)
 
-          // when
-          const toWithdraw = 1
-          const tx = metDepositToken.connect(alice).withdraw(toWithdraw, alice.address)
+        // when
+        const toWithdraw = 1
+        const tx = metDepositToken.connect(alice).withdraw(toWithdraw, alice.address)
 
-          // then
-          await expect(tx).emit(metDepositToken, 'CollateralWithdrawn')
-        })
+        // then
+        await expect(tx).revertedWith('shutdown')
+      })
 
-        it('should revert if shutdown', async function () {
-          // given
-          poolMock.paused.returns(true)
-          poolMock.everythingStopped.returns(true)
+      it('should revert if amount is 0', async function () {
+        // when
+        const tx = metDepositToken.connect(alice).withdraw(0, alice.address)
 
-          // when
-          const toWithdraw = 1
-          const tx = metDepositToken.connect(alice).withdraw(toWithdraw, alice.address)
+        // then
+        await expect(tx).revertedWith('amount-is-zero')
+      })
 
-          // then
-          await expect(tx).revertedWith('shutdown')
-        })
+      it('should revert if amount > unlocked collateral amount', async function () {
+        // when
+        const unlockedDeposit = await metDepositToken.unlockedBalanceOf(alice.address)
+        const tx = metDepositToken.connect(alice).withdraw(unlockedDeposit.add('1'), alice.address)
 
-        it('should revert if amount is 0', async function () {
-          // when
-          const tx = metDepositToken.connect(alice).withdraw(0, alice.address)
+        // then
+        await expect(tx).revertedWith('amount-gt-unlocked')
+      })
 
-          // then
-          await expect(tx).revertedWith('amount-is-zero')
-        })
+      it('should withdraw if amount <= unlocked collateral amount (withdrawFee == 0)', async function () {
+        // given
+        const metBalanceBefore = await met.balanceOf(alice.address)
+        const depositBefore = await metDepositToken.balanceOf(alice.address)
 
-        it('should revert if amount > unlocked collateral amount', async function () {
-          // when
-          const unlockedDeposit = await metDepositToken.unlockedBalanceOf(alice.address)
-          const tx = metDepositToken.connect(alice).withdraw(unlockedDeposit.add('1'), alice.address)
+        // when
+        const amountToWithdraw = await metDepositToken.unlockedBalanceOf(alice.address)
+        const tx = metDepositToken.connect(alice).withdraw(amountToWithdraw, alice.address)
+        await expect(tx)
+          .emit(metDepositToken, 'CollateralWithdrawn')
+          .withArgs(alice.address, alice.address, amountToWithdraw, 0)
 
-          // then
-          await expect(tx).revertedWith('amount-gt-unlocked')
-        })
+        // then
+        expect(await met.balanceOf(alice.address)).eq(metBalanceBefore.add(amountToWithdraw))
+        expect(await metDepositToken.balanceOf(alice.address)).eq(depositBefore.sub(amountToWithdraw))
+        expect(await metDepositToken.unlockedBalanceOf(alice.address)).eq(0)
+      })
 
-        it('should withdraw if amount <= unlocked collateral amount (withdrawFee == 0)', async function () {
-          // given
-          const metBalanceBefore = await met.balanceOf(alice.address)
-          const depositBefore = await metDepositToken.balanceOf(alice.address)
+      it('should withdraw if amount <= unlocked collateral amount (withdrawFee > 0)', async function () {
+        // given
+        const withdrawFee = parseEther('0.1') // 10%
+        poolMock.withdrawFee.returns(withdrawFee)
+        const metBalanceBefore = await met.balanceOf(alice.address)
+        const depositBefore = await metDepositToken.balanceOf(alice.address)
+        const toWithdraw = await metDepositToken.unlockedBalanceOf(alice.address)
 
-          // when
-          const amountToWithdraw = await metDepositToken.unlockedBalanceOf(alice.address)
-          const tx = metDepositToken.connect(alice).withdraw(amountToWithdraw, alice.address)
-          await expect(tx)
-            .emit(metDepositToken, 'CollateralWithdrawn')
-            .withArgs(alice.address, alice.address, amountToWithdraw, 0)
+        const expectedFee = toWithdraw.mul(withdrawFee).div(parseEther('1'))
+        const expectedAmountAfterFee = toWithdraw.sub(expectedFee)
 
-          // then
-          expect(await met.balanceOf(alice.address)).eq(metBalanceBefore.add(amountToWithdraw))
-          expect(await metDepositToken.balanceOf(alice.address)).eq(depositBefore.sub(amountToWithdraw))
-          expect(await metDepositToken.unlockedBalanceOf(alice.address)).eq(0)
-        })
+        // when
+        const tx = metDepositToken.connect(alice).withdraw(toWithdraw, alice.address)
+        await expect(tx)
+          .emit(metDepositToken, 'CollateralWithdrawn')
+          .withArgs(alice.address, alice.address, toWithdraw, expectedFee)
 
-        it('should withdraw if amount <= unlocked collateral amount (withdrawFee > 0)', async function () {
-          // given
-          const withdrawFee = parseEther('0.1') // 10%
-          poolMock.withdrawFee.returns(withdrawFee)
-          const metBalanceBefore = await met.balanceOf(alice.address)
-          const depositBefore = await metDepositToken.balanceOf(alice.address)
-          const toWithdraw = await metDepositToken.unlockedBalanceOf(alice.address)
+        // then
+        expect(await met.balanceOf(alice.address)).eq(metBalanceBefore.add(expectedAmountAfterFee))
+        expect(await metDepositToken.balanceOf(alice.address)).eq(depositBefore.sub(toWithdraw))
+        expect(await metDepositToken.unlockedBalanceOf(alice.address)).eq(0)
+      })
 
-          const expectedFee = toWithdraw.mul(withdrawFee).div(parseEther('1'))
-          const expectedAmountAfterFee = toWithdraw.sub(expectedFee)
+      it('should withdraw collateral to another user', async function () {
+        // given
+        const depositBefore = await metDepositToken.balanceOf(alice.address)
 
-          // when
-          const tx = metDepositToken.connect(alice).withdraw(toWithdraw, alice.address)
-          await expect(tx)
-            .emit(metDepositToken, 'CollateralWithdrawn')
-            .withArgs(alice.address, alice.address, toWithdraw, expectedFee)
+        // when
+        const amountToWithdraw = await metDepositToken.unlockedBalanceOf(alice.address)
+        const tx = metDepositToken.connect(alice).withdraw(amountToWithdraw, bob.address)
+        await expect(tx)
+          .emit(metDepositToken, 'CollateralWithdrawn')
+          .withArgs(alice.address, bob.address, amountToWithdraw, 0)
 
-          // then
-          expect(await met.balanceOf(alice.address)).eq(metBalanceBefore.add(expectedAmountAfterFee))
-          expect(await metDepositToken.balanceOf(alice.address)).eq(depositBefore.sub(toWithdraw))
-          expect(await metDepositToken.unlockedBalanceOf(alice.address)).eq(0)
-        })
-
-        it('should withdraw collateral to another user', async function () {
-          // given
-          const depositBefore = await metDepositToken.balanceOf(alice.address)
-
-          // when
-          const amountToWithdraw = await metDepositToken.unlockedBalanceOf(alice.address)
-          const tx = metDepositToken.connect(alice).withdraw(amountToWithdraw, bob.address)
-          await expect(tx)
-            .emit(metDepositToken, 'CollateralWithdrawn')
-            .withArgs(alice.address, bob.address, amountToWithdraw, 0)
-
-          // then
-          expect(await met.balanceOf(bob.address)).eq(amountToWithdraw)
-          expect(await metDepositToken.balanceOf(alice.address)).eq(depositBefore.sub(amountToWithdraw))
-          expect(await metDepositToken.unlockedBalanceOf(alice.address)).eq(0)
-        })
+        // then
+        expect(await met.balanceOf(bob.address)).eq(amountToWithdraw)
+        expect(await metDepositToken.balanceOf(alice.address)).eq(depositBefore.sub(amountToWithdraw))
+        expect(await metDepositToken.unlockedBalanceOf(alice.address)).eq(0)
       })
 
       it('should trigger rewards update', async function () {
@@ -388,18 +360,6 @@ describe('DepositToken', function () {
         expect(await metDepositToken.balanceOf(alice.address)).eq(depositedAmount.sub(_unlockedDeposit))
       })
 
-      it('should revert if minimum deposit time have not passed', async function () {
-        // given
-        await metDepositToken.connect(governor).updateMinDepositTime(HOUR)
-
-        // when
-        const _unlockedDeposit = await metDepositToken.unlockedBalanceOf(alice.address)
-        const tx = metDepositToken.connect(alice).transfer(deployer.address, _unlockedDeposit)
-
-        // then
-        await expect(tx).revertedWith('min-deposit-time-have-not-passed')
-      })
-
       it('should revert if amount > free amount', async function () {
         // given
         poolMock.debtPositionOf.returns(debtPositionOf_returnsAllLocked(depositedAmount))
@@ -468,18 +428,6 @@ describe('DepositToken', function () {
 
         // then
         expect(await metDepositToken.balanceOf(alice.address)).eq(depositedAmount.sub(_unlockedDeposit))
-      })
-
-      it('should revert if minimum deposit time have not passed', async function () {
-        // given
-        await metDepositToken.connect(governor).updateMinDepositTime(HOUR)
-
-        // when
-        const _unlockedDeposit = await metDepositToken.unlockedBalanceOf(alice.address)
-        const tx = metDepositToken.connect(deployer).transferFrom(alice.address, deployer.address, _unlockedDeposit)
-
-        // then
-        await expect(tx).revertedWith('min-deposit-time-have-not-passed')
       })
 
       it('should revert if amount > free amount', async function () {
@@ -579,43 +527,6 @@ describe('DepositToken', function () {
 
         // then
         await expect(tx).revertedWith('collateralization-ratio-gt-100%')
-      })
-    })
-
-    describe('updateMinDepositTime', function () {
-      it('should update min deposit time', async function () {
-        // given
-        const currentMinDepositTime = await metDepositToken.minDepositTime()
-        const newMinDepositTime = '10'
-        expect(newMinDepositTime).not.eq(currentMinDepositTime)
-
-        // when
-
-        // then
-        const tx = metDepositToken.updateMinDepositTime(newMinDepositTime)
-        await expect(tx)
-          .emit(metDepositToken, 'MinDepositTimeUpdated')
-          .withArgs(currentMinDepositTime, newMinDepositTime)
-        expect(await metDepositToken.minDepositTime()).eq(newMinDepositTime)
-      })
-
-      it('should revert if using the current value', async function () {
-        // given
-        const currentMinDepositTime = await metDepositToken.minDepositTime()
-
-        // then
-        const tx = metDepositToken.updateMinDepositTime(currentMinDepositTime)
-
-        // then
-        await expect(tx).revertedWith('new-same-as-current')
-      })
-
-      it('should revert if not governor', async function () {
-        // when
-        const tx = metDepositToken.connect(alice).updateMinDepositTime('10')
-
-        // then
-        await expect(tx).revertedWith('not-governor')
       })
     })
 

@@ -28,16 +28,6 @@ abstract contract DepositTokenStorageV1 is IDepositToken {
     uint256 public collateralizationRatio;
 
     /**
-     * @notice The min amount of time that an account should wait after deposit collateral before be able to withdraw
-     */
-    uint256 public minDepositTime;
-
-    /**
-     * @notice Stores de timestamp of last deposit event of each account. It's used combined with `minDepositTime`.
-     */
-    mapping(address => uint256) public lastDepositOf;
-
-    /**
      * @notice If a collateral isn't active, it disables minting new tokens
      */
     bool public isActive;
