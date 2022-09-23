@@ -33,22 +33,6 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
     event DebtTokenActiveUpdated(bool oldActive, bool newActive);
 
     /**
-     * @dev Throws if caller isn't authorized
-     */
-    modifier onlyIfAuthorized() {
-        require(_msgSender() == address(pool) || _msgSender() == address(syntheticToken), "not-authorized");
-        _;
-    }
-
-    /**
-     * @dev Throws if the caller isn't the synthetic token
-     */
-    modifier onlyIfSyntheticToken() {
-        require(_msgSender() == address(syntheticToken), "not-synthetic-token");
-        _;
-    }
-
-    /**
      * @dev Throws if synthetic token isn't enabled
      */
     modifier onlyIfSyntheticTokenIsActive() {

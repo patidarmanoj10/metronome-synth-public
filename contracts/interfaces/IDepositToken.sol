@@ -21,10 +21,6 @@ interface IDepositToken is IERC20Metadata {
 
     function withdraw(uint256 _amount, address _to) external;
 
-    function mint(address _to, uint256 _amount) external;
-
-    function burn(address _from, uint256 _amount) external;
-
     function seize(
         address _from,
         address _to,

@@ -298,29 +298,11 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     }
 
     /**
-     * @notice Mint deposit token when an account deposits collateral
-     * @param _to The account to mint to
-     * @param _amount The amount to mint
-     */
-    function mint(address _to, uint256 _amount) external override onlyPool {
-        _mint(_to, _amount);
-    }
-
-    /**
      * @notice Burn deposit token as part of withdraw process
      * @param _from The account to burn from
      * @param _amount The amount to burn
      */
     function _burnForWithdraw(address _from, uint256 _amount) private onlyIfMinDepositTimePassed(_from) {
-        _burn(_from, _amount);
-    }
-
-    /**
-     * @notice Burn deposit tokens
-     * @param _from The account to burn from
-     * @param _amount The amount to burn
-     */
-    function burn(address _from, uint256 _amount) external override onlyPool {
         _burn(_from, _amount);
     }
 
