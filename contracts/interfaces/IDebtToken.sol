@@ -14,8 +14,6 @@ interface IDebtToken is IERC20Metadata {
 
     function debtIndex() external returns (uint256 _debtIndex);
 
-    function mint(address _to, uint256 _amount) external;
-
     function burn(address _from, uint256 _amount) external;
 
     function issue(uint256 _amount, address _to) external;
