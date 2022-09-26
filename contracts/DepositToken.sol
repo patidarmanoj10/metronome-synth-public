@@ -20,9 +20,6 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     /// @notice Emitted when CR is updated
     event CollateralizationRatioUpdated(uint256 oldCollateralizationRatio, uint256 newCollateralizationRatio);
 
-    /// @notice Emitted when minimum deposit time is updated
-    event MinDepositTimeUpdated(uint256 oldMinDepositTime, uint256 newMinDepositTime);
-
     /// @notice Emitted when active flag is updated
     event DepositTokenActiveUpdated(bool oldActive, bool newActive);
 
@@ -44,17 +41,9 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     }
 
     /**
-     * @dev Throws if minimum deposit time haven't passed
-     */
-    modifier onlyIfMinDepositTimePassed(address _account) {
-        require(block.timestamp >= lastDepositOf[_account] + minDepositTime, "min-deposit-time-have-not-passed");
-        _;
-    }
-
-    /**
      * @notice Requires that amount is lower than the account's unlocked balance
      */
-    modifier onlyIfNotLocked(address _account, uint256 _amount) {
+    modifier onlyIfUnlocked(address _account, uint256 _amount) {
         require(unlockedBalanceOf(_account) >= _amount, "not-enough-free-balance");
         _;
     }
@@ -119,7 +108,6 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         name = "Tokenized deposit position";
         symbol = _symbol;
         underlying = _underlying;
-        minDepositTime = 0;
         isActive = true;
         decimals = _decimals;
         collateralizationRatio = _collateralizationRatio;
@@ -181,7 +169,6 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
 
         uint256 _newTotalSupplyInUsd = pool.masterOracle().quoteTokenToUsd(address(this), totalSupply + _amount);
         require(_newTotalSupplyInUsd <= maxTotalSupplyInUsd, "surpass-max-total-supply");
-        lastDepositOf[_account] = block.timestamp;
 
         totalSupply += _amount;
         uint256 _balanceBefore = balanceOf[_account];
@@ -310,26 +297,17 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @param _from The account to burn from
      * @param _amount The amount to burn
      */
-    function _burnForWithdraw(address _from, uint256 _amount) private onlyIfMinDepositTimePassed(_from) {
+    function _burnForWithdraw(address _from, uint256 _amount) private {
         _burn(_from, _amount);
     }
 
-    /**
-     * @notice Transfer tokens if checks pass
-     * @param _sender The account to transfer from
-     * @param _recipient The account to transfer to
-     * @param _amount The amount to transfer
-     */
-    function _transferWithChecks(
-        address _sender,
-        address _recipient,
-        uint256 _amount
-    ) private onlyIfNotLocked(_sender, _amount) onlyIfMinDepositTimePassed(_sender) {
-        _transfer(_sender, _recipient, _amount);
-    }
-
-    function transfer(address _to, uint256 _amount) external override returns (bool) {
-        _transferWithChecks(_msgSender(), _to, _amount);
+    function transfer(address _to, uint256 _amount)
+        external
+        override
+        onlyIfUnlocked(_msgSender(), _amount)
+        returns (bool)
+    {
+        _transfer(_msgSender(), _to, _amount);
         return true;
     }
 
@@ -337,8 +315,8 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         address _sender,
         address _recipient,
         uint256 _amount
-    ) external override nonReentrant returns (bool) {
-        _transferWithChecks(_sender, _recipient, _amount);
+    ) external override nonReentrant onlyIfUnlocked(_sender, _amount) returns (bool) {
+        _transfer(_sender, _recipient, _amount);
 
         uint256 currentAllowance = allowance[_sender][_msgSender()];
         if (currentAllowance != type(uint256).max) {
@@ -404,16 +382,6 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         require(_newCollateralizationRatio != _currentCollateralizationRatio, "new-same-as-current");
         emit CollateralizationRatioUpdated(_currentCollateralizationRatio, _newCollateralizationRatio);
         collateralizationRatio = _newCollateralizationRatio;
-    }
-
-    /**
-     * @notice Update minimum deposit time
-     */
-    function updateMinDepositTime(uint256 _newMinDepositTime) external onlyGovernor {
-        uint256 _currentMinDepositTime = minDepositTime;
-        require(_newMinDepositTime != _currentMinDepositTime, "new-same-as-current");
-        emit MinDepositTimeUpdated(_currentMinDepositTime, _newMinDepositTime);
-        minDepositTime = _newMinDepositTime;
     }
 
     /**
