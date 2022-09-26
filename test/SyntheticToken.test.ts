@@ -46,6 +46,7 @@ describe('SyntheticToken', function () {
     ;[deployer, governor, user, treasury, feeCollector] = await ethers.getSigners()
 
     poolRegistryMock = await smock.fake('PoolRegistry')
+    await setEtherBalance(poolRegistryMock.address, parseEther('10'))
 
     const masterOracleMockFactory = new MasterOracleMock__factory(deployer)
     masterOracleMock = <MasterOracleMock>await masterOracleMockFactory.deploy()
@@ -105,7 +106,7 @@ describe('SyntheticToken', function () {
     it('should mint', async function () {
       expect(await msUSD.balanceOf(user.address)).eq(0)
       const amount = parseEther('100')
-      await msUSD.connect(poolMock.wallet).mint(user.address, amount)
+      await msUSD.connect(poolRegistryMock.wallet).mint(user.address, amount)
       expect(await msUSD.balanceOf(user.address)).eq(amount)
     })
 
@@ -119,7 +120,7 @@ describe('SyntheticToken', function () {
       await msUSD.connect(governor).toggleIsActive()
 
       // when
-      const tx = msUSD.connect(poolMock.wallet).mint(deployer.address, '1')
+      const tx = msUSD.connect(poolRegistryMock.wallet).mint(deployer.address, '1')
 
       // then
       await expect(tx).revertedWith('synthetic-inactive')
@@ -130,7 +131,7 @@ describe('SyntheticToken', function () {
     const amount = parseEther('100')
 
     beforeEach(async function () {
-      await msUSD.connect(poolMock.wallet).mint(user.address, amount)
+      await msUSD.connect(poolRegistryMock.wallet).mint(user.address, amount)
     })
 
     it('should burn', async function () {

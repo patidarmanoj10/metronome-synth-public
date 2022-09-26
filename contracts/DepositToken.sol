@@ -36,6 +36,14 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     event CollateralWithdrawn(address indexed account, address indexed to, uint256 amount, uint256 fee);
 
     /**
+     * @dev Throws if sender can't seize
+     */
+    modifier onlyIfCanSeize() {
+        require(_msgSender() == address(pool), "not-pool");
+        _;
+    }
+
+    /**
      * @dev Throws if minimum deposit time haven't passed
      */
     modifier onlyIfMinDepositTimePassed(address _account) {
@@ -298,29 +306,11 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     }
 
     /**
-     * @notice Mint deposit token when an account deposits collateral
-     * @param _to The account to mint to
-     * @param _amount The amount to mint
-     */
-    function mint(address _to, uint256 _amount) external override onlyPool {
-        _mint(_to, _amount);
-    }
-
-    /**
      * @notice Burn deposit token as part of withdraw process
      * @param _from The account to burn from
      * @param _amount The amount to burn
      */
     function _burnForWithdraw(address _from, uint256 _amount) private onlyIfMinDepositTimePassed(_from) {
-        _burn(_from, _amount);
-    }
-
-    /**
-     * @notice Burn deposit tokens
-     * @param _from The account to burn from
-     * @param _amount The amount to burn
-     */
-    function burn(address _from, uint256 _amount) external override onlyPool {
         _burn(_from, _amount);
     }
 
@@ -400,7 +390,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         address _from,
         address _to,
         uint256 _amount
-    ) external override onlyPool {
+    ) external override onlyIfCanSeize {
         _transfer(_from, _to, _amount);
     }
 

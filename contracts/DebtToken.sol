@@ -33,18 +33,10 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
     event DebtTokenActiveUpdated(bool oldActive, bool newActive);
 
     /**
-     * @dev Throws if caller isn't authorized
+     * @dev Throws if sender can't burn
      */
-    modifier onlyIfAuthorized() {
-        require(_msgSender() == address(pool) || _msgSender() == address(syntheticToken), "not-authorized");
-        _;
-    }
-
-    /**
-     * @dev Throws if the caller isn't the synthetic token
-     */
-    modifier onlyIfSyntheticToken() {
-        require(_msgSender() == address(syntheticToken), "not-synthetic-token");
+    modifier onlyIfCanBurn() {
+        require(_msgSender() == address(pool), "not-pool");
         _;
     }
 
@@ -223,7 +215,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
      * @param _from The account to burn from
      * @param _amount The amount to burn
      */
-    function burn(address _from, uint256 _amount) external override onlyPool {
+    function burn(address _from, uint256 _amount) external override onlyIfCanBurn {
         _burn(_from, _amount);
     }
 
