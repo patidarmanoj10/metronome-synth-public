@@ -5,15 +5,15 @@ pragma solidity 0.8.9;
 import "../interfaces/IRewardsDistributor.sol";
 
 abstract contract RewardsDistributorStorageV1 is IRewardsDistributor {
-    /**
-     * @notice The token to reward
-     */
-    IERC20 public rewardToken;
-
     struct TokenState {
         uint224 index; // The last updated index
         uint32 timestamp; // The timestamp of the latest index update
     }
+
+    /**
+     * @notice The token to reward
+     */
+    IERC20 public rewardToken;
 
     /**
      * @notice Track tokens for reward

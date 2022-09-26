@@ -236,12 +236,11 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     {
         require(_amount > 0, "amount-is-zero");
 
-        address _sender = msg.sender;
         address _treasury = address(pool.treasury());
 
         uint256 _balanceBefore = underlying.balanceOf(_treasury);
 
-        underlying.safeTransferFrom(_sender, _treasury, _amount);
+        underlying.safeTransferFrom(msg.sender, _treasury, _amount);
 
         _amount = underlying.balanceOf(_treasury) - _balanceBefore;
 
@@ -256,7 +255,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
 
         _mint(_onBehalfOf, _amountToDeposit);
 
-        emit CollateralDeposited(_sender, _onBehalfOf, _amount, _feeAmount);
+        emit CollateralDeposited(msg.sender, _onBehalfOf, _amount, _feeAmount);
     }
 
     /**
@@ -273,23 +272,21 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     {
         require(_amount > 0, "amount-is-zero");
 
-        address _account = msg.sender;
-
-        require(_amount <= unlockedBalanceOf(_account), "amount-gt-unlocked");
+        require(_amount <= unlockedBalanceOf(msg.sender), "amount-gt-unlocked");
 
         uint256 _withdrawFee = pool.withdrawFee();
         uint256 _amountToWithdraw = _amount;
         uint256 _feeAmount;
         if (_withdrawFee > 0) {
             _feeAmount = _amount.wadMul(_withdrawFee);
-            _transfer(_account, pool.feeCollector(), _feeAmount);
+            _transfer(msg.sender, pool.feeCollector(), _feeAmount);
             _amountToWithdraw -= _feeAmount;
         }
 
-        _burnForWithdraw(_account, _amountToWithdraw);
+        _burnForWithdraw(msg.sender, _amountToWithdraw);
         pool.treasury().pull(_to, _amountToWithdraw);
 
-        emit CollateralWithdrawn(_account, _to, _amount, _feeAmount);
+        emit CollateralWithdrawn(msg.sender, _to, _amount, _feeAmount);
     }
 
     /**
@@ -338,10 +335,9 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         (, , , , uint256 _issuableInUsd) = pool.debtPositionOf(_account);
 
         if (_issuableInUsd > 0) {
-            uint256 _unlockedInUsd = _issuableInUsd.wadDiv(collateralizationRatio);
             _unlockedBalance = Math.min(
                 balanceOf[_account],
-                pool.masterOracle().quoteUsdToToken(address(this), _unlockedInUsd)
+                pool.masterOracle().quoteUsdToToken(address(this), _issuableInUsd.wadDiv(collateralizationRatio))
             );
         }
     }

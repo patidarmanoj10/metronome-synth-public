@@ -74,31 +74,6 @@ contract Pool is ReentrancyGuard, Pausable, PoolStorageV1 {
     event RewardsDistributorAdded(IRewardsDistributor _distributor);
 
     /**
-     * @dev Throws if debt token doesn't exist
-     */
-    modifier onlyIfDebtTokenExists(IDebtToken _debtToken) {
-        require(isDebtTokenExists(_debtToken), "synthetic-inexistent");
-        _;
-    }
-
-    /**
-     * @dev Throws if synthetic token doesn't exist
-     */
-    modifier onlyIfSyntheticTokenExists(ISyntheticToken _syntheticToken) {
-        require(isSyntheticTokenExists(_syntheticToken), "synthetic-inexistent");
-        _;
-    }
-
-    /**
-     * @dev Throws if synthetic token isn't enabled
-     */
-    modifier onlyIfSyntheticTokenIsActive(ISyntheticToken _syntheticToken) {
-        require(_syntheticToken.isActive(), "synthetic-inactive");
-        require(debtTokenOf[_syntheticToken].isActive(), "debt-token-inactive");
-        _;
-    }
-
-    /**
      * @dev Throws if deposit token doesn't exist
      */
     modifier onlyIfDepositTokenExists(IDepositToken _depositToken) {
@@ -191,7 +166,7 @@ contract Pool is ReentrancyGuard, Pausable, PoolStorageV1 {
      * @param _syntheticToken Asset to check
      * @return true if exist
      */
-    function isSyntheticTokenExists(ISyntheticToken _syntheticToken) public view override returns (bool) {
+    function isSyntheticTokenExists(ISyntheticToken _syntheticToken) external view override returns (bool) {
         return address(debtTokenOf[_syntheticToken]) != address(0);
     }
 
@@ -213,8 +188,10 @@ contract Pool is ReentrancyGuard, Pausable, PoolStorageV1 {
         uint256 _length = debtTokensOfAccount.length(_account);
         for (uint256 i; i < _length; ++i) {
             IDebtToken _debtToken = IDebtToken(debtTokensOfAccount.at(_account, i));
-            ISyntheticToken _syntheticToken = _debtToken.syntheticToken();
-            _debtInUsd += masterOracle().quoteTokenToUsd(address(_syntheticToken), _debtToken.balanceOf(_account));
+            _debtInUsd += masterOracle().quoteTokenToUsd(
+                address(_debtToken.syntheticToken()),
+                _debtToken.balanceOf(_account)
+            );
         }
     }
 
@@ -339,6 +316,7 @@ contract Pool is ReentrancyGuard, Pausable, PoolStorageV1 {
         require(address(_debtToken) != address(0), "address-is-null");
         ISyntheticToken _syntheticToken = _debtToken.syntheticToken();
         require(address(_syntheticToken) != address(0), "synthetic-is-null");
+        require(address(debtTokenOf[_syntheticToken]) == address(0), "synth-in-use");
 
         require(debtTokens.add(address(_debtToken)), "debt-exists");
 
@@ -351,7 +329,7 @@ contract Pool is ReentrancyGuard, Pausable, PoolStorageV1 {
      * @notice Remove debt token from offerings
      * @dev Must keep `debtTokenOf` mapping updated
      */
-    function removeDebtToken(IDebtToken _debtToken) external override onlyGovernor onlyIfDebtTokenExists(_debtToken) {
+    function removeDebtToken(IDebtToken _debtToken) external override onlyGovernor {
         require(_debtToken.totalSupply() == 0, "supply-gt-0");
         require(debtTokens.remove(address(_debtToken)), "debt-doesnt-exist");
 
@@ -365,9 +343,12 @@ contract Pool is ReentrancyGuard, Pausable, PoolStorageV1 {
      */
     function addDepositToken(address _depositToken) external override onlyGovernor {
         require(_depositToken != address(0), "address-is-null");
+        IERC20 _underlying = IDepositToken(_depositToken).underlying();
+        require(address(depositTokenOf[_underlying]) == address(0), "underlying-in-use");
 
         require(depositTokens.add(_depositToken), "deposit-token-exists");
-        depositTokenOf[IDepositToken(_depositToken).underlying()] = IDepositToken(_depositToken);
+
+        depositTokenOf[_underlying] = IDepositToken(_depositToken);
 
         emit DepositTokenAdded(_depositToken);
     }
@@ -375,12 +356,7 @@ contract Pool is ReentrancyGuard, Pausable, PoolStorageV1 {
     /**
      * @notice Remove deposit token (i.e. collateral) from Synth
      */
-    function removeDepositToken(IDepositToken _depositToken)
-        external
-        override
-        onlyGovernor
-        onlyIfDepositTokenExists(_depositToken)
-    {
+    function removeDepositToken(IDepositToken _depositToken) external override onlyGovernor {
         require(_depositToken.totalSupply() == 0, "supply-gt-0");
 
         require(depositTokens.remove(address(_depositToken)), "deposit-token-doesnt-exist");

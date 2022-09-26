@@ -64,9 +64,10 @@ abstract contract Governable is IGovernable, TokenHolder, Initializable {
      * @dev Allows new governor to accept governorship of the contract.
      */
     function acceptGovernorship() external {
-        require(proposedGovernor == msg.sender, "not-the-proposed-governor");
-        emit UpdatedGovernor(governor, proposedGovernor);
-        governor = proposedGovernor;
+        address _proposedGovernor = proposedGovernor;
+        require(_proposedGovernor == msg.sender, "not-the-proposed-governor");
+        emit UpdatedGovernor(governor, _proposedGovernor);
+        governor = _proposedGovernor;
         proposedGovernor = address(0);
     }
 }
