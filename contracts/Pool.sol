@@ -110,7 +110,7 @@ contract Pool is ReentrancyGuard, Pausable, PoolStorageV1 {
      * @dev Throws if `msg.sender` isn't a debt token
      */
     modifier onlyIfMsgSenderIsDebtToken() {
-        require(isDebtTokenExists(IDebtToken(_msgSender())), "caller-is-not-debt-token");
+        require(isDebtTokenExists(IDebtToken(msg.sender)), "caller-is-not-debt-token");
         _;
     }
 
@@ -284,7 +284,7 @@ contract Pool is ReentrancyGuard, Pausable, PoolStorageV1 {
     ) external override whenNotShutdown nonReentrant onlyIfDepositTokenExists(_depositToken) {
         require(_amountToRepay > 0, "amount-is-zero");
 
-        address _liquidator = _msgSender();
+        address _liquidator = msg.sender;
         require(_liquidator != _account, "can-not-liquidate-own-position");
 
         IDebtToken _debtToken = debtTokenOf[_syntheticToken];
@@ -396,8 +396,8 @@ contract Pool is ReentrancyGuard, Pausable, PoolStorageV1 {
      * @param _account The account address
      */
     function addToDepositTokensOfAccount(address _account) external {
-        require(depositTokens.contains(_msgSender()), "caller-is-not-deposit-token");
-        require(depositTokensOfAccount.add(_account, _msgSender()), "deposit-token-exists");
+        require(depositTokens.contains(msg.sender), "caller-is-not-deposit-token");
+        require(depositTokensOfAccount.add(_account, msg.sender), "deposit-token-exists");
     }
 
     /**
@@ -407,8 +407,8 @@ contract Pool is ReentrancyGuard, Pausable, PoolStorageV1 {
      * @param _account The account address
      */
     function removeFromDepositTokensOfAccount(address _account) external {
-        require(depositTokens.contains(_msgSender()), "caller-is-not-deposit-token");
-        require(depositTokensOfAccount.remove(_account, _msgSender()), "deposit-token-doesnt-exist");
+        require(depositTokens.contains(msg.sender), "caller-is-not-deposit-token");
+        require(depositTokensOfAccount.remove(_account, msg.sender), "deposit-token-doesnt-exist");
     }
 
     /**
@@ -418,7 +418,7 @@ contract Pool is ReentrancyGuard, Pausable, PoolStorageV1 {
      * @param _account The account address
      */
     function addToDebtTokensOfAccount(address _account) external onlyIfMsgSenderIsDebtToken {
-        require(debtTokensOfAccount.add(_account, _msgSender()), "debt-token-exists");
+        require(debtTokensOfAccount.add(_account, msg.sender), "debt-token-exists");
     }
 
     /**
@@ -428,7 +428,7 @@ contract Pool is ReentrancyGuard, Pausable, PoolStorageV1 {
      * @param _account The account address
      */
     function removeFromDebtTokensOfAccount(address _account) external onlyIfMsgSenderIsDebtToken {
-        require(debtTokensOfAccount.remove(_account, _msgSender()), "debt-token-doesnt-exist");
+        require(debtTokensOfAccount.remove(_account, msg.sender), "debt-token-doesnt-exist");
     }
 
     /**

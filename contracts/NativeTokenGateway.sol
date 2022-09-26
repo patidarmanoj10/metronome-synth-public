@@ -30,7 +30,7 @@ contract NativeTokenGateway is ReentrancyGuard, Governable, INativeTokenGateway 
         nativeToken.deposit{value: msg.value}();
         IDepositToken _msdToken = _pool.depositTokenOf(nativeToken);
         nativeToken.safeApprove(address(_msdToken), msg.value);
-        _msdToken.deposit(msg.value, _msgSender());
+        _msdToken.deposit(msg.value, msg.sender);
     }
 
     /**
@@ -40,16 +40,16 @@ contract NativeTokenGateway is ReentrancyGuard, Governable, INativeTokenGateway 
      */
     function withdraw(IPool _pool, uint256 _amount) external override nonReentrant {
         IDepositToken _msdToken = _pool.depositTokenOf(nativeToken);
-        _msdToken.safeTransferFrom(_msgSender(), address(this), _amount);
+        _msdToken.safeTransferFrom(msg.sender, address(this), _amount);
         _msdToken.withdraw(_amount, address(this));
         nativeToken.withdraw(_amount);
-        Address.sendValue(payable(_msgSender()), _amount);
+        Address.sendValue(payable(msg.sender), _amount);
     }
 
     /**
      * @dev Only NATIVE_TOKEN contract is allowed to transfer to here. Prevent other addresses to send coins to this contract.
      */
     receive() external payable override {
-        require(_msgSender() == address(nativeToken), "receive-not-allowed");
+        require(msg.sender == address(nativeToken), "receive-not-allowed");
     }
 }

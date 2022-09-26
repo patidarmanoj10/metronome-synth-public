@@ -140,7 +140,7 @@ contract PoolRegistry is ReentrancyGuard, Pausable, PoolRegistryStorageV1 {
         onlyIfSyntheticTokenIsActive(syntheticTokenOut_)
         returns (uint256 _amountOut)
     {
-        address _account = _msgSender();
+        address _account = msg.sender;
 
         require(amountIn_ > 0, "amount-in-is-0");
         require(amountIn_ <= syntheticTokenIn_.balanceOf(_account), "amount-in-gt-balance");

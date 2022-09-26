@@ -2,7 +2,6 @@
 
 pragma solidity 0.8.9;
 
-import "./dependencies/openzeppelin/utils/Context.sol";
 import "./dependencies/openzeppelin/proxy/utils/Initializable.sol";
 import "./interfaces/IPool.sol";
 import "./interfaces/IManageable.sol";
@@ -12,7 +11,7 @@ import "./storage/SyntheticTokenStorage.sol";
 /**
  * @title Synthetic Token contract
  */
-contract SyntheticToken is Context, Initializable, SyntheticTokenStorageV1 {
+contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
     using WadRayMath for uint256;
 
     string public constant VERSION = "1.0.0";
@@ -56,7 +55,7 @@ contract SyntheticToken is Context, Initializable, SyntheticTokenStorageV1 {
      * @notice Throws if caller isn't the governor
      */
     modifier onlyGovernor() {
-        require(_msgSender() == poolRegistry.governor(), "not-governor");
+        require(msg.sender == poolRegistry.governor(), "not-governor");
         _;
     }
 
@@ -76,12 +75,12 @@ contract SyntheticToken is Context, Initializable, SyntheticTokenStorageV1 {
     }
 
     function transfer(address recipient, uint256 amount) external override returns (bool) {
-        _transfer(_msgSender(), recipient, amount);
+        _transfer(msg.sender, recipient, amount);
         return true;
     }
 
     function approve(address spender, uint256 amount) external override returns (bool) {
-        _approve(_msgSender(), spender, amount);
+        _approve(msg.sender, spender, amount);
         return true;
     }
 
@@ -92,11 +91,11 @@ contract SyntheticToken is Context, Initializable, SyntheticTokenStorageV1 {
     ) external override returns (bool) {
         _transfer(sender, recipient, amount);
 
-        uint256 currentAllowance = allowance[sender][_msgSender()];
+        uint256 currentAllowance = allowance[sender][msg.sender];
         if (currentAllowance != type(uint256).max) {
             require(currentAllowance >= amount, "amount-exceeds-allowance");
             unchecked {
-                _approve(sender, _msgSender(), currentAllowance - amount);
+                _approve(sender, msg.sender, currentAllowance - amount);
             }
         }
 
@@ -104,15 +103,15 @@ contract SyntheticToken is Context, Initializable, SyntheticTokenStorageV1 {
     }
 
     function increaseAllowance(address spender, uint256 addedValue) external returns (bool) {
-        _approve(_msgSender(), spender, allowance[_msgSender()][spender] + addedValue);
+        _approve(msg.sender, spender, allowance[msg.sender][spender] + addedValue);
         return true;
     }
 
     function decreaseAllowance(address spender, uint256 subtractedValue) external returns (bool) {
-        uint256 currentAllowance = allowance[_msgSender()][spender];
+        uint256 currentAllowance = allowance[msg.sender][spender];
         require(currentAllowance >= subtractedValue, "decreased-allowance-below-zero");
         unchecked {
-            _approve(_msgSender(), spender, currentAllowance - subtractedValue);
+            _approve(msg.sender, spender, currentAllowance - subtractedValue);
         }
 
         return true;
@@ -215,25 +214,25 @@ contract SyntheticToken is Context, Initializable, SyntheticTokenStorageV1 {
      * @notice Check if the sender is the PoolRegistry contract
      */
     function _isMsgSenderPoolRegistry() private view returns (bool) {
-        return _msgSender() == address(poolRegistry);
+        return msg.sender == address(poolRegistry);
     }
 
     /**
      * @notice Check if the sender is a valid Pool contract
      */
     function _isMsgSenderPool() private view returns (bool) {
-        return poolRegistry.poolExists(_msgSender()) && IPool(_msgSender()).isSyntheticTokenExists(this);
+        return poolRegistry.poolExists(msg.sender) && IPool(msg.sender).isSyntheticTokenExists(this);
     }
 
     /**
      * @notice Check if the sender is a valid DebtToken contract
      */
     function _isMsgSenderDebtToken() private view returns (bool) {
-        IPool _pool = IManageable(_msgSender()).pool();
+        IPool _pool = IManageable(msg.sender).pool();
 
         return
             poolRegistry.poolExists(address(_pool)) &&
-            _pool.isDebtTokenExists(IDebtToken(_msgSender())) &&
-            IDebtToken(_msgSender()).syntheticToken() == this;
+            _pool.isDebtTokenExists(IDebtToken(msg.sender)) &&
+            IDebtToken(msg.sender).syntheticToken() == this;
     }
 }

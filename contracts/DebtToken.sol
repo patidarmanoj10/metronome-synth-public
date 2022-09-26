@@ -36,7 +36,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
      * @dev Throws if sender can't burn
      */
     modifier onlyIfCanBurn() {
-        require(_msgSender() == address(pool), "not-pool");
+        require(msg.sender == address(pool), "not-pool");
         _;
     }
 
@@ -283,7 +283,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
     {
         require(_amount > 0, "amount-is-zero");
 
-        address _account = _msgSender();
+        address _account = msg.sender;
 
         accrueInterest();
 
@@ -332,7 +332,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
 
         accrueInterest();
 
-        address _payer = _msgSender();
+        address _payer = msg.sender;
 
         uint256 _repayFee = pool.repayFee();
         uint256 _amountToRepay = _amount;
