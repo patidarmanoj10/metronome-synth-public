@@ -302,7 +302,7 @@ contract Pool is ReentrancyGuard, Pausable, PoolStorageV1 {
         _depositToken.seize(_account, _liquidator, _toLiquidator);
 
         if (_toProtocol > 0) {
-            _depositToken.seize(_account, address(treasury), _toProtocol);
+            _depositToken.seize(_account, poolRegistry.feeCollector(), _toProtocol);
         }
 
         emit PositionLiquidated(_liquidator, _account, _syntheticToken, _amountToRepay, _depositToSeize, _toProtocol);

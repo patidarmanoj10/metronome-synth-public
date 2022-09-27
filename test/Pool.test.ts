@@ -465,7 +465,7 @@ describe('Pool', function () {
 
             // then
             const [PositionLiquidated] = (await tx.wait()).events!.filter(({event}) => event === 'PositionLiquidated')
-            const [, , , , depositSeized] = PositionLiquidated.args!
+            const [, , , , depositSeized, fee] = PositionLiquidated.args!
 
             const depositToSeizeInUsd = debtInUsdBefore
               .mul(parseEther('1').add(liquidatorLiquidationFee.add(protocolLiquidationFee)))
@@ -482,6 +482,7 @@ describe('Pool', function () {
             expect(_isHealthy).true
             expect(depositSeized).eq(expectedDepositSeized)
             expect(await msdMET.balanceOf(alice.address)).eq(expectedDepositAfter)
+            expect(await msdMET.balanceOf(poolRegistryMock.feeCollector())).eq(fee)
             expect(await msEth.balanceOf(alice.address)).eq(userMintAmount)
             expect(await msEthDebtToken.balanceOf(alice.address)).eq(0)
             expect(await msdMET.balanceOf(liquidator.address)).closeTo(
@@ -1075,26 +1076,18 @@ describe('Pool', function () {
       await newTreasury.initialize(pool.address)
 
       // given
-      const balance = parseEther('1')
       await met.mint(deployer.address, parseEther('10000'))
       await met.approve(msdMET.address, parseEther('10000'))
       await msdMET.deposit(parseEther('10000'), deployer.address)
 
-      await msdMET.transfer(treasury.address, balance)
-      await msEthDebtToken.issue(balance, deployer.address)
-      await msEth.transfer(treasury.address, balance)
-
       expect(await met.balanceOf(treasury.address)).gt(0)
-      expect(await msEth.balanceOf(treasury.address)).gt(0)
-      expect(await msdMET.balanceOf(treasury.address)).gt(0)
 
       // when
       await pool.updateTreasury(newTreasury.address)
 
       // then
       expect(await met.balanceOf(treasury.address)).eq(0)
-      expect(await msEth.balanceOf(treasury.address)).eq(0)
-      expect(await msdMET.balanceOf(treasury.address)).eq(0)
+      expect(await met.balanceOf(newTreasury.address)).gt(0)
     })
   })
 
