@@ -2,7 +2,6 @@
 
 pragma solidity 0.8.9;
 
-import "./dependencies/openzeppelin/utils/Context.sol";
 import "./interfaces/IPausable.sol";
 import "./access/Governable.sol";
 
@@ -49,25 +48,25 @@ abstract contract Pausable is IPausable, Governable {
     /// @dev Pause contract operations, if contract is not paused.
     function pause() external virtual whenNotPaused onlyGovernor {
         _paused = true;
-        emit Paused(_msgSender());
+        emit Paused(msg.sender);
     }
 
     /// @dev Unpause contract operations, allow only if contract is paused and not shutdown.
     function unpause() external virtual whenPaused whenNotShutdown onlyGovernor {
         _paused = false;
-        emit Unpaused(_msgSender());
+        emit Unpaused(msg.sender);
     }
 
     /// @dev Shutdown contract operations, if not already shutdown.
     function shutdown() external virtual whenNotShutdown onlyGovernor {
         _everythingStopped = true;
         _paused = true;
-        emit Shutdown(_msgSender());
+        emit Shutdown(msg.sender);
     }
 
     /// @dev Open contract operations, if contract is in shutdown state
     function open() external virtual whenShutdown onlyGovernor {
         _everythingStopped = false;
-        emit Open(_msgSender());
+        emit Open(msg.sender);
     }
 }

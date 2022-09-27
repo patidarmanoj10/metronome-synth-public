@@ -6,7 +6,17 @@ import "../interfaces/IDebtToken.sol";
 
 abstract contract DebtTokenStorageV1 is IDebtToken {
     /**
-     * @notice The total amount of minted tokens
+     * @notice The name of the token
+     */
+    string public name;
+
+    /**
+     * @notice The symbol of the token
+     */
+    string public symbol;
+
+    /**
+     * @notice The mapping of the users' minted tokens
      * @dev This value changes within the mint and burn operations
      */
     mapping(address => uint256) internal principalOf;
@@ -16,13 +26,15 @@ abstract contract DebtTokenStorageV1 is IDebtToken {
      */
     mapping(address => uint256) internal debtIndexOf;
 
+    /**
+     * @notice The total amount of minted tokens
+     */
     uint256 internal totalSupply_;
-    uint256 public maxTotalSupplyInUsd;
-    uint8 public decimals;
-    string public name;
-    string public symbol;
 
-    ISyntheticToken public syntheticToken;
+    /**
+     * @notice The supply cap (in USD)
+     */
+    uint256 public maxTotalSupplyInUsd;
 
     /**
      * @notice The timestamp when interest accrual was calculated for the last time
@@ -41,7 +53,17 @@ abstract contract DebtTokenStorageV1 is IDebtToken {
     uint256 public interestRate;
 
     /**
+     * @notice The Synthetic token
+     */
+    ISyntheticToken public syntheticToken;
+
+    /**
      * @notice If true, disables msAsset minting on this pool
      */
     bool public isActive;
+
+    /**
+     * @notice The decimals of the token
+     */
+    uint8 public decimals;
 }

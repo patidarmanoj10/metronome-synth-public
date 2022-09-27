@@ -19,7 +19,7 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
      * @dev Throws if caller isn't a deposit token
      */
     modifier onlyIfDepositToken() {
-        require(pool.isDepositTokenExists(IDepositToken(_msgSender())), "not-deposit-token");
+        require(pool.isDepositTokenExists(IDepositToken(msg.sender)), "not-deposit-token");
         _;
     }
 
@@ -37,7 +37,7 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
      */
     function pull(address _to, uint256 _amount) external override nonReentrant onlyIfDepositToken {
         require(_amount > 0, "amount-is-zero");
-        IDepositToken(_msgSender()).underlying().safeTransfer(_to, _amount);
+        IDepositToken(msg.sender).underlying().safeTransfer(_to, _amount);
     }
 
     /**

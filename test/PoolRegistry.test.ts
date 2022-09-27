@@ -190,7 +190,7 @@ describe('PoolRegistry', function () {
       const tx = poolRegistry.connect(alice).swap(msEth.address, msDoge.address, 0)
 
       // then
-      await expect(tx).revertedWith('amount-in-is-0')
+      await expect(tx).revertedWith('amount-in-is-invalid')
     })
 
     it('should revert if synthetic out is not active', async function () {
@@ -214,7 +214,7 @@ describe('PoolRegistry', function () {
       const tx = poolRegistry.connect(alice).swap(msEth.address, msDoge.address, amountIn)
 
       // then
-      await expect(tx).revertedWith('amount-in-gt-balance')
+      await expect(tx).revertedWith('amount-in-is-invalid')
     })
 
     it('should swap synthetic tokens (swapFee == 0)', async function () {

@@ -36,7 +36,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @dev Throws if sender can't seize
      */
     modifier onlyIfCanSeize() {
-        require(_msgSender() == address(pool), "not-pool");
+        require(msg.sender == address(pool), "not-pool");
         _;
     }
 
@@ -115,20 +115,20 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     }
 
     function approve(address spender, uint256 _amount) external override returns (bool) {
-        _approve(_msgSender(), spender, _amount);
+        _approve(msg.sender, spender, _amount);
         return true;
     }
 
     function increaseAllowance(address spender, uint256 addedValue) external returns (bool) {
-        _approve(_msgSender(), spender, allowance[_msgSender()][spender] + addedValue);
+        _approve(msg.sender, spender, allowance[msg.sender][spender] + addedValue);
         return true;
     }
 
     function decreaseAllowance(address spender, uint256 subtractedValue) external returns (bool) {
-        uint256 currentAllowance = allowance[_msgSender()][spender];
+        uint256 currentAllowance = allowance[msg.sender][spender];
         require(currentAllowance >= subtractedValue, "decreased-allowance-below-zero");
         unchecked {
-            _approve(_msgSender(), spender, currentAllowance - subtractedValue);
+            _approve(msg.sender, spender, currentAllowance - subtractedValue);
         }
 
         return true;
@@ -236,12 +236,11 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     {
         require(_amount > 0, "amount-is-zero");
 
-        address _sender = _msgSender();
         address _treasury = address(pool.treasury());
 
         uint256 _balanceBefore = underlying.balanceOf(_treasury);
 
-        underlying.safeTransferFrom(_sender, _treasury, _amount);
+        underlying.safeTransferFrom(msg.sender, _treasury, _amount);
 
         _amount = underlying.balanceOf(_treasury) - _balanceBefore;
 
@@ -256,7 +255,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
 
         _mint(_onBehalfOf, _amountToDeposit);
 
-        emit CollateralDeposited(_sender, _onBehalfOf, _amount, _feeAmount);
+        emit CollateralDeposited(msg.sender, _onBehalfOf, _amount, _feeAmount);
     }
 
     /**
@@ -273,23 +272,21 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     {
         require(_amount > 0, "amount-is-zero");
 
-        address _account = _msgSender();
-
-        require(_amount <= unlockedBalanceOf(_account), "amount-gt-unlocked");
+        require(_amount <= unlockedBalanceOf(msg.sender), "amount-gt-unlocked");
 
         uint256 _withdrawFee = pool.withdrawFee();
         uint256 _amountToWithdraw = _amount;
         uint256 _feeAmount;
         if (_withdrawFee > 0) {
             _feeAmount = _amount.wadMul(_withdrawFee);
-            _transfer(_account, pool.feeCollector(), _feeAmount);
+            _transfer(msg.sender, pool.feeCollector(), _feeAmount);
             _amountToWithdraw -= _feeAmount;
         }
 
-        _burnForWithdraw(_account, _amountToWithdraw);
+        _burnForWithdraw(msg.sender, _amountToWithdraw);
         pool.treasury().pull(_to, _amountToWithdraw);
 
-        emit CollateralWithdrawn(_account, _to, _amount, _feeAmount);
+        emit CollateralWithdrawn(msg.sender, _to, _amount, _feeAmount);
     }
 
     /**
@@ -304,10 +301,10 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     function transfer(address _to, uint256 _amount)
         external
         override
-        onlyIfUnlocked(_msgSender(), _amount)
+        onlyIfUnlocked(msg.sender, _amount)
         returns (bool)
     {
-        _transfer(_msgSender(), _to, _amount);
+        _transfer(msg.sender, _to, _amount);
         return true;
     }
 
@@ -318,11 +315,11 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     ) external override nonReentrant onlyIfUnlocked(_sender, _amount) returns (bool) {
         _transfer(_sender, _recipient, _amount);
 
-        uint256 currentAllowance = allowance[_sender][_msgSender()];
+        uint256 currentAllowance = allowance[_sender][msg.sender];
         if (currentAllowance != type(uint256).max) {
             require(currentAllowance >= _amount, "amount-exceeds-allowance");
             unchecked {
-                _approve(_sender, _msgSender(), currentAllowance - _amount);
+                _approve(_sender, msg.sender, currentAllowance - _amount);
             }
         }
 
@@ -338,10 +335,9 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         (, , , , uint256 _issuableInUsd) = pool.debtPositionOf(_account);
 
         if (_issuableInUsd > 0) {
-            uint256 _unlockedInUsd = _issuableInUsd.wadDiv(collateralizationRatio);
             _unlockedBalance = Math.min(
                 balanceOf[_account],
-                pool.masterOracle().quoteUsdToToken(address(this), _unlockedInUsd)
+                pool.masterOracle().quoteUsdToToken(address(this), _issuableInUsd.wadDiv(collateralizationRatio))
             );
         }
     }

@@ -8,18 +8,14 @@ import "../interfaces/external/IMasterOracle.sol";
 
 abstract contract PoolRegistryStorageV1 is IPoolRegistry {
     /**
-     * @notice Prices oracle
-     */
-    IMasterOracle public masterOracle;
-
-    /**
      * @notice Pools collection
      */
     EnumerableSet.AddressSet internal pools;
+
     /**
-     * @notice Fee collector address
+     * @notice Available debt tokens
      */
-    address public feeCollector;
+    EnumerableSet.AddressSet internal syntheticTokens;
 
     /**
      * @notice The fee charged when swapping synthetic tokens
@@ -28,7 +24,12 @@ abstract contract PoolRegistryStorageV1 is IPoolRegistry {
     uint256 public swapFee;
 
     /**
-     * @notice Available debt tokens
+     * @notice Prices oracle
      */
-    EnumerableSet.AddressSet internal syntheticTokens;
+    IMasterOracle public masterOracle;
+
+    /**
+     * @notice Fee collector address
+     */
+    address public feeCollector;
 }

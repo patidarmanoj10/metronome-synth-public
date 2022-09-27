@@ -50,14 +50,6 @@ contract PoolRegistry is ReentrancyGuard, Pausable, PoolRegistryStorageV1 {
         _;
     }
 
-    /**
-     * @dev Throws if synthetic token isn't enabled
-     */
-    modifier onlyIfSyntheticTokenIsActive(ISyntheticToken syntheticToken_) {
-        require(syntheticToken_.isActive(), "synthetic-inactive");
-        _;
-    }
-
     function initialize(IMasterOracle masterOracle_, address feeCollector_) public initializer {
         require(address(masterOracle_) != address(0), "oracle-is-null");
         require(feeCollector_ != address(0), "fee-collector-is-null");
@@ -137,14 +129,10 @@ contract PoolRegistry is ReentrancyGuard, Pausable, PoolRegistryStorageV1 {
         nonReentrant
         onlyIfSyntheticTokenExists(syntheticTokenIn_)
         onlyIfSyntheticTokenExists(syntheticTokenOut_)
-        onlyIfSyntheticTokenIsActive(syntheticTokenOut_)
         returns (uint256 _amountOut)
     {
-        address _account = _msgSender();
-
-        require(amountIn_ > 0, "amount-in-is-0");
-        require(amountIn_ <= syntheticTokenIn_.balanceOf(_account), "amount-in-gt-balance");
-        syntheticTokenIn_.burn(_account, amountIn_);
+        require(amountIn_ > 0 && amountIn_ <= syntheticTokenIn_.balanceOf(msg.sender), "amount-in-is-invalid");
+        syntheticTokenIn_.burn(msg.sender, amountIn_);
 
         _amountOut = masterOracle.quote(address(syntheticTokenIn_), address(syntheticTokenOut_), amountIn_);
 
@@ -155,9 +143,16 @@ contract PoolRegistry is ReentrancyGuard, Pausable, PoolRegistryStorageV1 {
             _amountOut -= _feeAmount;
         }
 
-        syntheticTokenOut_.mint(_account, _amountOut);
+        syntheticTokenOut_.mint(msg.sender, _amountOut);
 
-        emit SyntheticTokenSwapped(_account, syntheticTokenIn_, syntheticTokenOut_, amountIn_, _amountOut, _feeAmount);
+        emit SyntheticTokenSwapped(
+            msg.sender,
+            syntheticTokenIn_,
+            syntheticTokenOut_,
+            amountIn_,
+            _amountOut,
+            _feeAmount
+        );
     }
 
     /**

@@ -2,7 +2,6 @@
 
 pragma solidity 0.8.9;
 
-import "../dependencies/openzeppelin/utils/Context.sol";
 import "../dependencies/openzeppelin/proxy/utils/Initializable.sol";
 import "../utils/TokenHolder.sol";
 import "../interfaces/IGovernable.sol";
@@ -11,7 +10,7 @@ import "../interfaces/IManageable.sol";
 /**
  * @title Reusable contract that handles accesses
  */
-abstract contract Manageable is IManageable, Context, TokenHolder, Initializable {
+abstract contract Manageable is IManageable, TokenHolder, Initializable {
     /**
      * @notice Pool contract
      */
@@ -24,7 +23,7 @@ abstract contract Manageable is IManageable, Context, TokenHolder, Initializable
      * @notice Requires that the caller is the Pool contract
      */
     modifier onlyPool() {
-        require(_msgSender() == address(pool), "not-pool");
+        require(msg.sender == address(pool), "not-pool");
         _;
     }
 
@@ -32,7 +31,7 @@ abstract contract Manageable is IManageable, Context, TokenHolder, Initializable
      * @notice Requires that the caller is the Pool contract
      */
     modifier onlyGovernor() {
-        require(_msgSender() == governor(), "not-governor");
+        require(msg.sender == governor(), "not-governor");
         _;
     }
 

@@ -36,7 +36,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
      * @dev Throws if sender can't burn
      */
     modifier onlyIfCanBurn() {
-        require(_msgSender() == address(pool), "not-pool");
+        require(msg.sender == address(pool), "not-pool");
         _;
     }
 
@@ -100,7 +100,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
     }
 
     function totalSupply() external view override returns (uint256) {
-        (uint256 _interestAmountAccrued, , ) = _calculateInterestAccrual();
+        (uint256 _interestAmountAccrued, ) = _calculateInterestAccrual();
 
         return totalSupply_ + _interestAmountAccrued;
     }
@@ -113,7 +113,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
             return 0;
         }
 
-        (, uint256 _debtIndex, ) = _calculateInterestAccrual();
+        (, uint256 _debtIndex) = _calculateInterestAccrual();
 
         // Note: The `debtIndex / debtIndexOf` gives the interest to apply to the principal amount
         return (principalOf[_account] * _debtIndex) / debtIndexOf[_account];
@@ -224,25 +224,14 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
      * @dev This util function avoids code duplication across `balanceOf` and `accrueInterest`
      * @return _interestAmountAccrued The total amount of debt tokens accrued
      * @return _debtIndex The new `debtIndex` value
-     * @return _currentTimestamp The current block timestamp
      */
 
-    function _calculateInterestAccrual()
-        private
-        view
-        returns (
-            uint256 _interestAmountAccrued,
-            uint256 _debtIndex,
-            uint256 _currentTimestamp
-        )
-    {
-        _currentTimestamp = block.timestamp;
-
-        if (lastTimestampAccrued == _currentTimestamp) {
-            return (0, debtIndex, _currentTimestamp);
+    function _calculateInterestAccrual() private view returns (uint256 _interestAmountAccrued, uint256 _debtIndex) {
+        if (lastTimestampAccrued == block.timestamp) {
+            return (0, debtIndex);
         }
 
-        uint256 _interestRateToAccrue = interestRatePerSecond() * (_currentTimestamp - lastTimestampAccrued);
+        uint256 _interestRateToAccrue = interestRatePerSecond() * (block.timestamp - lastTimestampAccrued);
 
         _interestAmountAccrued = _interestRateToAccrue.wadMul(totalSupply_);
 
@@ -253,15 +242,15 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
      * @notice Accrue interest over debt supply
      */
     function accrueInterest() public {
-        (uint256 _interestAmountAccrued, uint256 _debtIndex, uint256 _currentTimestamp) = _calculateInterestAccrual();
+        (uint256 _interestAmountAccrued, uint256 _debtIndex) = _calculateInterestAccrual();
 
-        if (_currentTimestamp == lastTimestampAccrued) {
+        if (block.timestamp == lastTimestampAccrued) {
             return;
         }
 
         totalSupply_ += _interestAmountAccrued;
         debtIndex = _debtIndex;
-        lastTimestampAccrued = _currentTimestamp;
+        lastTimestampAccrued = block.timestamp;
 
         if (_interestAmountAccrued > 0) {
             // Note: We can save some gas by incrementing only and mint all accrued amount later
@@ -283,11 +272,9 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
     {
         require(_amount > 0, "amount-is-zero");
 
-        address _account = _msgSender();
-
         accrueInterest();
 
-        (, , , , uint256 _issuableInUsd) = pool.debtPositionOf(_account);
+        (, , , , uint256 _issuableInUsd) = pool.debtPositionOf(msg.sender);
 
         IMasterOracle _masterOracle = pool.masterOracle();
 
@@ -300,7 +287,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
 
         if (_debtFloorInUsd > 0) {
             require(
-                _masterOracle.quoteTokenToUsd(address(syntheticToken), balanceOf(_account) + _amount) >=
+                _masterOracle.quoteTokenToUsd(address(syntheticToken), balanceOf(msg.sender) + _amount) >=
                     _debtFloorInUsd,
                 "debt-lt-floor"
             );
@@ -316,9 +303,9 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
         }
 
         syntheticToken.mint(_to, _amountToIssue);
-        _mint(_account, _amount);
+        _mint(msg.sender, _amount);
 
-        emit SyntheticTokenIssued(_account, _to, _amount, _feeAmount);
+        emit SyntheticTokenIssued(msg.sender, _to, _amount, _feeAmount);
     }
 
     /**
@@ -332,8 +319,6 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
 
         accrueInterest();
 
-        address _payer = _msgSender();
-
         uint256 _repayFee = pool.repayFee();
         uint256 _amountToRepay = _amount;
         uint256 _feeAmount;
@@ -341,7 +326,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
             // Note: `_amountToRepay = _amount - repayFeeAmount`
             _amountToRepay = _amount.wadDiv(1e18 + _repayFee);
             _feeAmount = _amount - _amountToRepay;
-            syntheticToken.seize(_payer, pool.feeCollector(), _feeAmount);
+            syntheticToken.seize(msg.sender, pool.feeCollector(), _feeAmount);
         }
 
         uint256 _debtFloorInUsd = pool.debtFloorInUsd();
@@ -354,10 +339,10 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
             require(_newDebtInUsd == 0 || _newDebtInUsd >= _debtFloorInUsd, "debt-lt-floor");
         }
 
-        syntheticToken.burn(_payer, _amountToRepay);
+        syntheticToken.burn(msg.sender, _amountToRepay);
         _burn(_onBehalfOf, _amountToRepay);
 
-        emit DebtRepaid(_payer, _onBehalfOf, _amount, _feeAmount);
+        emit DebtRepaid(msg.sender, _onBehalfOf, _amount, _feeAmount);
     }
 
     /**

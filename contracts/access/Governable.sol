@@ -2,7 +2,6 @@
 
 pragma solidity 0.8.9;
 
-import "../dependencies/openzeppelin/utils/Context.sol";
 import "../dependencies/openzeppelin/proxy/utils/Initializable.sol";
 import "../utils/TokenHolder.sol";
 import "../interfaces/IGovernable.sol";
@@ -16,7 +15,7 @@ import "../interfaces/IGovernable.sol";
  * can later be changed with {transferGovernorship}.
  *
  */
-abstract contract Governable is IGovernable, Context, TokenHolder, Initializable {
+abstract contract Governable is IGovernable, TokenHolder, Initializable {
     address public governor;
     address public proposedGovernor;
 
@@ -26,7 +25,7 @@ abstract contract Governable is IGovernable, Context, TokenHolder, Initializable
      * @dev Initializes the contract setting the deployer as the initial governor.
      */
     constructor() {
-        address msgSender = _msgSender();
+        address msgSender = msg.sender;
         governor = msgSender;
         emit UpdatedGovernor(address(0), msgSender);
     }
@@ -37,7 +36,7 @@ abstract contract Governable is IGovernable, Context, TokenHolder, Initializable
      */
     // solhint-disable-next-line func-name-mixedcase
     function __Governable_init() internal initializer {
-        address msgSender = _msgSender();
+        address msgSender = msg.sender;
         governor = msgSender;
         emit UpdatedGovernor(address(0), msgSender);
     }
@@ -46,7 +45,7 @@ abstract contract Governable is IGovernable, Context, TokenHolder, Initializable
      * @dev Throws if called by any account other than the governor.
      */
     modifier onlyGovernor() {
-        require(governor == _msgSender(), "not-governor");
+        require(governor == msg.sender, "not-governor");
         _;
     }
 
@@ -65,9 +64,10 @@ abstract contract Governable is IGovernable, Context, TokenHolder, Initializable
      * @dev Allows new governor to accept governorship of the contract.
      */
     function acceptGovernorship() external {
-        require(proposedGovernor == _msgSender(), "not-the-proposed-governor");
-        emit UpdatedGovernor(governor, proposedGovernor);
-        governor = proposedGovernor;
+        address _proposedGovernor = proposedGovernor;
+        require(_proposedGovernor == msg.sender, "not-the-proposed-governor");
+        emit UpdatedGovernor(governor, _proposedGovernor);
+        governor = _proposedGovernor;
         proposedGovernor = address(0);
     }
 }
