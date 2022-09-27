@@ -10,21 +10,21 @@ import "../dependencies/openzeppelin/token/ERC20/IERC20.sol";
 interface IRewardsDistributor {
     function rewardToken() external view returns (IERC20);
 
-    function tokenSpeeds(IERC20 _token) external view returns (uint256);
+    function tokenSpeeds(IERC20 token_) external view returns (uint256);
 
-    function tokensAccruedOf(address _account) external view returns (uint256);
+    function tokensAccruedOf(address account_) external view returns (uint256);
 
-    function updateBeforeMintOrBurn(IERC20 _token, address _account) external;
+    function updateBeforeMintOrBurn(IERC20 token_, address account_) external;
 
     function updateBeforeTransfer(
-        IERC20 _token,
-        address _from,
-        address _to
+        IERC20 token_,
+        address from_,
+        address to_
     ) external;
 
-    function claimRewards(address _account) external;
+    function claimRewards(address account_) external;
 
-    function claimRewards(address _account, IERC20[] memory _tokens) external;
+    function claimRewards(address account_, IERC20[] memory tokens_) external;
 
-    function claimRewards(address[] memory _accounts, IERC20[] memory _tokens) external;
+    function claimRewards(address[] memory accounts_, IERC20[] memory tokens_) external;
 }

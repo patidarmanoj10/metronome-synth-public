@@ -12,17 +12,17 @@ interface IDebtToken is IERC20Metadata {
 
     function accrueInterest() external;
 
-    function debtIndex() external returns (uint256 _debtIndex);
+    function debtIndex() external returns (uint256 debtIndex_);
 
-    function burn(address _from, uint256 _amount) external;
+    function burn(address from_, uint256 amount_) external;
 
-    function issue(uint256 _amount, address _to) external;
+    function issue(uint256 amount_, address to_) external;
 
-    function repay(address _onBehalfOf, uint256 _amount) external;
+    function repay(address onBehalfOf_, uint256 amount_) external;
 
-    function updateMaxTotalSupplyInUsd(uint256 _newMaxTotalSupply) external;
+    function updateMaxTotalSupplyInUsd(uint256 newMaxTotalSupply_) external;
 
-    function updateInterestRate(uint256 _newInterestRate) external;
+    function updateInterestRate(uint256 newInterestRate_) external;
 
     function maxTotalSupplyInUsd() external view returns (uint256);
 

@@ -8,15 +8,15 @@ import "./IDebtToken.sol";
 interface ISyntheticToken is IERC20Metadata {
     function isActive() external view returns (bool);
 
-    function mint(address _to, uint256 amount) external;
+    function mint(address to_, uint256 amount_) external;
 
-    function burn(address _from, uint256 amount) external;
+    function burn(address from_, uint256 amount) external;
 
     function toggleIsActive() external;
 
     function seize(
-        address _from,
-        address _to,
-        uint256 _amount
+        address from_,
+        address to_,
+        uint256 amount_
     ) external;
 }

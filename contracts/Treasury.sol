@@ -23,28 +23,20 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
         _;
     }
 
-    function initialize(IPool _pool) public initializer {
-        require(address(_pool) != address(0), "pool-address-is-zero");
+    function initialize(IPool pool_) public initializer {
+        require(address(pool_) != address(0), "pool-address-is-zero");
 
         __ReentrancyGuard_init();
         __Manageable_init();
 
-        pool = _pool;
-    }
-
-    /**
-     * @notice Pull token from the Treasury
-     */
-    function pull(address _to, uint256 _amount) external override nonReentrant onlyIfDepositToken {
-        require(_amount > 0, "amount-is-zero");
-        IDepositToken(msg.sender).underlying().safeTransfer(_to, _amount);
+        pool = pool_;
     }
 
     /**
      * @notice Transfer all funds to another contract
      * @dev This function can become too expensive depending on the length of the arrays
      */
-    function migrateTo(address _newTreasury) external override onlyPool {
+    function migrateTo(address newTreasury_) external override onlyPool {
         address[] memory _depositTokens = pool.getDepositTokens();
         uint256 _depositTokensLength = _depositTokens.length;
 
@@ -54,8 +46,16 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
             uint256 _underlyingBalance = _underlying.balanceOf(address(this));
 
             if (_underlyingBalance > 0) {
-                _underlying.safeTransfer(_newTreasury, _underlyingBalance);
+                _underlying.safeTransfer(newTreasury_, _underlyingBalance);
             }
         }
+    }
+
+    /**
+     * @notice Pull token from the Treasury
+     */
+    function pull(address to_, uint256 amount_) external override nonReentrant onlyIfDepositToken {
+        require(amount_ > 0, "amount-is-zero");
+        IDepositToken(msg.sender).underlying().safeTransfer(to_, amount_);
     }
 }

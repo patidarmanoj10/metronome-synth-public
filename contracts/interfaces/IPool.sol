@@ -2,9 +2,6 @@
 
 pragma solidity 0.8.9;
 
-import "./external/IMasterOracle.sol";
-import "./IPausable.sol";
-import "./ISyntheticToken.sol";
 import "./IDepositToken.sol";
 import "./ITreasury.sol";
 import "./IRewardsDistributor.sol";
@@ -13,7 +10,7 @@ import "./IPoolRegistry.sol";
 /**
  * @notice Pool interface
  */
-interface IPool is IPausable {
+interface IPool is IPauseable {
     function debtFloorInUsd() external returns (uint256);
 
     function depositFee() external returns (uint256);
@@ -26,15 +23,15 @@ interface IPool is IPausable {
 
     function feeCollector() external view returns (address);
 
-    function isSyntheticTokenExists(ISyntheticToken _syntheticToken) external view returns (bool);
+    function isSyntheticTokenExists(ISyntheticToken syntheticToken_) external view returns (bool);
 
-    function isDebtTokenExists(IDebtToken _debtToken) external view returns (bool);
+    function isDebtTokenExists(IDebtToken debtToken_) external view returns (bool);
 
-    function isDepositTokenExists(IDepositToken _depositToken) external view returns (bool);
+    function isDepositTokenExists(IDepositToken depositToken_) external view returns (bool);
 
-    function depositTokenOf(IERC20 _underlying) external view returns (IDepositToken);
+    function depositTokenOf(IERC20 underlying_) external view returns (IDepositToken);
 
-    function debtTokenOf(ISyntheticToken _syntheticToken) external view returns (IDebtToken);
+    function debtTokenOf(ISyntheticToken syntheticToken_) external view returns (IDebtToken);
 
     function getDepositTokens() external view returns (address[] memory);
 
@@ -42,11 +39,11 @@ interface IPool is IPausable {
 
     function getRewardsDistributors() external view returns (IRewardsDistributor[] memory);
 
-    function debtOf(address _account) external view returns (uint256 _debtInUsd);
+    function debtOf(address account_) external view returns (uint256 _debtInUsd);
 
-    function depositOf(address _account) external view returns (uint256 _depositInUsd, uint256 _issuableLimitInUsd);
+    function depositOf(address account_) external view returns (uint256 _depositInUsd, uint256 _issuableLimitInUsd);
 
-    function debtPositionOf(address _account)
+    function debtPositionOf(address account_)
         external
         view
         returns (
@@ -57,38 +54,38 @@ interface IPool is IPausable {
             uint256 _issuableInUsd
         );
 
-    function addDebtToken(IDebtToken _debtToken) external;
+    function addDebtToken(IDebtToken debtToken_) external;
 
-    function removeDebtToken(IDebtToken _debtToken) external;
+    function removeDebtToken(IDebtToken debtToken_) external;
 
-    function addDepositToken(address _depositToken) external;
+    function addDepositToken(address depositToken_) external;
 
-    function removeDepositToken(IDepositToken _depositToken) external;
+    function removeDepositToken(IDepositToken depositToken_) external;
 
     function liquidate(
-        ISyntheticToken _syntheticToken,
-        address _account,
-        uint256 _amountToRepay,
-        IDepositToken _depositToken
+        ISyntheticToken syntheticToken_,
+        address account_,
+        uint256 amountToRepay_,
+        IDepositToken depositToken_
     ) external;
 
-    function updateDebtFloor(uint256 _newDebtFloorInUsd) external;
+    function updateDebtFloor(uint256 newDebtFloorInUsd_) external;
 
-    function updateDepositFee(uint256 _newDepositFee) external;
+    function updateDepositFee(uint256 newDepositFee_) external;
 
-    function updateIssueFee(uint256 _newIssueFee) external;
+    function updateIssueFee(uint256 newIssueFee_) external;
 
-    function updateWithdrawFee(uint256 _newWithdrawFee) external;
+    function updateWithdrawFee(uint256 newWithdrawFee_) external;
 
-    function updateRepayFee(uint256 _newRepayFee) external;
+    function updateRepayFee(uint256 newRepayFee_) external;
 
-    function updateLiquidatorLiquidationFee(uint256 _newLiquidatorLiquidationFee) external;
+    function updateLiquidatorLiquidationFee(uint256 newLiquidatorLiquidationFee_) external;
 
-    function updateProtocolLiquidationFee(uint256 _newProtocolLiquidationFee) external;
+    function updateProtocolLiquidationFee(uint256 newProtocolLiquidationFee_) external;
 
-    function updateMaxLiquidable(uint256 _newMaxLiquidable) external;
+    function updateMaxLiquidable(uint256 newMaxLiquidable_) external;
 
-    function updateTreasury(ITreasury _newTreasury) external;
+    function updateTreasury(ITreasury newTreasury_) external;
 
     function treasury() external view returns (ITreasury);
 
@@ -96,17 +93,17 @@ interface IPool is IPausable {
 
     function poolRegistry() external view returns (IPoolRegistry);
 
-    function addToDepositTokensOfAccount(address _account) external;
+    function addToDepositTokensOfAccount(address account_) external;
 
-    function removeFromDepositTokensOfAccount(address _account) external;
+    function removeFromDepositTokensOfAccount(address account_) external;
 
-    function addToDebtTokensOfAccount(address _account) external;
+    function addToDebtTokensOfAccount(address account_) external;
 
-    function removeFromDebtTokensOfAccount(address _account) external;
+    function removeFromDebtTokensOfAccount(address account_) external;
 
-    function getDepositTokensOfAccount(address _account) external view returns (address[] memory);
+    function getDepositTokensOfAccount(address account_) external view returns (address[] memory);
 
-    function getDebtTokensOfAccount(address _account) external view returns (address[] memory);
+    function getDebtTokensOfAccount(address account_) external view returns (address[] memory);
 
-    function addRewardsDistributor(IRewardsDistributor _distributor) external;
+    function addRewardsDistributor(IRewardsDistributor distributor_) external;
 }
