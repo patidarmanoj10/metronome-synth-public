@@ -104,7 +104,6 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
         unchecked {
             _approve(msg.sender, spender_, _currentAllowance - subtractedValue_);
         }
-
         return true;
     }
 

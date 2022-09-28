@@ -55,7 +55,7 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
         require(feeCollector_ != address(0), "fee-collector-is-null");
 
         __ReentrancyGuard_init();
-        __Governable_init();
+        __Pauseable_init();
 
         masterOracle = masterOracle_;
         feeCollector = feeCollector_;
@@ -92,7 +92,7 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
      * @param pool_ Pool to check
      * @return true if exists
      */
-    function poolExists(address pool_) public view returns (bool) {
+    function poolExists(address pool_) external view returns (bool) {
         return pools.contains(pool_);
     }
 
@@ -174,7 +174,6 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
         require(address(newMasterOracle_) != address(0), "address-is-null");
         IMasterOracle _currentMasterOracle = masterOracle;
         require(newMasterOracle_ != _currentMasterOracle, "new-same-as-current");
-
         emit MasterOracleUpdated(_currentMasterOracle, newMasterOracle_);
         masterOracle = newMasterOracle_;
     }

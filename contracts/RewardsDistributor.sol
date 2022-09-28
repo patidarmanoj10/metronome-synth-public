@@ -64,13 +64,11 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     }
 
     function initialize(IPool pool_, IERC20 rewardToken_) external initializer {
-        __ReentrancyGuard_init();
-        __Manageable_init();
-
-        require(address(pool_) != address(0), "pool-is-null");
         require(address(rewardToken_) != address(0), "reward-token-is-null");
 
-        pool = pool_;
+        __ReentrancyGuard_init();
+        __Manageable_init(pool_);
+
         rewardToken = rewardToken_;
     }
 

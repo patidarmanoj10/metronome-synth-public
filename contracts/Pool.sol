@@ -89,7 +89,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
     function initialize(IPoolRegistry poolRegistry_) public initializer {
         require(address(poolRegistry_) != address(0), "pool-registry-is-null");
         __ReentrancyGuard_init();
-        __Governable_init();
+        __Pauseable_init();
 
         poolRegistry = poolRegistry_;
 
@@ -181,7 +181,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
         for (uint256 i; i < _length; ++i) {
             IDepositToken _depositToken = IDepositToken(depositTokensOfAccount.at(account_, i));
             uint256 _amountInUsd = _masterOracle.quoteTokenToUsd(
-                address(_depositToken),
+                address(_depositToken.underlying()),
                 _depositToken.balanceOf(account_)
             );
             _depositInUsd += _amountInUsd;
@@ -314,7 +314,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
 
         uint256 _amountToRepayInCollateral = _masterOracle.quote(
             address(syntheticToken_),
-            address(depositToken_),
+            address(depositToken_.underlying()),
             amountToRepay_
         );
 

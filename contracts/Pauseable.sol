@@ -58,6 +58,15 @@ abstract contract Pauseable is IPauseable, Governable {
     }
 
     /**
+     * @dev If inheriting child is using proxy then child contract can use
+     * __Pauseable_init() function to initialization this contract
+     */
+    // solhint-disable-next-line func-name-mixedcase
+    function __Pauseable_init() internal initializer {
+        __Governable_init();
+    }
+
+    /**
      * @notice Return `true` if contract is shutdown
      */
     function everythingStopped() public view virtual returns (bool) {

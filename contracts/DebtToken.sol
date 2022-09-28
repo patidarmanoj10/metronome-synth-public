@@ -79,16 +79,14 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
         uint256 interestRate_,
         uint256 maxTotalSupplyInUsd_
     ) external initializer {
-        require(address(pool_) != address(0), "pool-address-is-zero");
         require(address(syntheticToken_) != address(0), "synthetic-is-null");
 
         __ReentrancyGuard_init();
-        __Manageable_init();
+        __Manageable_init(pool_);
 
         name = name_;
         symbol = symbol_;
         decimals = syntheticToken_.decimals();
-        pool = pool_;
         syntheticToken = syntheticToken_;
         lastTimestampAccrued = block.timestamp;
         debtIndex = 1e18;
@@ -125,10 +123,11 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
         revert("allowance-not-supported");
     }
 
+    // solhint-disable-next-line
     function approve(
         address, /*spender_*/
         uint256 /*amount_*/
-    ) external pure override returns (bool) {
+    ) external override returns (bool) {
         revert("approval-not-supported");
     }
 
@@ -154,20 +153,6 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
      */
     function burn(address from_, uint256 amount_) external override onlyIfCanBurn {
         _burn(from_, amount_);
-    }
-
-    function decreaseAllowance(
-        address, /*spender_*/
-        uint256 /*subtractedValue_*/
-    ) external pure returns (bool) {
-        revert("allowance-not-supported");
-    }
-
-    function increaseAllowance(
-        address, /*spender_*/
-        uint256 /*addedValue_*/
-    ) external pure returns (bool) {
-        revert("allowance-not-supported");
     }
 
     /**
@@ -243,7 +228,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
         uint256 _amountToRepay = amount_;
         uint256 _feeAmount;
         if (_repayFee > 0) {
-            // Note: `_amountToRepay = _amount - repayFeeAmount`
+            // Note: `_amountToRepay = _amount - _feeAmount`
             _amountToRepay = amount_.wadDiv(1e18 + _repayFee);
             _feeAmount = amount_ - _amountToRepay;
             syntheticToken.seize(msg.sender, pool.feeCollector(), _feeAmount);
@@ -272,18 +257,20 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
         return totalSupply_ + _interestAmountAccrued;
     }
 
+    // solhint-disable-next-line
     function transfer(
         address, /*recipient_*/
         uint256 /*amount_*/
-    ) external pure override returns (bool) {
+    ) external override returns (bool) {
         revert("transfer-not-supported");
     }
 
+    // solhint-disable-next-line
     function transferFrom(
         address, /*sender_*/
         address, /*recipient_*/
         uint256 /*amount_*/
-    ) external pure override returns (bool) {
+    ) external override returns (bool) {
         revert("transfer-not-supported");
     }
 

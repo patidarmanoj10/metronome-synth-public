@@ -78,7 +78,7 @@ describe('DepositToken', function () {
     await metDepositToken.initialize(met.address, poolMock.address, 'msdMET', 18, metCR, MaxUint256)
     metDepositToken = metDepositToken.connect(governor)
 
-    await masterOracle.updatePrice(metDepositToken.address, metPrice)
+    await masterOracle.updatePrice(met.address, metPrice)
     await treasury.initialize(poolMock.address)
   })
 

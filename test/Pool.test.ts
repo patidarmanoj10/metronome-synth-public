@@ -115,8 +115,8 @@ async function fixture() {
   await dai.mint(alice.address, parseEther(`${1e6}`))
 
   // initialize mocked oracle
-  await masterOracleMock.updatePrice(msdDAI.address, daiPrice)
-  await masterOracleMock.updatePrice(msdMET.address, metPrice)
+  await masterOracleMock.updatePrice(dai.address, daiPrice)
+  await masterOracleMock.updatePrice(met.address, metPrice)
   await masterOracleMock.updatePrice(msEth.address, ethPrice)
   await masterOracleMock.updatePrice(msDoge.address, dogePrice)
 
@@ -192,8 +192,8 @@ describe('Pool', function () {
 
       const limitForMet = (await msdMET.balanceOf(alice.address)).mul(metCR).div(parseEther('1'))
       const limitForDai = (await msdDAI.balanceOf(alice.address)).mul(daiCR).div(parseEther('1'))
-      const limitForMetInUsd = await masterOracle.quoteTokenToUsd(msdMET.address, limitForMet)
-      const limitForDaiInUsd = await masterOracle.quoteTokenToUsd(msdDAI.address, limitForDai)
+      const limitForMetInUsd = await masterOracle.quoteTokenToUsd(met.address, limitForMet)
+      const limitForDaiInUsd = await masterOracle.quoteTokenToUsd(dai.address, limitForDai)
       const _expectedMintableLimitInUsd = limitForMetInUsd.add(limitForDaiInUsd)
 
       expect(_isHealthy).eq(true)
@@ -290,7 +290,7 @@ describe('Pool', function () {
           const newMetPrice = toUSD('0.95')
 
           beforeEach(async function () {
-            await masterOracle.updatePrice(msdMET.address, newMetPrice)
+            await masterOracle.updatePrice(met.address, newMetPrice)
 
             const expectedDebtInUsd = userMintAmount.mul(ethPrice).div(parseEther('1'))
             const expectedDepositInUsd = userDepositAmount.mul(newMetPrice).div(parseEther('1'))
@@ -432,7 +432,7 @@ describe('Pool', function () {
             const amountToSeizeInUsd = debtInUsdBefore
               .mul(parseEther('1').add(liquidatorLiquidationFee))
               .div(parseEther('1'))
-            const expectedDepositSeized = await masterOracle.quoteUsdToToken(msdMET.address, amountToSeizeInUsd)
+            const expectedDepositSeized = await masterOracle.quoteUsdToToken(met.address, amountToSeizeInUsd)
             const expectedDepositAfter = collateralInUsdBefore
               .sub(amountToSeizeInUsd)
               .mul(parseEther('1'))
@@ -455,7 +455,7 @@ describe('Pool', function () {
             await pool.updateProtocolLiquidationFee(protocolLiquidationFee)
             const debtInUsdBefore = await pool.debtOf(alice.address)
             const {_depositInUsd: depositInUsdBefore} = await pool.debtPositionOf(alice.address)
-            const depositBefore = await masterOracle.quoteUsdToToken(msdMET.address, depositInUsdBefore)
+            const depositBefore = await masterOracle.quoteUsdToToken(met.address, depositInUsdBefore)
 
             // when
             const amountToRepay = userMintAmount // repay all user's debt
@@ -474,7 +474,7 @@ describe('Pool', function () {
             const expectedDepositToLiquidator = debtInUsdBefore
               .mul(parseEther('1').add(liquidatorLiquidationFee))
               .div(newMetPrice)
-            const expectedDepositSeized = await masterOracle.quoteUsdToToken(msdMET.address, depositToSeizeInUsd)
+            const expectedDepositSeized = await masterOracle.quoteUsdToToken(met.address, depositToSeizeInUsd)
             const expectedDepositAfter = depositBefore.sub(expectedDepositSeized)
 
             const {_isHealthy} = await pool.debtPositionOf(alice.address)
@@ -498,7 +498,7 @@ describe('Pool', function () {
             await pool.updateProtocolLiquidationFee(0)
             const debtInUsdBefore = await pool.debtOf(alice.address)
             const {_depositInUsd: collateralInUsdBefore} = await pool.debtPositionOf(alice.address)
-            const collateralBefore = await masterOracle.quoteUsdToToken(msdMET.address, collateralInUsdBefore)
+            const collateralBefore = await masterOracle.quoteUsdToToken(met.address, collateralInUsdBefore)
             const minAmountToRepayInUsd = await getMinLiquidationAmountInUsd(pool, alice.address, msdMET)
 
             // when
@@ -510,7 +510,7 @@ describe('Pool', function () {
               .liquidate(msEth.address, alice.address, amountToRepay, msdMET.address)
             const [PositionLiquidated] = (await tx.wait()).events!.filter(({event}) => event === 'PositionLiquidated')
             const [, , , , depositSeized] = PositionLiquidated.args!
-            const depositSeizedInUsd = await masterOracle.quoteTokenToUsd(msdMET.address, depositSeized)
+            const depositSeizedInUsd = await masterOracle.quoteTokenToUsd(met.address, depositSeized)
 
             // then
             const {_isHealthy: isHealthyAfter, _depositInUsd: collateralInUsdAfter} = await pool.debtPositionOf(
@@ -536,7 +536,7 @@ describe('Pool', function () {
             const debtInUsdBefore = await pool.debtOf(alice.address)
             const {_depositInUsd: collateralInUsdBefore} = await pool.debtPositionOf(alice.address)
             const minAmountToRepayInUsd = await getMinLiquidationAmountInUsd(pool, alice.address, msdMET)
-            const collateralBefore = await masterOracle.quoteUsdToToken(msdMET.address, collateralInUsdBefore)
+            const collateralBefore = await masterOracle.quoteUsdToToken(met.address, collateralInUsdBefore)
 
             // when
             const amountToRepayInUsd = minAmountToRepayInUsd.mul(parseEther('1.1')).div(parseEther('1')) // min + 10%
@@ -548,7 +548,7 @@ describe('Pool', function () {
             const [PositionLiquidated] = (await tx.wait()).events!.filter(({event}) => event === 'PositionLiquidated')
             const [, , , , depositSeized] = PositionLiquidated.args!
 
-            const amountToRepayInMET = await masterOracle.quote(msEth.address, msdMET.address, amountToRepay)
+            const amountToRepayInMET = await masterOracle.quote(msEth.address, met.address, amountToRepay)
 
             const expectedDepositToLiquidator = amountToRepayInMET
               .mul(parseEther('1').add(liquidatorLiquidationFee))
@@ -558,7 +558,7 @@ describe('Pool', function () {
             const {_isHealthy: isHealthyAfter, _depositInUsd: collateralInUsdAfter} = await pool.debtPositionOf(
               alice.address
             )
-            const collateralAfter = await masterOracle.quoteUsdToToken(msdMET.address, collateralInUsdAfter)
+            const collateralAfter = await masterOracle.quoteUsdToToken(met.address, collateralInUsdAfter)
             const lockedCollateralAfter = await msdMET.lockedBalanceOf(alice.address)
 
             expect(isHealthyAfter).true
@@ -579,7 +579,7 @@ describe('Pool', function () {
             // given
             await pool.updateProtocolLiquidationFee(0)
             const {_depositInUsd: collateralInUsdBefore} = await pool.debtPositionOf(alice.address)
-            const collateralBefore = await masterOracle.quoteUsdToToken(msdMET.address, collateralInUsdBefore)
+            const collateralBefore = await masterOracle.quoteUsdToToken(met.address, collateralInUsdBefore)
 
             // when
             const minAmountToRepayInUsd = await getMinLiquidationAmountInUsd(pool, alice.address, msdMET)
@@ -614,7 +614,7 @@ describe('Pool', function () {
             const protocolLiquidationFee = parseEther('0.01') // 1%
             await pool.updateProtocolLiquidationFee(protocolLiquidationFee)
             const {_depositInUsd: collateralInUsdBefore} = await pool.debtPositionOf(alice.address)
-            const collateralBefore = await masterOracle.quoteUsdToToken(msdMET.address, collateralInUsdBefore)
+            const collateralBefore = await masterOracle.quoteUsdToToken(met.address, collateralInUsdBefore)
 
             // when
             const amountToRepayInUsd = (await getMinLiquidationAmountInUsd(pool, alice.address, msdMET)).div('2')
@@ -631,7 +631,7 @@ describe('Pool', function () {
             const unlockedCollateralAfter = await msdMET.unlockedBalanceOf(alice.address)
             const lockedCollateralAfter = await msdMET.lockedBalanceOf(alice.address)
 
-            const amountToRepayInMET = await masterOracle.quote(msEth.address, msdMET.address, amountToRepay)
+            const amountToRepayInMET = await masterOracle.quote(msEth.address, met.address, amountToRepay)
 
             const expectedDepositToLiquidator = amountToRepayInMET.add(
               amountToRepayInMET.mul(liquidatorLiquidationFee).div(parseEther('1'))
@@ -655,7 +655,7 @@ describe('Pool', function () {
             // given
             await pool.updateProtocolLiquidationFee(0)
             const {_depositInUsd: depositInUsdBefore} = await pool.debtPositionOf(alice.address)
-            const depositBefore = await masterOracle.quoteUsdToToken(msdMET.address, depositInUsdBefore)
+            const depositBefore = await masterOracle.quoteUsdToToken(met.address, depositInUsdBefore)
 
             // when
             const amountToRepayInUsd = await getMinLiquidationAmountInUsd(pool, alice.address, msdMET)
@@ -691,7 +691,7 @@ describe('Pool', function () {
             const protocolLiquidationFee = parseEther('0.01') // 1%
             await pool.updateProtocolLiquidationFee(protocolLiquidationFee)
             const {_depositInUsd: depositBeforeInUsd} = await pool.debtPositionOf(alice.address)
-            const depositBefore = await masterOracle.quoteUsdToToken(msdMET.address, depositBeforeInUsd)
+            const depositBefore = await masterOracle.quoteUsdToToken(met.address, depositBeforeInUsd)
 
             // when
             const amountToRepayInUsd = await getMinLiquidationAmountInUsd(pool, alice.address, msdMET)
@@ -709,7 +709,7 @@ describe('Pool', function () {
             const unlockedDepositAfter = await msdMET.unlockedBalanceOf(alice.address)
             const lockedDepositAfter = await msdMET.lockedBalanceOf(alice.address)
 
-            const amountToRepayInMET = await masterOracle.quote(msEth.address, msdMET.address, amountToRepay)
+            const amountToRepayInMET = await masterOracle.quote(msEth.address, met.address, amountToRepay)
 
             const expectedDepositToLiquidator = amountToRepayInMET.add(
               amountToRepayInMET.mul(liquidatorLiquidationFee).div(parseEther('1'))
@@ -737,7 +737,7 @@ describe('Pool', function () {
           const newMetPrice = toUSD('0.50')
 
           beforeEach(async function () {
-            await masterOracle.updatePrice(msdMET.address, newMetPrice)
+            await masterOracle.updatePrice(met.address, newMetPrice)
             const _debtInUsd = await pool.debtOf(alice.address)
             const {_depositInUsd} = await pool.debtPositionOf(alice.address)
             expect(_debtInUsd).gt(_depositInUsd)
@@ -799,7 +799,7 @@ describe('Pool', function () {
             const [PositionLiquidated] = (await tx.wait()).events!.filter(({event}) => event === 'PositionLiquidated')
             const [, , , , depositSeized] = PositionLiquidated.args!
 
-            const amountToRepayInMET = await masterOracle.quote(msEth.address, msdMET.address, amountToRepay)
+            const amountToRepayInMET = await masterOracle.quote(msEth.address, met.address, amountToRepay)
 
             const expectedDepositToLiquidator = amountToRepayInMET.add(
               amountToRepayInMET.mul(liquidatorLiquidationFee).div(parseEther('1'))
@@ -825,7 +825,7 @@ describe('Pool', function () {
             // given
             await pool.updateProtocolLiquidationFee(0)
             const {_depositInUsd: collateralInUsdBefore} = await pool.debtPositionOf(alice.address)
-            const collateralBefore = await masterOracle.quoteUsdToToken(msdMET.address, collateralInUsdBefore)
+            const collateralBefore = await masterOracle.quoteUsdToToken(met.address, collateralInUsdBefore)
 
             // when
             const amountToRepayInUsd = await getMaxLiquidationAmountInUsd(pool, alice.address)
@@ -866,7 +866,7 @@ describe('Pool', function () {
             const protocolLiquidationFee = parseEther('0.01') // 1%
             await pool.updateProtocolLiquidationFee(protocolLiquidationFee)
             const {_depositInUsd: collateralInUsdBefore} = await pool.debtPositionOf(alice.address)
-            const collateralBefore = await masterOracle.quoteUsdToToken(msdMET.address, collateralInUsdBefore)
+            const collateralBefore = await masterOracle.quoteUsdToToken(met.address, collateralInUsdBefore)
 
             // when
             const amountToRepayInUsd = (await getMaxLiquidationAmountInUsd(pool, alice.address)).div('2')
@@ -886,7 +886,7 @@ describe('Pool', function () {
             const unlockedCollateralAfter = await msdMET.unlockedBalanceOf(alice.address)
             const lockedCollateralAfter = await msdMET.lockedBalanceOf(alice.address)
 
-            const amountToRepayInMET = await masterOracle.quote(msEth.address, msdMET.address, amountToRepay)
+            const amountToRepayInMET = await masterOracle.quote(msEth.address, met.address, amountToRepay)
 
             const expectedDepositToLiquidator = amountToRepayInMET.add(
               amountToRepayInMET.mul(liquidatorLiquidationFee).div(parseEther('1'))

@@ -52,7 +52,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @dev Throws if deposit token isn't enabled
      */
     modifier onlyIfDepositTokenIsActive() {
-        require(isActive, "deposit-token-is-inactive");
+        require(isActive, "deposit-token-inactive");
         _;
     }
 
@@ -99,13 +99,11 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         uint256 maxTotalSupplyInUsd_
     ) external initializer {
         require(address(underlying_) != address(0), "underlying-is-null");
-        require(address(pool_) != address(0), "pool-address-is-zero");
         require(collateralizationRatio_ <= 1e18, "collateralization-ratio-gt-100%");
 
         __ReentrancyGuard_init();
-        __Manageable_init();
+        __Manageable_init(pool_);
 
-        pool = pool_;
         name = "Tokenized deposit position";
         symbol = symbol_;
         underlying = underlying_;
@@ -132,7 +130,6 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         unchecked {
             _approve(msg.sender, spender_, _currentAllowance - subtractedValue_);
         }
-
         return true;
     }
 
@@ -252,7 +249,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         if (_issuableInUsd > 0) {
             _unlockedBalance = Math.min(
                 balanceOf[account_],
-                pool.masterOracle().quoteUsdToToken(address(this), _issuableInUsd.wadDiv(collateralizationRatio))
+                pool.masterOracle().quoteUsdToToken(address(underlying), _issuableInUsd.wadDiv(collateralizationRatio))
             );
         }
     }
@@ -343,12 +340,14 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     {
         require(account_ != address(0), "mint-to-the-zero-address");
 
-        uint256 _newTotalSupplyInUsd = pool.masterOracle().quoteTokenToUsd(address(this), totalSupply + amount_);
+        uint256 _newTotalSupplyInUsd = pool.masterOracle().quoteTokenToUsd(address(underlying), totalSupply + amount_);
         require(_newTotalSupplyInUsd <= maxTotalSupplyInUsd, "surpass-max-deposit-supply");
 
         totalSupply += amount_;
         uint256 _balanceBefore = balanceOf[account_];
-        balanceOf[account_] = _balanceBefore + amount_;
+        unchecked {
+            balanceOf[account_] = _balanceBefore + amount_;
+        }
 
         emit Transfer(address(0), account_, amount_);
 

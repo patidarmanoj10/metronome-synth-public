@@ -81,7 +81,7 @@ describe('NativeTokenGateway', function () {
     await tokenMock.deployed()
 
     await poolMock.updateTreasury(treasury.address)
-    await masterOracleMock.updatePrice(msdNativeToken.address, toUSD('1'))
+    await masterOracleMock.updatePrice(NATIVE_TOKEN_ADDRESS, toUSD('1'))
     await treasury.initialize(poolMock.address)
   })
 
