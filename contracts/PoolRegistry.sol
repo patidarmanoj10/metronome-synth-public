@@ -50,10 +50,11 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
         _;
     }
 
-    function initialize(IMasterOracle masterOracle_, address feeCollector_) public initializer {
+    function initialize(IMasterOracle masterOracle_, address feeCollector_) external initializer {
         require(address(masterOracle_) != address(0), "oracle-is-null");
         require(feeCollector_ != address(0), "fee-collector-is-null");
 
+        __ReentrancyGuard_init();
         __Governable_init();
 
         masterOracle = masterOracle_;

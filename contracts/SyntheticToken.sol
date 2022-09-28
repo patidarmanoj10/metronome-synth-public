@@ -67,7 +67,7 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
         string calldata symbol_,
         uint8 decimals_,
         IPoolRegistry poolRegistry_
-    ) public initializer {
+    ) external initializer {
         require(address(poolRegistry_) != address(0), "pool-registry-is-null");
 
         poolRegistry = poolRegistry_;
@@ -197,8 +197,8 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
         require(_currentBalance >= amount_, "burn-amount-exceeds-balance");
         unchecked {
             balanceOf[account_] = _currentBalance - amount_;
+            totalSupply -= amount_;
         }
-        totalSupply -= amount_;
 
         emit Transfer(account_, address(0), amount_);
     }
@@ -262,8 +262,8 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
         require(senderBalance >= amount_, "transfer-amount-exceeds-balance");
         unchecked {
             balanceOf[sender_] = senderBalance - amount_;
+            balanceOf[recipient_] += amount_;
         }
-        balanceOf[recipient_] += amount_;
 
         emit Transfer(sender_, recipient_, amount_);
     }

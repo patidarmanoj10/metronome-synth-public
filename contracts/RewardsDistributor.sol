@@ -64,6 +64,7 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     }
 
     function initialize(IPool pool_, IERC20 rewardToken_) external initializer {
+        __ReentrancyGuard_init();
         __Manageable_init();
 
         require(address(pool_) != address(0), "pool-is-null");
@@ -144,10 +145,11 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
      * @dev If there is not enough tokens, we do not perform the transfer
      */
     function _transferRewardIfEnoughTokens(address account_, uint256 amount_) private {
-        uint256 _balance = rewardToken.balanceOf(address(this));
+        IERC20 _rewardToken = rewardToken;
+        uint256 _balance = _rewardToken.balanceOf(address(this));
         if (amount_ > 0 && amount_ <= _balance) {
             tokensAccruedOf[account_] = 0;
-            rewardToken.safeTransfer(account_, amount_);
+            _rewardToken.safeTransfer(account_, amount_);
             emit RewardClaimed(account_, amount_);
         }
     }
@@ -165,10 +167,9 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
         }
 
         uint256 _deltaIndex = _tokenIndex - _accountIndex;
-        uint256 _delta = token_.balanceOf(account_).wadMul(_deltaIndex);
-        uint256 _tokensAccrued = tokensAccruedOf[account_] + _delta;
-        tokensAccruedOf[account_] = _tokensAccrued;
-        emit TokensAccruedUpdated(token_, account_, _delta, _tokenIndex);
+        uint256 _tokensDelta = token_.balanceOf(account_).wadMul(_deltaIndex);
+        tokensAccruedOf[account_] += _tokensDelta;
+        emit TokensAccruedUpdated(token_, account_, _tokensDelta, _tokenIndex);
     }
 
     /**
@@ -177,16 +178,15 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     function _updateTokenIndex(IERC20 token_) private {
         TokenState storage _supplyState = tokenStates[token_];
         uint256 _speed = tokenSpeeds[token_];
-        uint256 _timestamp = block.timestamp;
-        uint256 _deltaTimestamps = _timestamp - uint256(_supplyState.timestamp);
+        uint256 _deltaTimestamps = block.timestamp - uint256(_supplyState.timestamp);
         if (_deltaTimestamps > 0 && _speed > 0) {
             uint256 _totalSupply = token_.totalSupply();
             uint256 _tokensAccrued = _deltaTimestamps * _speed;
             uint256 _ratio = _totalSupply > 0 ? _tokensAccrued.wadDiv(_totalSupply) : 0;
             uint256 _newIndex = _supplyState.index + _ratio;
-            tokenStates[token_] = TokenState({index: _newIndex.toUint224(), timestamp: _timestamp.toUint32()});
+            tokenStates[token_] = TokenState({index: _newIndex.toUint224(), timestamp: block.timestamp.toUint32()});
         } else if (_deltaTimestamps > 0 && _supplyState.index > 0) {
-            _supplyState.timestamp = _timestamp.toUint32();
+            _supplyState.timestamp = block.timestamp.toUint32();
         }
     }
 

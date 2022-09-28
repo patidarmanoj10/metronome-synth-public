@@ -97,11 +97,12 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         uint8 decimals_,
         uint128 collateralizationRatio_,
         uint256 maxTotalSupplyInUsd_
-    ) public initializer {
+    ) external initializer {
         require(address(underlying_) != address(0), "underlying-is-null");
         require(address(pool_) != address(0), "pool-address-is-zero");
         require(collateralizationRatio_ <= 1e18, "collateralization-ratio-gt-100%");
 
+        __ReentrancyGuard_init();
         __Manageable_init();
 
         pool = pool_;
@@ -153,9 +154,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         address _treasury = address(pool.treasury());
 
         uint256 _balanceBefore = underlying.balanceOf(_treasury);
-
         underlying.safeTransferFrom(msg.sender, _treasury, amount_);
-
         amount_ = underlying.balanceOf(_treasury) - _balanceBefore;
 
         uint256 _depositFee = pool.depositFee();
@@ -270,8 +269,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         nonReentrant
         onlyIfDepositTokenExists
     {
-        require(amount_ > 0, "amount-is-zero");
-        require(amount_ <= unlockedBalanceOf(msg.sender), "amount-gt-unlocked");
+        require(amount_ > 0 && amount_ <= unlockedBalanceOf(msg.sender), "amount-is-invalid");
 
         uint256 _withdrawFee = pool.withdrawFee();
         uint256 _amountToWithdraw = amount_;
@@ -324,10 +322,10 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         uint256 _balanceAfter;
         unchecked {
             _balanceAfter = _balanceBefore - _amount;
+            totalSupply -= _amount;
         }
 
         balanceOf[_account] = _balanceAfter;
-        totalSupply -= _amount;
 
         emit Transfer(_account, address(0), _amount);
 
@@ -384,10 +382,10 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
 
         unchecked {
             _senderBalanceAfter = _senderBalanceBefore - amount_;
+            balanceOf[recipient_] = _recipientBalanceBefore + amount_;
         }
 
         balanceOf[sender_] = _senderBalanceAfter;
-        balanceOf[recipient_] = _recipientBalanceBefore + amount_;
 
         emit Transfer(sender_, recipient_, amount_);
 

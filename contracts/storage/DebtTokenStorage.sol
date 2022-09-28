@@ -27,14 +27,14 @@ abstract contract DebtTokenStorageV1 is IDebtToken {
     mapping(address => uint256) internal debtIndexOf;
 
     /**
-     * @notice The total amount of minted tokens
-     */
-    uint256 internal totalSupply_;
-
-    /**
      * @notice The supply cap (in USD)
      */
     uint256 public maxTotalSupplyInUsd;
+
+    /**
+     * @notice The total amount of minted tokens
+     */
+    uint256 internal totalSupply_;
 
     /**
      * @notice The timestamp when interest accrual was calculated for the last time

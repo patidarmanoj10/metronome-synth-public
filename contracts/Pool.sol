@@ -126,10 +126,11 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @return _debtInUsd The debt value in USD
      */
     function debtOf(address account_) public view override returns (uint256 _debtInUsd) {
+        IMasterOracle _masterOracle = masterOracle();
         uint256 _length = debtTokensOfAccount.length(account_);
         for (uint256 i; i < _length; ++i) {
             IDebtToken _debtToken = IDebtToken(debtTokensOfAccount.at(account_, i));
-            _debtInUsd += masterOracle().quoteTokenToUsd(
+            _debtInUsd += _masterOracle.quoteTokenToUsd(
                 address(_debtToken.syntheticToken()),
                 _debtToken.balanceOf(account_)
             );
@@ -175,10 +176,11 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
         override
         returns (uint256 _depositInUsd, uint256 _issuableLimitInUsd)
     {
+        IMasterOracle _masterOracle = masterOracle();
         uint256 _length = depositTokensOfAccount.length(account_);
         for (uint256 i; i < _length; ++i) {
             IDepositToken _depositToken = IDepositToken(depositTokensOfAccount.at(account_, i));
-            uint256 _amountInUsd = masterOracle().quoteTokenToUsd(
+            uint256 _amountInUsd = _masterOracle.quoteTokenToUsd(
                 address(_depositToken),
                 _depositToken.balanceOf(account_)
             );
@@ -300,15 +302,17 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
 
         require(amountToRepay_.wadDiv(_debtTokenBalance) <= maxLiquidable, "amount-gt-max-liquidable");
 
+        IMasterOracle _masterOracle = masterOracle();
+
         if (debtFloorInUsd > 0) {
-            uint256 _newDebtInUsd = masterOracle().quoteTokenToUsd(
+            uint256 _newDebtInUsd = _masterOracle.quoteTokenToUsd(
                 address(syntheticToken_),
                 _debtTokenBalance - amountToRepay_
             );
             require(_newDebtInUsd == 0 || _newDebtInUsd >= debtFloorInUsd, "remaining-debt-lt-floor");
         }
 
-        uint256 _amountToRepayInCollateral = masterOracle().quote(
+        uint256 _amountToRepayInCollateral = _masterOracle.quote(
             address(syntheticToken_),
             address(depositToken_),
             amountToRepay_
