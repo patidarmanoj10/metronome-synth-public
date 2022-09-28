@@ -39,9 +39,9 @@ export const getMinLiquidationAmountInUsd = async function (
   depositToken: DepositToken
 ): Promise<BigNumber> {
   const {_issuableLimitInUsd, _debtInUsd} = await pool.debtPositionOf(accountAddress)
-  const fee = parseEther('1')
-    .add(await pool.liquidatorLiquidationFee())
-    .add(await pool.protocolLiquidationFee())
+
+  const [liquidatorFee, protocolFee] = await pool.liquidationFees()
+  const fee = parseEther('1').add(liquidatorFee).add(protocolFee)
   const cr = await depositToken.collateralizationRatio()
 
   const numerator = _debtInUsd.sub(_issuableLimitInUsd)
@@ -57,7 +57,8 @@ export const getMinLiquidationAmountInUsd = async function (
  */
 export const getMaxLiquidationAmountInUsd = async function (pool: Pool, accountAddress: string): Promise<BigNumber> {
   const {_depositInUsd} = await pool.debtPositionOf(accountAddress)
-  const fee = (await pool.liquidatorLiquidationFee()).add(await pool.protocolLiquidationFee())
+  const [liquidatorFee, protocolFee] = await pool.liquidationFees()
+  const fee = liquidatorFee.add(protocolFee)
 
   const numerator = _depositInUsd
   const denominator = parseEther('1').add(fee)

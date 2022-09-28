@@ -94,8 +94,10 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
         poolRegistry = poolRegistry_;
 
         repayFee = 3e15; // 0.3%
-        liquidatorLiquidationFee = 1e17; // 10%
-        protocolLiquidationFee = 8e16; // 8%
+        liquidationFees = LiquidationFees({
+            liquidatorFee: 1e17, // 10%
+            protocolFee: 8e16 // 8%
+        });
         maxLiquidable = 0.5e18; // 50%
     }
 
@@ -287,9 +289,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
         IDepositToken depositToken_
     ) external override whenNotShutdown nonReentrant onlyIfDepositTokenExists(depositToken_) {
         require(amountToRepay_ > 0, "amount-is-zero");
-
-        address _liquidator = msg.sender;
-        require(_liquidator != account_, "can-not-liquidate-own-position");
+        require(msg.sender != account_, "can-not-liquidate-own-position");
 
         IDebtToken _debtToken = debtTokenOf[syntheticToken_];
         _debtToken.accrueInterest();
@@ -318,23 +318,23 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
             amountToRepay_
         );
 
-        uint256 _toProtocol = protocolLiquidationFee > 0
-            ? _amountToRepayInCollateral.wadMul(protocolLiquidationFee)
-            : 0;
-        uint256 _toLiquidator = _amountToRepayInCollateral.wadMul(1e18 + liquidatorLiquidationFee);
+        LiquidationFees memory _fees = liquidationFees;
+
+        uint256 _toProtocol = _fees.protocolFee > 0 ? _amountToRepayInCollateral.wadMul(_fees.protocolFee) : 0;
+        uint256 _toLiquidator = _amountToRepayInCollateral.wadMul(1e18 + _fees.liquidatorFee);
         uint256 _depositToSeize = _toProtocol + _toLiquidator;
 
         require(_depositToSeize <= depositToken_.balanceOf(account_), "amount-too-high");
 
-        syntheticToken_.burn(_liquidator, amountToRepay_);
+        syntheticToken_.burn(msg.sender, amountToRepay_);
         _debtToken.burn(account_, amountToRepay_);
-        depositToken_.seize(account_, _liquidator, _toLiquidator);
+        depositToken_.seize(account_, msg.sender, _toLiquidator);
 
         if (_toProtocol > 0) {
             depositToken_.seize(account_, poolRegistry.feeCollector(), _toProtocol);
         }
 
-        emit PositionLiquidated(_liquidator, account_, syntheticToken_, amountToRepay_, _depositToSeize, _toProtocol);
+        emit PositionLiquidated(msg.sender, account_, syntheticToken_, amountToRepay_, _depositToSeize, _toProtocol);
     }
 
     /**
@@ -479,12 +479,12 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
     /**
      * @notice Update liquidator liquidation fee
      */
-    function updateLiquidatorLiquidationFee(uint256 newLiquidatorLiquidationFee_) external override onlyGovernor {
+    function updateLiquidatorLiquidationFee(uint128 newLiquidatorLiquidationFee_) external override onlyGovernor {
         require(newLiquidatorLiquidationFee_ <= 1e18, "max-is-100%");
-        uint256 _currentLiquidatorLiquidationFee = liquidatorLiquidationFee;
+        uint256 _currentLiquidatorLiquidationFee = liquidationFees.liquidatorFee;
         require(newLiquidatorLiquidationFee_ != _currentLiquidatorLiquidationFee, "new-same-as-current");
         emit LiquidatorLiquidationFeeUpdated(_currentLiquidatorLiquidationFee, newLiquidatorLiquidationFee_);
-        liquidatorLiquidationFee = newLiquidatorLiquidationFee_;
+        liquidationFees.liquidatorFee = newLiquidatorLiquidationFee_;
     }
 
     /**
@@ -501,12 +501,12 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
     /**
      * @notice Update protocol liquidation fee
      */
-    function updateProtocolLiquidationFee(uint256 newProtocolLiquidationFee_) external override onlyGovernor {
+    function updateProtocolLiquidationFee(uint128 newProtocolLiquidationFee_) external override onlyGovernor {
         require(newProtocolLiquidationFee_ <= 1e18, "max-is-100%");
-        uint256 _currentProtocolLiquidationFee = protocolLiquidationFee;
+        uint256 _currentProtocolLiquidationFee = liquidationFees.protocolFee;
         require(newProtocolLiquidationFee_ != _currentProtocolLiquidationFee, "new-same-as-current");
         emit ProtocolLiquidationFeeUpdated(_currentProtocolLiquidationFee, newProtocolLiquidationFee_);
-        protocolLiquidationFee = newProtocolLiquidationFee_;
+        liquidationFees.protocolFee = newProtocolLiquidationFee_;
     }
 
     /**

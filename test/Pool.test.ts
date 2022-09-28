@@ -103,7 +103,8 @@ async function fixture() {
   await pool.initialize(poolRegistryMock.address)
   await pool.updateMaxLiquidable(parseEther('1')) // 100%
   await pool.updateTreasury(treasury.address)
-  expect(await pool.liquidatorLiquidationFee()).eq(liquidatorLiquidationFee)
+  const [liquidatorFee] = await pool.liquidationFees()
+  expect(liquidatorFee).eq(liquidatorLiquidationFee)
   await pool.addDepositToken(msdMET.address)
   await pool.addDebtToken(msEthDebtToken.address)
   await pool.addDepositToken(msdDAI.address)
@@ -1405,7 +1406,7 @@ describe('Pool', function () {
 
     it('should revert if using the current value', async function () {
       // when
-      const newLiquidatorLiquidationFee = await pool.liquidatorLiquidationFee()
+      const [newLiquidatorLiquidationFee] = await pool.liquidationFees()
       const tx = pool.updateLiquidatorLiquidationFee(newLiquidatorLiquidationFee)
 
       // then
@@ -1423,7 +1424,7 @@ describe('Pool', function () {
 
     it('should update liquidator liquidation fee param', async function () {
       // given
-      const currentLiquidatorLiquidationFee = await pool.liquidatorLiquidationFee()
+      const [currentLiquidatorLiquidationFee] = await pool.liquidationFees()
       const newLiquidatorLiquidationFee = parseEther('0.01')
       expect(newLiquidatorLiquidationFee).not.eq(currentLiquidatorLiquidationFee)
 
@@ -1448,7 +1449,7 @@ describe('Pool', function () {
 
     it('should revert if using the current value', async function () {
       // when
-      const newProtocolLiquidationFee = await pool.protocolLiquidationFee()
+      const [, newProtocolLiquidationFee] = await pool.liquidationFees()
       const tx = pool.updateProtocolLiquidationFee(newProtocolLiquidationFee)
 
       // then
@@ -1466,7 +1467,7 @@ describe('Pool', function () {
 
     it('should update protocol liquidation fee param', async function () {
       // given
-      const currentProtocolLiquidationFee = await pool.protocolLiquidationFee()
+      const [, currentProtocolLiquidationFee] = await pool.liquidationFees()
       const newProtocolLiquidationFee = parseEther('0.01')
       expect(newProtocolLiquidationFee).not.eq(currentProtocolLiquidationFee)
 

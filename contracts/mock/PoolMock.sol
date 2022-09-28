@@ -129,11 +129,11 @@ contract PoolMock is IPool, Governable, Pauseable {
         repayFee = _newRepayFee;
     }
 
-    function updateLiquidatorLiquidationFee(uint256) external pure override {
+    function updateLiquidatorLiquidationFee(uint128) external pure override {
         revert("mock-does-not-implement");
     }
 
-    function updateProtocolLiquidationFee(uint256) external pure override {
+    function updateProtocolLiquidationFee(uint128) external pure override {
         revert("mock-does-not-implement");
     }
 
