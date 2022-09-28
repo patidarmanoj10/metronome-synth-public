@@ -9,21 +9,21 @@ interface IDepositToken is IERC20Metadata {
 
     function collateralizationRatio() external view returns (uint256);
 
-    function unlockedBalanceOf(address _account) external view returns (uint256);
+    function unlockedBalanceOf(address account_) external view returns (uint256);
 
-    function lockedBalanceOf(address _account) external view returns (uint256);
+    function lockedBalanceOf(address account_) external view returns (uint256);
 
-    function deposit(uint256 _amount, address _onBehalfOf) external;
+    function deposit(uint256 amount_, address onBehalfOf_) external;
 
-    function withdraw(uint256 _amount, address _to) external;
+    function withdraw(uint256 amount_, address to_) external;
 
     function seize(
-        address _from,
-        address _to,
-        uint256 _amount
+        address from_,
+        address to_,
+        uint256 amount_
     ) external;
 
-    function updateCollateralizationRatio(uint128 _newCollateralizationRatio) external;
+    function updateCollateralizationRatio(uint128 newCollateralizationRatio_) external;
 
     function isActive() external view returns (bool);
 
@@ -31,5 +31,5 @@ interface IDepositToken is IERC20Metadata {
 
     function maxTotalSupplyInUsd() external view returns (uint256);
 
-    function updateMaxTotalSupplyInUsd(uint256 _newMaxTotalSupplyInUsd) external;
+    function updateMaxTotalSupplyInUsd(uint256 newMaxTotalSupplyInUsd_) external;
 }

@@ -20,18 +20,10 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
     event SyntheticTokenActiveUpdated(bool oldActive, bool newActive);
 
     /**
-     * @dev Throws if synthetic token isn't enabled
+     * @notice Throws if caller isn't the governor
      */
-    modifier onlyIfSyntheticTokenIsActive() {
-        require(isActive, "synthetic-inactive");
-        _;
-    }
-
-    /**
-     * @dev Throws if sender can't mint
-     */
-    modifier onlyIfCanMint() {
-        require(_isMsgSenderPoolRegistry() || _isMsgSenderDebtToken(), "sender-cant-mint");
+    modifier onlyGovernor() {
+        require(msg.sender == poolRegistry.governor(), "not-governor");
         _;
     }
 
@@ -44,6 +36,14 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
     }
 
     /**
+     * @dev Throws if sender can't mint
+     */
+    modifier onlyIfCanMint() {
+        require(_isMsgSenderPoolRegistry() || _isMsgSenderDebtToken(), "sender-cant-mint");
+        _;
+    }
+
+    /**
      * @dev Throws if sender can't seize
      */
     modifier onlyIfCanSeize() {
@@ -52,176 +52,151 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
     }
 
     /**
-     * @notice Throws if caller isn't the governor
+     * @dev Throws if synthetic token isn't enabled
      */
-    modifier onlyGovernor() {
-        require(msg.sender == poolRegistry.governor(), "not-governor");
+    modifier onlyIfSyntheticTokenIsActive() {
+        require(isActive, "synthetic-inactive");
         _;
     }
 
     function initialize(
-        string calldata _name,
-        string calldata _symbol,
-        uint8 _decimals,
-        IPoolRegistry _poolRegistry
+        string calldata name_,
+        string calldata symbol_,
+        uint8 decimals_,
+        IPoolRegistry poolRegistry_
     ) public initializer {
-        require(address(_poolRegistry) != address(0), "pool-registry-is-null");
+        require(address(poolRegistry_) != address(0), "pool-registry-is-null");
 
-        poolRegistry = _poolRegistry;
-        name = _name;
-        symbol = _symbol;
-        decimals = _decimals;
+        poolRegistry = poolRegistry_;
+        name = name_;
+        symbol = symbol_;
+        decimals = decimals_;
         isActive = true;
     }
 
-    function transfer(address recipient, uint256 amount) external override returns (bool) {
-        _transfer(msg.sender, recipient, amount);
+    /**
+     * @notice Set `amount` as the allowance of `spender` over the caller's tokens
+     */
+    function approve(address spender_, uint256 amount_) external override returns (bool) {
+        _approve(msg.sender, spender_, amount_);
         return true;
     }
 
-    function approve(address spender, uint256 amount) external override returns (bool) {
-        _approve(msg.sender, spender, amount);
+    /**
+     * @notice Burn synthetic token
+     * @param from_ The account to burn from
+     * @param amount_ The amount to burn
+     */
+    function burn(address from_, uint256 amount_) external override onlyIfCanBurn {
+        _burn(from_, amount_);
+    }
+
+    /**
+     * @notice Atomically decrease the allowance granted to `spender` by the caller
+     */
+    function decreaseAllowance(address spender_, uint256 subtractedValue_) external returns (bool) {
+        uint256 _currentAllowance = allowance[msg.sender][spender_];
+        require(_currentAllowance >= subtractedValue_, "decreased-allowance-below-zero");
+        unchecked {
+            _approve(msg.sender, spender_, _currentAllowance - subtractedValue_);
+        }
+
         return true;
     }
 
+    /**
+     * @notice Atomically increase the allowance granted to `spender` by the caller
+     */
+    function increaseAllowance(address spender_, uint256 addedValue_) external returns (bool) {
+        _approve(msg.sender, spender_, allowance[msg.sender][spender_] + addedValue_);
+        return true;
+    }
+
+    /**
+     * @notice Mint synthetic token
+     * @param to_ The account to mint to
+     * @param amount_ The amount to mint
+     */
+    function mint(address to_, uint256 amount_) external override onlyIfCanMint {
+        _mint(to_, amount_);
+    }
+
+    /**
+     * @notice Seize synthetic tokens
+     * @dev Same as _transfer
+     * @param to_ The account to seize from
+     * @param to_ The beneficiary account
+     * @param amount_ The amount to seize
+     */
+    function seize(
+        address from_,
+        address to_,
+        uint256 amount_
+    ) external override onlyIfCanSeize {
+        _transfer(from_, to_, amount_);
+    }
+
+    /**
+     * @notice Move `amount` tokens from the caller's account to `recipient`
+     */
+    function transfer(address recipient_, uint256 amount_) external override returns (bool) {
+        _transfer(msg.sender, recipient_, amount_);
+        return true;
+    }
+
+    /**
+     * @notice Move `amount` tokens from `sender` to `recipient` using the
+     * allowance mechanism. `amount` is then deducted from the caller's
+     * allowance
+     */
     function transferFrom(
-        address sender,
-        address recipient,
-        uint256 amount
+        address sender_,
+        address recipient_,
+        uint256 amount_
     ) external override returns (bool) {
-        _transfer(sender, recipient, amount);
+        _transfer(sender_, recipient_, amount_);
 
-        uint256 currentAllowance = allowance[sender][msg.sender];
-        if (currentAllowance != type(uint256).max) {
-            require(currentAllowance >= amount, "amount-exceeds-allowance");
+        uint256 _currentAllowance = allowance[sender_][msg.sender];
+        if (_currentAllowance != type(uint256).max) {
+            require(_currentAllowance >= amount_, "amount-exceeds-allowance");
             unchecked {
-                _approve(sender, msg.sender, currentAllowance - amount);
+                _approve(sender_, msg.sender, _currentAllowance - amount_);
             }
         }
 
         return true;
     }
 
-    function increaseAllowance(address spender, uint256 addedValue) external returns (bool) {
-        _approve(msg.sender, spender, allowance[msg.sender][spender] + addedValue);
-        return true;
-    }
-
-    function decreaseAllowance(address spender, uint256 subtractedValue) external returns (bool) {
-        uint256 currentAllowance = allowance[msg.sender][spender];
-        require(currentAllowance >= subtractedValue, "decreased-allowance-below-zero");
-        unchecked {
-            _approve(msg.sender, spender, currentAllowance - subtractedValue);
-        }
-
-        return true;
-    }
-
-    function _transfer(
-        address sender,
-        address recipient,
-        uint256 amount
-    ) private {
-        require(sender != address(0), "transfer-from-the-zero-address");
-        require(recipient != address(0), "transfer-to-the-zero-address");
-
-        uint256 senderBalance = balanceOf[sender];
-        require(senderBalance >= amount, "transfer-amount-exceeds-balance");
-        unchecked {
-            balanceOf[sender] = senderBalance - amount;
-        }
-        balanceOf[recipient] += amount;
-
-        emit Transfer(sender, recipient, amount);
-    }
-
-    function _mint(address account, uint256 amount) private onlyIfSyntheticTokenIsActive {
-        require(account != address(0), "mint-to-the-zero-address");
-
-        totalSupply += amount;
-        balanceOf[account] += amount;
-        emit Transfer(address(0), account, amount);
-    }
-
-    function _burn(address account, uint256 amount) private {
-        require(account != address(0), "burn-from-the-zero-address");
-
-        uint256 accountBalance = balanceOf[account];
-        require(accountBalance >= amount, "burn-amount-exceeds-balance");
-        unchecked {
-            balanceOf[account] = accountBalance - amount;
-        }
-        totalSupply -= amount;
-
-        emit Transfer(account, address(0), amount);
-    }
-
+    /**
+     * @notice Set `amount` as the allowance of `spender` over the `owner` s tokens
+     */
     function _approve(
-        address owner,
-        address spender,
-        uint256 amount
+        address owner_,
+        address spender_,
+        uint256 amount_
     ) private {
-        require(owner != address(0), "approve-from-the-zero-address");
-        require(spender != address(0), "approve-to-the-zero-address");
+        require(owner_ != address(0), "approve-from-the-zero-address");
+        require(spender_ != address(0), "approve-to-the-zero-address");
 
-        allowance[owner][spender] = amount;
-        emit Approval(owner, spender, amount);
+        allowance[owner_][spender_] = amount_;
+        emit Approval(owner_, spender_, amount_);
     }
 
     /**
-     * @notice Mint synthetic token
-     * @param _to The account to mint to
-     * @param _amount The amount to mint
+     * @notice Destroy `amount` tokens from `account`, reducing the
+     * total supply
      */
-    function mint(address _to, uint256 _amount) external override onlyIfCanMint {
-        _mint(_to, _amount);
-    }
+    function _burn(address account_, uint256 amount_) private {
+        require(account_ != address(0), "burn-from-the-zero-address");
 
-    /**
-     * @notice Burn synthetic token
-     * @param _from The account to burn from
-     * @param _amount The amount to burn
-     */
-    function burn(address _from, uint256 _amount) external override onlyIfCanBurn {
-        _burn(_from, _amount);
-    }
+        uint256 _currentBalance = balanceOf[account_];
+        require(_currentBalance >= amount_, "burn-amount-exceeds-balance");
+        unchecked {
+            balanceOf[account_] = _currentBalance - amount_;
+        }
+        totalSupply -= amount_;
 
-    /**
-     * @notice Seize synthetic tokens
-     * @dev Same as _transfer
-     * @param _from The account to seize from
-     * @param _to The beneficiary account
-     * @param _amount The amount to seize
-     */
-    function seize(
-        address _from,
-        address _to,
-        uint256 _amount
-    ) external override onlyIfCanSeize {
-        _transfer(_from, _to, _amount);
-    }
-
-    /**
-     * @notice Enable/Disable the Synthetic Token
-     */
-    function toggleIsActive() external override onlyGovernor {
-        bool _isActive = isActive;
-        emit SyntheticTokenActiveUpdated(_isActive, !_isActive);
-        isActive = !_isActive;
-    }
-
-    /**
-     * @notice Check if the sender is the PoolRegistry contract
-     */
-    function _isMsgSenderPoolRegistry() private view returns (bool) {
-        return msg.sender == address(poolRegistry);
-    }
-
-    /**
-     * @notice Check if the sender is a valid Pool contract
-     */
-    function _isMsgSenderPool() private view returns (bool) {
-        return poolRegistry.poolExists(msg.sender) && IPool(msg.sender).isSyntheticTokenExists(this);
+        emit Transfer(account_, address(0), amount_);
     }
 
     /**
@@ -234,5 +209,61 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
             poolRegistry.poolExists(address(_pool)) &&
             _pool.isDebtTokenExists(IDebtToken(msg.sender)) &&
             IDebtToken(msg.sender).syntheticToken() == this;
+    }
+
+    /**
+     * @notice Check if the sender is a valid Pool contract
+     */
+    function _isMsgSenderPool() private view returns (bool) {
+        return poolRegistry.poolExists(msg.sender) && IPool(msg.sender).isSyntheticTokenExists(this);
+    }
+
+    /**
+     * @notice Check if the sender is the PoolRegistry contract
+     */
+    function _isMsgSenderPoolRegistry() private view returns (bool) {
+        return msg.sender == address(poolRegistry);
+    }
+
+    /**
+     * @notice Create `amount` tokens and assigns them to `account`, increasing
+     * the total supply
+     */
+    function _mint(address account_, uint256 amount_) private onlyIfSyntheticTokenIsActive {
+        require(account_ != address(0), "mint-to-the-zero-address");
+
+        totalSupply += amount_;
+        balanceOf[account_] += amount_;
+        emit Transfer(address(0), account_, amount_);
+    }
+
+    /**
+     * @notice Move `amount` of tokens from `sender` to `recipient`
+     */
+    function _transfer(
+        address sender_,
+        address recipient_,
+        uint256 amount_
+    ) private {
+        require(sender_ != address(0), "transfer-from-the-zero-address");
+        require(recipient_ != address(0), "transfer-to-the-zero-address");
+
+        uint256 senderBalance = balanceOf[sender_];
+        require(senderBalance >= amount_, "transfer-amount-exceeds-balance");
+        unchecked {
+            balanceOf[sender_] = senderBalance - amount_;
+        }
+        balanceOf[recipient_] += amount_;
+
+        emit Transfer(sender_, recipient_, amount_);
+    }
+
+    /**
+     * @notice Enable/Disable Synthetic Token
+     */
+    function toggleIsActive() external override onlyGovernor {
+        bool _isActive = isActive;
+        emit SyntheticTokenActiveUpdated(_isActive, !_isActive);
+        isActive = !_isActive;
     }
 }

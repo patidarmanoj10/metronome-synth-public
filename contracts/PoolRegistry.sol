@@ -6,12 +6,12 @@ import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./lib/WadRayMath.sol";
 import "./storage/PoolRegistryStorage.sol";
 import "./interfaces/IPool.sol";
-import "./Pausable.sol";
+import "./Pauseable.sol";
 
 /**
  * @title PoolRegistry contract
  */
-contract PoolRegistry is ReentrancyGuard, Pausable, PoolRegistryStorageV1 {
+contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
     using WadRayMath for uint256;
     using EnumerableSet for EnumerableSet.AddressSet;
 
@@ -19,6 +19,9 @@ contract PoolRegistry is ReentrancyGuard, Pausable, PoolRegistryStorageV1 {
 
     /// @notice Emitted when fee collector is updated
     event FeeCollectorUpdated(address indexed oldFeeCollector, address indexed newFeeCollector);
+
+    /// @notice Emitted when master oracle contract is updated
+    event MasterOracleUpdated(IMasterOracle indexed oldOracle, IMasterOracle indexed newOracle);
 
     /// @notice Emitted when a pool is registered
     event PoolRegistered(address pool);
@@ -28,9 +31,6 @@ contract PoolRegistry is ReentrancyGuard, Pausable, PoolRegistryStorageV1 {
 
     /// @notice Emitted when swap fee is updated
     event SwapFeeUpdated(uint256 oldSwapFee, uint256 newSwapFee);
-
-    /// @notice Emitted when master oracle contract is updated
-    event MasterOracleUpdated(IMasterOracle indexed oldOracle, IMasterOracle indexed newOracle);
 
     /// @notice Emitted when synthetic token is swapped
     event SyntheticTokenSwapped(
@@ -63,6 +63,15 @@ contract PoolRegistry is ReentrancyGuard, Pausable, PoolRegistryStorageV1 {
     }
 
     /**
+     * @notice Get all pools
+     * @dev WARNING: This operation will copy the entire storage to memory, which can be quite expensive. This is designed
+     * to mostly be used by view accessors that are queried without any gas fees.
+     */
+    function getPools() external view returns (address[] memory) {
+        return pools.values();
+    }
+
+    /**
      * @notice Check if token is part of the synthetic offerings
      * @param syntheticToken_ Asset to check
      * @return true if exist
@@ -84,32 +93,6 @@ contract PoolRegistry is ReentrancyGuard, Pausable, PoolRegistryStorageV1 {
      */
     function poolExists(address pool_) public view returns (bool) {
         return pools.contains(pool_);
-    }
-
-    /**
-     * @notice Get all pools
-     * @dev WARNING: This operation will copy the entire storage to memory, which can be quite expensive. This is designed
-     * to mostly be used by view accessors that are queried without any gas fees.
-     */
-    function getPools() external view returns (address[] memory) {
-        return pools.values();
-    }
-
-    /**
-     * @notice Register pool
-     */
-    function registerPool(address pool_) external onlyGovernor {
-        require(pool_ != address(0), "address-is-null");
-        require(pools.add(pool_), "already-registered");
-        emit PoolRegistered(pool_);
-    }
-
-    /**
-     * @notice Unregister pool
-     */
-    function unregisterPool(address pool_) external onlyGovernor {
-        require(pools.remove(pool_), "not-registered");
-        emit PoolUnregistered(pool_);
     }
 
     /**
@@ -156,7 +139,24 @@ contract PoolRegistry is ReentrancyGuard, Pausable, PoolRegistryStorageV1 {
     }
 
     /**
-     * @notice OnlyGovernor:: Update fee collector
+     * @notice Register pool
+     */
+    function registerPool(address pool_) external onlyGovernor {
+        require(pool_ != address(0), "address-is-null");
+        require(pools.add(pool_), "already-registered");
+        emit PoolRegistered(pool_);
+    }
+
+    /**
+     * @notice Unregister pool
+     */
+    function unregisterPool(address pool_) external onlyGovernor {
+        require(pools.remove(pool_), "not-registered");
+        emit PoolUnregistered(pool_);
+    }
+
+    /**
+     * @notice Update fee collector
      */
     function updateFeeCollector(address newFeeCollector_) external onlyGovernor {
         require(newFeeCollector_ != address(0), "fee-collector-is-null");
@@ -164,17 +164,6 @@ contract PoolRegistry is ReentrancyGuard, Pausable, PoolRegistryStorageV1 {
         require(newFeeCollector_ != _currentFeeCollector, "new-same-as-current");
         emit FeeCollectorUpdated(_currentFeeCollector, newFeeCollector_);
         feeCollector = newFeeCollector_;
-    }
-
-    /**
-     * @notice Update swap fee
-     */
-    function updateSwapFee(uint256 newSwapFee_) external override onlyGovernor {
-        require(newSwapFee_ <= 1e18, "max-is-100%");
-        uint256 _currentSwapFee = swapFee;
-        require(newSwapFee_ != _currentSwapFee, "new-same-as-current");
-        emit SwapFeeUpdated(_currentSwapFee, newSwapFee_);
-        swapFee = newSwapFee_;
     }
 
     /**
@@ -187,5 +176,16 @@ contract PoolRegistry is ReentrancyGuard, Pausable, PoolRegistryStorageV1 {
 
         emit MasterOracleUpdated(_currentMasterOracle, newMasterOracle_);
         masterOracle = newMasterOracle_;
+    }
+
+    /**
+     * @notice Update swap fee
+     */
+    function updateSwapFee(uint256 newSwapFee_) external override onlyGovernor {
+        require(newSwapFee_ <= 1e18, "max-is-100%");
+        uint256 _currentSwapFee = swapFee;
+        require(newSwapFee_ != _currentSwapFee, "new-same-as-current");
+        emit SwapFeeUpdated(_currentSwapFee, newSwapFee_);
+        swapFee = newSwapFee_;
     }
 }

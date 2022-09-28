@@ -3,7 +3,7 @@
 pragma solidity 0.8.9;
 
 interface ITreasury {
-    function pull(address _to, uint256 _amount) external;
+    function pull(address to_, uint256 amount_) external;
 
-    function migrateTo(address _newTreasury) external;
+    function migrateTo(address newTreasury_) external;
 }

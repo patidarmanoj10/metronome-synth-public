@@ -25,9 +25,8 @@ abstract contract Governable is IGovernable, TokenHolder, Initializable {
      * @dev Initializes the contract setting the deployer as the initial governor.
      */
     constructor() {
-        address msgSender = msg.sender;
-        governor = msgSender;
-        emit UpdatedGovernor(address(0), msgSender);
+        governor = msg.sender;
+        emit UpdatedGovernor(address(0), msg.sender);
     }
 
     /**
@@ -36,9 +35,8 @@ abstract contract Governable is IGovernable, TokenHolder, Initializable {
      */
     // solhint-disable-next-line func-name-mixedcase
     function __Governable_init() internal initializer {
-        address msgSender = msg.sender;
-        governor = msgSender;
-        emit UpdatedGovernor(address(0), msgSender);
+        governor = msg.sender;
+        emit UpdatedGovernor(address(0), msg.sender);
     }
 
     /**
@@ -55,9 +53,9 @@ abstract contract Governable is IGovernable, TokenHolder, Initializable {
      * @dev Transfers governorship of the contract to a new account (`proposedGovernor`).
      * Can only be called by the current owner.
      */
-    function transferGovernorship(address _proposedGovernor) external onlyGovernor {
-        require(_proposedGovernor != address(0), "proposed-governor-is-zero");
-        proposedGovernor = _proposedGovernor;
+    function transferGovernorship(address proposedGovernor_) external onlyGovernor {
+        require(proposedGovernor_ != address(0), "proposed-governor-is-zero");
+        proposedGovernor = proposedGovernor_;
     }
 
     /**

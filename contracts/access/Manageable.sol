@@ -53,11 +53,11 @@ abstract contract Manageable is IManageable, TokenHolder, Initializable {
 
     /**
      * @notice Update Pool contract
-     * @param _pool The new Pool contract
+     * @param pool_ The new Pool contract
      */
-    function setPool(IPool _pool) external onlyGovernor {
-        require(address(_pool) != address(0), "new-pool-address-is-zero");
-        pool = _pool;
+    function setPool(IPool pool_) external onlyGovernor {
+        require(address(pool_) != address(0), "new-pool-address-is-zero");
+        pool = pool_;
     }
 
     uint256[49] private __gap;
