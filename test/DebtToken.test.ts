@@ -16,7 +16,7 @@ import {
   SyntheticToken,
   SyntheticToken__factory,
 } from '../typechain'
-import {impersonateAccount, increaseTime, setEtherBalance} from './helpers'
+import {increaseTime, setEtherBalance} from './helpers'
 import {FakeContract, MockContract, smock} from '@defi-wonderland/smock'
 import {BigNumber} from 'ethers'
 import {toUSD} from '../helpers'
@@ -40,7 +40,6 @@ describe('DebtToken', function () {
   let met: ERC20Mock
   let msdMET: DepositToken
   let msUSDDebt: DebtToken
-  let msUSDWallet: SignerWithAddress
   let masterOracleMock: MasterOracleMock
   let rewardsDistributorMock: MockContract
 
@@ -58,7 +57,6 @@ describe('DebtToken', function () {
     const syntheticTokenFactory = new SyntheticToken__factory(deployer)
     msUSD = await syntheticTokenFactory.deploy()
     await msUSD.deployed()
-    msUSDWallet = await impersonateAccount(msUSD.address)
 
     const masterOracleMockFactory = new MasterOracleMock__factory(deployer)
     masterOracleMock = await masterOracleMockFactory.deploy()
@@ -147,6 +145,17 @@ describe('DebtToken', function () {
 
       // then
       await expect(tx).revertedWith('shutdown')
+    })
+
+    it('should revert if surpass max supply in usd', async function () {
+      // given
+      await msUSDDebt.updateMaxTotalSupplyInUsd(toUSD('10'))
+
+      // when
+      const tx = msUSDDebt.connect(user1).issue(parseEther('11'), user1.address)
+
+      // then
+      await expect(tx).revertedWith('surpass-max-debt-supply')
     })
 
     it('should revert if synthetic does not exist', async function () {
