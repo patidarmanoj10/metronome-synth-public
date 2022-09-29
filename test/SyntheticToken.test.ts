@@ -49,7 +49,7 @@ describe('SyntheticToken', function () {
     await setEtherBalance(poolRegistryMock.address, parseEther('10'))
 
     const masterOracleMockFactory = new MasterOracleMock__factory(deployer)
-    masterOracleMock = <MasterOracleMock>await masterOracleMockFactory.deploy()
+    masterOracleMock = await masterOracleMockFactory.deploy()
     await masterOracleMock.deployed()
 
     const erc20MockFactory = new ERC20Mock__factory(deployer)
@@ -90,6 +90,7 @@ describe('SyntheticToken', function () {
 
     poolRegistryMock.governor.returns(governor.address)
     poolRegistryMock.feeCollector.returns(feeCollector.address)
+    poolRegistryMock.masterOracle.returns(masterOracleMock.address)
     poolRegistryMock.poolExists.returns((address: string) => address == poolMock.address)
     poolMock.isSyntheticTokenExists.returns((address: string) => address == msUSD.address)
     poolMock.isDebtTokenExists.returns((address: string) => address == msUSDDebt.address)
@@ -113,6 +114,17 @@ describe('SyntheticToken', function () {
     it('should revert if not authorized', async function () {
       const tx = msUSD.connect(user).mint(user.address, parseEther('10'))
       await expect(tx).reverted
+    })
+
+    it('should revert if surpass max supply in usd', async function () {
+      // given
+      await msUSD.connect(governor).updateMaxTotalSupplyInUsd(toUSD('100'))
+
+      // when
+      const tx = msUSD.connect(poolRegistryMock.wallet).mint(user.address, parseEther('101'))
+
+      // then
+      await expect(tx).revertedWith('surpass-max-synth-supply')
     })
 
     it('should revert if msAsset is inactive', async function () {
@@ -156,6 +168,27 @@ describe('SyntheticToken', function () {
 
     it('should revert if not governor', async function () {
       const tx = msUSD.connect(user).toggleIsActive()
+      await expect(tx).revertedWith('not-governor')
+    })
+  })
+
+  describe('updateMaxTotalSupplyInUsd', function () {
+    it('should update collateralization ratio', async function () {
+      const before = await msUSD.maxTotalSupplyInUsd()
+      const after = before.div('2')
+      const tx = msUSD.connect(governor).updateMaxTotalSupplyInUsd(after)
+      await expect(tx).emit(msUSD, 'MaxTotalSupplyUpdated').withArgs(before, after)
+      expect(await msUSD.maxTotalSupplyInUsd()).eq(after)
+    })
+
+    it('should revert if using the current value', async function () {
+      const currentMaxTotalSupplyInUsd = await msUSD.maxTotalSupplyInUsd()
+      const tx = msUSD.connect(governor).updateMaxTotalSupplyInUsd(currentMaxTotalSupplyInUsd)
+      await expect(tx).revertedWith('new-same-as-current')
+    })
+
+    it('should revert if not governor', async function () {
+      const tx = msUSD.connect(user).updateMaxTotalSupplyInUsd(parseEther('10'))
       await expect(tx).revertedWith('not-governor')
     })
   })

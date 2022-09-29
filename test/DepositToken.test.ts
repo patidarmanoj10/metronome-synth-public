@@ -255,6 +255,17 @@ describe('DepositToken', function () {
         await expect(tx).revertedWith('paused')
       })
 
+      it('should revert if surpass max supply in usd', async function () {
+        // given
+        await metDepositToken.updateMaxTotalSupplyInUsd(toUSD('40'))
+
+        // when
+        const tx = metDepositToken.connect(alice).deposit(parseEther('11'), alice.address)
+
+        // then
+        await expect(tx).revertedWith('surpass-max-deposit-supply')
+      })
+
       it('should revert if collateral amount is 0', async function () {
         const toDeposit = 0
         const tx = metDepositToken.connect(alice).deposit(toDeposit, alice.address)

@@ -346,7 +346,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         require(account_ != address(0), "mint-to-the-zero-address");
 
         uint256 _newTotalSupplyInUsd = pool.masterOracle().quoteTokenToUsd(address(this), totalSupply + amount_);
-        require(_newTotalSupplyInUsd <= maxTotalSupplyInUsd, "surpass-max-total-supply");
+        require(_newTotalSupplyInUsd <= maxTotalSupplyInUsd, "surpass-max-deposit-supply");
 
         totalSupply += amount_;
         uint256 _balanceBefore = balanceOf[account_];

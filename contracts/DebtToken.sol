@@ -346,7 +346,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
         totalSupply_ += amount_;
         require(
             pool.masterOracle().quoteTokenToUsd(address(syntheticToken), totalSupply_) <= maxTotalSupplyInUsd,
-            "surpass-max-total-supply"
+            "surpass-max-debt-supply"
         );
 
         principalOf[account_] += amount_;
