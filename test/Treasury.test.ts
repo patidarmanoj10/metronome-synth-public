@@ -5,7 +5,7 @@ import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
 import {ERC20Mock, ERC20Mock__factory, Treasury, Treasury__factory} from '../typechain'
-import {setEtherBalance} from './helpers'
+import {setBalance} from '@nomicfoundation/hardhat-network-helpers'
 
 describe('Treasury', function () {
   let deployer: SignerWithAddress
@@ -28,7 +28,7 @@ describe('Treasury', function () {
 
     depositTokenMock = await smock.fake('DepositToken')
     depositTokenMock.underlying.returns(met.address)
-    await setEtherBalance(depositTokenMock.address, parseEther('10'))
+    await setBalance(depositTokenMock.address, parseEther('10'))
 
     const treasuryFactory = new Treasury__factory(deployer)
     treasury = await treasuryFactory.deploy()

@@ -5,7 +5,8 @@ import chai, {expect} from 'chai'
 import {ethers} from 'hardhat'
 import {RewardsDistributor__factory, RewardsDistributor, ERC20Mock__factory, ERC20Mock} from '../typechain'
 import {FakeContract, smock} from '@defi-wonderland/smock'
-import {increaseTimeOfNextBlock, mineBlock} from './helpers'
+import {mine} from '@nomicfoundation/hardhat-network-helpers'
+import {increaseTimeOfNextBlock} from './helpers'
 import {BigNumber} from 'ethers'
 
 chai.use(smock.matchers)
@@ -401,7 +402,7 @@ describe('RewardDistributor', function () {
 
       await rewardDistributor['claimRewards(address)'](alice.address)
       await rewardDistributor['claimRewards(address)'](bob.address)
-      await mineBlock()
+      await mine()
 
       // then
       const after = await Promise.all([vsp.balanceOf(alice.address), vsp.balanceOf(bob.address)])
@@ -415,7 +416,7 @@ describe('RewardDistributor', function () {
 
       // when
       await rewardDistributor['claimRewards(address,address[])'](alice.address, [msdTOKEN1.address, msdTOKEN2.address])
-      await mineBlock()
+      await mine()
 
       // then
       const after = await vsp.balanceOf(alice.address)
@@ -432,7 +433,7 @@ describe('RewardDistributor', function () {
         [alice.address, bob.address],
         [debtToken1.address, debtToken2.address]
       )
-      await mineBlock()
+      await mine()
 
       // then
       const after = await Promise.all([vsp.balanceOf(alice.address), vsp.balanceOf(bob.address)])

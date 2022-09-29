@@ -13,7 +13,7 @@ import {
   Treasury,
   Treasury__factory,
 } from '../typechain'
-import {HOUR, increaseTime, setEtherBalance} from './helpers'
+import {setBalance} from '@nomicfoundation/hardhat-network-helpers'
 import {FakeContract, MockContract, smock} from '@defi-wonderland/smock'
 import {BigNumber} from 'ethers'
 import {toUSD} from '../helpers'
@@ -60,7 +60,7 @@ describe('DepositToken', function () {
     await metDepositToken.deployed()
 
     poolMock = await smock.fake('Pool')
-    await setEtherBalance(poolMock.address, parseEther('10'))
+    await setBalance(poolMock.address, parseEther('10'))
     poolMock.masterOracle.returns(masterOracle.address)
     poolMock.governor.returns(governor.address)
     poolMock.feeCollector.returns(feeCollector.address)
