@@ -1,9 +1,9 @@
 /* eslint-disable camelcase */
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
-import {parseEther, parseUnits} from 'ethers/lib/utils'
-import {deployments, ethers, network} from 'hardhat'
-import {toUSD} from '../helpers'
+import {ethers} from 'hardhat'
+import {loadFixture} from '@nomicfoundation/hardhat-network-helpers'
+import {toUSD, parseEther} from '../helpers'
 import {
   DepositToken,
   DepositToken__factory,
@@ -11,309 +11,364 @@ import {
   SyntheticToken__factory,
   Pool,
   Pool__factory,
-  NativeTokenGateway,
-  NativeTokenGateway__factory,
   IERC20,
-  IERC20__factory,
   DebtToken__factory,
   DebtToken,
+  ERC20Mock__factory,
+  MasterOracleMock__factory,
+  Treasury__factory,
+  PoolRegistry__factory,
+  MasterOracleMock,
+  Treasury,
+  PoolRegistry,
 } from '../typechain'
-import {disableForking, enableForking, impersonateAccount, setTokenBalance} from './helpers'
-import Address from '../helpers/address'
 
-const {
-  WAVAX_ADDRESS,
-  WETH_ADDRESS,
-  USDC_ADDRESS,
-  DAI_ADDRESS,
-  USDT_ADDRESS,
-  CHAINLINK_PRICE_PROVIDER,
-  USDC_USD_CHAINLINK_AGGREGATOR_ADDRESS,
-  AAVE_USD_CHAINLINK_AGGREGATOR_ADDRESS,
-  AVAX_USD_CHAINLINK_AGGREGATOR_ADDRESS,
-  BTC_USD_CHAINLINK_AGGREGATOR_ADDRESS,
-  CRV_USD_CHAINLINK_AGGREGATOR_ADDRESS,
-  DAI_USD_CHAINLINK_AGGREGATOR_ADDRESS,
-  ETH_USD_CHAINLINK_AGGREGATOR_ADDRESS,
-  UNI_USD_CHAINLINK_AGGREGATOR_ADDRESS,
-  USDT_USD_CHAINLINK_AGGREGATOR_ADDRESS,
-  ONE_ORACLE_ADDRESS_PROVIDER,
-  MASTER_ORACLE_ADDRESS,
-  MS_USD_TOKEN_ORACLE_ADDRESS,
-} = Address
+const {MaxUint256} = ethers.constants
 
-// Note: This test suite might be used in order to check all system is working properly
-// Skipping this since CI forks mainnet and these tests run against avalanche's fork
-describe.skip('Integration tests', function () {
+const INTEREST_RATE = parseEther('0')
+
+async function fixture() {
+  const [deployer, feeCollector, alice, bob] = await ethers.getSigners()
+
+  const poolRegistryFactory = new PoolRegistry__factory(deployer)
+  const poolFactory = new Pool__factory(deployer)
+  const masterOracleFactory = new MasterOracleMock__factory(deployer)
+  const erc20MockFactory = new ERC20Mock__factory(deployer)
+  const treasuryFactory = new Treasury__factory(deployer)
+  const depositTokenFactory = new DepositToken__factory(deployer)
+  const debtTokenFactory = new DebtToken__factory(deployer)
+  const syntheticTokenFactory = new SyntheticToken__factory(deployer)
+
+  const dai = await erc20MockFactory.deploy('Dai Stablecoin', 'DAI', 18)
+  await dai.deployed()
+
+  const met = await erc20MockFactory.deploy('Metronome', 'MET', 18)
+  await met.deployed()
+
+  const masterOracle = await masterOracleFactory.deploy()
+  await masterOracle.deployed()
+
+  const poolRegistry = await poolRegistryFactory.deploy()
+  await poolRegistry.deployed()
+
+  const msETH = await syntheticTokenFactory.deploy()
+  await msETH.deployed()
+
+  const msDOGE = await syntheticTokenFactory.deploy()
+  await msDOGE.deployed()
+
+  const msUSD = await syntheticTokenFactory.deploy()
+  await msUSD.deployed()
+
+  // Pool A: Deposit [MET,DAI], Mint [msETH,msDOGE,msUSD]
+  const poolA = await poolFactory.deploy()
+  await poolA.deployed()
+
+  const treasuryA = await treasuryFactory.deploy()
+  await treasuryA.deployed()
+
+  const msdMET_A = await depositTokenFactory.deploy()
+  await msdMET_A.deployed()
+
+  const msdDAI_A = await depositTokenFactory.deploy()
+  await msdDAI_A.deployed()
+
+  const msETH_Debt_A = await debtTokenFactory.deploy()
+  await msETH_Debt_A.deployed()
+
+  const msDOGE_Debt_A = await debtTokenFactory.deploy()
+  await msDOGE_Debt_A.deployed()
+
+  const msUSD_Debt_A = await debtTokenFactory.deploy()
+  await msUSD_Debt_A.deployed()
+
+  // Pool B: Deposit [DAI], Mint [msUSD]
+  const poolB = await poolFactory.deploy()
+  await poolB.deployed()
+
+  const treasuryB = await treasuryFactory.deploy()
+  await treasuryB.deployed()
+
+  const msdDAI_B = await depositTokenFactory.deploy()
+  await msdDAI_B.deployed()
+
+  const msUSD_Debt_B = await debtTokenFactory.deploy()
+  await msUSD_Debt_B.deployed()
+
+  await poolRegistry.initialize(masterOracle.address, feeCollector.address)
+  await msUSD.initialize('Metronome Synth USD', 'msUSD', 18, poolRegistry.address)
+  await msETH.initialize('Metronome Synth ETH', 'msETH', 18, poolRegistry.address)
+  await msDOGE.initialize('Metronome Synth DOGE', 'msDOGE', 18, poolRegistry.address)
+
+  await poolA.initialize(poolRegistry.address)
+  await treasuryA.initialize(poolA.address)
+  await msdMET_A.initialize(met.address, poolA.address, 'msdMET-A', 18, parseEther('0.5'), MaxUint256)
+  await msdDAI_A.initialize(dai.address, poolA.address, 'msdDAI-A', 18, parseEther('0.5'), MaxUint256)
+  await msETH_Debt_A.initialize('msETH Debt A', 'msETH-Debt-A', poolA.address, msETH.address, INTEREST_RATE, MaxUint256)
+  await msDOGE_Debt_A.initialize(
+    'msDOGE Debt A',
+    'msDOGE-Debt-A',
+    poolA.address,
+    msDOGE.address,
+    INTEREST_RATE,
+    MaxUint256
+  )
+  await msUSD_Debt_A.initialize('msUSD Debt A', 'msUSD-Debt A', poolA.address, msUSD.address, INTEREST_RATE, MaxUint256)
+  await poolA.updateMaxLiquidable(parseEther('1')) // 100%
+  await poolA.updateTreasury(treasuryA.address)
+  await poolA.addDepositToken(msdMET_A.address)
+  await poolA.addDepositToken(msdDAI_A.address)
+  await poolA.addDebtToken(msETH_Debt_A.address)
+  await poolA.addDebtToken(msDOGE_Debt_A.address)
+  await poolA.addDebtToken(msUSD_Debt_A.address)
+
+  await poolB.initialize(poolRegistry.address)
+  await treasuryB.initialize(poolB.address)
+  await msdDAI_B.initialize(dai.address, poolB.address, 'msdDAI B', 18, parseEther('0.8'), MaxUint256)
+  await msUSD_Debt_B.initialize('msUSD Debt B', 'msUSD-Debt-B', poolB.address, msUSD.address, INTEREST_RATE, MaxUint256)
+  await poolB.updateMaxLiquidable(parseEther('1')) // 100%
+  await poolB.updateTreasury(treasuryB.address)
+  await poolB.addDepositToken(msdDAI_B.address)
+  await poolB.addDebtToken(msUSD_Debt_B.address)
+
+  await poolRegistry.registerPool(poolA.address)
+  await poolRegistry.registerPool(poolB.address)
+
+  await masterOracle.updatePrice(dai.address, toUSD('1'))
+  await masterOracle.updatePrice(met.address, toUSD('4'))
+  await masterOracle.updatePrice(msETH.address, toUSD('1,000'))
+  await masterOracle.updatePrice(msDOGE.address, toUSD('0.05'))
+  await masterOracle.updatePrice(msUSD.address, toUSD('1'))
+
+  // mint some collaterals to users
+  await dai.mint(alice.address, parseEther('1,000,000'))
+  await met.mint(alice.address, parseEther('1,000,000'))
+  await dai.mint(bob.address, parseEther('1,000,000'))
+  await met.mint(bob.address, parseEther('1,000,000'))
+
+  return {
+    dai,
+    met,
+    masterOracle,
+    poolRegistry,
+    msETH,
+    msDOGE,
+    msUSD,
+    treasuryA,
+    poolA,
+    msdMET_A,
+    msdDAI_A,
+    msETH_Debt_A,
+    msDOGE_Debt_A,
+    msUSD_Debt_A,
+    treasuryB,
+    poolB,
+    msdDAI_B,
+    msUSD_Debt_B,
+  }
+}
+
+describe('Integration tests', function () {
+  let feeCollector: SignerWithAddress
   let alice: SignerWithAddress
-  let pool: Pool
-  let nativeGateway: NativeTokenGateway
-  let wavax: IERC20
-  let weth: IERC20
-  let usdc: IERC20
+  let bob: SignerWithAddress
   let dai: IERC20
-  let usdt: IERC20
-  let msdWAVAX: DepositToken
-  let msdWETH: DepositToken
-  let msdUSDC: DepositToken
-  let msdDAI: DepositToken
-  let msdUSDT: DepositToken
-  let msBTC: SyntheticToken
+  let met: IERC20
+  let masterOracle: MasterOracleMock
+  let poolRegistry: PoolRegistry
+  let msETH: SyntheticToken
+  let msDOGE: SyntheticToken
   let msUSD: SyntheticToken
-  let msUNI: SyntheticToken
-  let msCRV: SyntheticToken
-  let msAAVE: SyntheticToken
-  let msBTCDebt: DebtToken
-  let msUSDDebt: DebtToken
-  let msUNIDebt: DebtToken
-  let msCRVDebt: DebtToken
-  let msAAVEDebt: DebtToken
+  let poolA: Pool
+  let msdMET_A: DepositToken
+  let msdDAI_A: DepositToken
+  let msETH_Debt_A: DebtToken
+  let msDOGE_Debt_A: DebtToken
+  let msUSD_Debt_A: DebtToken
+  let poolB: Pool
+  let msdDAI_B: DepositToken
+  let msUSD_Debt_B: DebtToken
 
-  before(async function () {
+  beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
-    ;[, , alice] = await ethers.getSigners()
-
-    await enableForking()
-
-    wavax = IERC20__factory.connect(WAVAX_ADDRESS, alice)
-    weth = IERC20__factory.connect(WETH_ADDRESS, alice)
-    usdc = IERC20__factory.connect(USDC_ADDRESS, alice)
-    dai = IERC20__factory.connect(DAI_ADDRESS, alice)
-    usdt = IERC20__factory.connect(USDT_ADDRESS, alice)
-
-    const {
-      Pool: {address: poolAddress},
-      NativeTokenGateway: {address: wethGatewayAddress},
-      WAVAXDepositToken: {address: wavaxDepositTokenAddress},
-      WETHDepositToken: {address: wethDepositTokenAddress},
-      USDCDepositToken: {address: usdcDepositTokenAddress},
-      DAIDepositToken: {address: daiDepositTokenAddress},
-      USDTDepositToken: {address: usdtDepositTokenAddress},
-      MsBTCSynthetic: {address: msBTCAddress},
-      MsUSDSynthetic: {address: msUSDAddress},
-      MsUNISynthetic: {address: msUNIAddress},
-      MsCRVSynthetic: {address: msCRVAddress},
-      MsAAVESynthetic: {address: msAAVEAddress},
-      MsBTCDebt: {address: msBTCDebtAddress},
-      MsUSDDebt: {address: msUSDDebtAddress},
-      MsUNIDebt: {address: msUNIDebtAddress},
-      MsCRVDebt: {address: msCRVDebtAddress},
-      MsAAVEDebt: {address: msAAVEDebtAddress},
-    } = await deployments.fixture()
-
-    pool = Pool__factory.connect(poolAddress, alice)
-    nativeGateway = NativeTokenGateway__factory.connect(wethGatewayAddress, alice)
-
-    // msdAssets
-    msdWAVAX = DepositToken__factory.connect(wavaxDepositTokenAddress, alice)
-    msdWETH = DepositToken__factory.connect(wethDepositTokenAddress, alice)
-    msdUSDC = DepositToken__factory.connect(usdcDepositTokenAddress, alice)
-    msdDAI = DepositToken__factory.connect(daiDepositTokenAddress, alice)
-    msdUSDT = DepositToken__factory.connect(usdtDepositTokenAddress, alice)
-
-    // msAssets
-    msBTC = SyntheticToken__factory.connect(msBTCAddress, alice)
-    msUSD = SyntheticToken__factory.connect(msUSDAddress, alice)
-    msUNI = SyntheticToken__factory.connect(msUNIAddress, alice)
-    msCRV = SyntheticToken__factory.connect(msCRVAddress, alice)
-    msAAVE = SyntheticToken__factory.connect(msAAVEAddress, alice)
-
-    // msAssets-Debts
-    msBTCDebt = DebtToken__factory.connect(msBTCDebtAddress, alice)
-    msUSDDebt = DebtToken__factory.connect(msUSDDebtAddress, alice)
-    msUNIDebt = DebtToken__factory.connect(msUNIDebtAddress, alice)
-    msCRVDebt = DebtToken__factory.connect(msCRVDebtAddress, alice)
-    msAAVEDebt = DebtToken__factory.connect(msAAVEDebtAddress, alice)
-
-    // OneOracle contracts
-    const addressProvider = new ethers.Contract(
-      ONE_ORACLE_ADDRESS_PROVIDER,
-      ['function governor() view returns(address)'],
-      alice
-    )
-    const governor = await impersonateAccount(await addressProvider.governor())
-    const masterOracle = new ethers.Contract(
-      MASTER_ORACLE_ADDRESS,
-      ['function updateTokenOracle(address,address)'],
-      governor
-    )
-    const chainlinkPriceProvider = new ethers.Contract(
-      CHAINLINK_PRICE_PROVIDER,
-      ['function updateAggregator(address,address)'],
-      governor
-    )
-
-    await chainlinkPriceProvider.updateAggregator(msdUSDC.address, USDC_USD_CHAINLINK_AGGREGATOR_ADDRESS)
-    await chainlinkPriceProvider.updateAggregator(msdWAVAX.address, AVAX_USD_CHAINLINK_AGGREGATOR_ADDRESS)
-    await chainlinkPriceProvider.updateAggregator(msdWETH.address, ETH_USD_CHAINLINK_AGGREGATOR_ADDRESS)
-    await chainlinkPriceProvider.updateAggregator(msdDAI.address, DAI_USD_CHAINLINK_AGGREGATOR_ADDRESS)
-    await chainlinkPriceProvider.updateAggregator(msdUSDT.address, USDT_USD_CHAINLINK_AGGREGATOR_ADDRESS)
-    await chainlinkPriceProvider.updateAggregator(msBTC.address, BTC_USD_CHAINLINK_AGGREGATOR_ADDRESS)
-    await chainlinkPriceProvider.updateAggregator(msUNI.address, UNI_USD_CHAINLINK_AGGREGATOR_ADDRESS)
-    await chainlinkPriceProvider.updateAggregator(msCRV.address, CRV_USD_CHAINLINK_AGGREGATOR_ADDRESS)
-    await chainlinkPriceProvider.updateAggregator(msAAVE.address, AAVE_USD_CHAINLINK_AGGREGATOR_ADDRESS)
-
-    await masterOracle.updateTokenOracle(msUSD.address, MS_USD_TOKEN_ORACLE_ADDRESS)
+    ;[, feeCollector, alice, bob] = await ethers.getSigners()
+    ;({
+      dai,
+      met,
+      masterOracle,
+      poolRegistry,
+      msETH,
+      msDOGE,
+      msUSD,
+      poolA,
+      msdMET_A,
+      msdDAI_A,
+      msETH_Debt_A,
+      msDOGE_Debt_A,
+      msUSD_Debt_A,
+      poolB,
+      msdDAI_B,
+      msUSD_Debt_B,
+    } = await loadFixture(fixture))
   })
 
-  after(disableForking)
+  describe('deposit', function () {
+    beforeEach('should deposit', async function () {
+      // given
+      await dai.connect(alice).approve(msdDAI_A.address, MaxUint256)
+      await met.connect(alice).approve(msdMET_A.address, MaxUint256)
+      await dai.connect(bob).approve(msdDAI_B.address, MaxUint256)
 
-  it('should deposit NATIVE', async function () {
-    // given
-    const {_depositInUsd: before} = await pool.depositOf(alice.address)
+      // when
+      await msdDAI_A.connect(alice).deposit(parseEther('1,000'), alice.address)
+      await msdMET_A.connect(alice).deposit(parseEther('1,000'), alice.address)
+      await msdDAI_B.connect(bob).deposit(parseEther('5,000'), bob.address)
 
-    // when
-    await nativeGateway.deposit(pool.address, {value: parseEther('0.1')})
+      // then
+      expect((await poolA.depositOf(alice.address))._depositInUsd).eq(toUSD('5,000'))
+      expect((await poolA.depositOf(bob.address))._depositInUsd).eq(0)
+      expect((await poolB.depositOf(alice.address))._depositInUsd).eq(0)
+      expect((await poolB.depositOf(bob.address))._depositInUsd).eq(toUSD('5,000'))
+    })
 
-    // then
-    const {_depositInUsd: after} = await pool.depositOf(alice.address)
+    describe('issue', function () {
+      beforeEach('should issue', async function () {
+        // when
+        await msETH_Debt_A.connect(alice).issue(parseEther('1'), alice.address)
+        await msDOGE_Debt_A.connect(alice).issue(parseEther('10,000'), alice.address)
+        await msUSD_Debt_A.connect(alice).issue(parseEther('500'), alice.address)
+        await msUSD_Debt_B.connect(bob).issue(parseEther('2,000'), bob.address)
 
-    expect(after.sub(before)).closeTo(toUSD('1.87'), toUSD('1'))
-  })
+        // then
+        expect(await poolA.debtOf(alice.address)).eq(toUSD('2,000'))
+        expect(await poolB.debtOf(alice.address)).eq(0)
+        expect(await poolA.debtOf(bob.address)).eq(0)
+        expect(await poolB.debtOf(bob.address)).eq(toUSD('2,000'))
+      })
 
-  it('should deposit WAVAX', async function () {
-    const amount = parseEther('10')
-    await setTokenBalance(wavax.address, alice.address, amount)
-    const {_depositInUsd: before} = await pool.depositOf(alice.address)
+      describe('swap', function () {
+        beforeEach('should swap', async function () {
+          // given
+          const debtsBefore = await Promise.all([
+            await poolA.debtOf(alice.address),
+            await poolB.debtOf(alice.address),
+            await poolA.debtOf(bob.address),
+            await poolB.debtOf(bob.address),
+          ])
 
-    // when
-    await wavax.approve(msdWAVAX.address, ethers.constants.MaxUint256)
-    await msdWAVAX.deposit(amount, alice.address)
+          // when
+          // alice swaps all her synths for msUSD
+          await poolRegistry.connect(alice).swap(msETH.address, msUSD.address, await msETH.balanceOf(alice.address))
+          await poolRegistry.connect(alice).swap(msDOGE.address, msUSD.address, await msDOGE.balanceOf(alice.address))
+          expect(await msETH.totalSupply()).eq(0)
+          expect(await msDOGE.totalSupply()).eq(0)
+          expect(await msUSD.totalSupply()).eq(parseEther('4,000'))
+          // bob swaps all his msUSD for msETH
+          await poolRegistry.connect(bob).swap(msUSD.address, msETH.address, await msUSD.balanceOf(bob.address))
+          expect(await msUSD.totalSupply()).eq(parseEther('2,000'))
+          expect(await msETH.totalSupply()).eq(parseEther('2'))
 
-    // then
-    const {_depositInUsd: after} = await pool.depositOf(alice.address)
-    expect(after.sub(before)).closeTo(toUSD('187'), toUSD('5'))
-  })
+          // then
+          const debtsAfter = await Promise.all([
+            await poolA.debtOf(alice.address),
+            await poolB.debtOf(alice.address),
+            await poolA.debtOf(bob.address),
+            await poolB.debtOf(bob.address),
+          ])
+          expect(debtsAfter).deep.eq(debtsBefore)
+        })
 
-  it('should deposit WETH', async function () {
-    // given
-    const amount = parseEther('1')
-    await setTokenBalance(weth.address, alice.address, amount)
-    const {_depositInUsd: before} = await pool.depositOf(alice.address)
+        describe('repay', function () {
+          beforeEach('should repay', async function () {
+            // given
+            expect(await poolA.debtOf(alice.address)).eq(toUSD('2,000'))
+            expect(await poolB.debtOf(alice.address)).eq(0)
+            expect(await poolA.debtOf(bob.address)).eq(0)
+            expect(await poolB.debtOf(bob.address)).eq(toUSD('2,000'))
+            expect(await msUSD_Debt_A.balanceOf(alice.address)).eq(toUSD('500'))
+            expect(await msUSD_Debt_B.balanceOf(bob.address)).eq(toUSD('2,000'))
+            const repayFeeA = await poolA.repayFee()
+            const repayFeeB = await poolB.repayFee()
 
-    // when
-    await weth.approve(msdWETH.address, ethers.constants.MaxUint256)
-    await msdWETH.deposit(amount, alice.address)
+            // when
+            // alice pays part of bob's msUSD debt
+            const bobDebtToRepay = parseEther('500')
+            const bobDebtPlusRepayFee = bobDebtToRepay.mul(parseEther('1').add(repayFeeB)).div(parseEther('1'))
+            await msUSD_Debt_B.connect(alice).repay(bob.address, bobDebtPlusRepayFee)
+            // bob pays all alice's msETH debt
+            const aliceDebtToRepay = parseEther('1')
+            const aliceDebtPlusRepayFee = aliceDebtToRepay.mul(parseEther('1').add(repayFeeA)).div(parseEther('1'))
+            await msETH_Debt_A.connect(bob).repay(alice.address, aliceDebtPlusRepayFee)
 
-    // then
-    const {_depositInUsd: after} = await pool.depositOf(alice.address)
-    expect(after.sub(before)).closeTo(toUSD('1570'), toUSD('5'))
-  })
+            // then
+            expect(await msUSD_Debt_B.balanceOf(bob.address)).eq(toUSD('1,500'))
+            expect(await msETH_Debt_A.balanceOf(alice.address)).eq(0)
+          })
 
-  it('should deposit USDC', async function () {
-    // given
-    const amount = parseUnits('10000', 6)
-    await setTokenBalance(usdc.address, alice.address, amount)
-    const {_depositInUsd: before} = await pool.depositOf(alice.address)
+          it('should revert if repaying using wrong synthetic asset', async function () {
+            // given
+            expect(await poolA.debtOf(alice.address)).eq(toUSD('1,000'))
+            expect(await msETH_Debt_A.balanceOf(alice.address)).eq(0)
+            expect(await msETH.balanceOf(bob.address)).closeTo(parseEther('1'), parseEther('0.2'))
 
-    // when
-    await usdc.approve(msdUSDC.address, ethers.constants.MaxUint256)
-    await msdUSDC.deposit(amount, alice.address)
+            // when
+            const tx = msETH_Debt_A.connect(bob).repay(alice.address, parseEther('0.1'))
 
-    // then
-    const {_depositInUsd: after} = await pool.depositOf(alice.address)
-    expect(after.sub(before)).closeTo(toUSD('10000'), toUSD('1'))
-  })
+            // then
+            await expect(tx).rejectedWith('burn-amount-exceeds-balance')
+          })
 
-  it('should deposit DAI', async function () {
-    // given
-    const amount = parseEther('10000')
-    await setTokenBalance(dai.address, alice.address, amount)
-    const {_depositInUsd: before} = await pool.depositOf(alice.address)
+          describe('withdraw', function () {
+            // eslint-disable-next-line quotes
+            beforeEach("should repay ~all bob's debt", async function () {
+              // given
+              expect(await msUSD_Debt_B.balanceOf(bob.address)).eq(parseEther('1,500'))
+              await msUSD_Debt_B.connect(alice).repay(bob.address, await msUSD.balanceOf(alice.address))
+              const debtInUsd = await poolB.debtOf(bob.address)
+              expect(debtInUsd).closeTo(0, toUSD('15')) // accumulated fees dust
+            })
 
-    // when
-    await dai.approve(msdDAI.address, ethers.constants.MaxUint256)
-    await msdDAI.deposit(parseEther('10000'), alice.address)
+            it('should withdraw', async function () {
+              // when
+              const amount = await msdDAI_B.unlockedBalanceOf(bob.address)
+              await msdDAI_B.connect(bob).withdraw(amount, bob.address)
 
-    // then
-    const {_depositInUsd: after} = await pool.depositOf(alice.address)
-    expect(after.sub(before)).closeTo(toUSD('10000'), toUSD('15'))
-  })
+              // then
+              const {_depositInUsd: depositAfter} = await poolB.depositOf(bob.address)
+              expect(depositAfter).closeTo(0, toUSD('20')) // remaining due to debt dust
+            })
+          })
+        })
 
-  it('should deposit USDT', async function () {
-    // given
-    const amount = parseUnits('10000', 6)
-    await setTokenBalance(usdt.address, alice.address, amount)
-    const {_depositInUsd: before} = await pool.depositOf(alice.address)
+        describe('liquidate', function () {
+          it('should liquidate unhealthy position', async function () {
+            // given
+            expect((await poolA.debtPositionOf(alice.address))._isHealthy).true
+            await masterOracle.updatePrice(met.address, toUSD('2')) // -50%
+            await masterOracle.updatePrice(msETH.address, toUSD('800')) // -10%
+            expect((await poolA.debtPositionOf(alice.address))._isHealthy).false
 
-    // when
-    await usdt.approve(msdUSDT.address, ethers.constants.MaxUint256)
-    await msdUSDT.deposit(amount, alice.address)
+            expect(await msdDAI_A.balanceOf(alice.address)).eq(parseEther('1,000'))
+            expect(await msdMET_A.balanceOf(alice.address)).eq(parseEther('1,000'))
+            expect(await msETH_Debt_A.balanceOf(alice.address)).eq(parseEther('1'))
+            expect(await msETH.balanceOf(bob.address)).closeTo(parseEther('2'), parseEther('0.2'))
 
-    // then
-    const {_depositInUsd: after} = await pool.depositOf(alice.address)
-    expect(after.sub(before)).closeTo(toUSD('10000'), toUSD('5'))
-  })
+            // when
+            const tx = poolA.connect(bob).liquidate(msETH.address, alice.address, parseEther('1'), msdDAI_A.address)
 
-  it('should check position after deposits', async function () {
-    const {_depositInUsd, _debtInUsd} = await pool.debtPositionOf(alice.address)
-    expect(_depositInUsd).closeTo(toUSD('31758'), toUSD('250'))
-    expect(_debtInUsd).eq(0)
-  })
-
-  it('should mint msBTC', async function () {
-    // given
-    const before = await pool.debtOf(alice.address)
-
-    // when
-    await msBTCDebt.issue(parseUnits('0.1', 8), alice.address)
-
-    // then
-    const after = await pool.debtOf(alice.address)
-    expect(after.sub(before)).closeTo(toUSD('1899'), toUSD('10'))
-  })
-
-  it('should mint msUSD', async function () {
-    // given
-    const before = await pool.debtOf(alice.address)
-
-    // when
-    await msUSDDebt.issue(parseEther('5000'), alice.address)
-
-    // then
-    const after = await pool.debtOf(alice.address)
-    expect(after.sub(before)).eq(toUSD('5000'))
-  })
-
-  it('should mint msUNI', async function () {
-    // given
-    const before = await pool.debtOf(alice.address)
-
-    // when
-    await msUNIDebt.issue(parseEther('100'), alice.address)
-
-    // then
-    const after = await pool.debtOf(alice.address)
-    expect(after.sub(before)).closeTo(toUSD('599'), toUSD('1'))
-  })
-
-  it('should mint msCRV', async function () {
-    // given
-    const before = await pool.debtOf(alice.address)
-
-    // when
-    await msCRVDebt.issue(parseEther('1000'), alice.address)
-
-    // then
-    const after = await pool.debtOf(alice.address)
-    expect(after.sub(before)).closeTo(toUSD('1097'), toUSD('5'))
-  })
-
-  it('should mint msAAVE', async function () {
-    // given
-    const before = await pool.debtOf(alice.address)
-
-    // when
-    await msAAVEDebt.issue(parseEther('10'), alice.address)
-
-    // then
-    const after = await pool.debtOf(alice.address)
-    expect(after.sub(before)).closeTo(toUSD('850'), toUSD('1'))
-  })
-
-  it('should check position after issuances', async function () {
-    const {_depositInUsd, _debtInUsd} = await pool.debtPositionOf(alice.address)
-    expect(_depositInUsd).closeTo(toUSD('31758'), toUSD('250'))
-    expect(_debtInUsd).closeTo(toUSD('9447'), toUSD('100'))
+            // then
+            await expect(tx)
+              .changeTokenBalance(msETH, bob, parseEther('-1'))
+              .changeTokenBalance(msETH_Debt_A, alice, parseEther('-1'))
+              .changeTokenBalances(
+                msdDAI_A,
+                [alice, bob, feeCollector],
+                [parseEther('-944'), parseEther('880'), parseEther('64')]
+              )
+            expect((await poolA.debtPositionOf(alice.address))._isHealthy).true
+          })
+        })
+      })
+    })
   })
 })
