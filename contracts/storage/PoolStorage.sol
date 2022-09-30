@@ -7,6 +7,11 @@ import "../lib/MappedEnumerableSet.sol";
 import "../interfaces/IPool.sol";
 
 abstract contract PoolStorageV1 is IPool {
+    struct LiquidationFees {
+        uint128 liquidatorFee;
+        uint128 protocolFee;
+    }
+
     /**
      * @notice The debt floor (in USD) for each synthetic token
      * This parameters is used to keep incentive for liquidators (i.e. cover gas and provide enough profit)
@@ -38,16 +43,10 @@ abstract contract PoolStorageV1 is IPool {
     uint256 public repayFee;
 
     /**
-     * @notice The fee charged from liquidated deposit that goes to the liquidator
+     * @notice The fees charged when liquidating a position
      * @dev Use 18 decimals (e.g. 1e16 = 1%)
      */
-    uint256 public liquidatorLiquidationFee;
-
-    /**
-     * @notice The fee charged when liquidating a position
-     * @dev Use 18 decimals (e.g. 1e16 = 1%)
-     */
-    uint256 public protocolLiquidationFee;
+    LiquidationFees public liquidationFees;
 
     /**
      * @notice The max percent of the debt allowed to liquidate

@@ -79,9 +79,9 @@ interface IPool is IPauseable {
 
     function updateRepayFee(uint256 newRepayFee_) external;
 
-    function updateLiquidatorLiquidationFee(uint256 newLiquidatorLiquidationFee_) external;
+    function updateLiquidatorLiquidationFee(uint128 newLiquidatorLiquidationFee_) external;
 
-    function updateProtocolLiquidationFee(uint256 newProtocolLiquidationFee_) external;
+    function updateProtocolLiquidationFee(uint128 newProtocolLiquidationFee_) external;
 
     function updateMaxLiquidable(uint256 newMaxLiquidable_) external;
 

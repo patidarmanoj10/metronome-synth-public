@@ -94,7 +94,7 @@ describe('DebtToken', function () {
     SECONDS_PER_YEAR = await msUSDDebt.SECONDS_PER_YEAR()
 
     await masterOracleMock.updatePrice(msUSD.address, toUSD('1'))
-    await masterOracleMock.updatePrice(msdMET.address, toUSD('1'))
+    await masterOracleMock.updatePrice(met.address, toUSD('1'))
 
     poolRegistryMock.poolExists.returns((address: string) => address == poolMock.address)
     poolRegistryMock.governor.returns(governor.address)

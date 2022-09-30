@@ -78,7 +78,7 @@ describe('DepositToken', function () {
     await metDepositToken.initialize(met.address, poolMock.address, 'msdMET', 18, metCR, MaxUint256)
     metDepositToken = metDepositToken.connect(governor)
 
-    await masterOracle.updatePrice(metDepositToken.address, metPrice)
+    await masterOracle.updatePrice(met.address, metPrice)
     await treasury.initialize(poolMock.address)
   })
 
@@ -141,7 +141,7 @@ describe('DepositToken', function () {
         const tx = metDepositToken.connect(alice).withdraw(0, alice.address)
 
         // then
-        await expect(tx).revertedWith('amount-is-zero')
+        await expect(tx).revertedWith('amount-is-invalid')
       })
 
       it('should revert if amount > unlocked collateral amount', async function () {
@@ -150,7 +150,7 @@ describe('DepositToken', function () {
         const tx = metDepositToken.connect(alice).withdraw(unlockedDeposit.add('1'), alice.address)
 
         // then
-        await expect(tx).revertedWith('amount-gt-unlocked')
+        await expect(tx).revertedWith('amount-is-invalid')
       })
 
       it('should withdraw if amount <= unlocked collateral amount (withdrawFee == 0)', async function () {

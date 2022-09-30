@@ -23,13 +23,9 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
         _;
     }
 
-    function initialize(IPool pool_) public initializer {
-        require(address(pool_) != address(0), "pool-address-is-zero");
-
+    function initialize(IPool pool_) external initializer {
         __ReentrancyGuard_init();
-        __Manageable_init();
-
-        pool = pool_;
+        __Manageable_init(pool_);
     }
 
     /**

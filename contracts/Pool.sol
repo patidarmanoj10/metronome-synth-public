@@ -89,13 +89,15 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
     function initialize(IPoolRegistry poolRegistry_) public initializer {
         require(address(poolRegistry_) != address(0), "pool-registry-is-null");
         __ReentrancyGuard_init();
-        __Governable_init();
+        __Pauseable_init();
 
         poolRegistry = poolRegistry_;
 
         repayFee = 3e15; // 0.3%
-        liquidatorLiquidationFee = 1e17; // 10%
-        protocolLiquidationFee = 8e16; // 8%
+        liquidationFees = LiquidationFees({
+            liquidatorFee: 1e17, // 10%
+            protocolFee: 8e16 // 8%
+        });
         maxLiquidable = 0.5e18; // 50%
     }
 
@@ -126,10 +128,11 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @return _debtInUsd The debt value in USD
      */
     function debtOf(address account_) public view override returns (uint256 _debtInUsd) {
+        IMasterOracle _masterOracle = masterOracle();
         uint256 _length = debtTokensOfAccount.length(account_);
         for (uint256 i; i < _length; ++i) {
             IDebtToken _debtToken = IDebtToken(debtTokensOfAccount.at(account_, i));
-            _debtInUsd += masterOracle().quoteTokenToUsd(
+            _debtInUsd += _masterOracle.quoteTokenToUsd(
                 address(_debtToken.syntheticToken()),
                 _debtToken.balanceOf(account_)
             );
@@ -175,11 +178,12 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
         override
         returns (uint256 _depositInUsd, uint256 _issuableLimitInUsd)
     {
+        IMasterOracle _masterOracle = masterOracle();
         uint256 _length = depositTokensOfAccount.length(account_);
         for (uint256 i; i < _length; ++i) {
             IDepositToken _depositToken = IDepositToken(depositTokensOfAccount.at(account_, i));
-            uint256 _amountInUsd = masterOracle().quoteTokenToUsd(
-                address(_depositToken),
+            uint256 _amountInUsd = _masterOracle.quoteTokenToUsd(
+                address(_depositToken.underlying()),
                 _depositToken.balanceOf(account_)
             );
             _depositInUsd += _amountInUsd;
@@ -285,9 +289,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
         IDepositToken depositToken_
     ) external override whenNotShutdown nonReentrant onlyIfDepositTokenExists(depositToken_) {
         require(amountToRepay_ > 0, "amount-is-zero");
-
-        address _liquidator = msg.sender;
-        require(_liquidator != account_, "can-not-liquidate-own-position");
+        require(msg.sender != account_, "can-not-liquidate-own-position");
 
         IDebtToken _debtToken = debtTokenOf[syntheticToken_];
         _debtToken.accrueInterest();
@@ -300,37 +302,39 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
 
         require(amountToRepay_.wadDiv(_debtTokenBalance) <= maxLiquidable, "amount-gt-max-liquidable");
 
+        IMasterOracle _masterOracle = masterOracle();
+
         if (debtFloorInUsd > 0) {
-            uint256 _newDebtInUsd = masterOracle().quoteTokenToUsd(
+            uint256 _newDebtInUsd = _masterOracle.quoteTokenToUsd(
                 address(syntheticToken_),
                 _debtTokenBalance - amountToRepay_
             );
             require(_newDebtInUsd == 0 || _newDebtInUsd >= debtFloorInUsd, "remaining-debt-lt-floor");
         }
 
-        uint256 _amountToRepayInCollateral = masterOracle().quote(
+        uint256 _amountToRepayInCollateral = _masterOracle.quote(
             address(syntheticToken_),
-            address(depositToken_),
+            address(depositToken_.underlying()),
             amountToRepay_
         );
 
-        uint256 _toProtocol = protocolLiquidationFee > 0
-            ? _amountToRepayInCollateral.wadMul(protocolLiquidationFee)
-            : 0;
-        uint256 _toLiquidator = _amountToRepayInCollateral.wadMul(1e18 + liquidatorLiquidationFee);
+        LiquidationFees memory _fees = liquidationFees;
+
+        uint256 _toProtocol = _fees.protocolFee > 0 ? _amountToRepayInCollateral.wadMul(_fees.protocolFee) : 0;
+        uint256 _toLiquidator = _amountToRepayInCollateral.wadMul(1e18 + _fees.liquidatorFee);
         uint256 _depositToSeize = _toProtocol + _toLiquidator;
 
         require(_depositToSeize <= depositToken_.balanceOf(account_), "amount-too-high");
 
-        syntheticToken_.burn(_liquidator, amountToRepay_);
+        syntheticToken_.burn(msg.sender, amountToRepay_);
         _debtToken.burn(account_, amountToRepay_);
-        depositToken_.seize(account_, _liquidator, _toLiquidator);
+        depositToken_.seize(account_, msg.sender, _toLiquidator);
 
         if (_toProtocol > 0) {
             depositToken_.seize(account_, poolRegistry.feeCollector(), _toProtocol);
         }
 
-        emit PositionLiquidated(_liquidator, account_, syntheticToken_, amountToRepay_, _depositToSeize, _toProtocol);
+        emit PositionLiquidated(msg.sender, account_, syntheticToken_, amountToRepay_, _depositToSeize, _toProtocol);
     }
 
     /**
@@ -475,12 +479,12 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
     /**
      * @notice Update liquidator liquidation fee
      */
-    function updateLiquidatorLiquidationFee(uint256 newLiquidatorLiquidationFee_) external override onlyGovernor {
+    function updateLiquidatorLiquidationFee(uint128 newLiquidatorLiquidationFee_) external override onlyGovernor {
         require(newLiquidatorLiquidationFee_ <= 1e18, "max-is-100%");
-        uint256 _currentLiquidatorLiquidationFee = liquidatorLiquidationFee;
+        uint256 _currentLiquidatorLiquidationFee = liquidationFees.liquidatorFee;
         require(newLiquidatorLiquidationFee_ != _currentLiquidatorLiquidationFee, "new-same-as-current");
         emit LiquidatorLiquidationFeeUpdated(_currentLiquidatorLiquidationFee, newLiquidatorLiquidationFee_);
-        liquidatorLiquidationFee = newLiquidatorLiquidationFee_;
+        liquidationFees.liquidatorFee = newLiquidatorLiquidationFee_;
     }
 
     /**
@@ -497,12 +501,12 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
     /**
      * @notice Update protocol liquidation fee
      */
-    function updateProtocolLiquidationFee(uint256 newProtocolLiquidationFee_) external override onlyGovernor {
+    function updateProtocolLiquidationFee(uint128 newProtocolLiquidationFee_) external override onlyGovernor {
         require(newProtocolLiquidationFee_ <= 1e18, "max-is-100%");
-        uint256 _currentProtocolLiquidationFee = protocolLiquidationFee;
+        uint256 _currentProtocolLiquidationFee = liquidationFees.protocolFee;
         require(newProtocolLiquidationFee_ != _currentProtocolLiquidationFee, "new-same-as-current");
         emit ProtocolLiquidationFeeUpdated(_currentProtocolLiquidationFee, newProtocolLiquidationFee_);
-        protocolLiquidationFee = newProtocolLiquidationFee_;
+        liquidationFees.protocolFee = newProtocolLiquidationFee_;
     }
 
     /**

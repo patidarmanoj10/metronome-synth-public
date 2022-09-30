@@ -16,9 +16,6 @@ abstract contract Manageable is IManageable, TokenHolder, Initializable {
      */
     IPool public pool;
 
-    // solhint-disable-next-line func-name-mixedcase
-    function __Manageable_init() internal initializer {}
-
     /**
      * @notice Requires that the caller is the Pool contract
      */
@@ -45,20 +42,17 @@ abstract contract Manageable is IManageable, TokenHolder, Initializable {
         _;
     }
 
+    // solhint-disable-next-line func-name-mixedcase
+    function __Manageable_init(IPool pool_) internal initializer {
+        require(address(pool_) != address(0), "pool-address-is-zero");
+        pool = pool_;
+    }
+
     function governor() public view returns (address _governor) {
         _governor = IGovernable(address(pool)).governor();
     }
 
     function _requireCanSweep() internal view override onlyGovernor {}
-
-    /**
-     * @notice Update Pool contract
-     * @param pool_ The new Pool contract
-     */
-    function setPool(IPool pool_) external onlyGovernor {
-        require(address(pool_) != address(0), "new-pool-address-is-zero");
-        pool = pool_;
-    }
 
     uint256[49] private __gap;
 }
