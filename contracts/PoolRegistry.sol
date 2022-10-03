@@ -29,27 +29,6 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
     /// @notice Emitted when a pool is unregistered
     event PoolUnregistered(address pool);
 
-    /// @notice Emitted when swap fee is updated
-    event SwapFeeUpdated(uint256 oldSwapFee, uint256 newSwapFee);
-
-    /// @notice Emitted when synthetic token is swapped
-    event SyntheticTokenSwapped(
-        address indexed account,
-        ISyntheticToken indexed syntheticTokenIn,
-        ISyntheticToken indexed syntheticTokenOut,
-        uint256 amountIn,
-        uint256 amountOut,
-        uint256 fee
-    );
-
-    /**
-     * @dev Throws if synthetic token doesn't exist
-     */
-    modifier onlyIfSyntheticTokenExists(ISyntheticToken syntheticToken_) {
-        require(isSyntheticTokenExists(syntheticToken_), "synthetic-inexistent");
-        _;
-    }
-
     function initialize(IMasterOracle masterOracle_, address feeCollector_) external initializer {
         require(address(masterOracle_) != address(0), "oracle-is-null");
         require(feeCollector_ != address(0), "fee-collector-is-null");
@@ -59,8 +38,6 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
 
         masterOracle = masterOracle_;
         feeCollector = feeCollector_;
-
-        swapFee = 6e15; // 0.6%
     }
 
     /**
@@ -73,70 +50,12 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
     }
 
     /**
-     * @notice Check if token is part of the synthetic offerings
-     * @param syntheticToken_ Asset to check
-     * @return true if exist
-     */
-    function isSyntheticTokenExists(ISyntheticToken syntheticToken_) public view override returns (bool) {
-        uint256 _length = pools.length();
-        for (uint256 i; i < _length; ++i) {
-            if (IPool(pools.at(i)).isSyntheticTokenExists(syntheticToken_)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
      * @notice Check if pool is registered
      * @param pool_ Pool to check
      * @return true if exists
      */
     function poolExists(address pool_) external view returns (bool) {
         return pools.contains(pool_);
-    }
-
-    /**
-     * @notice Swap synthetic tokens
-     * @param syntheticTokenIn_ Synthetic token to sell
-     * @param syntheticTokenOut_ Synthetic token to buy
-     * @param amountIn_ Amount to swap
-     */
-    function swap(
-        ISyntheticToken syntheticTokenIn_,
-        ISyntheticToken syntheticTokenOut_,
-        uint256 amountIn_
-    )
-        external
-        override
-        whenNotShutdown
-        nonReentrant
-        onlyIfSyntheticTokenExists(syntheticTokenIn_)
-        onlyIfSyntheticTokenExists(syntheticTokenOut_)
-        returns (uint256 _amountOut)
-    {
-        require(amountIn_ > 0 && amountIn_ <= syntheticTokenIn_.balanceOf(msg.sender), "amount-in-is-invalid");
-        syntheticTokenIn_.burn(msg.sender, amountIn_);
-
-        _amountOut = masterOracle.quote(address(syntheticTokenIn_), address(syntheticTokenOut_), amountIn_);
-
-        uint256 _feeAmount;
-        if (swapFee > 0) {
-            _feeAmount = _amountOut.wadMul(swapFee);
-            syntheticTokenOut_.mint(feeCollector, _feeAmount);
-            _amountOut -= _feeAmount;
-        }
-
-        syntheticTokenOut_.mint(msg.sender, _amountOut);
-
-        emit SyntheticTokenSwapped(
-            msg.sender,
-            syntheticTokenIn_,
-            syntheticTokenOut_,
-            amountIn_,
-            _amountOut,
-            _feeAmount
-        );
     }
 
     /**
@@ -176,16 +95,5 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
         require(newMasterOracle_ != _currentMasterOracle, "new-same-as-current");
         emit MasterOracleUpdated(_currentMasterOracle, newMasterOracle_);
         masterOracle = newMasterOracle_;
-    }
-
-    /**
-     * @notice Update swap fee
-     */
-    function updateSwapFee(uint256 newSwapFee_) external override onlyGovernor {
-        require(newSwapFee_ <= 1e18, "max-is-100%");
-        uint256 _currentSwapFee = swapFee;
-        require(newSwapFee_ != _currentSwapFee, "new-same-as-current");
-        emit SwapFeeUpdated(_currentSwapFee, newSwapFee_);
-        swapFee = newSwapFee_;
     }
 }

@@ -34,7 +34,7 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
      * @dev Throws if sender can't burn
      */
     modifier onlyIfCanBurn() {
-        require(_isMsgSenderPoolRegistry() || _isMsgSenderPool() || _isMsgSenderDebtToken(), "sender-cant-burn");
+        require(_isMsgSenderPool() || _isMsgSenderDebtToken(), "sender-cant-burn");
         _;
     }
 
@@ -42,7 +42,7 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
      * @dev Throws if sender can't mint
      */
     modifier onlyIfCanMint() {
-        require(_isMsgSenderPoolRegistry() || _isMsgSenderDebtToken(), "sender-cant-mint");
+        require(_isMsgSenderPool() || _isMsgSenderDebtToken(), "sender-cant-mint");
         _;
     }
 
@@ -219,13 +219,6 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
      */
     function _isMsgSenderPool() private view returns (bool) {
         return poolRegistry.poolExists(msg.sender) && IPool(msg.sender).isSyntheticTokenExists(this);
-    }
-
-    /**
-     * @notice Check if the sender is the PoolRegistry contract
-     */
-    function _isMsgSenderPoolRegistry() private view returns (bool) {
-        return msg.sender == address(poolRegistry);
     }
 
     /**

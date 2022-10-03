@@ -10,14 +10,12 @@ contract PoolRegistryUpgrader is UpgraderBase {
     }
 
     function _calls() internal pure override returns (bytes[] memory calls) {
-        calls = new bytes[](3);
-        calls[0] = abi.encodeWithSignature("swapFee()");
-        calls[1] = abi.encodeWithSignature("masterOracle()");
-        calls[2] = abi.encodeWithSignature("feeCollector()");
+        calls = new bytes[](2);
+        calls[0] = abi.encodeWithSignature("masterOracle()");
+        calls[1] = abi.encodeWithSignature("feeCollector()");
     }
 
     function _checkResults(bytes[] memory _beforeResults, bytes[] memory _afterResults) internal pure override {
-        _checkUint256Results(_beforeResults, _afterResults, 0, 0);
-        _checkAddressResults(_beforeResults, _afterResults, 1, 2);
+        _checkAddressResults(_beforeResults, _afterResults, 0, 1);
     }
 }

@@ -13,17 +13,6 @@ abstract contract PoolRegistryStorageV1 is IPoolRegistry {
     EnumerableSet.AddressSet internal pools;
 
     /**
-     * @notice Available debt tokens
-     */
-    EnumerableSet.AddressSet internal syntheticTokens;
-
-    /**
-     * @notice The fee charged when swapping synthetic tokens
-     * @dev Use 18 decimals (e.g. 1e16 = 1%)
-     */
-    uint256 public swapFee;
-
-    /**
      * @notice Prices oracle
      */
     IMasterOracle public masterOracle;

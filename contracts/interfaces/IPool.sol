@@ -69,6 +69,14 @@ interface IPool is IPauseable {
         IDepositToken depositToken_
     ) external;
 
+    function swap(
+        ISyntheticToken syntheticTokenIn_,
+        ISyntheticToken syntheticTokenOut_,
+        uint256 amountIn_
+    ) external returns (uint256 _amountOut);
+
+    function updateSwapFee(uint256 newSwapFee_) external;
+
     function updateDebtFloor(uint256 newDebtFloorInUsd_) external;
 
     function updateDepositFee(uint256 newDepositFee_) external;
