@@ -6,7 +6,8 @@ import {parseEther} from 'ethers/lib/utils'
 import {ethers} from 'hardhat'
 import {toUSD} from '../helpers'
 import {MasterOracleMock, MasterOracleMock__factory, PoolRegistry, PoolRegistry__factory} from '../typechain'
-import {impersonateAccount, setEtherBalance} from './helpers'
+import {impersonateAccount} from './helpers'
+import {setBalance} from '@nomicfoundation/hardhat-network-helpers'
 
 describe('PoolRegistry', function () {
   let deployer: SignerWithAddress
@@ -155,7 +156,7 @@ describe('PoolRegistry', function () {
       await masterOracleMock.updatePrice(msEth.address, ethPrice)
       await masterOracleMock.updatePrice(msDoge.address, dogePrice)
 
-      await setEtherBalance(poolRegistry.address, parseEther('1'))
+      await setBalance(poolRegistry.address, parseEther('1'))
       await impersonateAccount(poolRegistry.address)
       const poolRegistryWallet = await ethers.getSigner(poolRegistry.address)
       await msEth.connect(poolRegistryWallet).mint(alice.address, userMintAmount)

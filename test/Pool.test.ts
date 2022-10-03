@@ -23,7 +23,8 @@ import {
   DebtToken,
   DebtToken__factory,
 } from '../typechain'
-import {getMaxLiquidationAmountInUsd, getMinLiquidationAmountInUsd, setEtherBalance} from './helpers'
+import {getMaxLiquidationAmountInUsd, getMinLiquidationAmountInUsd} from './helpers'
+import {setBalance} from '@nomicfoundation/hardhat-network-helpers'
 import {FakeContract, smock} from '@defi-wonderland/smock'
 import {toUSD} from '../helpers'
 
@@ -1098,7 +1099,7 @@ describe('Pool', function () {
     beforeEach(async function () {
       msdTOKEN = await smock.fake('DepositToken')
       await pool.addDepositToken(msdTOKEN.address)
-      await setEtherBalance(msdTOKEN.address, parseEther('1'))
+      await setBalance(msdTOKEN.address, parseEther('1'))
     })
 
     describe('addToDepositTokensOfAccount', function () {
@@ -1167,7 +1168,7 @@ describe('Pool', function () {
       debtToken.syntheticToken.returns(syntheticToken.address)
 
       await pool.addDebtToken(debtToken.address)
-      await setEtherBalance(debtToken.address, parseEther('1'))
+      await setBalance(debtToken.address, parseEther('1'))
     })
 
     describe('addToDebtTokensOfAccount', function () {

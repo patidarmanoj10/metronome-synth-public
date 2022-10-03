@@ -16,10 +16,10 @@ import {
   SyntheticToken,
   SyntheticToken__factory,
 } from '../typechain'
-import {increaseTime, setEtherBalance} from './helpers'
 import {FakeContract, MockContract, smock} from '@defi-wonderland/smock'
 import {BigNumber} from 'ethers'
 import {toUSD} from '../helpers'
+import {setBalance, time} from '@nomicfoundation/hardhat-network-helpers'
 
 chai.use(smock.matchers)
 
@@ -84,7 +84,7 @@ describe('DebtToken', function () {
     )
     await poolMock.deployed()
     await poolMock.updateTreasury(treasury.address)
-    await setEtherBalance(poolMock.address, parseEther('10'))
+    await setBalance(poolMock.address, parseEther('10'))
 
     await msdMET.initialize(met.address, poolMock.address, 'msdMET', 18, metCR, MaxUint256)
     await msUSD.initialize('Metronome Synth ETH', 'msETH', 18, poolRegistryMock.address)
@@ -583,7 +583,7 @@ describe('DebtToken', function () {
       // when
       await msUSDDebt.updateInterestRate(parseEther('0.02')) // 2%
 
-      await increaseTime(SECONDS_PER_YEAR)
+      await time.increase(SECONDS_PER_YEAR)
 
       // then
       const debtOfUser = await msUSDDebt.balanceOf(user1.address)
@@ -597,7 +597,7 @@ describe('DebtToken', function () {
       expect(await msUSDDebt.interestRate()).eq(0)
 
       // when
-      await increaseTime(SECONDS_PER_YEAR)
+      await time.increase(SECONDS_PER_YEAR)
 
       // then
       const debtOfUser = await msUSDDebt.balanceOf(user1.address)
@@ -611,10 +611,10 @@ describe('DebtToken', function () {
       // when
       // 1st year 10% interest + 2nd year 50% interest
       await msUSDDebt.updateInterestRate(parseEther('0.1')) // 10%
-      await increaseTime(SECONDS_PER_YEAR)
+      await time.increase(SECONDS_PER_YEAR)
 
       await msUSDDebt.updateInterestRate(parseEther('0.5')) // 50%
-      await increaseTime(SECONDS_PER_YEAR)
+      await time.increase(SECONDS_PER_YEAR)
 
       // then
       const debtOfUser = await msUSDDebt.balanceOf(user1.address)
@@ -628,11 +628,11 @@ describe('DebtToken', function () {
       // 1st year 10% interest + 2nd year 0% interest
       await msUSDDebt.updateInterestRate(parseEther('0.1')) // 10%
 
-      await increaseTime(SECONDS_PER_YEAR)
+      await time.increase(SECONDS_PER_YEAR)
 
       await msUSDDebt.updateInterestRate(parseEther('0'))
 
-      await increaseTime(SECONDS_PER_YEAR)
+      await time.increase(SECONDS_PER_YEAR)
 
       // then
       const debtOfUser = await msUSDDebt.balanceOf(user1.address)
@@ -658,7 +658,7 @@ describe('DebtToken', function () {
     it('should accrue interest', async function () {
       // when
       await msUSDDebt.updateInterestRate(parseEther('0.02')) // 2%
-      await increaseTime(SECONDS_PER_YEAR)
+      await time.increase(SECONDS_PER_YEAR)
       await msUSDDebt.accrueInterest()
 
       // then
@@ -671,7 +671,7 @@ describe('DebtToken', function () {
       expect(await msUSDDebt.interestRate()).eq(0)
 
       // when
-      await increaseTime(SECONDS_PER_YEAR)
+      await time.increase(SECONDS_PER_YEAR)
       await msUSDDebt.accrueInterest()
 
       // then
@@ -683,11 +683,11 @@ describe('DebtToken', function () {
       // when
       // 1st year 10% interest + 2nd year 50% interest
       await msUSDDebt.updateInterestRate(parseEther('0.1')) // 10%
-      await increaseTime(SECONDS_PER_YEAR)
+      await time.increase(SECONDS_PER_YEAR)
       await msUSDDebt.accrueInterest()
 
       await msUSDDebt.updateInterestRate(parseEther('0.5')) // 50%
-      await increaseTime(SECONDS_PER_YEAR)
+      await time.increase(SECONDS_PER_YEAR)
       await msUSDDebt.accrueInterest()
 
       // then
@@ -699,11 +699,11 @@ describe('DebtToken', function () {
       // when
       // 1st year 10% interest + 2nd year 0% interest
       await msUSDDebt.updateInterestRate(parseEther('0.1')) // 10%
-      await increaseTime(SECONDS_PER_YEAR)
+      await time.increase(SECONDS_PER_YEAR)
       await msUSDDebt.accrueInterest()
 
       await msUSDDebt.updateInterestRate(parseEther('0'))
-      await increaseTime(SECONDS_PER_YEAR)
+      await time.increase(SECONDS_PER_YEAR)
       await msUSDDebt.accrueInterest()
 
       // then
@@ -717,11 +717,11 @@ describe('DebtToken', function () {
 
       // when
       // 1st year 0% interest + 2nd year 10% interest
-      await increaseTime(SECONDS_PER_YEAR)
+      await time.increase(SECONDS_PER_YEAR)
       await msUSDDebt.accrueInterest()
 
       await msUSDDebt.updateInterestRate(parseEther('0.1')) // 10%
-      await increaseTime(SECONDS_PER_YEAR)
+      await time.increase(SECONDS_PER_YEAR)
       await msUSDDebt.accrueInterest()
 
       // then
@@ -732,7 +732,7 @@ describe('DebtToken', function () {
     it('should mint accrued fee to feeCollector', async function () {
       // given
       await msUSDDebt.updateInterestRate(parseEther('0.1')) // 10%
-      await increaseTime(SECONDS_PER_YEAR)
+      await time.increase(SECONDS_PER_YEAR)
       // when
       await msUSDDebt.accrueInterest()
 

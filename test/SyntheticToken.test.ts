@@ -18,7 +18,7 @@ import {
 } from '../typechain'
 import {toUSD} from '../helpers'
 import {FakeContract, MockContract, smock} from '@defi-wonderland/smock'
-import {setEtherBalance} from './helpers'
+import {setBalance} from '@nomicfoundation/hardhat-network-helpers'
 
 const {MaxUint256} = ethers.constants
 
@@ -46,7 +46,7 @@ describe('SyntheticToken', function () {
     ;[deployer, governor, user, treasury, feeCollector] = await ethers.getSigners()
 
     poolRegistryMock = await smock.fake('PoolRegistry')
-    await setEtherBalance(poolRegistryMock.address, parseEther('10'))
+    await setBalance(poolRegistryMock.address, parseEther('10'))
 
     const masterOracleMockFactory = new MasterOracleMock__factory(deployer)
     masterOracleMock = await masterOracleMockFactory.deploy()
@@ -79,7 +79,7 @@ describe('SyntheticToken', function () {
     await poolMock.deployed()
     await poolMock.transferGovernorship(governor.address)
     await poolMock.updateTreasury(treasury.address)
-    await setEtherBalance(poolMock.address, parseEther('10'))
+    await setBalance(poolMock.address, parseEther('10'))
 
     await msdMET.initialize(met.address, poolMock.address, 'msdMET', 18, metCR, MaxUint256)
     await msUSD.initialize(name, symbol, 18, poolRegistryMock.address)

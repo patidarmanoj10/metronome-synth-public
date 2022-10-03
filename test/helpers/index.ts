@@ -1,15 +1,21 @@
 import {BigNumber} from '@ethersproject/bignumber'
-import {parseEther, parseUnits} from '@ethersproject/units'
+import {parseEther} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {ethers, network} from 'hardhat'
 import {Pool, DepositToken} from '../../typechain'
 import Address from '../../helpers/address'
+import {
+  impersonateAccount as impersonate,
+  setBalance,
+  mine,
+  setStorageAt,
+  time,
+} from '@nomicfoundation/hardhat-network-helpers'
 
 const {hexlify, solidityKeccak256, zeroPad, getAddress} = ethers.utils
 
-export const HOUR = BigNumber.from(60 * 60)
 export const DOGE_USD_CHAINLINK_AGGREGATOR_ADDRESS = '0x2465CefD3b488BE410b941b1d4b2767088e2A028'
-export const DEFAULT_TWAP_PERIOD = HOUR.mul('2')
+export const DEFAULT_TWAP_PERIOD = time.duration.hours(2)
 
 /**
  * X (amount to repay)
@@ -66,19 +72,9 @@ export const getMaxLiquidationAmountInUsd = async function (pool: Pool, accountA
   return numerator.mul(parseEther('1')).div(denominator)
 }
 
-export const mineBlock = async (): Promise<void> => {
-  await ethers.provider.send('evm_mine', [])
-}
-
-// TODO: To number?
-export const increaseTime = async (timeToIncrease: BigNumber): Promise<void> => {
-  await ethers.provider.send('evm_increaseTime', [timeToIncrease.toNumber()])
-  await mineBlock()
-}
-
 export const increaseTimeOfNextBlock = async (timeToIncrease: number): Promise<void> => {
   const timestamp = (await ethers.provider.getBlock('latest')).timestamp + timeToIncrease
-  await ethers.provider.send('evm_setNextBlockTimestamp', [timestamp])
+  await time.setNextBlockTimestamp(timestamp)
 }
 
 export const enableForking = async (): Promise<void> => {
@@ -100,13 +96,6 @@ export const disableForking = async (): Promise<void> => {
   await network.provider.request({
     method: 'hardhat_reset',
     params: [],
-  })
-}
-
-export const setEtherBalance = async (address: string, value: BigNumber): Promise<void> => {
-  await network.provider.request({
-    method: 'hardhat_setBalance',
-    params: [address, ethers.utils.hexStripZeros(value.toHexString())],
   })
 }
 
@@ -150,15 +139,12 @@ export const setTokenBalance = async (token: string, targetAddress: string, bala
   const value = hexlify(zeroPad(balance.toHexString(), 32))
 
   // Hack the balance by directly setting the EVM storage
-  await ethers.provider.send('hardhat_setStorageAt', [token, index, value])
-  await ethers.provider.send('evm_mine', [])
+  await setStorageAt(token, index, value)
+  await mine()
 }
 
 export const impersonateAccount = async (address: string): Promise<SignerWithAddress> => {
-  await network.provider.request({method: 'hardhat_impersonateAccount', params: [address]})
-  await network.provider.request({
-    method: 'hardhat_setBalance',
-    params: [address, ethers.utils.hexStripZeros(parseEther('1000000').toHexString())],
-  })
+  await impersonate(address)
+  await setBalance(address, parseEther('1000000'))
   return await ethers.getSigner(address)
 }
