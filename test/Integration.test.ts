@@ -258,13 +258,13 @@ describe('Integration tests', function () {
 
           // when
           // alice swaps all her synths for msUSD
-          await poolRegistry.connect(alice).swap(msETH.address, msUSD.address, await msETH.balanceOf(alice.address))
-          await poolRegistry.connect(alice).swap(msDOGE.address, msUSD.address, await msDOGE.balanceOf(alice.address))
+          await poolA.connect(alice).swap(msETH.address, msUSD.address, await msETH.balanceOf(alice.address))
+          await poolA.connect(alice).swap(msDOGE.address, msUSD.address, await msDOGE.balanceOf(alice.address))
           expect(await msETH.totalSupply()).eq(0)
           expect(await msDOGE.totalSupply()).eq(0)
           expect(await msUSD.totalSupply()).eq(parseEther('4,000'))
           // bob swaps all his msUSD for msETH
-          await poolRegistry.connect(bob).swap(msUSD.address, msETH.address, await msUSD.balanceOf(bob.address))
+          await poolA.connect(bob).swap(msUSD.address, msETH.address, await msUSD.balanceOf(bob.address))
           expect(await msUSD.totalSupply()).eq(parseEther('2,000'))
           expect(await msETH.totalSupply()).eq(parseEther('2'))
 

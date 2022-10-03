@@ -109,6 +109,14 @@ contract PoolMock is IPool, Governable, Pauseable {
         revert("mock-does-not-implement");
     }
 
+    function swap(
+        ISyntheticToken,
+        ISyntheticToken,
+        uint256
+    ) external pure override returns (uint256) {
+        revert("mock-does-not-implement");
+    }
+
     function updateDebtFloor(uint256 _newDebtFloorInUsd) external override {
         debtFloorInUsd = _newDebtFloorInUsd;
     }
@@ -134,6 +142,10 @@ contract PoolMock is IPool, Governable, Pauseable {
     }
 
     function updateProtocolLiquidationFee(uint128) external pure override {
+        revert("mock-does-not-implement");
+    }
+
+    function updateSwapFee(uint256) external pure override {
         revert("mock-does-not-implement");
     }
 

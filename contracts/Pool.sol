@@ -64,6 +64,19 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
     /// @notice Emitted when rewards distributor contract is added
     event RewardsDistributorAdded(IRewardsDistributor _distributor);
 
+    /// @notice Emitted when swap fee is updated
+    event SwapFeeUpdated(uint256 oldSwapFee, uint256 newSwapFee);
+
+    /// @notice Emitted when synthetic token is swapped
+    event SyntheticTokenSwapped(
+        address indexed account,
+        ISyntheticToken indexed syntheticTokenIn,
+        ISyntheticToken indexed syntheticTokenOut,
+        uint256 amountIn,
+        uint256 amountOut,
+        uint256 fee
+    );
+
     /// @notice Emitted when treasury contract is updated
     event TreasuryUpdated(ITreasury indexed oldTreasury, ITreasury indexed newTreasury);
 
@@ -75,6 +88,14 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      */
     modifier onlyIfDepositTokenExists(IDepositToken depositToken_) {
         require(isDepositTokenExists(depositToken_), "collateral-inexistent");
+        _;
+    }
+
+    /**
+     * @dev Throws if synthetic token doesn't exist
+     */
+    modifier onlyIfSyntheticTokenExists(ISyntheticToken syntheticToken_) {
+        require(isSyntheticTokenExists(syntheticToken_), "synthetic-inexistent");
         _;
     }
 
@@ -99,6 +120,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
             protocolFee: 8e16 // 8%
         });
         maxLiquidable = 0.5e18; // 50%
+        swapFee = 6e15; // 0.6%
     }
 
     /**
@@ -271,7 +293,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @param syntheticToken_ Asset to check
      * @return true if exist
      */
-    function isSyntheticTokenExists(ISyntheticToken syntheticToken_) external view override returns (bool) {
+    function isSyntheticTokenExists(ISyntheticToken syntheticToken_) public view override returns (bool) {
         return address(debtTokenOf[syntheticToken_]) != address(0);
     }
 
@@ -370,6 +392,53 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
     function removeFromDepositTokensOfAccount(address account_) external {
         require(depositTokens.contains(msg.sender), "caller-is-not-deposit-token");
         require(depositTokensOfAccount.remove(account_, msg.sender), "deposit-token-doesnt-exist");
+    }
+
+    /**
+     * @notice Swap synthetic tokens
+     * @param syntheticTokenIn_ Synthetic token to sell
+     * @param syntheticTokenOut_ Synthetic token to buy
+     * @param amountIn_ Amount to swap
+     */
+    function swap(
+        ISyntheticToken syntheticTokenIn_,
+        ISyntheticToken syntheticTokenOut_,
+        uint256 amountIn_
+    )
+        external
+        override
+        whenNotShutdown
+        nonReentrant
+        onlyIfSyntheticTokenExists(syntheticTokenIn_)
+        onlyIfSyntheticTokenExists(syntheticTokenOut_)
+        returns (uint256 _amountOut)
+    {
+        require(amountIn_ > 0 && amountIn_ <= syntheticTokenIn_.balanceOf(msg.sender), "amount-in-is-invalid");
+        syntheticTokenIn_.burn(msg.sender, amountIn_);
+
+        _amountOut = poolRegistry.masterOracle().quote(
+            address(syntheticTokenIn_),
+            address(syntheticTokenOut_),
+            amountIn_
+        );
+
+        uint256 _feeAmount;
+        if (swapFee > 0) {
+            _feeAmount = _amountOut.wadMul(swapFee);
+            syntheticTokenOut_.mint(poolRegistry.feeCollector(), _feeAmount);
+            _amountOut -= _feeAmount;
+        }
+
+        syntheticTokenOut_.mint(msg.sender, _amountOut);
+
+        emit SyntheticTokenSwapped(
+            msg.sender,
+            syntheticTokenIn_,
+            syntheticTokenOut_,
+            amountIn_,
+            _amountOut,
+            _feeAmount
+        );
     }
 
     /**
@@ -534,6 +603,17 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
 
         emit TreasuryUpdated(_currentTreasury, newTreasury_);
         treasury = newTreasury_;
+    }
+
+    /**
+     * @notice Update swap fee
+     */
+    function updateSwapFee(uint256 newSwapFee_) external override onlyGovernor {
+        require(newSwapFee_ <= 1e18, "max-is-100%");
+        uint256 _currentSwapFee = swapFee;
+        require(newSwapFee_ != _currentSwapFee, "new-same-as-current");
+        emit SwapFeeUpdated(_currentSwapFee, newSwapFee_);
+        swapFee = newSwapFee_;
     }
 
     /**

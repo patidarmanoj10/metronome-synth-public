@@ -43,6 +43,12 @@ abstract contract PoolStorageV1 is IPool {
     uint256 public repayFee;
 
     /**
+     * @notice The fee charged when swapping synthetic tokens
+     * @dev Use 18 decimals (e.g. 1e16 = 1%)
+     */
+    uint256 public swapFee;
+
+    /**
      * @notice The fees charged when liquidating a position
      * @dev Use 18 decimals (e.g. 1e16 = 1%)
      */
