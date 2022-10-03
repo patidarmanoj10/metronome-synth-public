@@ -23,7 +23,7 @@ interface SyntheticDeployFunctionProps {
   symbol: string
   decimals: number
   interestRate: BigNumber
-  maxTotalSupplyInUsd: BigNumber
+  maxTotalSupply: BigNumber
 }
 
 interface DepositDeployFunctionProps {
@@ -31,7 +31,7 @@ interface DepositDeployFunctionProps {
   underlyingSymbol: string
   underlyingDecimals: number
   collateralizationRatio: BigNumber
-  maxTotalSupplyInUsd: BigNumber
+  maxTotalSupply: BigNumber
 }
 
 interface DeployUpgradableFunctionProps {
@@ -112,7 +112,7 @@ export const buildSyntheticDeployFunction = ({
   symbol,
   decimals,
   interestRate,
-  maxTotalSupplyInUsd,
+  maxTotalSupply,
 }: SyntheticDeployFunctionProps): DeployFunction => {
   const debtAlias = `${capitalize(symbol)}Debt`
   const syntheticAlias = `${capitalize(symbol)}Synthetic`
@@ -148,7 +148,7 @@ export const buildSyntheticDeployFunction = ({
         poolAddress,
         syntheticTokenAddress,
         interestRate,
-        maxTotalSupplyInUsd,
+        maxTotalSupply,
       ],
     })
 
@@ -168,7 +168,7 @@ export const buildDepositDeployFunction = ({
   underlyingSymbol,
   underlyingDecimals,
   collateralizationRatio,
-  maxTotalSupplyInUsd,
+  maxTotalSupply,
 }: DepositDeployFunctionProps): DeployFunction => {
   const alias = `${underlyingSymbol}DepositToken`
   const symbol = `msd${underlyingSymbol}`
@@ -191,7 +191,7 @@ export const buildDepositDeployFunction = ({
         symbol,
         underlyingDecimals,
         collateralizationRatio,
-        maxTotalSupplyInUsd,
+        maxTotalSupply,
       ],
     })
 

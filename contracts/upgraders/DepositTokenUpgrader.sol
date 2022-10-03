@@ -15,7 +15,7 @@ contract DepositTokenUpgrader is UpgraderBase {
         calls[1] = abi.encodeWithSignature("symbol()");
         calls[2] = abi.encodeWithSignature("decimals()");
         calls[3] = abi.encodeWithSignature("totalSupply()");
-        calls[4] = abi.encodeWithSignature("maxTotalSupplyInUsd()");
+        calls[4] = abi.encodeWithSignature("maxTotalSupply()");
         calls[5] = abi.encodeWithSignature("collateralizationRatio()");
         calls[6] = abi.encodeWithSignature("underlying()");
         calls[7] = abi.encodeWithSignature("isActive()");

@@ -13,7 +13,7 @@ contract DebtTokenUpgrader is UpgraderBase {
         calls = new bytes[](10);
         calls[0] = abi.encodeWithSignature("totalSupply()");
         calls[1] = abi.encodeWithSignature("lastTimestampAccrued()");
-        calls[2] = abi.encodeWithSignature("maxTotalSupplyInUsd()");
+        calls[2] = abi.encodeWithSignature("maxTotalSupply()");
         calls[3] = abi.encodeWithSignature("interestRate()");
         calls[4] = abi.encodeWithSignature("debtIndex()");
         calls[5] = abi.encodeWithSignature("decimals()");

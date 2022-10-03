@@ -33,9 +33,9 @@ abstract contract SyntheticTokenStorageV1 is ISyntheticToken {
     uint256 public totalSupply;
 
     /**
-     * @notice The supply cap (in USD)
+     * @notice The supply cap
      */
-    uint256 public maxTotalSupplyInUsd;
+    uint256 public maxTotalSupply;
 
     /**
      * @dev The Pool Registry

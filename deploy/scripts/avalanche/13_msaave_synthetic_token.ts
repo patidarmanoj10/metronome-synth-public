@@ -1,13 +1,12 @@
 import {parseEther} from 'ethers/lib/utils'
 import {buildSyntheticDeployFunction} from '../../helpers'
-import {toUSD} from '../../../helpers'
 
 const func = buildSyntheticDeployFunction({
   name: 'Metronome Synth AAVE',
   symbol: 'msAAVE',
   decimals: 18,
   interestRate: parseEther('0'), // 0%
-  maxTotalSupplyInUsd: toUSD('50000'),
+  maxTotalSupply: parseEther('6600'),
 })
 
 export default func

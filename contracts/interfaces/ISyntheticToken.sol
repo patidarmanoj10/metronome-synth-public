@@ -20,5 +20,5 @@ interface ISyntheticToken is IERC20Metadata {
         uint256 amount_
     ) external;
 
-    function updateMaxTotalSupplyInUsd(uint256 newMaxTotalSupply_) external;
+    function updateMaxTotalSupply(uint256 newMaxTotalSupply_) external;
 }

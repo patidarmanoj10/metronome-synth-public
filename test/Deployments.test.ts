@@ -36,7 +36,6 @@ import {
 import {disableForking, enableForking} from './helpers'
 import Address from '../helpers/address'
 import {parseEther} from 'ethers/lib/utils'
-import {toUSD} from '../helpers'
 
 const {USDC_ADDRESS, NATIVE_TOKEN_ADDRESS, WAVAX_ADDRESS, MASTER_ORACLE_ADDRESS} = Address
 
@@ -335,7 +334,7 @@ describe('Deployments', function () {
         expect(await msBTCDebt.pool()).eq(pool.address)
         expect(await msBTCDebt.governor()).eq(deployer.address)
         expect(await msBTCDebt.interestRate()).eq(parseEther('0'))
-        expect(await msBTCDebt.maxTotalSupplyInUsd()).eq(toUSD('50000'))
+        expect(await msBTCDebt.maxTotalSupply()).eq(parseEther('25'))
         expect(await msBTCDebt.isActive()).eq(true)
       })
 
@@ -363,7 +362,7 @@ describe('Deployments', function () {
         expect(await msUSDDebt.pool()).eq(pool.address)
         expect(await msUSDDebt.governor()).eq(deployer.address)
         expect(await msUSDDebt.interestRate()).eq(parseEther('0'))
-        expect(await msUSDDebt.maxTotalSupplyInUsd()).eq(toUSD('50000'))
+        expect(await msUSDDebt.maxTotalSupply()).eq(parseEther('50000'))
         expect(await msUSDDebt.isActive()).eq(true)
       })
 

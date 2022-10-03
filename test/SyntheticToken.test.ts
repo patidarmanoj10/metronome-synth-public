@@ -118,7 +118,7 @@ describe('SyntheticToken', function () {
 
     it('should revert if surpass max supply in usd', async function () {
       // given
-      await msUSD.connect(governor).updateMaxTotalSupplyInUsd(toUSD('100'))
+      await msUSD.connect(governor).updateMaxTotalSupply(parseEther('100'))
 
       // when
       const tx = msUSD.connect(poolRegistryMock.wallet).mint(user.address, parseEther('101'))
@@ -172,23 +172,23 @@ describe('SyntheticToken', function () {
     })
   })
 
-  describe('updateMaxTotalSupplyInUsd', function () {
+  describe('updateMaxTotalSupply', function () {
     it('should update collateralization ratio', async function () {
-      const before = await msUSD.maxTotalSupplyInUsd()
+      const before = await msUSD.maxTotalSupply()
       const after = before.div('2')
-      const tx = msUSD.connect(governor).updateMaxTotalSupplyInUsd(after)
+      const tx = msUSD.connect(governor).updateMaxTotalSupply(after)
       await expect(tx).emit(msUSD, 'MaxTotalSupplyUpdated').withArgs(before, after)
-      expect(await msUSD.maxTotalSupplyInUsd()).eq(after)
+      expect(await msUSD.maxTotalSupply()).eq(after)
     })
 
     it('should revert if using the current value', async function () {
-      const currentMaxTotalSupplyInUsd = await msUSD.maxTotalSupplyInUsd()
-      const tx = msUSD.connect(governor).updateMaxTotalSupplyInUsd(currentMaxTotalSupplyInUsd)
+      const currentMaxTotalSupply = await msUSD.maxTotalSupply()
+      const tx = msUSD.connect(governor).updateMaxTotalSupply(currentMaxTotalSupply)
       await expect(tx).revertedWith('new-same-as-current')
     })
 
     it('should revert if not governor', async function () {
-      const tx = msUSD.connect(user).updateMaxTotalSupplyInUsd(parseEther('10'))
+      const tx = msUSD.connect(user).updateMaxTotalSupply(parseEther('10'))
       await expect(tx).revertedWith('not-governor')
     })
   })

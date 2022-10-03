@@ -77,7 +77,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
         IPool pool_,
         ISyntheticToken syntheticToken_,
         uint256 interestRate_,
-        uint256 maxTotalSupplyInUsd_
+        uint256 maxTotalSupply_
     ) external initializer {
         require(address(syntheticToken_) != address(0), "synthetic-is-null");
 
@@ -91,7 +91,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
         lastTimestampAccrued = block.timestamp;
         debtIndex = 1e18;
         interestRate = interestRate_;
-        maxTotalSupplyInUsd = maxTotalSupplyInUsd_;
+        maxTotalSupply = maxTotalSupply_;
         isActive = true;
     }
 
@@ -333,10 +333,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
         uint256 _balanceBefore = balanceOf(account_);
 
         totalSupply_ += amount_;
-        require(
-            pool.masterOracle().quoteTokenToUsd(address(syntheticToken), totalSupply_) <= maxTotalSupplyInUsd,
-            "surpass-max-debt-supply"
-        );
+        require(totalSupply_ <= maxTotalSupply, "surpass-max-debt-supply");
 
         principalOf[account_] += amount_;
         debtIndexOf[account_] = debtIndex;
@@ -355,13 +352,13 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
     }
 
     /**
-     * @notice Update max total supply (in USD)
+     * @notice Update max total supply
      */
-    function updateMaxTotalSupplyInUsd(uint256 newMaxTotalSupplyInUsd_) external override onlyGovernor {
-        uint256 _currentMaxTotalSupplyInUsd = maxTotalSupplyInUsd;
-        require(newMaxTotalSupplyInUsd_ != _currentMaxTotalSupplyInUsd, "new-same-as-current");
-        emit MaxTotalSupplyUpdated(_currentMaxTotalSupplyInUsd, newMaxTotalSupplyInUsd_);
-        maxTotalSupplyInUsd = newMaxTotalSupplyInUsd_;
+    function updateMaxTotalSupply(uint256 newMaxTotalSupply_) external override onlyGovernor {
+        uint256 _currentMaxTotalSupply = maxTotalSupply;
+        require(newMaxTotalSupply_ != _currentMaxTotalSupply, "new-same-as-current");
+        emit MaxTotalSupplyUpdated(_currentMaxTotalSupply, newMaxTotalSupply_);
+        maxTotalSupply = newMaxTotalSupply_;
     }
 
     /**
