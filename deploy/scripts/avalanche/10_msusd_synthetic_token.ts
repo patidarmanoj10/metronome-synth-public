@@ -1,5 +1,4 @@
 import {parseEther} from 'ethers/lib/utils'
-import {toUSD} from '../../../helpers'
 import {buildSyntheticDeployFunction} from '../../helpers'
 
 const func = buildSyntheticDeployFunction({
@@ -7,7 +6,7 @@ const func = buildSyntheticDeployFunction({
   symbol: 'msUSD',
   decimals: 18,
   interestRate: parseEther('0'), // 0%
-  maxTotalSupplyInUsd: toUSD('50000'),
+  maxTotalSupply: parseEther('50000'),
 })
 
 export default func

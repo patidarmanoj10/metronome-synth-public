@@ -39,7 +39,7 @@ abstract contract DepositTokenStorageV1 is IDepositToken {
     /**
      * @notice The supply cap (in USD)
      */
-    uint256 public maxTotalSupplyInUsd;
+    uint256 public maxTotalSupply;
 
     /**
      * @notice Collateralization ration for the deposit token

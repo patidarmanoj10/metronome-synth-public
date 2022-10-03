@@ -20,11 +20,11 @@ interface IDebtToken is IERC20Metadata {
 
     function repay(address onBehalfOf_, uint256 amount_) external;
 
-    function updateMaxTotalSupplyInUsd(uint256 newMaxTotalSupply_) external;
+    function updateMaxTotalSupply(uint256 newMaxTotalSupply_) external;
 
     function updateInterestRate(uint256 newInterestRate_) external;
 
-    function maxTotalSupplyInUsd() external view returns (uint256);
+    function maxTotalSupply() external view returns (uint256);
 
     function interestRate() external view returns (uint256);
 

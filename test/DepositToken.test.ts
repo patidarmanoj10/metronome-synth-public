@@ -257,7 +257,7 @@ describe('DepositToken', function () {
 
       it('should revert if surpass max supply in usd', async function () {
         // given
-        await metDepositToken.updateMaxTotalSupplyInUsd(toUSD('40'))
+        await metDepositToken.updateMaxTotalSupply(parseEther('40'))
 
         // when
         const tx = metDepositToken.connect(alice).deposit(parseEther('11'), alice.address)
@@ -541,29 +541,29 @@ describe('DepositToken', function () {
       })
     })
 
-    describe('updateMaxTotalSupplyInUsd', function () {
+    describe('updateMaxTotalSupply', function () {
       it('should update max total supply', async function () {
         // given
-        const currentMaxTotalSupplyInUsd = await metDepositToken.maxTotalSupplyInUsd()
-        const newMaxTotalSupplyInUsd = currentMaxTotalSupplyInUsd.div('2')
-        expect(newMaxTotalSupplyInUsd).not.eq(currentMaxTotalSupplyInUsd)
+        const currentMaxTotalSupply = await metDepositToken.maxTotalSupply()
+        const newMaxTotalSupply = currentMaxTotalSupply.div('2')
+        expect(newMaxTotalSupply).not.eq(currentMaxTotalSupply)
 
         // when
-        const tx = metDepositToken.updateMaxTotalSupplyInUsd(newMaxTotalSupplyInUsd)
+        const tx = metDepositToken.updateMaxTotalSupply(newMaxTotalSupply)
 
         // then
         await expect(tx)
           .emit(metDepositToken, 'MaxTotalSupplyUpdated')
-          .withArgs(currentMaxTotalSupplyInUsd, newMaxTotalSupplyInUsd)
-        expect(await metDepositToken.maxTotalSupplyInUsd()).eq(newMaxTotalSupplyInUsd)
+          .withArgs(currentMaxTotalSupply, newMaxTotalSupply)
+        expect(await metDepositToken.maxTotalSupply()).eq(newMaxTotalSupply)
       })
 
       it('should revert if using the current value', async function () {
         // given
-        const currentMaxTotalSupplyInUsd = await metDepositToken.maxTotalSupplyInUsd()
+        const currentMaxTotalSupply = await metDepositToken.maxTotalSupply()
 
         // then
-        const tx = metDepositToken.updateMaxTotalSupplyInUsd(currentMaxTotalSupplyInUsd)
+        const tx = metDepositToken.updateMaxTotalSupply(currentMaxTotalSupply)
 
         // then
         await expect(tx).revertedWith('new-same-as-current')
@@ -571,7 +571,7 @@ describe('DepositToken', function () {
 
       it('should revert if not governor', async function () {
         // when
-        const tx = metDepositToken.connect(alice).updateMaxTotalSupplyInUsd('10')
+        const tx = metDepositToken.connect(alice).updateMaxTotalSupply('10')
 
         // then
         await expect(tx).revertedWith('not-governor')

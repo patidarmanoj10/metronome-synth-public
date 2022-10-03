@@ -20,7 +20,7 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
     event SyntheticTokenActiveUpdated(bool oldActive, bool newActive);
 
     /// @notice Emitted when max total supply is updated
-    event MaxTotalSupplyUpdated(uint256 oldMaxTotalSupplyInUsd, uint256 newMaxTotalSupplyInUsd);
+    event MaxTotalSupplyUpdated(uint256 oldMaxTotalSupply, uint256 newMaxTotalSupply);
 
     /**
      * @notice Throws if caller isn't the governor
@@ -75,7 +75,7 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
         symbol = symbol_;
         decimals = decimals_;
         isActive = true;
-        maxTotalSupplyInUsd = type(uint256).max;
+        maxTotalSupply = type(uint256).max;
     }
 
     /**
@@ -236,12 +236,7 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
         require(account_ != address(0), "mint-to-the-zero-address");
 
         totalSupply += amount_;
-        uint256 _maxTotalSupplyInUsd = maxTotalSupplyInUsd;
-        require(
-            _maxTotalSupplyInUsd == type(uint256).max ||
-                poolRegistry.masterOracle().quoteTokenToUsd(address(this), totalSupply) <= _maxTotalSupplyInUsd,
-            "surpass-max-synth-supply"
-        );
+        require(totalSupply <= maxTotalSupply, "surpass-max-synth-supply");
         balanceOf[account_] += amount_;
         emit Transfer(address(0), account_, amount_);
     }
@@ -278,12 +273,12 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
 
     /**
      * @notice Update max total supply
-     * @param newMaxTotalSupplyInUsd_ The new max total supply
+     * @param newMaxTotalSupply_ The new max total supply
      */
-    function updateMaxTotalSupplyInUsd(uint256 newMaxTotalSupplyInUsd_) external override onlyGovernor {
-        uint256 _currentMaxTotalSupplyInUsd = maxTotalSupplyInUsd;
-        require(newMaxTotalSupplyInUsd_ != _currentMaxTotalSupplyInUsd, "new-same-as-current");
-        emit MaxTotalSupplyUpdated(_currentMaxTotalSupplyInUsd, newMaxTotalSupplyInUsd_);
-        maxTotalSupplyInUsd = newMaxTotalSupplyInUsd_;
+    function updateMaxTotalSupply(uint256 newMaxTotalSupply_) external override onlyGovernor {
+        uint256 _currentMaxTotalSupply = maxTotalSupply;
+        require(newMaxTotalSupply_ != _currentMaxTotalSupply, "new-same-as-current");
+        emit MaxTotalSupplyUpdated(_currentMaxTotalSupply, newMaxTotalSupply_);
+        maxTotalSupply = newMaxTotalSupply_;
     }
 }

@@ -29,7 +29,7 @@ interface IDepositToken is IERC20Metadata {
 
     function toggleIsActive() external;
 
-    function maxTotalSupplyInUsd() external view returns (uint256);
+    function maxTotalSupply() external view returns (uint256);
 
-    function updateMaxTotalSupplyInUsd(uint256 newMaxTotalSupplyInUsd_) external;
+    function updateMaxTotalSupply(uint256 newMaxTotalSupply_) external;
 }
