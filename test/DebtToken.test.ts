@@ -197,7 +197,7 @@ describe('DebtToken', function () {
       await expect(tx).revertedWith('synthetic-inactive')
     })
 
-    it('should revert if synthetic is inactive', async function () {
+    it('should revert if debt token is not active', async function () {
       // given
       await msUSDDebt.toggleIsActive()
 

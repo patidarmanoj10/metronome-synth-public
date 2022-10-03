@@ -99,19 +99,22 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
      * @notice Accrue interest over debt supply
      */
     function accrueInterest() public {
-        if (block.timestamp == lastTimestampAccrued) {
+        (
+            uint256 _interestAmountAccrued,
+            uint256 _debtIndex,
+            uint256 _lastTimestampAccrued
+        ) = _calculateInterestAccrual();
+
+        if (block.timestamp == _lastTimestampAccrued) {
             return;
         }
 
-        (uint256 _interestAmountAccrued, uint256 _debtIndex) = _calculateInterestAccrual();
-
-        totalSupply_ += _interestAmountAccrued;
-        debtIndex = _debtIndex;
         lastTimestampAccrued = block.timestamp;
 
         if (_interestAmountAccrued > 0) {
-            // Note: We could save gas by having an accumulator and a function to mint accumulated fee,
-            // but having it here ensures that `syntheticToken.totalSupply == SUM(debtTokens.totalSupply)`
+            totalSupply_ += _interestAmountAccrued;
+            debtIndex = _debtIndex;
+            // Note: We could save gas by having an accumulator and a function to mint accumulated fee
             syntheticToken.mint(pool.feeCollector(), _interestAmountAccrued);
         }
     }
@@ -140,7 +143,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
             return 0;
         }
 
-        (, uint256 _debtIndex) = _calculateInterestAccrual();
+        (, uint256 _debtIndex, ) = _calculateInterestAccrual();
 
         // Note: The `debtIndex / debtIndexOf` gives the interest to apply to the principal amount
         return (_principal * _debtIndex) / debtIndexOf[account_];
@@ -253,7 +256,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
      * @notice Return the total supply
      */
     function totalSupply() external view override returns (uint256) {
-        (uint256 _interestAmountAccrued, ) = _calculateInterestAccrual();
+        (uint256 _interestAmountAccrued, , ) = _calculateInterestAccrual();
         return totalSupply_ + _interestAmountAccrued;
     }
 
@@ -311,16 +314,25 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
      * @return _debtIndex The new `debtIndex` value
      */
 
-    function _calculateInterestAccrual() private view returns (uint256 _interestAmountAccrued, uint256 _debtIndex) {
-        if (block.timestamp == lastTimestampAccrued) {
-            return (0, debtIndex);
+    function _calculateInterestAccrual()
+        private
+        view
+        returns (
+            uint256 _interestAmountAccrued,
+            uint256 _debtIndex,
+            uint256 _lastTimestampAccrued
+        )
+    {
+        _lastTimestampAccrued = lastTimestampAccrued;
+        _debtIndex = debtIndex;
+
+        if (block.timestamp > _lastTimestampAccrued) {
+            uint256 _interestRateToAccrue = interestRatePerSecond() * (block.timestamp - _lastTimestampAccrued);
+            if (_interestRateToAccrue > 0) {
+                _interestAmountAccrued = _interestRateToAccrue.wadMul(totalSupply_);
+                _debtIndex += _interestRateToAccrue.wadMul(debtIndex);
+            }
         }
-
-        uint256 _interestRateToAccrue = interestRatePerSecond() * (block.timestamp - lastTimestampAccrued);
-
-        _interestAmountAccrued = _interestRateToAccrue.wadMul(totalSupply_);
-
-        _debtIndex = debtIndex + _interestRateToAccrue.wadMul(debtIndex);
     }
 
     /**
