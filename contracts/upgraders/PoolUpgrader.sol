@@ -10,7 +10,7 @@ contract PoolUpgrader is UpgraderBase {
     }
 
     function _calls() internal pure override returns (bytes[] memory calls) {
-        calls = new bytes[](10);
+        calls = new bytes[](11);
         calls[0] = abi.encodeWithSignature("debtFloorInUsd()");
         calls[1] = abi.encodeWithSignature("depositFee()");
         calls[2] = abi.encodeWithSignature("issueFee()");
@@ -21,10 +21,12 @@ contract PoolUpgrader is UpgraderBase {
         calls[7] = abi.encodeWithSignature("maxLiquidable()");
         calls[8] = abi.encodeWithSignature("treasury()");
         calls[9] = abi.encodeWithSignature("poolRegistry()");
+        calls[10] = abi.encodeWithSignature("isSwapActive()");
     }
 
     function _checkResults(bytes[] memory _beforeResults, bytes[] memory _afterResults) internal pure override {
         _checkUint256Results(_beforeResults, _afterResults, 0, 7);
         _checkAddressResults(_beforeResults, _afterResults, 8, 9);
+        _checkBooleanResults(_beforeResults, _afterResults, 10, 10);
     }
 }
