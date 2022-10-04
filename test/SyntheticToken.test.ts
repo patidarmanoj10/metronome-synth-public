@@ -162,7 +162,7 @@ describe('SyntheticToken', function () {
     it('should update active flag', async function () {
       expect(await msUSD.isActive()).eq(true)
       const tx = msUSD.connect(governor).toggleIsActive()
-      await expect(tx).emit(msUSD, 'SyntheticTokenActiveUpdated').withArgs(true, false)
+      await expect(tx).emit(msUSD, 'SyntheticTokenActiveUpdated').withArgs(false)
       expect(await msUSD.isActive()).eq(false)
     })
 

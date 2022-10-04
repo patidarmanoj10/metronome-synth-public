@@ -1771,7 +1771,7 @@ describe('Pool', function () {
       const before = await pool.isSwapActive()
       const after = !before
       const tx = pool.toggleIsSwapActive()
-      await expect(tx).emit(pool, 'SwapActiveUpdated').withArgs(before, after)
+      await expect(tx).emit(pool, 'SwapActiveUpdated').withArgs(after)
       expect(await pool.isSwapActive()).eq(after)
     })
 

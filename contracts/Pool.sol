@@ -68,7 +68,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
     event SwapFeeUpdated(uint256 oldSwapFee, uint256 newSwapFee);
 
     /// @notice Emitted when the swap active flag is updated
-    event SwapActiveUpdated(bool oldActive, bool newActive);
+    event SwapActiveUpdated(bool newActive);
 
     /// @notice Emitted when synthetic token is swapped
     event SyntheticTokenSwapped(
@@ -522,9 +522,9 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @notice Turn swap on/off
      */
     function toggleIsSwapActive() external override onlyGovernor {
-        bool _isSwapActive = isSwapActive;
-        emit SwapActiveUpdated(_isSwapActive, !_isSwapActive);
-        isSwapActive = !_isSwapActive;
+        bool _newIsSwapActive = !isSwapActive;
+        emit SwapActiveUpdated(_newIsSwapActive);
+        isSwapActive = _newIsSwapActive;
     }
 
     /**

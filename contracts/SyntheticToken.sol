@@ -17,7 +17,7 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
     string public constant VERSION = "1.0.0";
 
     /// @notice Emitted when active flag is updated
-    event SyntheticTokenActiveUpdated(bool oldActive, bool newActive);
+    event SyntheticTokenActiveUpdated(bool newActive);
 
     /// @notice Emitted when max total supply is updated
     event MaxTotalSupplyUpdated(uint256 oldMaxTotalSupply, uint256 newMaxTotalSupply);
@@ -259,9 +259,9 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
      * @notice Enable/Disable Synthetic Token
      */
     function toggleIsActive() external override onlyGovernor {
-        bool _isActive = isActive;
-        emit SyntheticTokenActiveUpdated(_isActive, !_isActive);
-        isActive = !_isActive;
+        bool _newIsActive = !isActive;
+        emit SyntheticTokenActiveUpdated(_newIsActive);
+        isActive = _newIsActive;
     }
 
     /**

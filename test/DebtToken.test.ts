@@ -797,7 +797,7 @@ describe('DebtToken', function () {
       const before = await msUSDDebt.isActive()
       const after = !before
       const tx = msUSDDebt.toggleIsActive()
-      await expect(tx).emit(msUSDDebt, 'DebtTokenActiveUpdated').withArgs(before, after)
+      await expect(tx).emit(msUSDDebt, 'DebtTokenActiveUpdated').withArgs(after)
       expect(await msUSDDebt.isActive()).eq(after)
     })
 
