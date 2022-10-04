@@ -2,8 +2,8 @@
 
 pragma solidity 0.8.9;
 
-import "./interfaces/IPauseable.sol";
-import "./access/Governable.sol";
+import "../interfaces/IPauseable.sol";
+import "../access/Governable.sol";
 
 /**
  * @dev Contract module which allows children to implement an emergency stop

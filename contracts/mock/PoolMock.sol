@@ -8,7 +8,7 @@
 pragma solidity 0.8.9;
 
 import "../lib/WadRayMath.sol";
-import "../Pauseable.sol";
+import "../utils/Pauseable.sol";
 import "../interfaces/IPool.sol";
 import "../access/Governable.sol";
 

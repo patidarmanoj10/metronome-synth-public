@@ -5,7 +5,7 @@ pragma solidity 0.8.9;
 import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./storage/PoolStorage.sol";
 import "./lib/WadRayMath.sol";
-import "./Pauseable.sol";
+import "./utils/Pauseable.sol";
 
 /**
  * @title Pool contract
