@@ -1101,10 +1101,12 @@ describe('Pool', function () {
   describe('whitelisting', function () {
     let syntheticToken: FakeContract
     let debtToken: FakeContract
+    let depositToken: FakeContract
 
     beforeEach(async function () {
       syntheticToken = await smock.fake('SyntheticToken')
       debtToken = await smock.fake('DebtToken')
+      depositToken = await smock.fake('DepositToken')
       syntheticToken.poolRegistry.returns(poolRegistryMock.address)
       debtToken.syntheticToken.returns(syntheticToken.address)
     })
@@ -1153,6 +1155,42 @@ describe('Pool', function () {
 
         // when
         const tx = pool.removeDebtToken(debtToken.address)
+
+        // then
+        await expect(tx).revertedWith('supply-gt-0')
+      })
+    })
+
+    describe('removeDepositToken', function () {
+      it('should remove deposit token', async function () {
+        // given
+        await pool.addDepositToken(depositToken.address)
+        const depositTokensBefore = await pool.getDepositTokens()
+
+        // when
+        await pool.removeDepositToken(depositToken.address)
+
+        // then
+        const depositTokensAfter = await pool.getDepositTokens()
+        expect(depositTokensAfter.length).eq(depositTokensBefore.length - 1)
+      })
+
+      it('should revert if not governor', async function () {
+        // when
+        const tx = pool.connect(alice).removeDepositToken(depositToken.address)
+
+        // then
+        await expect(tx).revertedWith('not-governor')
+      })
+
+      it('should revert if debt token has any supply', async function () {
+        // given
+        await pool.addDepositToken(depositToken.address)
+        depositToken.totalSupply.returns(1)
+        expect(await depositToken.totalSupply()).gt(0)
+
+        // when
+        const tx = pool.removeDepositToken(depositToken.address)
 
         // then
         await expect(tx).revertedWith('supply-gt-0')

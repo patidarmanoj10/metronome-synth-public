@@ -2,7 +2,6 @@
 import {parseEther} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
-import {BigNumber} from 'ethers'
 import {ethers} from 'hardhat'
 import {TokenHolderMock__factory, TokenHolderMock, ERC20Mock, ERC20Mock__factory} from '../../typechain'
 

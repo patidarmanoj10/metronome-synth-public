@@ -6,7 +6,7 @@ import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./lib/WadRayMath.sol";
 import "./storage/PoolRegistryStorage.sol";
 import "./interfaces/IPool.sol";
-import "./Pauseable.sol";
+import "./utils/Pauseable.sol";
 
 /**
  * @title PoolRegistry contract

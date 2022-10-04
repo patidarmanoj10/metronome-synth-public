@@ -348,23 +348,23 @@ describe('DebtToken', function () {
 
         it('should revert if new debt < debt floor', async function () {
           // given
-          await poolMock.updateDebtFloor(parseEther('3000')) // $3,000
+          await poolMock.updateDebtFloor(toUSD('3,000'))
 
           const amount = await msUSDDebt.balanceOf(user1.address)
-          expect(amount).eq(parseEther('1')) // $4,000
+          expect(amount).eq(parseEther('1'))
 
           // when
-          const toRepay = amount.div('2') // $2,000
+          const toRepay = amount.div('2')
           const tx = msUSDDebt.connect(user1).repay(user1.address, toRepay)
 
           // then
           await expect(tx).revertedWith('debt-lt-floor')
         })
 
-        it('should allow repay all when debt floor is set', async function () {
+        it('should allow repay if new debt == 0', async function () {
           // given
           await poolMock.updateRepayFee(0)
-          await poolMock.updateDebtFloor(parseEther('3000')) // $3,000
+          await poolMock.updateDebtFloor(toUSD('3,000'))
           const amount = await msUSDDebt.balanceOf(user1.address)
 
           // when
@@ -373,6 +373,19 @@ describe('DebtToken', function () {
           // then
           const debtAfter = await poolMock.debtOf(user1.address)
           expect(debtAfter).eq(0)
+        })
+
+        it('should allow repay if new debt > debt floor', async function () {
+          // given
+          await poolMock.updateRepayFee(0)
+          await poolMock.updateDebtFloor(toUSD('0.5'))
+          expect(await msUSDDebt.balanceOf(user1.address)).eq(toUSD('1'))
+
+          // when
+          await msUSDDebt.connect(user1).repay(user1.address, toUSD('0.4'))
+
+          // then
+          expect(await poolMock.debtOf(user1.address)).eq(toUSD('0.6'))
         })
 
         it('should repay if amount == debt (repayFee == 0)', async function () {
@@ -563,6 +576,20 @@ describe('DebtToken', function () {
       it('should revert when transferring', async function () {
         const tx = msUSDDebt.connect(user2).transferFrom(user1.address, user2.address, parseEther('1'))
         await expect(tx).revertedWith('transfer-not-supported')
+      })
+    })
+
+    describe('allowance', function () {
+      it('should revert when calling allowance', async function () {
+        const call = msUSDDebt.connect(user2).allowance(user1.address, user2.address)
+        await expect(call).revertedWith('allowance-not-supported')
+      })
+    })
+
+    describe('approve', function () {
+      it('should revert when approving', async function () {
+        const tx = msUSDDebt.connect(user1).approve(user2.address, parseEther('1'))
+        await expect(tx).revertedWith('approval-not-supported')
       })
     })
   })
