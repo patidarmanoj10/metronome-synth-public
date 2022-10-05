@@ -114,4 +114,6 @@ interface IPool is IPauseable {
     function getDebtTokensOfAccount(address account_) external view returns (address[] memory);
 
     function addRewardsDistributor(IRewardsDistributor distributor_) external;
+
+    function toggleIsSwapActive() external;
 }

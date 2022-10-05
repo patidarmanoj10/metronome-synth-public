@@ -974,6 +974,18 @@ describe('Pool', function () {
           await expect(tx).revertedWith('shutdown')
         })
 
+        it('should revert if swap is paused', async function () {
+          // given
+          await pool.toggleIsSwapActive()
+
+          // when
+          const amount = parseEther('0.1')
+          const tx = pool.connect(alice).swap(msEth.address, msDoge.address, amount)
+
+          // then
+          await expect(tx).revertedWith('swap-is-off')
+        })
+
         it('should revert if amount == 0', async function () {
           // when
           const tx = pool.connect(alice).swap(msEth.address, msDoge.address, 0)
@@ -1789,6 +1801,21 @@ describe('Pool', function () {
       await expect(tx).emit(pool, 'RewardsDistributorAdded').withArgs(alice.address)
       const after = await pool.getRewardsDistributors()
       expect(after).deep.eq([alice.address])
+    })
+  })
+
+  describe('toggleIsSwapActive', function () {
+    it('should toggle isSwapActive flag', async function () {
+      const before = await pool.isSwapActive()
+      const after = !before
+      const tx = pool.toggleIsSwapActive()
+      await expect(tx).emit(pool, 'SwapActiveUpdated').withArgs(after)
+      expect(await pool.isSwapActive()).eq(after)
+    })
+
+    it('should revert if not governor', async function () {
+      const tx = pool.connect(alice).toggleIsSwapActive()
+      await expect(tx).revertedWith('not-governor')
     })
   })
 })

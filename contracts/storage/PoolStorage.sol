@@ -66,6 +66,11 @@ abstract contract PoolStorageV1 is IPool {
     IPoolRegistry public poolRegistry;
 
     /**
+     * @notice Swap feature on/off flag
+     */
+    bool public isSwapActive;
+
+    /**
      * @notice Treasury contract
      */
     ITreasury public treasury;

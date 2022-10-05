@@ -818,4 +818,19 @@ describe('DebtToken', function () {
       await expect(tx).revertedWith('not-governor')
     })
   })
+
+  describe('toggleIsActive', function () {
+    it('should toggle isActive flag', async function () {
+      const before = await msUSDDebt.isActive()
+      const after = !before
+      const tx = msUSDDebt.toggleIsActive()
+      await expect(tx).emit(msUSDDebt, 'DebtTokenActiveUpdated').withArgs(after)
+      expect(await msUSDDebt.isActive()).eq(after)
+    })
+
+    it('should revert if not governor', async function () {
+      const tx = msUSDDebt.connect(user1).toggleIsActive()
+      await expect(tx).revertedWith('not-governor')
+    })
+  })
 })

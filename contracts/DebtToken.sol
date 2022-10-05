@@ -21,7 +21,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
     event DebtRepaid(address indexed payer, address indexed account, uint256 amount, uint256 fee);
 
     /// @notice Emitted when active flag is updated
-    event DebtTokenActiveUpdated(bool oldActive, bool newActive);
+    event DebtTokenActiveUpdated(bool newActive);
 
     /// @notice Emitted when interest rate is updated
     event InterestRateUpdated(uint256 oldInterestRate, uint256 newInterestRate);
@@ -388,8 +388,8 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
      * @notice Enable/Disable the Debt Token
      */
     function toggleIsActive() external override onlyGovernor {
-        bool _isActive = isActive;
-        emit DebtTokenActiveUpdated(_isActive, !_isActive);
-        isActive = !_isActive;
+        bool _newIsActive = !isActive;
+        emit DebtTokenActiveUpdated(_newIsActive);
+        isActive = _newIsActive;
     }
 }

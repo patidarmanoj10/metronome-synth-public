@@ -27,7 +27,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     event CollateralWithdrawn(address indexed account, address indexed to, uint256 amount, uint256 fee);
 
     /// @notice Emitted when active flag is updated
-    event DepositTokenActiveUpdated(bool oldActive, bool newActive);
+    event DepositTokenActiveUpdated(bool newActive);
 
     /// @notice Emitted when max total supply is updated
     event MaxTotalSupplyUpdated(uint256 oldMaxTotalSupply, uint256 newMaxTotalSupply);
@@ -395,9 +395,9 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @notice Enable/Disable the Deposit Token
      */
     function toggleIsActive() external override onlyGovernor {
-        bool _isActive = isActive;
-        emit DepositTokenActiveUpdated(_isActive, !_isActive);
-        isActive = !_isActive;
+        bool _newIsActive = !isActive;
+        emit DepositTokenActiveUpdated(_newIsActive);
+        isActive = _newIsActive;
     }
 
     /**

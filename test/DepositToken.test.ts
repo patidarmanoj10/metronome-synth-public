@@ -588,7 +588,7 @@ describe('DepositToken', function () {
         const tx = metDepositToken.toggleIsActive()
 
         // then
-        await expect(tx).emit(metDepositToken, 'DepositTokenActiveUpdated').withArgs(currentIsActive, expectedIsActive)
+        await expect(tx).emit(metDepositToken, 'DepositTokenActiveUpdated').withArgs(expectedIsActive)
         expect(await metDepositToken.isActive()).eq(expectedIsActive)
       })
 

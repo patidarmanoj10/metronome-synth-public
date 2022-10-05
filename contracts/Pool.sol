@@ -67,6 +67,9 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
     /// @notice Emitted when swap fee is updated
     event SwapFeeUpdated(uint256 oldSwapFee, uint256 newSwapFee);
 
+    /// @notice Emitted when the swap active flag is updated
+    event SwapActiveUpdated(bool newActive);
+
     /// @notice Emitted when synthetic token is swapped
     event SyntheticTokenSwapped(
         address indexed account,
@@ -113,6 +116,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
         __Pauseable_init();
 
         poolRegistry = poolRegistry_;
+        isSwapActive = true;
 
         repayFee = 3e15; // 0.3%
         liquidationFees = LiquidationFees({
@@ -413,6 +417,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
         onlyIfSyntheticTokenExists(syntheticTokenOut_)
         returns (uint256 _amountOut)
     {
+        require(isSwapActive, "swap-is-off");
         require(amountIn_ > 0 && amountIn_ <= syntheticTokenIn_.balanceOf(msg.sender), "amount-in-is-invalid");
         syntheticTokenIn_.burn(msg.sender, amountIn_);
 
@@ -511,6 +516,15 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
         delete depositTokenOf[depositToken_.underlying()];
 
         emit DepositTokenRemoved(depositToken_);
+    }
+
+    /**
+     * @notice Turn swap on/off
+     */
+    function toggleIsSwapActive() external override onlyGovernor {
+        bool _newIsSwapActive = !isSwapActive;
+        emit SwapActiveUpdated(_newIsSwapActive);
+        isSwapActive = _newIsSwapActive;
     }
 
     /**
