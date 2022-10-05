@@ -1,4 +1,5 @@
-import {task} from 'hardhat/config'
+import { task } from 'hardhat/config'
+
 import fs from 'fs'
 import _ from 'lodash'
 import compareVersions from 'compare-versions'
@@ -6,9 +7,18 @@ import compareVersions from 'compare-versions'
 const readFileAsJson = (fileName: string) => JSON.parse(fs.readFileSync(fileName).toString())
 
 const getAddress = (fileName: string) => readFileAsJson(fileName).address
+const IMPLEMENTATION_SLOT = '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc'
 
-// Return pool deployment name and address
-const getDeploymentData = (dirName: string) => {
+async function getImplAddress(proxyAddress: string) {
+  const implStorage = (await ethers.provider.getStorageAt(proxyAddress, IMPLEMENTATION_SLOT)).toString()
+  if (implStorage.length === 42) {
+    return ethers.utils.getAddress(implStorage)
+  }
+  return ethers.utils.getAddress(`0x${implStorage.slice(26)}`)
+}
+
+// Return deployment name and address
+const getDeploymentData = async (dirName: string) => {
   const data = fs.readdirSync(dirName).map(function (fileName) {
     if (fileName.includes('.json')) {
       return {
@@ -18,10 +28,22 @@ const getDeploymentData = (dirName: string) => {
     return {}
   })
 
-  // FIXME
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
-  return _.merge(...data)
+  const mergedData = _.merge(...data)
+  for (const [key, value] of Object.entries(mergedData)) {
+    if (key.includes('_Proxy')) {
+      const implKey = `${key.split('_Proxy')[0]}_Implementation`
+      mergedData[implKey] = await getImplAddress(value)
+    }
+  }
+
+  return Object.keys(mergedData)
+    .sort()
+    .reduce((sortedData, key) => {
+      sortedData[key] = mergedData[key]
+      return sortedData
+    }, {})
 }
 
 function getPreviousRelease() {
@@ -43,7 +65,7 @@ function getPreviousRelease() {
 /* eslint-disable no-param-reassign */
 task('create-release', 'Create release file from deploy data')
   .addParam('release', 'Metronome Synth release semantic version, i.e 1.2.3')
-  .setAction(async function ({release}, hre) {
+  .setAction(async function ({ release }, hre) {
     const network = hre.network.name
     const networkDir = `./deployments/${network}`
 
@@ -51,7 +73,7 @@ task('create-release', 'Create release file from deploy data')
     const poolDir = `${networkDir}`
 
     // Read pool deployment name and address
-    const deployData = getDeploymentData(poolDir)
+    const deployData = await getDeploymentData(poolDir)
 
     const releaseDir = `releases/${release}`
     const releaseFile = `${releaseDir}/contracts.json`
@@ -68,7 +90,7 @@ task('create-release', 'Create release file from deploy data')
       // If this is new release
       // Create new release directory if doesn't exist
       if (!fs.existsSync(releaseDir)) {
-        fs.mkdirSync(releaseDir, {recursive: true})
+        fs.mkdirSync(releaseDir, { recursive: true })
       }
       // Copy data from previous release
       releaseData = prevReleaseData
