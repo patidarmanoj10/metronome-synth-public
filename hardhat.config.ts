@@ -12,12 +12,28 @@ dotenv.config()
 const accounts = process.env.MNEMONIC ? {mnemonic: process.env.MNEMONIC} : undefined
 const deployer = process.env.DEPLOYER || 0
 
+// Hardhat do not support adding chainId at runtime. Only way to set it in hardhat-config.js
+// More info https://github.com/NomicFoundation/hardhat/issues/2167
+// To avoid creating a new ENV VAR to store chainId, this function resolves it based on provider url
+function resolveChainId() {
+  const { NODE_URL } = process.env
+  if (NODE_URL!.includes('eth.connect')) {
+    return 1
+  }
+  if (NODE_URL!.includes('avax')) {
+    return 43114
+  }
+  return 31337
+}
+const chainId = resolveChainId()
+
 const config: HardhatUserConfig = {
   defaultNetwork: 'hardhat',
   networks: {
     localhost: {
       saveDeployments: true,
       accounts,
+      chainId,
     },
     hardhat: {
       // Note: Forking is being made from those test suites that need it
@@ -27,14 +43,14 @@ const config: HardhatUserConfig = {
       // },
       saveDeployments: true,
       accounts,
-      chainId: process.env.CHAIN_ID ? parseInt(process.env.CHAIN_ID) : 1,
+      chainId,
     },
     mainnet: {
       url: process.env.NODE_URL,
       chainId: 1,
       gas: 6700000,
       accounts,
-      deploy: 'deploy/scripts/mainnet',
+      deploy: ['deploy/scripts/mainnet'],
     },
     avalanche: {
       url: process.env.NODE_URL,
@@ -45,7 +61,7 @@ const config: HardhatUserConfig = {
   },
   paths: {
     // Note: Uses avalanche folder as default
-    deploy: 'deploy/scripts/avalanche',
+    deploy: ['deploy/scripts/avalanche'],
   },
   namedAccounts: {
     deployer,
