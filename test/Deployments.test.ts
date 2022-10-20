@@ -389,6 +389,7 @@ describe('Deployments', function () {
       it('should have correct params', async function () {
         expect(await poolRegistry.governor()).eq(deployer.address)
         expect(await poolRegistry.masterOracle()).eq(MASTER_ORACLE_ADDRESS)
+        expect(await poolRegistry.poolExists(pool.address)).true
       })
 
       it('should upgrade implementation', async function () {

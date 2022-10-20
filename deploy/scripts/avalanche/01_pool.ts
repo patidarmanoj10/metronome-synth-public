@@ -8,14 +8,15 @@ const {
 } = UpgradableContracts
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
-  const {deployments} = hre
-  const {get, getOrNull} = deployments
+  const {deployments, getNamedAccounts} = hre
+  const {get, getOrNull, execute} = deployments
+  const {deployer: from} = await getNamedAccounts()
 
   const wasDeployed = !!(await getOrNull(Pool))
 
   const poolRegistry = await get(PoolRegistry)
 
-  await deployUpgradable({
+  const {address} = await deployUpgradable({
     hre,
     contractConfig: UpgradableContracts.Pool,
     initializeArgs: [poolRegistry.address],
@@ -23,6 +24,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   if (!wasDeployed) {
     await transferGovernorshipIfNeeded(hre, Pool)
+    await execute(PoolRegistry, {from, log: true}, 'registerPool', address)
   }
 }
 
