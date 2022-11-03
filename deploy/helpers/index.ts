@@ -15,7 +15,7 @@ interface UpgradableContractsConfig {
   DepositToken: ContractConfig
   SyntheticToken: ContractConfig
   DebtToken: ContractConfig
-  VspRewardsDistributor: ContractConfig
+  MetRewardsDistributor: ContractConfig
 }
 
 interface SyntheticDeployFunctionProps {
@@ -47,8 +47,8 @@ export const UpgradableContracts: UpgradableContractsConfig = {
   DepositToken: {alias: '', contract: 'DepositToken', adminContract: 'DepositTokenUpgrader'},
   SyntheticToken: {alias: '', contract: 'SyntheticToken', adminContract: 'SyntheticTokenUpgrader'},
   DebtToken: {alias: '', contract: 'DebtToken', adminContract: 'DebtTokenUpgrader'},
-  VspRewardsDistributor: {
-    alias: 'VspRewardsDistributor',
+  MetRewardsDistributor: {
+    alias: 'MetRewardsDistributor',
     contract: 'RewardsDistributor',
     adminContract: 'RewardsDistributorUpgrader',
   },
