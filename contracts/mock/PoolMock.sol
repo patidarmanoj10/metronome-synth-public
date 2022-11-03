@@ -26,6 +26,9 @@ contract PoolMock is IPool, Governable, Pauseable {
     uint256 public repayFee;
     uint256 public withdrawFee;
     uint256 public debtFloorInUsd;
+    uint256 public swapFee;
+    uint256 public maxLiquidable;
+    bool public isSwapActive;
 
     constructor(
         IDepositToken _depositToken,

@@ -10,18 +10,22 @@ import "./IPoolRegistry.sol";
 /**
  * @notice Pool interface
  */
-interface IPool is IPauseable {
-    function debtFloorInUsd() external returns (uint256);
+interface IPool is IPauseable, IGovernable {
+    function debtFloorInUsd() external view returns (uint256);
 
-    function depositFee() external returns (uint256);
+    function depositFee() external view returns (uint256);
 
-    function issueFee() external returns (uint256);
+    function issueFee() external view returns (uint256);
 
-    function withdrawFee() external returns (uint256);
+    function withdrawFee() external view returns (uint256);
 
-    function repayFee() external returns (uint256);
+    function repayFee() external view returns (uint256);
+
+    function swapFee() external view returns (uint256);
 
     function feeCollector() external view returns (address);
+
+    function maxLiquidable() external view returns (uint256);
 
     function isSyntheticTokenExists(ISyntheticToken syntheticToken_) external view returns (bool);
 
@@ -116,4 +120,6 @@ interface IPool is IPauseable {
     function addRewardsDistributor(IRewardsDistributor distributor_) external;
 
     function toggleIsSwapActive() external;
+
+    function isSwapActive() external view returns (bool);
 }
