@@ -64,6 +64,9 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
     /// @notice Emitted when rewards distributor contract is added
     event RewardsDistributorAdded(IRewardsDistributor _distributor);
 
+    /// @notice Emitted when rewards distributor contract is removed
+    event RewardsDistributorRemoved(IRewardsDistributor _distributor);
+
     /// @notice Emitted when swap fee is updated
     event SwapFeeUpdated(uint256 oldSwapFee, uint256 newSwapFee);
 
@@ -516,6 +519,29 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
         delete depositTokenOf[depositToken_.underlying()];
 
         emit DepositTokenRemoved(depositToken_);
+    }
+
+    /**
+     * @notice Remove a RewardsDistributor contract
+     */
+    function removeRewardsDistributor(IRewardsDistributor distributor_) external override onlyGovernor {
+        require(address(distributor_) != address(0), "address-is-null");
+
+        uint256 _length = rewardsDistributors.length;
+        uint256 _index = _length;
+        for (uint256 i; i < _length; ++i) {
+            if (rewardsDistributors[i] == distributor_) {
+                _index = i;
+                break;
+            }
+        }
+        require(_index < _length, "distribuitor-doesnt-exist");
+        if (_index != _length - 1) {
+            rewardsDistributors[_index] = rewardsDistributors[_length - 1];
+        }
+        rewardsDistributors.pop();
+
+        emit RewardsDistributorRemoved(distributor_);
     }
 
     /**

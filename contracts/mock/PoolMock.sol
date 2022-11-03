@@ -197,6 +197,10 @@ contract PoolMock is IPool, Governable, Pauseable {
         revert("mock-does-not-implement");
     }
 
+    function removeRewardsDistributor(IRewardsDistributor) external pure override {
+        revert("mock-does-not-implement");
+    }
+
     function getRewardsDistributors()
         external
         pure

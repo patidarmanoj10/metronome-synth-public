@@ -115,5 +115,7 @@ interface IPool is IPauseable {
 
     function addRewardsDistributor(IRewardsDistributor distributor_) external;
 
+    function removeRewardsDistributor(IRewardsDistributor distributor_) external;
+
     function toggleIsSwapActive() external;
 }
