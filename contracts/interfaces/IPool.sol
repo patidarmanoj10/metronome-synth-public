@@ -119,6 +119,8 @@ interface IPool is IPauseable, IGovernable {
 
     function addRewardsDistributor(IRewardsDistributor distributor_) external;
 
+    function removeRewardsDistributor(IRewardsDistributor distributor_) external;
+
     function toggleIsSwapActive() external;
 
     function isSwapActive() external view returns (bool);

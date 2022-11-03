@@ -1804,6 +1804,52 @@ describe('Pool', function () {
     })
   })
 
+  describe('removeRewardsDistributor', function () {
+    it('should revert if caller is not governor', async function () {
+      // when
+      const tx = pool.connect(alice).removeRewardsDistributor(ethers.constants.AddressZero)
+
+      // then
+      await expect(tx).revertedWith('not-governor')
+    })
+
+    it('should revert if null', async function () {
+      // when
+      const tx = pool.removeRewardsDistributor(ethers.constants.AddressZero)
+
+      // then
+      await expect(tx).revertedWith('address-is-null')
+    })
+
+    it('should revert if not ealready added', async function () {
+      // given
+      await pool.addRewardsDistributor(alice.address)
+
+      // when
+      const tx = pool.removeRewardsDistributor(bob.address)
+
+      // then
+      await expect(tx).revertedWith('distribuitor-doesnt-exist')
+    })
+
+    it('should remove a rewards distributor', async function () {
+      // given
+      await pool.addRewardsDistributor(alice.address)
+      await pool.addRewardsDistributor(bob.address)
+
+      const before = await pool.getRewardsDistributors()
+      expect(before).deep.eq([alice.address, bob.address])
+
+      // when
+      const tx = pool.removeRewardsDistributor(alice.address)
+
+      // then
+      await expect(tx).emit(pool, 'RewardsDistributorRemoved').withArgs(alice.address)
+      const after = await pool.getRewardsDistributors()
+      expect(after).deep.eq([bob.address])
+    })
+  })
+
   describe('toggleIsSwapActive', function () {
     it('should toggle isSwapActive flag', async function () {
       const before = await pool.isSwapActive()
