@@ -194,6 +194,92 @@ describe('RewardDistributor', function () {
       expect(bobTokensAccrued).eq(0)
     })
 
+    describe('claimable', function () {
+      it('should update rewards (from 0 to all supply)', async function () {
+        // when
+        const totalSupply = parseEther('100')
+        const balanceOf = parseEther('100')
+        msdTOKEN1.totalSupply.returns(totalSupply)
+        msdTOKEN1.balanceOf.returns(balanceOf)
+
+        await increaseTimeOfNextBlock(10)
+        await mine()
+        const claimable = await rewardDistributor['claimable(address)'](alice.address)
+
+        // then
+        const expectedUserAccrued = parseEther('10')
+        expect(claimable).eq(expectedUserAccrued)
+      })
+
+      it('should update rewards (from 0 to half supply)', async function () {
+        // when
+        const totalSupply = parseEther('100')
+        const balanceOf = parseEther('50')
+        msdTOKEN1.totalSupply.returns(totalSupply)
+        msdTOKEN1.balanceOf.returns(balanceOf)
+
+        await increaseTimeOfNextBlock(10)
+        await mine()
+        const claimable = await rewardDistributor['claimable(address)'](alice.address)
+
+        // then
+        const expectedUserAccrued = parseEther('5')
+        expect(claimable).eq(expectedUserAccrued)
+      })
+
+      it('should update rewards (from total to half supply)', async function () {
+        // given
+        const totalSupply1 = parseEther('100')
+        const balance1 = parseEther('100')
+        msdTOKEN1.totalSupply.returns(totalSupply1)
+        msdTOKEN1.balanceOf.returns(balance1)
+
+        await increaseTimeOfNextBlock(10)
+        await rewardDistributor.updateBeforeMintOrBurn(msdTOKEN1.address, alice.address)
+        const tokensAccruedOfUser1 = await rewardDistributor.tokensAccruedOf(alice.address)
+        expect(tokensAccruedOfUser1).eq(parseEther('10'))
+
+        // when
+        const totalSupply2 = parseEther('100')
+        const balance2 = parseEther('50')
+        msdTOKEN1.totalSupply.returns(totalSupply2)
+        msdTOKEN1.balanceOf.returns(balance2)
+
+        await increaseTimeOfNextBlock(10)
+        await mine()
+        const claimableOfUser2 = await rewardDistributor['claimable(address)'](alice.address)
+
+        // then
+        expect(claimableOfUser2).eq(parseEther('15'))
+      })
+
+      it('should update rewards (from half to total supply)', async function () {
+        // given
+        const totalSupply1 = parseEther('100')
+        const balance1 = parseEther('50')
+        msdTOKEN1.totalSupply.returns(totalSupply1)
+        msdTOKEN1.balanceOf.returns(balance1)
+
+        await increaseTimeOfNextBlock(10)
+        await rewardDistributor.updateBeforeMintOrBurn(msdTOKEN1.address, alice.address)
+        const tokensAccruedBefore = await rewardDistributor.tokensAccruedOf(alice.address)
+        expect(tokensAccruedBefore).eq(parseEther('5'))
+
+        // when
+        const totalSupply2 = parseEther('100')
+        const balance2 = parseEther('100')
+        msdTOKEN1.totalSupply.returns(totalSupply2)
+        msdTOKEN1.balanceOf.returns(balance2)
+
+        await increaseTimeOfNextBlock(10)
+        await mine()
+        const claimableAfter = await rewardDistributor['claimable(address)'](alice.address)
+
+        // then
+        expect(claimableAfter).eq(parseEther('15'))
+      })
+    })
+
     describe('updateBeforeMintOrBurn', function () {
       it('should update rewards (from 0 to all supply)', async function () {
         // when
