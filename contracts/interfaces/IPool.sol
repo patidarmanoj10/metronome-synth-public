@@ -71,7 +71,7 @@ interface IPool is IPauseable, IGovernable {
         address account_,
         uint256 amountToRepay_,
         IDepositToken depositToken_
-    ) external;
+    ) external returns (uint256 _totalSeized, uint256 _toLiquidator);
 
     function swap(
         ISyntheticToken syntheticTokenIn_,

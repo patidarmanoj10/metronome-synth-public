@@ -16,9 +16,9 @@ interface IDebtToken is IERC20Metadata {
 
     function burn(address from_, uint256 amount_) external;
 
-    function issue(uint256 amount_, address to_) external;
+    function issue(uint256 amount_, address to_) external returns (uint256 _issued);
 
-    function repay(address onBehalfOf_, uint256 amount_) external;
+    function repay(address onBehalfOf_, uint256 amount_) external returns (uint256 _repaid);
 
     function updateMaxTotalSupply(uint256 newMaxTotalSupply_) external;
 

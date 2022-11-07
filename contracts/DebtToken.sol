@@ -162,6 +162,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
      * @notice Lock collateral and mint synthetic token
      * @param amount_ The amount to mint
      * @param to_ The beneficiary account
+     * @return _issued The amount issued after fees
      */
     function issue(uint256 amount_, address to_)
         external
@@ -170,6 +171,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
         nonReentrant
         onlyIfSyntheticTokenExists
         onlyIfSyntheticTokenIsActive
+        returns (uint256 _issued)
     {
         require(amount_ > 0, "amount-is-zero");
 
@@ -195,15 +197,15 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
         }
 
         uint256 _issueFee = pool.issueFee();
-        uint256 _amountToIssue = amount_;
         uint256 _feeAmount;
+        _issued = amount_;
         if (_issueFee > 0) {
             _feeAmount = amount_.wadMul(_issueFee);
             syntheticToken.mint(pool.feeCollector(), _feeAmount);
-            _amountToIssue -= _feeAmount;
+            _issued -= _feeAmount;
         }
 
-        syntheticToken.mint(to_, _amountToIssue);
+        syntheticToken.mint(to_, _issued);
         _mint(msg.sender, amount_);
 
         emit SyntheticTokenIssued(msg.sender, to_, amount_, _feeAmount);
@@ -221,19 +223,26 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
      * @dev The msg.sender is the payer and the account beneficed
      * @param onBehalfOf_ The account that will have debt decreased
      * @param amount_ The amount of synthetic token to burn (this is the gross amount, the repay fee will be subtracted from it)
+     * @return _repaid The amount repaid after fees
      */
-    function repay(address onBehalfOf_, uint256 amount_) external override whenNotShutdown nonReentrant {
+    function repay(address onBehalfOf_, uint256 amount_)
+        external
+        override
+        whenNotShutdown
+        nonReentrant
+        returns (uint256 _repaid)
+    {
         require(amount_ > 0, "amount-is-zero");
 
         accrueInterest();
 
         uint256 _repayFee = pool.repayFee();
-        uint256 _amountToRepay = amount_;
         uint256 _feeAmount;
+        _repaid = amount_;
         if (_repayFee > 0) {
-            // Note: `_amountToRepay = _amount - _feeAmount`
-            _amountToRepay = amount_.wadDiv(1e18 + _repayFee);
-            _feeAmount = amount_ - _amountToRepay;
+            // Note: `_repaid = _amount - _feeAmount`
+            _repaid = amount_.wadDiv(1e18 + _repayFee);
+            _feeAmount = amount_ - _repaid;
             syntheticToken.seize(msg.sender, pool.feeCollector(), _feeAmount);
         }
 
@@ -241,13 +250,13 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
         if (_debtFloorInUsd > 0) {
             uint256 _newDebtInUsd = pool.masterOracle().quoteTokenToUsd(
                 address(syntheticToken),
-                balanceOf(onBehalfOf_) - _amountToRepay
+                balanceOf(onBehalfOf_) - _repaid
             );
             require(_newDebtInUsd == 0 || _newDebtInUsd >= _debtFloorInUsd, "debt-lt-floor");
         }
 
-        syntheticToken.burn(msg.sender, _amountToRepay);
-        _burn(onBehalfOf_, _amountToRepay);
+        syntheticToken.burn(msg.sender, _repaid);
+        _burn(onBehalfOf_, _repaid);
 
         emit DebtRepaid(msg.sender, onBehalfOf_, amount_, _feeAmount);
     }
