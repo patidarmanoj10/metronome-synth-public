@@ -13,9 +13,9 @@ interface IDepositToken is IERC20Metadata {
 
     function lockedBalanceOf(address account_) external view returns (uint256);
 
-    function deposit(uint256 amount_, address onBehalfOf_) external;
+    function deposit(uint256 amount_, address onBehalfOf_) external returns (uint256 _deposited);
 
-    function withdraw(uint256 amount_, address to_) external;
+    function withdraw(uint256 amount_, address to_) external returns (uint256 _withdrawn);
 
     function seize(
         address from_,

@@ -108,7 +108,7 @@ contract PoolMock is IPool, Governable, Pauseable {
         address,
         uint256,
         IDepositToken
-    ) external pure override {
+    ) external pure override returns (uint256, uint256) {
         revert("mock-does-not-implement");
     }
 

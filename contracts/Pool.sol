@@ -310,13 +310,22 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @param account_ The account with an unhealthy position
      * @param amountToRepay_ The amount to repay in synthetic token
      * @param depositToken_ The collateral to seize from
+     * @return _totalSeized Total deposit amount seized from the liquidated account
+     * @return _toLiquidator Share of `_totalSeized` sent to the liquidator
      */
     function liquidate(
         ISyntheticToken syntheticToken_,
         address account_,
         uint256 amountToRepay_,
         IDepositToken depositToken_
-    ) external override whenNotShutdown nonReentrant onlyIfDepositTokenExists(depositToken_) {
+    )
+        external
+        override
+        whenNotShutdown
+        nonReentrant
+        onlyIfDepositTokenExists(depositToken_)
+        returns (uint256 _totalSeized, uint256 _toLiquidator)
+    {
         require(amountToRepay_ > 0, "amount-is-zero");
         require(msg.sender != account_, "can-not-liquidate-own-position");
 
@@ -350,10 +359,10 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
         LiquidationFees memory _fees = liquidationFees;
 
         uint256 _toProtocol = _fees.protocolFee > 0 ? _amountToRepayInCollateral.wadMul(_fees.protocolFee) : 0;
-        uint256 _toLiquidator = _amountToRepayInCollateral.wadMul(1e18 + _fees.liquidatorFee);
-        uint256 _depositToSeize = _toProtocol + _toLiquidator;
+        _toLiquidator = _amountToRepayInCollateral.wadMul(1e18 + _fees.liquidatorFee);
+        _totalSeized = _toProtocol + _toLiquidator;
 
-        require(_depositToSeize <= depositToken_.balanceOf(account_), "amount-too-high");
+        require(_totalSeized <= depositToken_.balanceOf(account_), "amount-too-high");
 
         syntheticToken_.burn(msg.sender, amountToRepay_);
         _debtToken.burn(account_, amountToRepay_);
@@ -363,7 +372,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
             depositToken_.seize(account_, poolRegistry.feeCollector(), _toProtocol);
         }
 
-        emit PositionLiquidated(msg.sender, account_, syntheticToken_, amountToRepay_, _depositToSeize, _toProtocol);
+        emit PositionLiquidated(msg.sender, account_, syntheticToken_, amountToRepay_, _totalSeized, _toProtocol);
     }
 
     /**

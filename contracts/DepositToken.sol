@@ -137,6 +137,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @notice Deposit collateral and mint msdTOKEN (tokenized deposit position)
      * @param amount_ The amount of collateral tokens to deposit
      * @param onBehalfOf_ The account to deposit to
+     * @return _deposited The amount deposited after fees
      */
     function deposit(uint256 amount_, address onBehalfOf_)
         external
@@ -145,6 +146,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         nonReentrant
         onlyIfDepositTokenIsActive
         onlyIfDepositTokenExists
+        returns (uint256 _deposited)
     {
         require(amount_ > 0, "amount-is-zero");
 
@@ -155,15 +157,15 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         amount_ = underlying.balanceOf(_treasury) - _balanceBefore;
 
         uint256 _depositFee = pool.depositFee();
-        uint256 _amountToDeposit = amount_;
         uint256 _feeAmount;
+        _deposited = amount_;
         if (_depositFee > 0) {
             _feeAmount = amount_.wadMul(_depositFee);
             _mint(pool.feeCollector(), _feeAmount);
-            _amountToDeposit -= _feeAmount;
+            _deposited -= _feeAmount;
         }
 
-        _mint(onBehalfOf_, _amountToDeposit);
+        _mint(onBehalfOf_, _deposited);
 
         emit CollateralDeposited(msg.sender, onBehalfOf_, amount_, _feeAmount);
     }
@@ -258,6 +260,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @notice Burn msdTOKEN and withdraw collateral
      * @param amount_ The amount of collateral to withdraw
      * @param to_ The account that will receive withdrawn collateral
+     * @return _withdrawn The amount withdrawn after fees
      */
     function withdraw(uint256 amount_, address to_)
         external
@@ -265,20 +268,21 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         whenNotShutdown
         nonReentrant
         onlyIfDepositTokenExists
+        returns (uint256 _withdrawn)
     {
         require(amount_ > 0 && amount_ <= unlockedBalanceOf(msg.sender), "amount-is-invalid");
 
         uint256 _withdrawFee = pool.withdrawFee();
-        uint256 _amountToWithdraw = amount_;
         uint256 _feeAmount;
+        _withdrawn = amount_;
         if (_withdrawFee > 0) {
             _feeAmount = amount_.wadMul(_withdrawFee);
             _transfer(msg.sender, pool.feeCollector(), _feeAmount);
-            _amountToWithdraw -= _feeAmount;
+            _withdrawn -= _feeAmount;
         }
 
-        _burn(msg.sender, _amountToWithdraw);
-        pool.treasury().pull(to_, _amountToWithdraw);
+        _burn(msg.sender, _withdrawn);
+        pool.treasury().pull(to_, _withdrawn);
 
         emit CollateralWithdrawn(msg.sender, to_, amount_, _feeAmount);
     }
