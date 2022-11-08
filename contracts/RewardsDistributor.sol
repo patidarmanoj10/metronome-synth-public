@@ -73,6 +73,29 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     }
 
     /**
+     * @notice Returns claimable amount consider all tokens
+     */
+    function claimable(address account_) external view returns (uint256 _claimable) {
+        for (uint256 i; i < tokens.length; ++i) {
+            _claimable += claimable(account_, tokens[i]);
+        }
+    }
+
+    /**
+     * @notice Returns updated claimable amount for given token
+     */
+    function claimable(address account_, IERC20 token_) public view returns (uint256 _claimable) {
+        TokenState memory _tokenState = tokenStates[token_];
+        (uint256 _newIndex, uint256 _newTimestamp) = _calculateTokenIndex(_tokenState, token_);
+        if (_newIndex > 0 && _newTimestamp > 0) {
+            _tokenState = TokenState({index: _newIndex.toUint224(), timestamp: block.timestamp.toUint32()});
+        } else if (_newTimestamp > 0) {
+            _tokenState.timestamp = block.timestamp.toUint32();
+        }
+        (, , _claimable) = _calculateTokensAccruedOf(_tokenState, token_, account_);
+    }
+
+    /**
      * @notice Claim tokens accrued by account in all tokens
      */
     function claimRewards(address account_) external {
@@ -114,6 +137,7 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     /**
      * @notice Update indexes on pre-mint and pre-burn
      * @dev Called by DepositToken and DebtToken contracts
+     * This function also may be called by anyone to update stored indexes
      */
     function updateBeforeMintOrBurn(IERC20 token_, address account_) external {
         if (tokenStates[token_].index > 0) {
@@ -139,6 +163,55 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     }
 
     /**
+     * @notice Calculate updated token index values
+     */
+    function _calculateTokenIndex(TokenState memory _supplyState, IERC20 token_)
+        private
+        view
+        returns (uint256 _newIndex, uint256 _newTimestamp)
+    {
+        uint256 _speed = tokenSpeeds[token_];
+        uint256 _deltaTimestamps = block.timestamp - uint256(_supplyState.timestamp);
+        if (_deltaTimestamps > 0 && _speed > 0) {
+            uint256 _totalSupply = token_.totalSupply();
+            uint256 _tokensAccrued = _deltaTimestamps * _speed;
+            uint256 _ratio = _totalSupply > 0 ? _tokensAccrued.wadDiv(_totalSupply) : 0;
+            _newIndex = _supplyState.index + _ratio;
+            _newTimestamp = block.timestamp.toUint32();
+        } else if (_deltaTimestamps > 0 && _supplyState.index > 0) {
+            _newTimestamp = block.timestamp.toUint32();
+        }
+    }
+
+    /**
+     * @notice Calculate updated account index and claimable values
+     */
+    function _calculateTokensAccruedOf(
+        TokenState memory _tokenState,
+        IERC20 token_,
+        address account_
+    )
+        private
+        view
+        returns (
+            uint256 _tokenIndex,
+            uint256 _tokensDelta,
+            uint256 _tokensAccruedOf
+        )
+    {
+        _tokenIndex = _tokenState.index;
+        uint256 _accountIndex = accountIndexOf[token_][account_];
+
+        if (_accountIndex == 0 && _tokenIndex > 0) {
+            _accountIndex = INITIAL_INDEX;
+        }
+
+        uint256 _deltaIndex = _tokenIndex - _accountIndex;
+        _tokensDelta = token_.balanceOf(account_).wadMul(_deltaIndex);
+        _tokensAccruedOf = tokensAccruedOf[account_] + _tokensDelta;
+    }
+
+    /**
      * @notice Transfer tokens to the user
      * @dev If there is not enough tokens, we do not perform the transfer
      */
@@ -156,17 +229,13 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
      * @notice Calculate tokens accrued by an account
      */
     function _updateTokensAccruedOf(IERC20 token_, address account_) private {
-        uint256 _tokenIndex = tokenStates[token_].index;
-        uint256 _accountIndex = accountIndexOf[token_][account_];
+        (uint256 _tokenIndex, uint256 _tokensDelta, uint256 _tokensAccruedOf) = _calculateTokensAccruedOf(
+            tokenStates[token_],
+            token_,
+            account_
+        );
         accountIndexOf[token_][account_] = _tokenIndex;
-
-        if (_accountIndex == 0 && _tokenIndex > 0) {
-            _accountIndex = INITIAL_INDEX;
-        }
-
-        uint256 _deltaIndex = _tokenIndex - _accountIndex;
-        uint256 _tokensDelta = token_.balanceOf(account_).wadMul(_deltaIndex);
-        tokensAccruedOf[account_] += _tokensDelta;
+        tokensAccruedOf[account_] = _tokensAccruedOf;
         emit TokensAccruedUpdated(token_, account_, _tokensDelta, _tokenIndex);
     }
 
@@ -175,15 +244,10 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
      */
     function _updateTokenIndex(IERC20 token_) private {
         TokenState storage _supplyState = tokenStates[token_];
-        uint256 _speed = tokenSpeeds[token_];
-        uint256 _deltaTimestamps = block.timestamp - uint256(_supplyState.timestamp);
-        if (_deltaTimestamps > 0 && _speed > 0) {
-            uint256 _totalSupply = token_.totalSupply();
-            uint256 _tokensAccrued = _deltaTimestamps * _speed;
-            uint256 _ratio = _totalSupply > 0 ? _tokensAccrued.wadDiv(_totalSupply) : 0;
-            uint256 _newIndex = _supplyState.index + _ratio;
+        (uint256 _newIndex, uint256 _newTimestamp) = _calculateTokenIndex(_supplyState, token_);
+        if (_newIndex > 0 && _newTimestamp > 0) {
             tokenStates[token_] = TokenState({index: _newIndex.toUint224(), timestamp: block.timestamp.toUint32()});
-        } else if (_deltaTimestamps > 0 && _supplyState.index > 0) {
+        } else if (_newTimestamp > 0) {
             _supplyState.timestamp = block.timestamp.toUint32();
         }
     }
