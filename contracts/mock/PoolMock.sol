@@ -83,7 +83,7 @@ contract PoolMock is IPool, Governable, Pauseable {
         uint256 _deposit = depositToken.balanceOf(_account);
         _depositInUsd = masterOracle.quoteTokenToUsd(address(depositToken.underlying()), _deposit);
         _debtInUsd = debtOf(_account);
-        _issuableLimitInUsd = _depositInUsd.wadMul(depositToken.collateralizationRatio());
+        _issuableLimitInUsd = _depositInUsd.wadMul(depositToken.collateralFactor());
         _issuableInUsd = _debtInUsd < _issuableLimitInUsd ? _issuableLimitInUsd - _debtInUsd : 0;
     }
 

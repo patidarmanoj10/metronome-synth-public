@@ -8,7 +8,7 @@ const func = buildDepositDeployFunction({
   underlyingAddress: DAI_ADDRESS,
   underlyingSymbol: 'DAI',
   underlyingDecimals: 18,
-  collateralizationRatio: parseEther('0.5'), // 50%
+  collateralFactor: parseEther('0.5'), // 50%
   maxTotalSupply: parseEther('100000'),
 })
 

@@ -8,7 +8,7 @@ const func = buildDepositDeployFunction({
   underlyingAddress: WAVAX_ADDRESS,
   underlyingSymbol: 'WAVAX',
   underlyingDecimals: 18,
-  collateralizationRatio: parseEther('0.5'), // 50%
+  collateralFactor: parseEther('0.5'), // 50%
   maxTotalSupply: parseEther('5880'),
 })
 

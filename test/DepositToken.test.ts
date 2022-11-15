@@ -36,7 +36,7 @@ describe('DepositToken', function () {
   let rewardsDistributorMock: MockContract
 
   const metPrice = toUSD('4') // 1 MET = $4
-  const metCR = parseEther('0.5') // 50%
+  const metCF = parseEther('0.5') // 50%
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
@@ -75,7 +75,7 @@ describe('DepositToken', function () {
     poolMock.getRewardsDistributors.returns([rewardsDistributorMock.address])
     rewardsDistributorMock.pool.returns(poolMock.address)
 
-    await metDepositToken.initialize(met.address, poolMock.address, 'msdMET', 18, metCR, MaxUint256)
+    await metDepositToken.initialize(met.address, poolMock.address, 'msdMET', 18, metCF, MaxUint256)
     metDepositToken = metDepositToken.connect(governor)
 
     await masterOracle.updatePrice(met.address, metPrice)
@@ -89,7 +89,7 @@ describe('DepositToken', function () {
       const _isHealth = true
       const _depositInUsd = balance.mul(metPrice).div(parseEther('1'))
       const _debtInUsd = parseEther('0') // all tokens are unlocked
-      const _issuableLimitInUsd = _depositInUsd.mul(parseEther('1')).div(metCR)
+      const _issuableLimitInUsd = _depositInUsd.mul(parseEther('1')).div(metCF)
       const _issuableInUsd = _issuableLimitInUsd.sub(_debtInUsd)
       return [_isHealth, _depositInUsd, _debtInUsd, _issuableLimitInUsd, _issuableInUsd]
     }
@@ -97,7 +97,7 @@ describe('DepositToken', function () {
     const debtPositionOf_returnsAllLocked = (balance: BigNumber) => () => {
       const _isHealth = true
       const _depositInUsd = balance.mul(metPrice).div(parseEther('1'))
-      const _issuableLimitInUsd = _depositInUsd.mul(metCR).div(parseEther('1'))
+      const _issuableLimitInUsd = _depositInUsd.mul(metCF).div(parseEther('1'))
       const _debtInUsd = _issuableLimitInUsd
       const _issuableInUsd = parseEther('0') // all tokens are locked
       return [_isHealth, _depositInUsd, _debtInUsd, _issuableLimitInUsd, _issuableInUsd]
@@ -500,44 +500,44 @@ describe('DepositToken', function () {
       })
     })
 
-    describe('updateCollateralizationRatio', function () {
-      it('should update collateralization ratio', async function () {
+    describe('updateCollateralFactor', function () {
+      it('should update collateral factor', async function () {
         // given
-        const currentCollateralizationRatio = await metDepositToken.collateralizationRatio()
+        const currentCollateralFactor = await metDepositToken.collateralFactor()
 
         // when
-        const newCollateralizationRatio = currentCollateralizationRatio.mul('2')
-        const tx = metDepositToken.updateCollateralizationRatio(newCollateralizationRatio)
+        const newCollateralFactor = currentCollateralFactor.mul('2')
+        const tx = metDepositToken.updateCollateralFactor(newCollateralFactor)
 
         // then
         await expect(tx)
-          .emit(metDepositToken, 'CollateralizationRatioUpdated')
-          .withArgs(currentCollateralizationRatio, newCollateralizationRatio)
-        expect(await metDepositToken.collateralizationRatio()).eq(newCollateralizationRatio)
+          .emit(metDepositToken, 'CollateralFactorUpdated')
+          .withArgs(currentCollateralFactor, newCollateralFactor)
+        expect(await metDepositToken.collateralFactor()).eq(newCollateralFactor)
       })
 
       it('should revert if using the current value', async function () {
         // given
-        const currentCollateralizationRatio = await metDepositToken.collateralizationRatio()
+        const currentCollateralFactor = await metDepositToken.collateralFactor()
 
         // when
-        const tx = metDepositToken.updateCollateralizationRatio(currentCollateralizationRatio)
+        const tx = metDepositToken.updateCollateralFactor(currentCollateralFactor)
 
         // then
         await expect(tx).revertedWith('new-same-as-current')
       })
 
       it('should revert if not governor', async function () {
-        const tx = metDepositToken.connect(alice).updateCollateralizationRatio(parseEther('10'))
+        const tx = metDepositToken.connect(alice).updateCollateralFactor(parseEther('10'))
         await expect(tx).revertedWith('not-governor')
       })
 
       it('should revert if > 100%', async function () {
         // when
-        const tx = metDepositToken.updateCollateralizationRatio(parseEther('1').add('1'))
+        const tx = metDepositToken.updateCollateralFactor(parseEther('1').add('1'))
 
         // then
-        await expect(tx).revertedWith('collateralization-ratio-gt-100%')
+        await expect(tx).revertedWith('collateral-factor-gt-100%')
       })
     })
 

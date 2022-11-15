@@ -42,10 +42,10 @@ abstract contract DepositTokenStorageV1 is IDepositToken {
     uint256 public maxTotalSupply;
 
     /**
-     * @notice Collateralization ration for the deposit token
+     * @notice Collateral factor for the deposit token
      * @dev Use 18 decimals (e.g. 0.66e18 = 66%)
      */
-    uint256 public collateralizationRatio;
+    uint256 public collateralFactor;
 
     /**
      * @notice Deposit underlying asset (e.g. MET)

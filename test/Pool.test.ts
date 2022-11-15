@@ -33,8 +33,8 @@ chai.use(smock.matchers)
 const {MaxUint256} = ethers.constants
 
 const liquidatorLiquidationFee = parseEther('0.1') // 10%
-const metCR = parseEther('0.67') // 67%
-const daiCR = parseEther('0.5') // 50%
+const metCF = parseEther('0.67') // 67%
+const daiCF = parseEther('0.5') // 50%
 const ethPrice = toUSD('4000') // 1 ETH = $4,000
 const metPrice = toUSD('4') // 1 MET = $4
 const daiPrice = toUSD('1') // 1 DAI = $1
@@ -93,8 +93,8 @@ async function fixture() {
   poolRegistryMock.feeCollector.returns(feeCollector.address)
 
   // Deployment tasks
-  await msdMET.initialize(met.address, pool.address, 'msdMET', 18, metCR, MaxUint256)
-  await msdDAI.initialize(dai.address, pool.address, 'msdDAI', 18, daiCR, MaxUint256)
+  await msdMET.initialize(met.address, pool.address, 'msdMET', 18, metCF, MaxUint256)
+  await msdDAI.initialize(dai.address, pool.address, 'msdDAI', 18, daiCF, MaxUint256)
   await treasury.initialize(pool.address)
   await msEth.initialize('Metronome Synth ETH', 'msETH', 18, poolRegistryMock.address)
   await msEthDebtToken.initialize('msETH Debt', 'msETH-Debt', pool.address, msEth.address, interestRate, MaxUint256)
@@ -192,8 +192,8 @@ describe('Pool', function () {
         alice.address
       )
 
-      const limitForMet = (await msdMET.balanceOf(alice.address)).mul(metCR).div(parseEther('1'))
-      const limitForDai = (await msdDAI.balanceOf(alice.address)).mul(daiCR).div(parseEther('1'))
+      const limitForMet = (await msdMET.balanceOf(alice.address)).mul(metCF).div(parseEther('1'))
+      const limitForDai = (await msdDAI.balanceOf(alice.address)).mul(daiCF).div(parseEther('1'))
       const limitForMetInUsd = await masterOracle.quoteTokenToUsd(met.address, limitForMet)
       const limitForDaiInUsd = await masterOracle.quoteTokenToUsd(dai.address, limitForDai)
       const _expectedMintableLimitInUsd = limitForMetInUsd.add(limitForDaiInUsd)
@@ -296,7 +296,7 @@ describe('Pool', function () {
 
             const expectedDebtInUsd = userMintAmount.mul(ethPrice).div(parseEther('1'))
             const expectedDepositInUsd = userDepositAmount.mul(newMetPrice).div(parseEther('1'))
-            const expectedMintableLimit = expectedDepositInUsd.mul(metCR).div(parseEther('1'))
+            const expectedMintableLimit = expectedDepositInUsd.mul(metCF).div(parseEther('1'))
 
             const {_isHealthy, _debtInUsd, _depositInUsd, _issuableInUsd, _issuableLimitInUsd} =
               await pool.debtPositionOf(alice.address)
@@ -848,9 +848,9 @@ describe('Pool', function () {
             const unlockedCollateralAfter = await msdMET.unlockedBalanceOf(alice.address)
             const lockedCollateralAfter = await msdMET.lockedBalanceOf(alice.address)
 
-            const currentCollateralizationRatio = collateralInUsdAfter.mul(parseEther('1')).div(debtInUsdAfter)
+            const currentCollateralFactor = collateralInUsdAfter.mul(parseEther('1')).div(debtInUsdAfter)
 
-            expect(currentCollateralizationRatio).lt(metCR)
+            expect(currentCollateralFactor).lt(metCF)
             expect(isHealthyAfter).false
             expect(collateralAfter).eq(collateralBefore.sub(depositSeized))
             expect(lockedCollateralAfter).gte(collateralInUsdAfter)
@@ -894,9 +894,9 @@ describe('Pool', function () {
               amountToRepayInMET.mul(liquidatorLiquidationFee).div(parseEther('1'))
             )
 
-            const currentCollateralizationRatio = collateralInUsdAfter.mul(parseEther('1')).div(debtInUsdAfter)
+            const currentCollateralFactor = collateralInUsdAfter.mul(parseEther('1')).div(debtInUsdAfter)
 
-            expect(currentCollateralizationRatio).lt(metCR)
+            expect(currentCollateralFactor).lt(metCF)
             expect(isHealthyAfter).false
             expect(collateralAfter).eq(collateralBefore.sub(depositSeized))
             expect(lockedCollateralAfter).gte(collateralInUsdAfter)
