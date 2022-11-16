@@ -43,7 +43,7 @@ describe('DebtToken', function () {
   let masterOracleMock: MasterOracleMock
   let rewardsDistributorMock: MockContract
 
-  const metCR = parseEther('0.5') // 50%
+  const metCF = parseEther('0.5') // 50%
   const name = 'msETH Debt'
   const symbol = 'msETH-Debt'
   const interestRate = parseEther('0')
@@ -86,7 +86,7 @@ describe('DebtToken', function () {
     await poolMock.updateTreasury(treasury.address)
     await setBalance(poolMock.address, parseEther('10'))
 
-    await msdMET.initialize(met.address, poolMock.address, 'msdMET', 18, metCR, MaxUint256)
+    await msdMET.initialize(met.address, poolMock.address, 'msdMET', 18, metCF, MaxUint256)
     await msUSD.initialize('Metronome Synth ETH', 'msETH', 18, poolRegistryMock.address)
     await msUSDDebt.initialize(name, symbol, poolMock.address, msUSD.address, interestRate, MaxUint256)
 
@@ -778,7 +778,7 @@ describe('DebtToken', function () {
   })
 
   describe('updateMaxTotalSupply', function () {
-    it('should update collateralization ratio', async function () {
+    it('should update collateral factor', async function () {
       const before = await msUSDDebt.maxTotalSupply()
       const after = before.div('2')
       const tx = msUSDDebt.updateMaxTotalSupply(after)

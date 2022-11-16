@@ -8,7 +8,7 @@ const func = buildDepositDeployFunction({
   underlyingAddress: USDC_ADDRESS,
   underlyingSymbol: 'USDC',
   underlyingDecimals: 6,
-  collateralizationRatio: parseEther('0.5'), // 50%
+  collateralFactor: parseEther('0.5'), // 50%
   maxTotalSupply: parseEther('50000'),
 })
 

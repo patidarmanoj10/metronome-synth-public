@@ -21,23 +21,23 @@ export const DEFAULT_TWAP_PERIOD = time.duration.hours(2)
  * X (amount to repay)
  * D (current debt)
  * C (colleteral)
- * CR (collateral's collateralization ratio)
- * LIMIT (mintable limit) = SUM(C * CR)
+ * CF (collateral's collateral factor)
+ * LIMIT (mintable limit) = SUM(C * CF)
  * FEE = 1e18 + liquidatorLiquidationFee + protocolLiquidationFee
  * D' (debt after liquidation) = D - X
  * C' (collateral after liquidation) = C - (X * FEE)
- * LIMIT' (mintable limit after liquidation) = LIMIT - (C * CR) + (C' * CR)
+ * LIMIT' (mintable limit after liquidation) = LIMIT - (C * CF) + (C' * CF)
  *
  * We want to discover the X value that makes: D' == LIMIT'
  * => D' == LIMIT'
- * => D - X = LIMIT - (C * CR) + (C' * CR)
- * => D - X = LIMIT - (C * CR) + ([C - (X * FEE)] * CR)
- * => D - X = LIMIT - C*CR + C*CR - (X * FEE)*CR
- * => D - X = LIMIT - X * FEE * CR
- * => D - X - LIMIT = -1 * X * FEE * CR
- * => D/X - LIMIT/X = (-1 * FEE * CR) + 1
- * => (D - LIMIT)/X = (-1 * FEE * CR) + 1
- * => (D - LIMIT)/[(-1 * FEE * CR) + 1] = X
+ * => D - X = LIMIT - (C * CF) + (C' * CF)
+ * => D - X = LIMIT - (C * CF) + ([C - (X * FEE)] * CF)
+ * => D - X = LIMIT - C*CF + C*CF - (X * FEE)*CF
+ * => D - X = LIMIT - X * FEE * CF
+ * => D - X - LIMIT = -1 * X * FEE * CF
+ * => D/X - LIMIT/X = (-1 * FEE * CF) + 1
+ * => (D - LIMIT)/X = (-1 * FEE * CF) + 1
+ * => (D - LIMIT)/[(-1 * FEE * CF) + 1] = X
  */
 export const getMinLiquidationAmountInUsd = async function (
   pool: Pool,
@@ -48,10 +48,10 @@ export const getMinLiquidationAmountInUsd = async function (
 
   const [liquidatorFee, protocolFee] = await pool.liquidationFees()
   const fee = parseEther('1').add(liquidatorFee).add(protocolFee)
-  const cr = await depositToken.collateralizationRatio()
+  const cf = await depositToken.collateralFactor()
 
   const numerator = _debtInUsd.sub(_issuableLimitInUsd)
-  const denominator = fee.mul('-1').mul(cr).div(parseEther('1')).add(parseEther('1'))
+  const denominator = fee.mul('-1').mul(cf).div(parseEther('1')).add(parseEther('1'))
 
   return numerator.mul(parseEther('1')).div(denominator)
 }

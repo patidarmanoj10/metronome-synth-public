@@ -20,8 +20,8 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     /// @notice Emitted when collateral is deposited
     event CollateralDeposited(address indexed from, address indexed account, uint256 amount, uint256 fee);
 
-    /// @notice Emitted when CR is updated
-    event CollateralizationRatioUpdated(uint256 oldCollateralizationRatio, uint256 newCollateralizationRatio);
+    /// @notice Emitted when CF is updated
+    event CollateralFactorUpdated(uint256 oldCollateralFactor, uint256 newCollateralFactor);
 
     /// @notice Emitted when collateral is withdrawn
     event CollateralWithdrawn(address indexed account, address indexed to, uint256 amount, uint256 fee);
@@ -95,11 +95,11 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         IPool pool_,
         string calldata symbol_,
         uint8 decimals_,
-        uint128 collateralizationRatio_,
+        uint128 collateralFactor_,
         uint256 maxTotalSupply_
     ) external initializer {
         require(address(underlying_) != address(0), "underlying-is-null");
-        require(collateralizationRatio_ <= 1e18, "collateralization-ratio-gt-100%");
+        require(collateralFactor_ <= 1e18, "collateral-factor-gt-100%");
 
         __ReentrancyGuard_init();
         __Manageable_init(pool_);
@@ -109,7 +109,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         underlying = underlying_;
         isActive = true;
         decimals = decimals_;
-        collateralizationRatio = collateralizationRatio_;
+        collateralFactor = collateralFactor_;
         maxTotalSupply = maxTotalSupply_;
     }
 
@@ -251,7 +251,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         if (_issuableInUsd > 0) {
             _unlockedBalance = Math.min(
                 balanceOf[account_],
-                pool.masterOracle().quoteUsdToToken(address(underlying), _issuableInUsd.wadDiv(collateralizationRatio))
+                pool.masterOracle().quoteUsdToToken(address(underlying), _issuableInUsd.wadDiv(collateralFactor))
             );
         }
     }
@@ -405,15 +405,15 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     }
 
     /**
-     * @notice Update collateralization ratio
-     * @param newCollateralizationRatio_ The new CR value
+     * @notice Update collateral factor
+     * @param newCollateralFactor_ The new CF value
      */
-    function updateCollateralizationRatio(uint128 newCollateralizationRatio_) external override onlyGovernor {
-        require(newCollateralizationRatio_ <= 1e18, "collateralization-ratio-gt-100%");
-        uint256 _currentCollateralizationRatio = collateralizationRatio;
-        require(newCollateralizationRatio_ != _currentCollateralizationRatio, "new-same-as-current");
-        emit CollateralizationRatioUpdated(_currentCollateralizationRatio, newCollateralizationRatio_);
-        collateralizationRatio = newCollateralizationRatio_;
+    function updateCollateralFactor(uint128 newCollateralFactor_) external override onlyGovernor {
+        require(newCollateralFactor_ <= 1e18, "collateral-factor-gt-100%");
+        uint256 _currentCollateralFactor = collateralFactor;
+        require(newCollateralFactor_ != _currentCollateralFactor, "new-same-as-current");
+        emit CollateralFactorUpdated(_currentCollateralFactor, newCollateralFactor_);
+        collateralFactor = newCollateralFactor_;
     }
 
     /**

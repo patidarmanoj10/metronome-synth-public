@@ -174,7 +174,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @return _isHealthy Whether the account's position is healthy
      * @return _depositInUsd The total collateral deposited in USD
      * @return _debtInUsd The total debt in USD
-     * @return _issuableLimitInUsd The max amount of debt (is USD) that can be created (considering collateralization ratios)
+     * @return _issuableLimitInUsd The max amount of debt (is USD) that can be created (considering collateral factors)
      * @return _issuableInUsd The amount of debt (is USD) that is free (i.e. can be used to issue synthetic tokens)
      */
     function debtPositionOf(address account_)
@@ -216,7 +216,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
                 _depositToken.balanceOf(account_)
             );
             _depositInUsd += _amountInUsd;
-            _issuableLimitInUsd += _amountInUsd.wadMul(_depositToken.collateralizationRatio());
+            _issuableLimitInUsd += _amountInUsd.wadMul(_depositToken.collateralFactor());
         }
     }
 

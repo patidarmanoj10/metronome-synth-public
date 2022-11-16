@@ -30,7 +30,7 @@ interface DepositDeployFunctionProps {
   underlyingAddress: string
   underlyingSymbol: string
   underlyingDecimals: number
-  collateralizationRatio: BigNumber
+  collateralFactor: BigNumber
   maxTotalSupply: BigNumber
 }
 
@@ -167,7 +167,7 @@ export const buildDepositDeployFunction = ({
   underlyingAddress,
   underlyingSymbol,
   underlyingDecimals,
-  collateralizationRatio,
+  collateralFactor,
   maxTotalSupply,
 }: DepositDeployFunctionProps): DeployFunction => {
   const alias = `${underlyingSymbol}DepositToken`
@@ -185,14 +185,7 @@ export const buildDepositDeployFunction = ({
     const {address: msdAddress} = await deployUpgradable({
       hre,
       contractConfig: {...DepositTokenConfig, alias},
-      initializeArgs: [
-        underlyingAddress,
-        poolAddress,
-        symbol,
-        underlyingDecimals,
-        collateralizationRatio,
-        maxTotalSupply,
-      ],
+      initializeArgs: [underlyingAddress, poolAddress, symbol, underlyingDecimals, collateralFactor, maxTotalSupply],
     })
 
     if (!wasDeployed) {
