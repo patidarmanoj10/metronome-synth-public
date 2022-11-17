@@ -102,8 +102,24 @@ async function fixture() {
 
   await poolA.initialize(poolRegistry.address)
   await treasuryA.initialize(poolA.address)
-  await msdMET_A.initialize(met.address, poolA.address, 'msdMET-A', 18, parseEther('0.5'), MaxUint256)
-  await msdDAI_A.initialize(dai.address, poolA.address, 'msdDAI-A', 18, parseEther('0.5'), MaxUint256)
+  await msdMET_A.initialize(
+    met.address,
+    poolA.address,
+    'Metronome Synth MET-Deposit',
+    'msdMET-A',
+    18,
+    parseEther('0.5'),
+    MaxUint256
+  )
+  await msdDAI_A.initialize(
+    dai.address,
+    poolA.address,
+    'Metronome Synth DAI-Deposit',
+    'msdDAI-A',
+    18,
+    parseEther('0.5'),
+    MaxUint256
+  )
   await msETH_Debt_A.initialize('msETH Debt A', 'msETH-Debt-A', poolA.address, msETH.address, INTEREST_RATE, MaxUint256)
   await msDOGE_Debt_A.initialize(
     'msDOGE Debt A',
@@ -124,7 +140,15 @@ async function fixture() {
 
   await poolB.initialize(poolRegistry.address)
   await treasuryB.initialize(poolB.address)
-  await msdDAI_B.initialize(dai.address, poolB.address, 'msdDAI B', 18, parseEther('0.8'), MaxUint256)
+  await msdDAI_B.initialize(
+    dai.address,
+    poolB.address,
+    'Metronome Synth DAI-Deposit',
+    'msdDAI B',
+    18,
+    parseEther('0.8'),
+    MaxUint256
+  )
   await msUSD_Debt_B.initialize('msUSD Debt B', 'msUSD-Debt-B', poolB.address, msUSD.address, INTEREST_RATE, MaxUint256)
   await poolB.updateMaxLiquidable(parseEther('1')) // 100%
   await poolB.updateTreasury(treasuryB.address)

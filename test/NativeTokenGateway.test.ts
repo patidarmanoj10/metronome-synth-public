@@ -74,7 +74,15 @@ describe('NativeTokenGateway', function () {
     nativeTokenGateway = await nativeTokenGatewayFactory.deploy(NATIVE_TOKEN_ADDRESS)
     await nativeTokenGateway.deployed()
 
-    await msdNativeToken.initialize(NATIVE_TOKEN_ADDRESS, poolMock.address, 'msdETH', 18, parseEther('1'), MaxUint256)
+    await msdNativeToken.initialize(
+      NATIVE_TOKEN_ADDRESS,
+      poolMock.address,
+      'Metronome Synth WETH-Deposit',
+      'msdWETH',
+      18,
+      parseEther('1'),
+      MaxUint256
+    )
 
     const erc20MockFactory = new ERC20Mock__factory(deployer)
     tokenMock = await erc20MockFactory.deploy('Name', 'SYMBOL', 18)

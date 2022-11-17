@@ -171,6 +171,7 @@ export const buildDepositDeployFunction = ({
   maxTotalSupply,
 }: DepositDeployFunctionProps): DeployFunction => {
   const alias = `${underlyingSymbol}DepositToken`
+  const name = `Metronome Synth ${underlyingSymbol}-Deposit`
   const symbol = `msd${underlyingSymbol}`
 
   const deployFunction: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
@@ -185,7 +186,15 @@ export const buildDepositDeployFunction = ({
     const {address: msdAddress} = await deployUpgradable({
       hre,
       contractConfig: {...DepositTokenConfig, alias},
-      initializeArgs: [underlyingAddress, poolAddress, symbol, underlyingDecimals, collateralFactor, maxTotalSupply],
+      initializeArgs: [
+        underlyingAddress,
+        poolAddress,
+        name,
+        symbol,
+        underlyingDecimals,
+        collateralFactor,
+        maxTotalSupply,
+      ],
     })
 
     if (!wasDeployed) {
