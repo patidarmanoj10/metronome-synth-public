@@ -86,7 +86,15 @@ describe('DebtToken', function () {
     await poolMock.updateTreasury(treasury.address)
     await setBalance(poolMock.address, parseEther('10'))
 
-    await msdMET.initialize(met.address, poolMock.address, 'msdMET', 18, metCF, MaxUint256)
+    await msdMET.initialize(
+      met.address,
+      poolMock.address,
+      'Metronome Synth MET-Deposit',
+      'msdMET',
+      18,
+      metCF,
+      MaxUint256
+    )
     await msUSD.initialize('Metronome Synth ETH', 'msETH', 18, poolRegistryMock.address)
     await msUSDDebt.initialize(name, symbol, poolMock.address, msUSD.address, interestRate, MaxUint256)
 

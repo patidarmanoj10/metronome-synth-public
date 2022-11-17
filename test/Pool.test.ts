@@ -93,8 +93,8 @@ async function fixture() {
   poolRegistryMock.feeCollector.returns(feeCollector.address)
 
   // Deployment tasks
-  await msdMET.initialize(met.address, pool.address, 'msdMET', 18, metCF, MaxUint256)
-  await msdDAI.initialize(dai.address, pool.address, 'msdDAI', 18, daiCF, MaxUint256)
+  await msdMET.initialize(met.address, pool.address, 'Metronome Synth WETH-Deposit', 'msdMET', 18, metCF, MaxUint256)
+  await msdDAI.initialize(dai.address, pool.address, 'Metronome Synth DAI-Deposit', 'msdDAI', 18, daiCF, MaxUint256)
   await treasury.initialize(pool.address)
   await msEth.initialize('Metronome Synth ETH', 'msETH', 18, poolRegistryMock.address)
   await msEthDebtToken.initialize('msETH Debt', 'msETH-Debt', pool.address, msEth.address, interestRate, MaxUint256)

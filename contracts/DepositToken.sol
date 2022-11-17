@@ -93,6 +93,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     function initialize(
         IERC20 underlying_,
         IPool pool_,
+        string calldata name_,
         string calldata symbol_,
         uint8 decimals_,
         uint128 collateralFactor_,
@@ -104,7 +105,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         __ReentrancyGuard_init();
         __Manageable_init(pool_);
 
-        name = "Tokenized deposit position";
+        name = name_;
         symbol = symbol_;
         underlying = underlying_;
         isActive = true;

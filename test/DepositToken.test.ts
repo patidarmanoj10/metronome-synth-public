@@ -75,7 +75,15 @@ describe('DepositToken', function () {
     poolMock.getRewardsDistributors.returns([rewardsDistributorMock.address])
     rewardsDistributorMock.pool.returns(poolMock.address)
 
-    await metDepositToken.initialize(met.address, poolMock.address, 'msdMET', 18, metCF, MaxUint256)
+    await metDepositToken.initialize(
+      met.address,
+      poolMock.address,
+      'Metronome Synth MET-Deposit',
+      'msdMET',
+      18,
+      metCF,
+      MaxUint256
+    )
     metDepositToken = metDepositToken.connect(governor)
 
     await masterOracle.updatePrice(met.address, metPrice)
