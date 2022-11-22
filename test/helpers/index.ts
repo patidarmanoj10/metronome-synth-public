@@ -23,7 +23,7 @@ export const DEFAULT_TWAP_PERIOD = time.duration.hours(2)
  * C (colleteral)
  * CF (collateral's collateral factor)
  * LIMIT (mintable limit) = SUM(C * CF)
- * FEE = 1e18 + liquidatorLiquidationFee + protocolLiquidationFee
+ * FEE = 1e18 + liquidatorIncentive + protocolLiquidationFee
  * D' (debt after liquidation) = D - X
  * C' (collateral after liquidation) = C - (X * FEE)
  * LIMIT' (mintable limit after liquidation) = LIMIT - (C * CF) + (C' * CF)
@@ -46,28 +46,12 @@ export const getMinLiquidationAmountInUsd = async function (
 ): Promise<BigNumber> {
   const {_issuableLimitInUsd, _debtInUsd} = await pool.debtPositionOf(accountAddress)
 
-  const [liquidatorFee, protocolFee] = await pool.liquidationFees()
-  const fee = parseEther('1').add(liquidatorFee).add(protocolFee)
+  const [liquidatorIncentive, protocolFee] = await pool.liquidationFees()
+  const fee = parseEther('1').add(liquidatorIncentive).add(protocolFee)
   const cf = await depositToken.collateralFactor()
 
   const numerator = _debtInUsd.sub(_issuableLimitInUsd)
   const denominator = fee.mul('-1').mul(cf).div(parseEther('1')).add(parseEther('1'))
-
-  return numerator.mul(parseEther('1')).div(denominator)
-}
-
-/**
- * C = collateral value in USD
- * L = liquidation fee
- * Calculates USD value needed = C/(1 + L)
- */
-export const getMaxLiquidationAmountInUsd = async function (pool: Pool, accountAddress: string): Promise<BigNumber> {
-  const {_depositInUsd} = await pool.debtPositionOf(accountAddress)
-  const [liquidatorFee, protocolFee] = await pool.liquidationFees()
-  const fee = liquidatorFee.add(protocolFee)
-
-  const numerator = _depositInUsd
-  const denominator = parseEther('1').add(fee)
 
   return numerator.mul(parseEther('1')).div(denominator)
 }

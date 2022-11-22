@@ -258,7 +258,9 @@ describe('DebtToken', function () {
       // Note: the calls below will make additional transfers
       await expect(tx).changeTokenBalances(msUSDDebt, [user1], [toIssue])
       await expect(tx).changeTokenBalances(met, [poolMock], [0])
-      await expect(tx()).emit(msUSDDebt, 'SyntheticTokenIssued').withArgs(user1.address, user1.address, toIssue, 0)
+      await expect(tx())
+        .emit(msUSDDebt, 'SyntheticTokenIssued')
+        .withArgs(user1.address, user1.address, toIssue, toIssue, 0)
     })
 
     it('should issue msAsset (issueFee > 0)', async function () {
@@ -268,10 +270,11 @@ describe('DebtToken', function () {
 
       // when
       const amount = parseEther('1')
-      const expectedFee = amount.mul(issueFee).div(parseEther('1'))
-      const expectedAmountAfterFee = amount.sub(expectedFee)
+      const {_amountToIssue, _fee: expectedFee} = await msUSDDebt.quoteIssueOut(amount)
+      const {_amount} = await msUSDDebt.quoteIssueIn(_amountToIssue)
+      expect(amount).eq(_amount)
       const tx = () => msUSDDebt.connect(user1).issue(amount, user1.address)
-      await expect(tx).changeTokenBalances(msUSD, [user1, feeCollector], [expectedAmountAfterFee, expectedFee])
+      await expect(tx).changeTokenBalances(msUSD, [user1, feeCollector], [_amountToIssue, expectedFee])
 
       // then
       // Note: the calls below will make additional transfers
@@ -279,28 +282,37 @@ describe('DebtToken', function () {
       await expect(tx).changeTokenBalances(msUSDDebt, [user1], [amount])
       await expect(tx())
         .emit(msUSDDebt, 'SyntheticTokenIssued')
-        .withArgs(user1.address, user1.address, amount, expectedFee)
+        .withArgs(user1.address, user1.address, amount, _amountToIssue, expectedFee)
     })
 
     it('should issue max issuable amount (issueFee == 0)', async function () {
       const {_issuableInUsd} = await poolMock.debtPositionOf(user1.address)
       const amount = await masterOracleMock.quoteUsdToToken(msUSD.address, _issuableInUsd)
+      const {_amountToIssue} = await msUSDDebt.quoteIssueOut(amount)
+      const {_amount} = await msUSDDebt.quoteIssueIn(_amountToIssue)
+      expect(amount).eq(_amount)
       const tx = msUSDDebt.connect(user1).issue(amount, user1.address)
-      await expect(tx).emit(msUSDDebt, 'SyntheticTokenIssued').withArgs(user1.address, user1.address, amount, 0)
+      await expect(tx).emit(msUSDDebt, 'SyntheticTokenIssued').withArgs(user1.address, user1.address, amount, amount, 0)
     })
 
     it('should issue max issuable amount (issueFee > 0)', async function () {
       // given
       const issueFee = parseEther('0.1') // 10%
       await poolMock.updateIssueFee(issueFee)
+      expect(await msUSDDebt.balanceOf(user1.address)).eq(0)
 
       const {_issuableInUsd} = await poolMock.debtPositionOf(user1.address)
       const amount = await masterOracleMock.quoteUsdToToken(msUSD.address, _issuableInUsd)
-      const expectedFee = amount.mul(issueFee).div(parseEther('1'))
+      const {_amountToIssue, _fee: expectedFee} = await msUSDDebt.quoteIssueOut(amount)
+      const {_amount, _fee} = await msUSDDebt.quoteIssueIn(_amountToIssue)
+      expect(amount).eq(_amount)
+      expect(expectedFee).eq(_fee)
+
       const tx = msUSDDebt.connect(user1).issue(amount, user1.address)
       await expect(tx)
         .emit(msUSDDebt, 'SyntheticTokenIssued')
-        .withArgs(user1.address, user1.address, amount, expectedFee)
+        .withArgs(user1.address, user1.address, amount, _amountToIssue, expectedFee)
+      expect(await msUSD.balanceOf(user1.address)).eq(_amountToIssue)
     })
 
     describe('when user1 issue some msETH', function () {
@@ -396,19 +408,21 @@ describe('DebtToken', function () {
           expect(await poolMock.debtOf(user1.address)).eq(toUSD('0.6'))
         })
 
-        it('should repay if amount == debt (repayFee == 0)', async function () {
+        it('should repay all debt (repayFee == 0)', async function () {
           // given
           await poolMock.updateRepayFee(0)
           const lockedCollateralBefore = await msdMET.lockedBalanceOf(user1.address)
           expect(lockedCollateralBefore).gt(0)
+          const debtBefore = await msUSDDebt.balanceOf(user1.address)
 
           // when
-          const amount = await msUSDDebt.balanceOf(user1.address)
-          const tx = msUSDDebt.connect(user1).repay(user1.address, amount)
-          await expect(tx).emit(msUSDDebt, 'DebtRepaid').withArgs(user1.address, user1.address, amount, 0)
+          const {_amount: amountIn} = await msUSDDebt.quoteRepayIn(debtBefore)
+          const tx = msUSDDebt.connect(user1).repay(user1.address, amountIn)
+          await expect(tx).emit(msUSDDebt, 'DebtRepaid').withArgs(user1.address, user1.address, amountIn, amountIn, 0)
 
           // then
-          expect(await msUSDDebt.balanceOf(user1.address)).eq(0)
+          const debtAfter = await msUSDDebt.balanceOf(user1.address)
+          expect(debtAfter).eq(0)
           const lockedCollateralAfter = await msdMET.lockedBalanceOf(user1.address)
           expect(lockedCollateralAfter).eq(0)
         })
@@ -422,7 +436,7 @@ describe('DebtToken', function () {
           // when
           const amount = (await msUSDDebt.balanceOf(user1.address)).div('2')
           const tx = msUSDDebt.connect(user1).repay(user1.address, amount)
-          await expect(tx).emit(msUSDDebt, 'DebtRepaid').withArgs(user1.address, user1.address, amount, 0)
+          await expect(tx).emit(msUSDDebt, 'DebtRepaid').withArgs(user1.address, user1.address, amount, amount, 0)
 
           // then
           expect(await msUSDDebt.balanceOf(user1.address)).eq(amount)
@@ -440,10 +454,14 @@ describe('DebtToken', function () {
 
           // when
           const amount = msUsdBefore
-          const debtToErase = amount.mul(parseEther('1')).div(parseEther('1').add(repayFee))
-          const expectedFee = amount.sub(debtToErase).sub(1)
+          const {_amountToRepay} = await msUSDDebt.quoteRepayOut(amount)
+          const {_amount: amountIn, _fee: expectedFee} = await msUSDDebt.quoteRepayIn(_amountToRepay)
+          expect(amount).eq(amountIn)
+
           const tx = msUSDDebt.connect(user1).repay(user1.address, amount)
-          await expect(tx).emit(msUSDDebt, 'DebtRepaid').withArgs(user1.address, user1.address, amount, expectedFee)
+          await expect(tx)
+            .emit(msUSDDebt, 'DebtRepaid')
+            .withArgs(user1.address, user1.address, amount, _amountToRepay, expectedFee)
 
           // then
           expect(await msUSD.balanceOf(user1.address)).eq(0)
@@ -462,10 +480,14 @@ describe('DebtToken', function () {
           // when
           const halfBalance = msUsdBefore.div('2')
           const amount = halfBalance
-          const debtToErase = amount.mul(parseEther('1')).div(parseEther('1').add(repayFee))
-          const expectedFee = amount.sub(debtToErase)
+          const {_amountToRepay} = await msUSDDebt.quoteRepayOut(amount)
+          const {_amount: amountIn} = await msUSDDebt.quoteRepayIn(_amountToRepay)
+          expect(amount).eq(amountIn)
+          const expectedFee = amount.sub(_amountToRepay)
           const tx = msUSDDebt.connect(user1).repay(user1.address, amount)
-          await expect(tx).emit(msUSDDebt, 'DebtRepaid').withArgs(user1.address, user1.address, amount, expectedFee)
+          await expect(tx)
+            .emit(msUSDDebt, 'DebtRepaid')
+            .withArgs(user1.address, user1.address, amount, _amountToRepay, expectedFee)
 
           // then
           const msUsdAfter = await msUSD.balanceOf(user1.address)
@@ -479,6 +501,7 @@ describe('DebtToken', function () {
           const repayFee = parseEther('0.1') // 10%
           await poolMock.updateRepayFee(repayFee)
 
+          // sending extra msUSD to cover fee
           await met.mint(user2.address, parseEther('1000'))
           await met.connect(user2).approve(msdMET.address, ethers.constants.MaxUint256)
           await msdMET.connect(user2).deposit(depositAmount, user2.address)
@@ -488,8 +511,71 @@ describe('DebtToken', function () {
           expect(debtBefore).gt(0)
 
           // when
-          const amount = debtBefore.mul(parseEther('1').add(repayFee)).div(parseEther('1'))
-          await msUSDDebt.connect(user1).repay(user1.address, amount)
+          const {_amount: amountIn} = await msUSDDebt.quoteRepayIn(debtBefore)
+          await msUSDDebt.connect(user1).repay(user1.address, amountIn)
+
+          // then
+          const {_debtInUsd: debtAfter} = await poolMock.debtPositionOf(user1.address)
+          expect(debtAfter).eq(0)
+        })
+      })
+
+      describe('repayAll', function () {
+        it('should not revert if paused', async function () {
+          // given
+          await poolMock.pause()
+
+          // when
+          const tx = msUSDDebt.connect(user1).repayAll(user1.address)
+
+          // then
+          await expect(tx).emit(msUSDDebt, 'DebtRepaid')
+        })
+
+        it('should revert if shutdown', async function () {
+          // given
+          await poolMock.shutdown()
+
+          // when
+          const tx = msUSDDebt.connect(user1).repayAll(user1.address)
+
+          // then
+          await expect(tx).revertedWith('shutdown')
+        })
+
+        it('should repay all debt (repayFee == 0)', async function () {
+          // given
+          await poolMock.updateRepayFee(0)
+          const lockedCollateralBefore = await msdMET.lockedBalanceOf(user1.address)
+          expect(lockedCollateralBefore).gt(0)
+
+          // when
+          const amount = await msUSDDebt.balanceOf(user1.address)
+          const tx = msUSDDebt.connect(user1).repayAll(user1.address)
+          await expect(tx).emit(msUSDDebt, 'DebtRepaid').withArgs(user1.address, user1.address, amount, amount, 0)
+
+          // then
+          expect(await msUSDDebt.balanceOf(user1.address)).eq(0)
+          const lockedCollateralAfter = await msdMET.lockedBalanceOf(user1.address)
+          expect(lockedCollateralAfter).eq(0)
+        })
+
+        it('should repay all debt (repayFee > 0)', async function () {
+          // given
+          const repayFee = parseEther('0.1') // 10%
+          await poolMock.updateRepayFee(repayFee)
+
+          // sending extra msUSD to cover fee
+          await met.mint(user2.address, parseEther('1000'))
+          await met.connect(user2).approve(msdMET.address, ethers.constants.MaxUint256)
+          await msdMET.connect(user2).deposit(depositAmount, user2.address)
+          await msUSDDebt.connect(user2).issue(parseEther('1'), user1.address)
+
+          const {_debtInUsd: debtBefore} = await poolMock.debtPositionOf(user1.address)
+          expect(debtBefore).gt(0)
+
+          // when
+          await msUSDDebt.connect(user1).repayAll(user1.address)
 
           // then
           const {_debtInUsd: debtAfter} = await poolMock.debtPositionOf(user1.address)

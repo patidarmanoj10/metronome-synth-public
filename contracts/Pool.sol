@@ -39,8 +39,8 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
     /// @notice Emitted when issue fee is updated
     event IssueFeeUpdated(uint256 oldIssueFee, uint256 newIssueFee);
 
-    /// @notice Emitted when liquidator liquidation fee is updated
-    event LiquidatorLiquidationFeeUpdated(uint256 oldLiquidatorLiquidationFee, uint256 newLiquidatorLiquidationFee);
+    /// @notice Emitted when liquidator incentive is updated
+    event LiquidatorIncentiveUpdated(uint256 oldLiquidatorIncentive, uint256 newLiquidatorIncentive);
 
     /// @notice Emitted when maxLiquidable (liquidation cap) is updated
     event MaxLiquidableUpdated(uint256 oldMaxLiquidable, uint256 newMaxLiquidable);
@@ -123,7 +123,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
 
         repayFee = 3e15; // 0.3%
         liquidationFees = LiquidationFees({
-            liquidatorFee: 1e17, // 10%
+            liquidatorIncentive: 1e17, // 10%
             protocolFee: 8e16 // 8%
         });
         maxLiquidable = 0.5e18; // 50%
@@ -136,7 +136,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @dev The caller should ensure to not pass `address(0)` as `_account`
      * @param account_ The account address
      */
-    function addToDebtTokensOfAccount(address account_) external onlyIfMsgSenderIsDebtToken {
+    function addToDebtTokensOfAccount(address account_) external override onlyIfMsgSenderIsDebtToken {
         require(debtTokensOfAccount.add(account_, msg.sender), "debt-token-exists");
     }
 
@@ -146,7 +146,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @dev The caller should ensure to not pass `address(0)` as `_account`
      * @param account_ The account address
      */
-    function addToDepositTokensOfAccount(address account_) external {
+    function addToDepositTokensOfAccount(address account_) external override {
         require(depositTokens.contains(msg.sender), "caller-is-not-deposit-token");
         require(depositTokensOfAccount.add(account_, msg.sender), "deposit-token-exists");
     }
@@ -230,7 +230,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
     /**
      * @notice Returns fee collector address
      */
-    function feeCollector() external view returns (address) {
+    function feeCollector() external view override returns (address) {
         return poolRegistry.feeCollector();
     }
 
@@ -305,13 +305,184 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
     }
 
     /**
-     * @notice Burn synthetic token, unlock deposit token and send liquidator liquidation fee
+     * @notice Quote synth  `_amountToRepay` in order to seize `totalToSeized_`
+     * @param syntheticToken_ Synth for repayment
+     * @param totalToSeized_ Collateral total amount to size
+     * @param depositToken_ Collateral's deposit token
+     * @return _amountToRepay Synth amount to burn
+     * @return _toLiquidator Seized amount to the liquidator
+     * @return _fee The fee amount to collect
+     */
+    function quoteLiquidateIn(
+        ISyntheticToken syntheticToken_,
+        uint256 totalToSeized_,
+        IDepositToken depositToken_
+    )
+        public
+        view
+        override
+        returns (
+            uint256 _amountToRepay,
+            uint256 _toLiquidator,
+            uint256 _fee
+        )
+    {
+        LiquidationFees memory _fees = liquidationFees;
+        uint256 _totalFees = _fees.protocolFee + _fees.liquidatorIncentive;
+        uint256 _repayAmountInCollateral = totalToSeized_;
+
+        if (_totalFees > 0) {
+            _repayAmountInCollateral = _repayAmountInCollateral.wadDiv(1e18 + _totalFees);
+        }
+
+        _amountToRepay = masterOracle().quote(
+            address(depositToken_.underlying()),
+            address(syntheticToken_),
+            _repayAmountInCollateral
+        );
+
+        if (_fees.protocolFee > 0) {
+            _fee = _repayAmountInCollateral.wadMul(_fees.protocolFee);
+        }
+
+        if (_fees.liquidatorIncentive > 0) {
+            _toLiquidator = _repayAmountInCollateral.wadMul(1e18 + _fees.liquidatorIncentive);
+        }
+    }
+
+    /**
+     * @notice Quote max allowed synth to repay
+     * @dev I.e. Considers the min amount between collateral's balance and `maxLiquidable` param
+     * @param syntheticToken_ Synth for repayment
+     * @param account_ The account to liquidate
+     * @param depositToken_ Collateral's deposit token
+     * @return _maxAmountToRepay Synth amount to burn
+     */
+    function quoteLiquidateMax(
+        ISyntheticToken syntheticToken_,
+        address account_,
+        IDepositToken depositToken_
+    ) external view override returns (uint256 _maxAmountToRepay) {
+        (bool _isHealthy, , , , ) = debtPositionOf(account_);
+        if (_isHealthy) {
+            return 0;
+        }
+
+        (uint256 _amountToRepay, , ) = quoteLiquidateIn(
+            syntheticToken_,
+            depositToken_.balanceOf(account_),
+            depositToken_
+        );
+
+        _maxAmountToRepay = debtTokenOf[syntheticToken_].balanceOf(account_).wadMul(maxLiquidable);
+
+        if (_amountToRepay < _maxAmountToRepay) {
+            _maxAmountToRepay = _amountToRepay;
+        }
+    }
+
+    /**
+     * @notice Quote collateral  `totalToSeized_` by repaying `amountToRepay_`
+     * @param syntheticToken_ Synth for repayment
+     * @param amountToRepay_ Synth amount to burn
+     * @param depositToken_ Collateral's deposit token
+     * @return _totalToSeize Collateral total amount to size
+     * @return _toLiquidator Seized amount to the liquidator
+     * @return _fee The fee amount to collect
+     */
+    function quoteLiquidateOut(
+        ISyntheticToken syntheticToken_,
+        uint256 amountToRepay_,
+        IDepositToken depositToken_
+    )
+        public
+        view
+        override
+        returns (
+            uint256 _totalToSeize,
+            uint256 _toLiquidator,
+            uint256 _fee
+        )
+    {
+        _toLiquidator = masterOracle().quote(
+            address(syntheticToken_),
+            address(depositToken_.underlying()),
+            amountToRepay_
+        );
+
+        LiquidationFees memory _fees = liquidationFees;
+
+        if (_fees.protocolFee > 0) {
+            _fee = _toLiquidator.wadMul(_fees.protocolFee);
+        }
+        if (_fees.liquidatorIncentive > 0) {
+            _toLiquidator += _toLiquidator.wadMul(_fees.liquidatorIncentive);
+        }
+
+        _totalToSeize = _fee + _toLiquidator;
+    }
+
+    /**
+     * @notice Quote `_amountIn` to get `amountOut_`
+     * @param syntheticTokenIn_ Synth in
+     * @param syntheticTokenOut_ Synth out
+     * @param amountOut_ Amount out
+     * @return _amountIn Amount in
+     * @return _fee Fee to charge in `syntheticTokenOut_`
+     */
+    function quoteSwapIn(
+        ISyntheticToken syntheticTokenIn_,
+        ISyntheticToken syntheticTokenOut_,
+        uint256 amountOut_
+    ) external view override returns (uint256 _amountIn, uint256 _fee) {
+        uint256 _swapFee = swapFee;
+        if (_swapFee > 0) {
+            amountOut_ = amountOut_.wadDiv(1e18 - _swapFee);
+            _fee = amountOut_.wadMul(_swapFee);
+        }
+
+        _amountIn = poolRegistry.masterOracle().quote(
+            address(syntheticTokenOut_),
+            address(syntheticTokenIn_),
+            amountOut_
+        );
+    }
+
+    /**
+     * @notice Quote `amountOut_` get from `amountIn_`
+     * @param syntheticTokenIn_ Synth in
+     * @param syntheticTokenOut_ Synth out
+     * @param amountIn_ Amount in
+     * @return _amountOut Amount out
+     * @return _fee Fee to charge in `syntheticTokenOut_`
+     */
+    function quoteSwapOut(
+        ISyntheticToken syntheticTokenIn_,
+        ISyntheticToken syntheticTokenOut_,
+        uint256 amountIn_
+    ) public view override returns (uint256 _amountOut, uint256 _fee) {
+        _amountOut = poolRegistry.masterOracle().quote(
+            address(syntheticTokenIn_),
+            address(syntheticTokenOut_),
+            amountIn_
+        );
+
+        uint256 _swapFee = swapFee;
+        if (_swapFee > 0) {
+            _fee = _amountOut.wadMul(_swapFee);
+            _amountOut -= _fee;
+        }
+    }
+
+    /**
+     * @notice Burn synthetic token, unlock deposit token and send liquidator incentive
      * @param syntheticToken_ The msAsset to use for repayment
      * @param account_ The account with an unhealthy position
      * @param amountToRepay_ The amount to repay in synthetic token
      * @param depositToken_ The collateral to seize from
      * @return _totalSeized Total deposit amount seized from the liquidated account
      * @return _toLiquidator Share of `_totalSeized` sent to the liquidator
+     * @return _fee Share of `_totalSeized` collected as fee
      */
     function liquidate(
         ISyntheticToken syntheticToken_,
@@ -324,7 +495,11 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
         whenNotShutdown
         nonReentrant
         onlyIfDepositTokenExists(depositToken_)
-        returns (uint256 _totalSeized, uint256 _toLiquidator)
+        returns (
+            uint256 _totalSeized,
+            uint256 _toLiquidator,
+            uint256 _fee
+        )
     {
         require(amountToRepay_ > 0, "amount-is-zero");
         require(msg.sender != account_, "can-not-liquidate-own-position");
@@ -350,17 +525,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
             require(_newDebtInUsd == 0 || _newDebtInUsd >= debtFloorInUsd, "remaining-debt-lt-floor");
         }
 
-        uint256 _amountToRepayInCollateral = _masterOracle.quote(
-            address(syntheticToken_),
-            address(depositToken_.underlying()),
-            amountToRepay_
-        );
-
-        LiquidationFees memory _fees = liquidationFees;
-
-        uint256 _toProtocol = _fees.protocolFee > 0 ? _amountToRepayInCollateral.wadMul(_fees.protocolFee) : 0;
-        _toLiquidator = _amountToRepayInCollateral.wadMul(1e18 + _fees.liquidatorFee);
-        _totalSeized = _toProtocol + _toLiquidator;
+        (_totalSeized, _toLiquidator, _fee) = quoteLiquidateOut(syntheticToken_, amountToRepay_, depositToken_);
 
         require(_totalSeized <= depositToken_.balanceOf(account_), "amount-too-high");
 
@@ -368,11 +533,11 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
         _debtToken.burn(account_, amountToRepay_);
         depositToken_.seize(account_, msg.sender, _toLiquidator);
 
-        if (_toProtocol > 0) {
-            depositToken_.seize(account_, poolRegistry.feeCollector(), _toProtocol);
+        if (_fee > 0) {
+            depositToken_.seize(account_, poolRegistry.feeCollector(), _fee);
         }
 
-        emit PositionLiquidated(msg.sender, account_, syntheticToken_, amountToRepay_, _totalSeized, _toProtocol);
+        emit PositionLiquidated(msg.sender, account_, syntheticToken_, amountToRepay_, _totalSeized, _fee);
     }
 
     /**
@@ -395,7 +560,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @dev The caller should ensure to not pass `address(0)` as `_account`
      * @param account_ The account address
      */
-    function removeFromDebtTokensOfAccount(address account_) external onlyIfMsgSenderIsDebtToken {
+    function removeFromDebtTokensOfAccount(address account_) external override onlyIfMsgSenderIsDebtToken {
         require(debtTokensOfAccount.remove(account_, msg.sender), "debt-token-doesnt-exist");
     }
 
@@ -405,7 +570,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @dev The caller should ensure to not pass `address(0)` as `_account`
      * @param account_ The account address
      */
-    function removeFromDepositTokensOfAccount(address account_) external {
+    function removeFromDepositTokensOfAccount(address account_) external override {
         require(depositTokens.contains(msg.sender), "caller-is-not-deposit-token");
         require(depositTokensOfAccount.remove(account_, msg.sender), "deposit-token-doesnt-exist");
     }
@@ -427,35 +592,21 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
         nonReentrant
         onlyIfSyntheticTokenExists(syntheticTokenIn_)
         onlyIfSyntheticTokenExists(syntheticTokenOut_)
-        returns (uint256 _amountOut)
+        returns (uint256 _amountOut, uint256 _fee)
     {
         require(isSwapActive, "swap-is-off");
         require(amountIn_ > 0 && amountIn_ <= syntheticTokenIn_.balanceOf(msg.sender), "amount-in-is-invalid");
         syntheticTokenIn_.burn(msg.sender, amountIn_);
 
-        _amountOut = poolRegistry.masterOracle().quote(
-            address(syntheticTokenIn_),
-            address(syntheticTokenOut_),
-            amountIn_
-        );
+        (_amountOut, _fee) = quoteSwapOut(syntheticTokenIn_, syntheticTokenOut_, amountIn_);
 
-        uint256 _feeAmount;
-        if (swapFee > 0) {
-            _feeAmount = _amountOut.wadMul(swapFee);
-            syntheticTokenOut_.mint(poolRegistry.feeCollector(), _feeAmount);
-            _amountOut -= _feeAmount;
+        if (_fee > 0) {
+            syntheticTokenOut_.mint(poolRegistry.feeCollector(), _fee);
         }
 
         syntheticTokenOut_.mint(msg.sender, _amountOut);
 
-        emit SyntheticTokenSwapped(
-            msg.sender,
-            syntheticTokenIn_,
-            syntheticTokenOut_,
-            amountIn_,
-            _amountOut,
-            _feeAmount
-        );
+        emit SyntheticTokenSwapped(msg.sender, syntheticTokenIn_, syntheticTokenOut_, amountIn_, _amountOut, _fee);
     }
 
     /**
@@ -595,14 +746,14 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
     }
 
     /**
-     * @notice Update liquidator liquidation fee
+     * @notice Update liquidator incentive
      */
-    function updateLiquidatorLiquidationFee(uint128 newLiquidatorLiquidationFee_) external override onlyGovernor {
-        require(newLiquidatorLiquidationFee_ <= 1e18, "max-is-100%");
-        uint256 _currentLiquidatorLiquidationFee = liquidationFees.liquidatorFee;
-        require(newLiquidatorLiquidationFee_ != _currentLiquidatorLiquidationFee, "new-same-as-current");
-        emit LiquidatorLiquidationFeeUpdated(_currentLiquidatorLiquidationFee, newLiquidatorLiquidationFee_);
-        liquidationFees.liquidatorFee = newLiquidatorLiquidationFee_;
+    function updateLiquidatorIncentive(uint128 newLiquidatorIncentive_) external override onlyGovernor {
+        require(newLiquidatorIncentive_ <= 1e18, "max-is-100%");
+        uint256 _currentLiquidatorIncentive = liquidationFees.liquidatorIncentive;
+        require(newLiquidatorIncentive_ != _currentLiquidatorIncentive, "new-same-as-current");
+        emit LiquidatorIncentiveUpdated(_currentLiquidatorIncentive, newLiquidatorIncentive_);
+        liquidationFees.liquidatorIncentive = newLiquidatorIncentive_;
     }
 
     /**

@@ -8,7 +8,7 @@ import "../interfaces/IPool.sol";
 
 abstract contract PoolStorageV1 is IPool {
     struct LiquidationFees {
-        uint128 liquidatorFee;
+        uint128 liquidatorIncentive;
         uint128 protocolFee;
     }
 
@@ -16,64 +16,64 @@ abstract contract PoolStorageV1 is IPool {
      * @notice The debt floor (in USD) for each synthetic token
      * This parameters is used to keep incentive for liquidators (i.e. cover gas and provide enough profit)
      */
-    uint256 public debtFloorInUsd;
+    uint256 public override debtFloorInUsd;
 
     /**
      * @notice The fee charged when depositing collateral
      * @dev Use 18 decimals (e.g. 1e16 = 1%)
      */
-    uint256 public depositFee;
+    uint256 public override depositFee;
 
     /**
      * @notice The fee charged when minting a synthetic token
      * @dev Use 18 decimals (e.g. 1e16 = 1%)
      */
-    uint256 public issueFee;
+    uint256 public override issueFee;
 
     /**
      * @notice The fee charged when withdrawing collateral
      * @dev Use 18 decimals (e.g. 1e16 = 1%)
      */
-    uint256 public withdrawFee;
+    uint256 public override withdrawFee;
 
     /**
      * @notice The fee charged when repaying debt
      * @dev Use 18 decimals (e.g. 1e16 = 1%)
      */
-    uint256 public repayFee;
+    uint256 public override repayFee;
 
     /**
      * @notice The fee charged when swapping synthetic tokens
      * @dev Use 18 decimals (e.g. 1e16 = 1%)
      */
-    uint256 public swapFee;
+    uint256 public override swapFee;
 
     /**
      * @notice The fees charged when liquidating a position
      * @dev Use 18 decimals (e.g. 1e16 = 1%)
      */
-    LiquidationFees public liquidationFees;
+    LiquidationFees public override liquidationFees;
 
     /**
      * @notice The max percent of the debt allowed to liquidate
      * @dev Use 18 decimals (e.g. 1e16 = 1%)
      */
-    uint256 public maxLiquidable;
+    uint256 public override maxLiquidable;
 
     /**
      * @notice PoolRegistry
      */
-    IPoolRegistry public poolRegistry;
+    IPoolRegistry public override poolRegistry;
 
     /**
      * @notice Swap feature on/off flag
      */
-    bool public isSwapActive;
+    bool public override isSwapActive;
 
     /**
      * @notice Treasury contract
      */
-    ITreasury public treasury;
+    ITreasury public override treasury;
 
     /**
      * @notice Represents collateral's deposits
@@ -83,7 +83,7 @@ abstract contract PoolStorageV1 is IPool {
     /**
      * @notice Get the deposit token's address from given underlying asset
      */
-    mapping(IERC20 => IDepositToken) public depositTokenOf;
+    mapping(IERC20 => IDepositToken) public override depositTokenOf;
 
     /**
      * @notice Available debt tokens
@@ -108,5 +108,5 @@ abstract contract PoolStorageV1 is IPool {
     /**
      * @notice Get the debt token's address from given synthetic asset
      */
-    mapping(ISyntheticToken => IDebtToken) public debtTokenOf;
+    mapping(ISyntheticToken => IDebtToken) public override debtTokenOf;
 }

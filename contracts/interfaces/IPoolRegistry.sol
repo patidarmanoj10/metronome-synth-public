@@ -21,4 +21,6 @@ interface IPoolRegistry is IPauseable, IGovernable {
     function masterOracle() external view returns (IMasterOracle);
 
     function updateMasterOracle(IMasterOracle newOracle_) external;
+
+    function updateFeeCollector(address newFeeCollector_) external;
 }

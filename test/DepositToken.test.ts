@@ -171,7 +171,7 @@ describe('DepositToken', function () {
         const tx = metDepositToken.connect(alice).withdraw(amountToWithdraw, alice.address)
         await expect(tx)
           .emit(metDepositToken, 'CollateralWithdrawn')
-          .withArgs(alice.address, alice.address, amountToWithdraw, 0)
+          .withArgs(alice.address, alice.address, amountToWithdraw, amountToWithdraw, 0)
 
         // then
         expect(await met.balanceOf(alice.address)).eq(metBalanceBefore.add(amountToWithdraw))
@@ -185,20 +185,20 @@ describe('DepositToken', function () {
         poolMock.withdrawFee.returns(withdrawFee)
         const metBalanceBefore = await met.balanceOf(alice.address)
         const depositBefore = await metDepositToken.balanceOf(alice.address)
-        const toWithdraw = await metDepositToken.unlockedBalanceOf(alice.address)
-
-        const expectedFee = toWithdraw.mul(withdrawFee).div(parseEther('1'))
-        const expectedAmountAfterFee = toWithdraw.sub(expectedFee)
+        const amount = await metDepositToken.unlockedBalanceOf(alice.address)
+        const {_amountToWithdraw, _fee: fee} = await metDepositToken.quoteWithdrawOut(amount)
+        const {_amount: amountIn} = await metDepositToken.quoteWithdrawIn(_amountToWithdraw)
+        expect(amount).eq(amountIn)
 
         // when
-        const tx = metDepositToken.connect(alice).withdraw(toWithdraw, alice.address)
+        const tx = metDepositToken.connect(alice).withdraw(amount, alice.address)
         await expect(tx)
           .emit(metDepositToken, 'CollateralWithdrawn')
-          .withArgs(alice.address, alice.address, toWithdraw, expectedFee)
+          .withArgs(alice.address, alice.address, amount, _amountToWithdraw, fee)
 
         // then
-        expect(await met.balanceOf(alice.address)).eq(metBalanceBefore.add(expectedAmountAfterFee))
-        expect(await metDepositToken.balanceOf(alice.address)).eq(depositBefore.sub(toWithdraw))
+        expect(await met.balanceOf(alice.address)).eq(metBalanceBefore.add(_amountToWithdraw))
+        expect(await metDepositToken.balanceOf(alice.address)).eq(depositBefore.sub(amount))
         expect(await metDepositToken.unlockedBalanceOf(alice.address)).eq(0)
       })
 
@@ -211,7 +211,7 @@ describe('DepositToken', function () {
         const tx = metDepositToken.connect(alice).withdraw(amountToWithdraw, bob.address)
         await expect(tx)
           .emit(metDepositToken, 'CollateralWithdrawn')
-          .withArgs(alice.address, bob.address, amountToWithdraw, 0)
+          .withArgs(alice.address, bob.address, amountToWithdraw, amountToWithdraw, 0)
 
         // then
         expect(await met.balanceOf(bob.address)).eq(amountToWithdraw)
@@ -297,7 +297,7 @@ describe('DepositToken', function () {
         await expect(tx).changeTokenBalances(metDepositToken, [alice, poolMock], [toDeposit, 0])
         await expect(tx())
           .emit(metDepositToken, 'CollateralDeposited')
-          .withArgs(alice.address, alice.address, toDeposit, 0)
+          .withArgs(alice.address, alice.address, toDeposit, toDeposit, 0)
       })
 
       it('should deposit TOKEN and mint msdTOKEN when TOKEN has transfer fee', async function () {
@@ -315,7 +315,7 @@ describe('DepositToken', function () {
         await expect(tx).changeTokenBalances(metDepositToken, [alice, poolMock], [amountAfterFee, 0])
         await expect(tx())
           .emit(metDepositToken, 'CollateralDeposited')
-          .withArgs(alice.address, alice.address, amountAfterFee, 0)
+          .withArgs(alice.address, alice.address, amountAfterFee, amountAfterFee, 0)
       })
 
       it('should deposit MET and mint msdMET (depositFee > 0)', async function () {
@@ -324,21 +324,22 @@ describe('DepositToken', function () {
         poolMock.depositFee.returns(depositFee)
 
         // when
-        const toDeposit = parseEther('100')
-        const tx = () => metDepositToken.connect(alice).deposit(toDeposit, alice.address)
-        const expectedFeeAmount = parseEther('1')
-        const expectedAmountAfterFee = parseEther('99') // -1% fee
+        const amount = parseEther('100')
+        const tx = () => metDepositToken.connect(alice).deposit(amount, alice.address)
+        const {_amountToDeposit, _fee: fee} = await metDepositToken.quoteDepositOut(amount)
+        const {_amount: amountIn} = await metDepositToken.quoteDepositIn(_amountToDeposit)
+        expect(amount).eq(amountIn)
 
         // then
-        await expect(tx).changeTokenBalances(met, [alice, treasury], [toDeposit.mul('-1'), toDeposit])
+        await expect(tx).changeTokenBalances(met, [alice, treasury], [amount.mul('-1'), amount])
         await expect(tx).changeTokenBalances(
           metDepositToken,
           [alice, poolMock, feeCollector],
-          [expectedAmountAfterFee, 0, expectedFeeAmount]
+          [_amountToDeposit, 0, fee]
         )
         await expect(tx())
           .emit(metDepositToken, 'CollateralDeposited')
-          .withArgs(alice.address, alice.address, toDeposit, expectedFeeAmount)
+          .withArgs(alice.address, alice.address, amount, _amountToDeposit, fee)
       })
 
       it('should deposit on behalf of another user', async function () {
@@ -351,7 +352,7 @@ describe('DepositToken', function () {
         await expect(tx).changeTokenBalances(metDepositToken, [poolMock, bob], [0, toDeposit])
         await expect(tx())
           .emit(metDepositToken, 'CollateralDeposited')
-          .withArgs(alice.address, bob.address, toDeposit, 0)
+          .withArgs(alice.address, bob.address, toDeposit, toDeposit, 0)
       })
 
       it('should trigger rewards update', async function () {
