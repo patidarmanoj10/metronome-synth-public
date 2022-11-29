@@ -3,6 +3,7 @@
 pragma solidity 0.8.9;
 
 import "./IDepositToken.sol";
+import "./IDebtToken.sol";
 import "./ITreasury.sol";
 import "./IRewardsDistributor.sol";
 import "./IPoolRegistry.sol";
@@ -22,6 +23,8 @@ interface IPool is IPauseable, IGovernable {
     function repayFee() external view returns (uint256);
 
     function swapFee() external view returns (uint256);
+
+    function liquidationFees() external view returns (uint128 liquidatorIncentive, uint128 protocolFee);
 
     function feeCollector() external view returns (address);
 
@@ -71,13 +74,63 @@ interface IPool is IPauseable, IGovernable {
         address account_,
         uint256 amountToRepay_,
         IDepositToken depositToken_
-    ) external returns (uint256 _totalSeized, uint256 _toLiquidator);
+    )
+        external
+        returns (
+            uint256 _totalSeized,
+            uint256 _toLiquidator,
+            uint256 _fee
+        );
+
+    function quoteLiquidateIn(
+        ISyntheticToken syntheticToken_,
+        uint256 totalToSeized_,
+        IDepositToken depositToken_
+    )
+        external
+        view
+        returns (
+            uint256 _amountToRepay,
+            uint256 _toLiquidator,
+            uint256 _fee
+        );
+
+    function quoteLiquidateMax(
+        ISyntheticToken syntheticToken_,
+        address account_,
+        IDepositToken depositToken_
+    ) external view returns (uint256 _maxAmountToRepay);
+
+    function quoteLiquidateOut(
+        ISyntheticToken syntheticToken_,
+        uint256 amountToRepay_,
+        IDepositToken depositToken_
+    )
+        external
+        view
+        returns (
+            uint256 _totalSeized,
+            uint256 _toLiquidator,
+            uint256 _fee
+        );
+
+    function quoteSwapIn(
+        ISyntheticToken syntheticTokenIn_,
+        ISyntheticToken syntheticTokenOut_,
+        uint256 amountOut_
+    ) external view returns (uint256 _amountIn, uint256 _fee);
+
+    function quoteSwapOut(
+        ISyntheticToken syntheticTokenIn_,
+        ISyntheticToken syntheticTokenOut_,
+        uint256 amountIn_
+    ) external view returns (uint256 _amountOut, uint256 _fee);
 
     function swap(
         ISyntheticToken syntheticTokenIn_,
         ISyntheticToken syntheticTokenOut_,
         uint256 amountIn_
-    ) external returns (uint256 _amountOut);
+    ) external returns (uint256 _amountOut, uint256 _fee);
 
     function updateSwapFee(uint256 newSwapFee_) external;
 
@@ -91,7 +144,7 @@ interface IPool is IPauseable, IGovernable {
 
     function updateRepayFee(uint256 newRepayFee_) external;
 
-    function updateLiquidatorLiquidationFee(uint128 newLiquidatorLiquidationFee_) external;
+    function updateLiquidatorIncentive(uint128 newLiquidatorIncentive_) external;
 
     function updateProtocolLiquidationFee(uint128 newProtocolLiquidationFee_) external;
 

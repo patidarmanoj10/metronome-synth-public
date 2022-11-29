@@ -8,12 +8,12 @@ abstract contract DebtTokenStorageV1 is IDebtToken {
     /**
      * @notice The name of the token
      */
-    string public name;
+    string public override name;
 
     /**
      * @notice The symbol of the token
      */
-    string public symbol;
+    string public override symbol;
 
     /**
      * @notice The mapping of the users' minted tokens
@@ -29,7 +29,7 @@ abstract contract DebtTokenStorageV1 is IDebtToken {
     /**
      * @notice The supply cap
      */
-    uint256 public maxTotalSupply;
+    uint256 public override maxTotalSupply;
 
     /**
      * @notice The total amount of minted tokens
@@ -39,7 +39,7 @@ abstract contract DebtTokenStorageV1 is IDebtToken {
     /**
      * @notice The timestamp when interest accrual was calculated for the last time
      */
-    uint256 public lastTimestampAccrued;
+    uint256 public override lastTimestampAccrued;
 
     /**
      * @notice Accumulator of the total earned interest rate since the beginning
@@ -50,20 +50,20 @@ abstract contract DebtTokenStorageV1 is IDebtToken {
      * @notice Interest rate
      * @dev Use 0.1e18 for 10% APR
      */
-    uint256 public interestRate;
+    uint256 public override interestRate;
 
     /**
      * @notice The Synthetic token
      */
-    ISyntheticToken public syntheticToken;
+    ISyntheticToken public override syntheticToken;
 
     /**
      * @notice If true, disables msAsset minting on this pool
      */
-    bool public isActive;
+    bool public override isActive;
 
     /**
      * @notice The decimals of the token
      */
-    uint8 public decimals;
+    uint8 public override decimals;
 }

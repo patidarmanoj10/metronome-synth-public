@@ -75,7 +75,7 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     /**
      * @notice Returns claimable amount consider all tokens
      */
-    function claimable(address account_) external view returns (uint256 _claimable) {
+    function claimable(address account_) external view override returns (uint256 _claimable) {
         for (uint256 i; i < tokens.length; ++i) {
             _claimable += claimable(account_, tokens[i]);
         }
@@ -84,7 +84,7 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     /**
      * @notice Returns updated claimable amount for given token
      */
-    function claimable(address account_, IERC20 token_) public view returns (uint256 _claimable) {
+    function claimable(address account_, IERC20 token_) public view override returns (uint256 _claimable) {
         TokenState memory _tokenState = tokenStates[token_];
         (uint256 _newIndex, uint256 _newTimestamp) = _calculateTokenIndex(_tokenState, token_);
         if (_newIndex > 0 && _newTimestamp > 0) {
@@ -98,14 +98,14 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     /**
      * @notice Claim tokens accrued by account in all tokens
      */
-    function claimRewards(address account_) external {
+    function claimRewards(address account_) external override {
         claimRewards(account_, tokens);
     }
 
     /**
      * @notice Claim tokens accrued by account in the specified tokens
      */
-    function claimRewards(address account_, IERC20[] memory tokens_) public {
+    function claimRewards(address account_, IERC20[] memory tokens_) public override {
         address[] memory _accounts = new address[](1);
         _accounts[0] = account_;
         claimRewards(_accounts, tokens_);
@@ -114,7 +114,7 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     /**
      * @notice Claim tokens accrued by the accounts in the specified tokens
      */
-    function claimRewards(address[] memory accounts_, IERC20[] memory tokens_) public nonReentrant {
+    function claimRewards(address[] memory accounts_, IERC20[] memory tokens_) public override nonReentrant {
         uint256 _accountsLength = accounts_.length;
         uint256 _tokensLength = tokens_.length;
         for (uint256 i; i < _tokensLength; ++i) {
@@ -139,7 +139,7 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
      * @dev Called by DepositToken and DebtToken contracts
      * This function also may be called by anyone to update stored indexes
      */
-    function updateBeforeMintOrBurn(IERC20 token_, address account_) external {
+    function updateBeforeMintOrBurn(IERC20 token_, address account_) external override {
         if (tokenStates[token_].index > 0) {
             _updateTokenIndex(token_);
             _updateTokensAccruedOf(token_, account_);
@@ -154,7 +154,7 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
         IERC20 token_,
         address from_,
         address to_
-    ) external {
+    ) external override {
         if (tokenStates[token_].index > 0) {
             _updateTokenIndex(token_);
             _updateTokensAccruedOf(token_, from_);
@@ -284,14 +284,14 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     /**
      * @notice Update speed for a single deposit token
      */
-    function updateTokenSpeed(IERC20 token_, uint256 newSpeed_) external onlyGovernor {
+    function updateTokenSpeed(IERC20 token_, uint256 newSpeed_) external override onlyGovernor {
         _updateTokenSpeed(token_, newSpeed_);
     }
 
     /**
      * @notice Update token speeds
      */
-    function updateTokenSpeeds(IERC20[] calldata tokens_, uint256[] calldata speeds_) external onlyGovernor {
+    function updateTokenSpeeds(IERC20[] calldata tokens_, uint256[] calldata speeds_) external override onlyGovernor {
         uint256 _tokensLength = tokens_.length;
         require(_tokensLength == speeds_.length, "invalid-input");
 

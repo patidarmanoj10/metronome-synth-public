@@ -15,10 +15,10 @@ abstract contract PoolRegistryStorageV1 is IPoolRegistry {
     /**
      * @notice Prices oracle
      */
-    IMasterOracle public masterOracle;
+    IMasterOracle public override masterOracle;
 
     /**
      * @notice Fee collector address
      */
-    address public feeCollector;
+    address public override feeCollector;
 }

@@ -45,7 +45,7 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
      * @dev WARNING: This operation will copy the entire storage to memory, which can be quite expensive. This is designed
      * to mostly be used by view accessors that are queried without any gas fees.
      */
-    function getPools() external view returns (address[] memory) {
+    function getPools() external view override returns (address[] memory) {
         return pools.values();
     }
 
@@ -54,14 +54,14 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
      * @param pool_ Pool to check
      * @return true if exists
      */
-    function poolExists(address pool_) external view returns (bool) {
+    function poolExists(address pool_) external view override returns (bool) {
         return pools.contains(pool_);
     }
 
     /**
      * @notice Register pool
      */
-    function registerPool(address pool_) external onlyGovernor {
+    function registerPool(address pool_) external override onlyGovernor {
         require(pool_ != address(0), "address-is-null");
         require(pools.add(pool_), "already-registered");
         emit PoolRegistered(pool_);
@@ -70,7 +70,7 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
     /**
      * @notice Unregister pool
      */
-    function unregisterPool(address pool_) external onlyGovernor {
+    function unregisterPool(address pool_) external override onlyGovernor {
         require(pools.remove(pool_), "not-registered");
         emit PoolUnregistered(pool_);
     }
@@ -78,7 +78,7 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
     /**
      * @notice Update fee collector
      */
-    function updateFeeCollector(address newFeeCollector_) external onlyGovernor {
+    function updateFeeCollector(address newFeeCollector_) external override onlyGovernor {
         require(newFeeCollector_ != address(0), "fee-collector-is-null");
         address _currentFeeCollector = feeCollector;
         require(newFeeCollector_ != _currentFeeCollector, "new-same-as-current");

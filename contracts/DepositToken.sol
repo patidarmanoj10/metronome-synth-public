@@ -18,13 +18,25 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     string public constant VERSION = "1.0.0";
 
     /// @notice Emitted when collateral is deposited
-    event CollateralDeposited(address indexed from, address indexed account, uint256 amount, uint256 fee);
+    event CollateralDeposited(
+        address indexed from,
+        address indexed account,
+        uint256 amount,
+        uint256 deposited,
+        uint256 fee
+    );
 
     /// @notice Emitted when CF is updated
     event CollateralFactorUpdated(uint256 oldCollateralFactor, uint256 newCollateralFactor);
 
     /// @notice Emitted when collateral is withdrawn
-    event CollateralWithdrawn(address indexed account, address indexed to, uint256 amount, uint256 fee);
+    event CollateralWithdrawn(
+        address indexed account,
+        address indexed to,
+        uint256 amount,
+        uint256 withdrawn,
+        uint256 fee
+    );
 
     /// @notice Emitted when active flag is updated
     event DepositTokenActiveUpdated(bool newActive);
@@ -147,28 +159,27 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         nonReentrant
         onlyIfDepositTokenIsActive
         onlyIfDepositTokenExists
-        returns (uint256 _deposited)
+        returns (uint256 _deposited, uint256 _fee)
     {
         require(amount_ > 0, "amount-is-zero");
 
-        address _treasury = address(pool.treasury());
+        IPool _pool = pool;
+        IERC20 _underlying = underlying;
 
-        uint256 _balanceBefore = underlying.balanceOf(_treasury);
-        underlying.safeTransferFrom(msg.sender, _treasury, amount_);
-        amount_ = underlying.balanceOf(_treasury) - _balanceBefore;
+        address _treasury = address(_pool.treasury());
 
-        uint256 _depositFee = pool.depositFee();
-        uint256 _feeAmount;
-        _deposited = amount_;
-        if (_depositFee > 0) {
-            _feeAmount = amount_.wadMul(_depositFee);
-            _mint(pool.feeCollector(), _feeAmount);
-            _deposited -= _feeAmount;
+        uint256 _balanceBefore = _underlying.balanceOf(_treasury);
+        _underlying.safeTransferFrom(msg.sender, _treasury, amount_);
+        amount_ = _underlying.balanceOf(_treasury) - _balanceBefore;
+
+        (_deposited, _fee) = quoteDepositOut(amount_);
+        if (_fee > 0) {
+            _mint(_pool.feeCollector(), _fee);
         }
 
         _mint(onBehalfOf_, _deposited);
 
-        emit CollateralDeposited(msg.sender, onBehalfOf_, amount_, _feeAmount);
+        emit CollateralDeposited(msg.sender, onBehalfOf_, amount_, _deposited, _fee);
     }
 
     /**
@@ -188,6 +199,70 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         unchecked {
             return balanceOf[account_] - unlockedBalanceOf(account_);
         }
+    }
+
+    /**
+     * @notice Quote gross `_amount` to deposit `amountToDeposit_` collateral
+     * @param amountToDeposit_ Collateral to deposit
+     * @return _amount Gross amount
+     * @return _fee Fee amount to collect
+     */
+    function quoteDepositIn(uint256 amountToDeposit_) external view override returns (uint256 _amount, uint256 _fee) {
+        uint256 _depositFee = pool.depositFee();
+        if (_depositFee == 0) {
+            return (amountToDeposit_, _fee);
+        }
+
+        _amount = amountToDeposit_.wadDiv(1e18 - _depositFee);
+        _fee = _amount - amountToDeposit_;
+    }
+
+    /**
+     * @notice Quote collateral `_amountToDeposit` by using gross `amount_`
+     * @param amount_ Gross amount
+     * @return _amountToDeposit Collateral to deposit
+     * @return _fee Fee amount to collect
+     */
+    function quoteDepositOut(uint256 amount_) public view override returns (uint256 _amountToDeposit, uint256 _fee) {
+        uint256 _depositFee = pool.depositFee();
+        if (_depositFee == 0) {
+            return (amount_, _fee);
+        }
+
+        _fee = amount_.wadMul(_depositFee);
+        _amountToDeposit = amount_ - _fee;
+    }
+
+    /**
+     * @notice Quote gross `_amount` to withdraw `amountToWithdraw_` collateral
+     * @param amountToWithdraw_ Collateral to withdraw
+     * @return _amount Gross amount
+     * @return _fee Fee amount to collect
+     */
+    function quoteWithdrawIn(uint256 amountToWithdraw_) external view override returns (uint256 _amount, uint256 _fee) {
+        uint256 _withdrawFee = pool.withdrawFee();
+        if (_withdrawFee == 0) {
+            return (amountToWithdraw_, _fee);
+        }
+
+        _amount = amountToWithdraw_.wadDiv(1e18 - _withdrawFee);
+        _fee = _amount - amountToWithdraw_;
+    }
+
+    /**
+     * @notice Quote collateral `_amountToWithdraw` by using gross `_amount`
+     * @param amount_ Gross amount
+     * @return _amountToWithdraw Collateral to withdraw
+     * @return _fee Fee amount to collect
+     */
+    function quoteWithdrawOut(uint256 amount_) public view override returns (uint256 _amountToWithdraw, uint256 _fee) {
+        uint256 _withdrawFee = pool.withdrawFee();
+        if (_withdrawFee == 0) {
+            return (amount_, _fee);
+        }
+
+        _fee = amount_.wadMul(_withdrawFee);
+        _amountToWithdraw = amount_ - _fee;
     }
 
     /**
@@ -247,12 +322,14 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @return _unlockedBalance The amount that user can transfer or withdraw
      */
     function unlockedBalanceOf(address account_) public view override returns (uint256 _unlockedBalance) {
-        (, , , , uint256 _issuableInUsd) = pool.debtPositionOf(account_);
+        IPool _pool = pool;
+
+        (, , , , uint256 _issuableInUsd) = _pool.debtPositionOf(account_);
 
         if (_issuableInUsd > 0) {
             _unlockedBalance = Math.min(
                 balanceOf[account_],
-                pool.masterOracle().quoteUsdToToken(address(underlying), _issuableInUsd.wadDiv(collateralFactor))
+                _pool.masterOracle().quoteUsdToToken(address(underlying), _issuableInUsd.wadDiv(collateralFactor))
             );
         }
     }
@@ -269,23 +346,21 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         whenNotShutdown
         nonReentrant
         onlyIfDepositTokenExists
-        returns (uint256 _withdrawn)
+        returns (uint256 _withdrawn, uint256 _fee)
     {
         require(amount_ > 0 && amount_ <= unlockedBalanceOf(msg.sender), "amount-is-invalid");
 
-        uint256 _withdrawFee = pool.withdrawFee();
-        uint256 _feeAmount;
-        _withdrawn = amount_;
-        if (_withdrawFee > 0) {
-            _feeAmount = amount_.wadMul(_withdrawFee);
-            _transfer(msg.sender, pool.feeCollector(), _feeAmount);
-            _withdrawn -= _feeAmount;
+        IPool _pool = pool;
+
+        (_withdrawn, _fee) = quoteWithdrawOut(amount_);
+        if (_fee > 0) {
+            _transfer(msg.sender, _pool.feeCollector(), _fee);
         }
 
         _burn(msg.sender, _withdrawn);
-        pool.treasury().pull(to_, _withdrawn);
+        _pool.treasury().pull(to_, _withdrawn);
 
-        emit CollateralWithdrawn(msg.sender, to_, amount_, _feeAmount);
+        emit CollateralWithdrawn(msg.sender, to_, amount_, _withdrawn, _fee);
     }
 
     /**
