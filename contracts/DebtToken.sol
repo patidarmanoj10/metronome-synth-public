@@ -294,12 +294,39 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
      * @param onBehalfOf_ The account that will have debt decreased
      * @param amount_ The amount of synthetic token to burn (this is the gross amount, the repay fee will be subtracted from it)
      * @return _repaid The amount repaid after fees
-     * @return _fee The fee amount collected
      */
-    function repay(address onBehalfOf_, uint256 amount_) external override returns (uint256 _repaid, uint256 _fee) {
+    function repay(address onBehalfOf_, uint256 amount_)
+        external
+        override
+        whenNotShutdown
+        nonReentrant
+        returns (uint256 _repaid, uint256 _fee)
+    {
         require(amount_ > 0, "amount-is-zero");
+
         accrueInterest();
-        return _repay(onBehalfOf_, amount_);
+
+        IPool _pool = pool;
+        ISyntheticToken _syntheticToken = syntheticToken;
+
+        (_repaid, _fee) = quoteRepayOut(amount_);
+        if (_fee > 0) {
+            _syntheticToken.seize(msg.sender, _pool.feeCollector(), _fee);
+        }
+
+        uint256 _debtFloorInUsd = _pool.debtFloorInUsd();
+        if (_debtFloorInUsd > 0) {
+            uint256 _newDebtInUsd = _pool.masterOracle().quoteTokenToUsd(
+                address(_syntheticToken),
+                balanceOf(onBehalfOf_) - _repaid
+            );
+            require(_newDebtInUsd == 0 || _newDebtInUsd >= _debtFloorInUsd, "debt-lt-floor");
+        }
+
+        _syntheticToken.burn(msg.sender, _repaid);
+        _burn(onBehalfOf_, _repaid);
+
+        emit DebtRepaid(msg.sender, onBehalfOf_, amount_, _repaid, _fee);
     }
 
     /**
@@ -309,11 +336,31 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
      * @return _repaid The amount repaid after fees
      * @return _fee The fee amount collected
      */
-    function repayAll(address onBehalfOf_) external override returns (uint256 _repaid, uint256 _fee) {
+    function repayAll(address onBehalfOf_)
+        external
+        override
+        whenNotShutdown
+        nonReentrant
+        returns (uint256 _repaid, uint256 _fee)
+    {
         accrueInterest();
-        (uint256 _amount, ) = quoteRepayIn(balanceOf(onBehalfOf_));
-        require(_amount > 0, "amount-is-zero");
-        return _repay(onBehalfOf_, _amount);
+
+        _repaid = balanceOf(onBehalfOf_);
+        require(_repaid > 0, "amount-is-zero");
+
+        ISyntheticToken _syntheticToken = syntheticToken;
+
+        uint256 _amount;
+        (_amount, _fee) = quoteRepayIn(_repaid);
+
+        if (_fee > 0) {
+            _syntheticToken.seize(msg.sender, pool.feeCollector(), _fee);
+        }
+
+        _syntheticToken.burn(msg.sender, _repaid);
+        _burn(onBehalfOf_, _repaid);
+
+        emit DebtRepaid(msg.sender, onBehalfOf_, _amount, _repaid, _fee);
     }
 
     /**
@@ -425,43 +472,6 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
         if (senderBalanceAfter_ == 0) {
             pool.removeFromDebtTokensOfAccount(sender_);
         }
-    }
-
-    /**
-     * @notice Send synthetic token to decrease debt
-     * @dev The msg.sender is the payer and the account beneficed
-     * @param onBehalfOf_ The account that will have debt decreased
-     * @param amount_ The amount of synthetic token to burn (this is the gross amount, the repay fee will be subtracted from it)
-     * @return _repaid The amount repaid after fees
-     * @return _fee The fee amount collected
-     */
-    function _repay(address onBehalfOf_, uint256 amount_)
-        private
-        whenNotShutdown
-        nonReentrant
-        returns (uint256 _repaid, uint256 _fee)
-    {
-        IPool _pool = pool;
-        ISyntheticToken _syntheticToken = syntheticToken;
-
-        (_repaid, _fee) = quoteRepayOut(amount_);
-        if (_fee > 0) {
-            _syntheticToken.seize(msg.sender, _pool.feeCollector(), _fee);
-        }
-
-        uint256 _debtFloorInUsd = _pool.debtFloorInUsd();
-        if (_debtFloorInUsd > 0) {
-            uint256 _newDebtInUsd = _pool.masterOracle().quoteTokenToUsd(
-                address(_syntheticToken),
-                balanceOf(onBehalfOf_) - _repaid
-            );
-            require(_newDebtInUsd == 0 || _newDebtInUsd >= _debtFloorInUsd, "debt-lt-floor");
-        }
-
-        _syntheticToken.burn(msg.sender, _repaid);
-        _burn(onBehalfOf_, _repaid);
-
-        emit DebtRepaid(msg.sender, onBehalfOf_, amount_, _repaid, _fee);
     }
 
     /**
