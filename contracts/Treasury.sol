@@ -33,6 +33,8 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
      * @dev This function can become too expensive depending on the length of the arrays
      */
     function migrateTo(address newTreasury_) external override onlyPool {
+        require(newTreasury_ != address(0), "address-is-null");
+
         address[] memory _depositTokens = pool.getDepositTokens();
         uint256 _depositTokensLength = _depositTokens.length;
 
@@ -51,6 +53,7 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
      * @notice Pull token from the Treasury
      */
     function pull(address to_, uint256 amount_) external override nonReentrant onlyIfDepositToken {
+        require(to_ != address(0), "recipient-is-null");
         require(amount_ > 0, "amount-is-zero");
         IDepositToken(msg.sender).underlying().safeTransfer(to_, amount_);
     }

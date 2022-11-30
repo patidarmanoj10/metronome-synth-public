@@ -68,6 +68,9 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
         uint8 decimals_,
         IPoolRegistry poolRegistry_
     ) external initializer {
+        require(bytes(name_).length > 0, "empty-name");
+        require(bytes(symbol_).length > 0, "empty-symbol");
+        require(decimals_ > 0, "decimals-is-zero");
         require(address(poolRegistry_) != address(0), "pool-registry-is-null");
 
         poolRegistry = poolRegistry_;
