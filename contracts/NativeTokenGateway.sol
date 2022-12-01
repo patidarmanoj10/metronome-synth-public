@@ -19,6 +19,8 @@ contract NativeTokenGateway is ReentrancyGuard, Governable, INativeTokenGateway 
     IWETH public immutable nativeToken;
 
     constructor(IWETH nativeToken_) {
+        // Note: `NativeTokenGateway` isn't upgradable but extends `ReentrancyGuard` therefore we need to initialize it
+        __ReentrancyGuard_init();
         nativeToken = nativeToken_;
     }
 
