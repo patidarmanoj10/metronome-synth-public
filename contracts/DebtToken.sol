@@ -13,7 +13,7 @@ import "./lib/WadRayMath.sol";
 contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
     using WadRayMath for uint256;
 
-    uint256 public constant SECONDS_PER_YEAR = 365 days;
+    uint256 public constant SECONDS_PER_YEAR = 365.25 days;
 
     string public constant VERSION = "1.0.0";
 
