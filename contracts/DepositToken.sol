@@ -112,6 +112,10 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         uint256 maxTotalSupply_
     ) external initializer {
         require(address(underlying_) != address(0), "underlying-is-null");
+        require(address(pool_) != address(0), "pool-is-null");
+        require(bytes(name_).length > 0, "empty-name");
+        require(bytes(symbol_).length > 0, "empty-symbol");
+        require(decimals_ > 0, "decimals-is-zero");
         require(collateralFactor_ <= 1e18, "collateral-factor-gt-100%");
 
         __ReentrancyGuard_init();
@@ -162,6 +166,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         returns (uint256 _deposited, uint256 _fee)
     {
         require(amount_ > 0, "amount-is-zero");
+        require(onBehalfOf_ != address(0), "beneficiary-is-null");
 
         IPool _pool = pool;
         IERC20 _underlying = underlying;
@@ -348,6 +353,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         onlyIfDepositTokenExists
         returns (uint256 _withdrawn, uint256 _fee)
     {
+        require(to_ != address(0), "recipient-is-null");
         require(amount_ > 0 && amount_ <= unlockedBalanceOf(msg.sender), "amount-is-invalid");
 
         IPool _pool = pool;

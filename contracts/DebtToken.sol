@@ -85,6 +85,9 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
         uint256 interestRate_,
         uint256 maxTotalSupply_
     ) external initializer {
+        require(bytes(name_).length > 0, "empty-name");
+        require(bytes(symbol_).length > 0, "empty-symbol");
+        require(address(pool_) != address(0), "pool-is-null");
         require(address(syntheticToken_) != address(0), "synthetic-is-null");
 
         __ReentrancyGuard_init();
@@ -424,7 +427,6 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
      * @return _interestAmountAccrued The total amount of debt tokens accrued
      * @return _debtIndex The new `debtIndex` value
      */
-
     function _calculateInterestAccrual()
         private
         view
