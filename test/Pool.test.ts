@@ -88,7 +88,7 @@ async function fixture() {
 
   const poolRegistryMock = await smock.fake('PoolRegistry')
   poolRegistryMock.governor.returns(deployer.address)
-  poolRegistryMock.poolExists.returns((address: string) => address == pool.address)
+  poolRegistryMock.poolIsRegistered.returns((address: string) => address == pool.address)
   poolRegistryMock.masterOracle.returns(masterOracleMock.address)
   poolRegistryMock.feeCollector.returns(feeCollector.address)
 

@@ -234,6 +234,8 @@ describe('Deployments', function () {
         expect(await msdWAVAX.pool()).eq(pool.address)
         expect(await msdWAVAX.underlying()).eq(WAVAX_ADDRESS)
         expect(await msdWAVAX.governor()).eq(deployer.address)
+        expect(await msdWAVAX.symbol()).eq('msdWAVAX-1')
+        expect(await msdWAVAX.name()).eq('Metronome Synth WAVAX-Deposit')
       })
 
       it('should upgrade implementation', async function () {
@@ -281,6 +283,8 @@ describe('Deployments', function () {
       it('token should have correct params', async function () {
         expect(await msBTC.poolRegistry()).eq(poolRegistry.address)
         expect(await msBTC.isActive()).eq(true)
+        expect(await msBTC.symbol()).eq('msBTC')
+        expect(await msBTC.name()).eq('Metronome Synth BTC')
       })
 
       it('should upgrade implementation', async function () {
@@ -306,6 +310,8 @@ describe('Deployments', function () {
       it('msUSD token should have correct params', async function () {
         expect(await msUSD.poolRegistry()).eq(poolRegistry.address)
         expect(await msUSD.isActive()).eq(true)
+        expect(await msUSD.symbol()).eq('msUSD')
+        expect(await msUSD.name()).eq('Metronome Synth USD')
       })
 
       it('should upgrade implementation', async function () {
@@ -336,6 +342,8 @@ describe('Deployments', function () {
         expect(await msBTCDebt.interestRate()).eq(parseEther('0'))
         expect(await msBTCDebt.maxTotalSupply()).eq(parseEther('25'))
         expect(await msBTCDebt.isActive()).eq(true)
+        expect(await msBTCDebt.symbol()).eq('msBTC-Debt-1')
+        expect(await msBTCDebt.name()).eq('Metronome Synth BTC-Debt')
       })
 
       it('should upgrade implementation', async function () {
@@ -364,6 +372,8 @@ describe('Deployments', function () {
         expect(await msUSDDebt.interestRate()).eq(parseEther('0'))
         expect(await msUSDDebt.maxTotalSupply()).eq(parseEther('50000'))
         expect(await msUSDDebt.isActive()).eq(true)
+        expect(await msUSDDebt.symbol()).eq('msUSD-Debt-1')
+        expect(await msUSDDebt.name()).eq('Metronome Synth USD-Debt')
       })
 
       it('should upgrade implementation', async function () {
@@ -389,7 +399,7 @@ describe('Deployments', function () {
       it('should have correct params', async function () {
         expect(await poolRegistry.governor()).eq(deployer.address)
         expect(await poolRegistry.masterOracle()).eq(MASTER_ORACLE_ADDRESS)
-        expect(await poolRegistry.poolExists(pool.address)).true
+        expect(await poolRegistry.poolIsRegistered(pool.address)).true
       })
 
       it('should upgrade implementation', async function () {

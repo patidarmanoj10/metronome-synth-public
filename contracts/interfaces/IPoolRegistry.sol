@@ -8,7 +8,7 @@ import "./IGovernable.sol";
 import "./ISyntheticToken.sol";
 
 interface IPoolRegistry is IPauseable, IGovernable {
-    function poolExists(address pool_) external view returns (bool);
+    function poolIsRegistered(address pool_) external view returns (bool);
 
     function feeCollector() external view returns (address);
 
@@ -23,4 +23,8 @@ interface IPoolRegistry is IPauseable, IGovernable {
     function updateMasterOracle(IMasterOracle newOracle_) external;
 
     function updateFeeCollector(address newFeeCollector_) external;
+
+    function idOfPool(address pool_) external view returns (uint256);
+
+    function nextPoolId() external view returns (uint256);
 }
