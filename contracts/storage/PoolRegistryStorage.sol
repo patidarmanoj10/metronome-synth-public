@@ -23,12 +23,12 @@ abstract contract PoolRegistryStorageV1 is IPoolRegistry {
     address public override feeCollector;
 
     /**
-     * @notice Pools' ids map
+     * @notice Map of the ids of the pools
      */
     mapping(address => uint256) public override idOfPool;
 
     /**
-     * @notice Pools' ids counter
+     * @notice Counter of ids of the pools
      */
     uint256 public override nextPoolId;
 }
