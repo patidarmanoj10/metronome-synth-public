@@ -119,11 +119,12 @@ export const buildSyntheticDeployFunction = ({
 
   const deployFunction: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     const {getNamedAccounts, deployments} = hre
-    const {execute, get, getOrNull} = deployments
+    const {execute, get, read, getOrNull} = deployments
     const {deployer} = await getNamedAccounts()
 
     const {address: poolRegistryAddress} = await get(PoolRegistry)
     const {address: poolAddress} = await get(Pool)
+    const poolId = await read(PoolRegistry, 'idOfPool', poolAddress)
 
     const wasDeployed = !!(await getOrNull(syntheticAlias))
 
@@ -144,7 +145,7 @@ export const buildSyntheticDeployFunction = ({
       },
       initializeArgs: [
         `${name}-Debt`,
-        `${symbol}-Debt`,
+        `${symbol}-Debt-${poolId}`,
         poolAddress,
         syntheticTokenAddress,
         interestRate,
@@ -171,17 +172,19 @@ export const buildDepositDeployFunction = ({
   maxTotalSupply,
 }: DepositDeployFunctionProps): DeployFunction => {
   const alias = `${underlyingSymbol}DepositToken`
-  const name = `Metronome Synth ${underlyingSymbol}-Deposit`
-  const symbol = `msd${underlyingSymbol}`
 
   const deployFunction: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     const {getNamedAccounts, deployments} = hre
-    const {execute, get, getOrNull} = deployments
+    const {execute, get, read, getOrNull} = deployments
     const {deployer} = await getNamedAccounts()
 
     const {address: poolAddress} = await get(Pool)
+    const poolId = await read(PoolRegistry, 'idOfPool', poolAddress)
 
     const wasDeployed = !!(await getOrNull(alias))
+
+    const name = `Metronome Synth ${underlyingSymbol}-Deposit`
+    const symbol = `msd${underlyingSymbol}-${poolId}`
 
     const {address: msdAddress} = await deployUpgradable({
       hre,

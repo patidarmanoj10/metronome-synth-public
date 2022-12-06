@@ -24,10 +24,10 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
     event MasterOracleUpdated(IMasterOracle indexed oldOracle, IMasterOracle indexed newOracle);
 
     /// @notice Emitted when a pool is registered
-    event PoolRegistered(address pool);
+    event PoolRegistered(uint256 id, address pool);
 
     /// @notice Emitted when a pool is unregistered
-    event PoolUnregistered(address pool);
+    event PoolUnregistered(uint256 id, address pool);
 
     function initialize(IMasterOracle masterOracle_, address feeCollector_) external initializer {
         require(address(masterOracle_) != address(0), "oracle-is-null");
@@ -38,6 +38,8 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
 
         masterOracle = masterOracle_;
         feeCollector = feeCollector_;
+
+        nextPoolId = 1;
     }
 
     /**
@@ -54,7 +56,7 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
      * @param pool_ Pool to check
      * @return true if exists
      */
-    function poolExists(address pool_) external view override returns (bool) {
+    function poolIsRegistered(address pool_) external view override returns (bool) {
         return pools.contains(pool_);
     }
 
@@ -64,7 +66,12 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
     function registerPool(address pool_) external override onlyGovernor {
         require(pool_ != address(0), "address-is-null");
         require(pools.add(pool_), "already-registered");
-        emit PoolRegistered(pool_);
+        uint256 _id = idOfPool[pool_];
+        if (_id == 0) {
+            _id = nextPoolId++;
+            idOfPool[pool_] = _id;
+        }
+        emit PoolRegistered(_id, pool_);
     }
 
     /**
@@ -72,7 +79,7 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
      */
     function unregisterPool(address pool_) external override onlyGovernor {
         require(pools.remove(pool_), "not-registered");
-        emit PoolUnregistered(pool_);
+        emit PoolUnregistered(idOfPool[pool_], pool_);
     }
 
     /**

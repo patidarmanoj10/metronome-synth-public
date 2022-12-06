@@ -13,7 +13,7 @@ abstract contract PoolRegistryStorageV1 is IPoolRegistry {
     EnumerableSet.AddressSet internal pools;
 
     /**
-     * @notice Prices oracle
+     * @notice Prices' oracle
      */
     IMasterOracle public override masterOracle;
 
@@ -21,4 +21,14 @@ abstract contract PoolRegistryStorageV1 is IPoolRegistry {
      * @notice Fee collector address
      */
     address public override feeCollector;
+
+    /**
+     * @notice Map of the ids of the pools
+     */
+    mapping(address => uint256) public override idOfPool;
+
+    /**
+     * @notice Counter of ids of the pools
+     */
+    uint256 public override nextPoolId;
 }

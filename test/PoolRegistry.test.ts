@@ -49,16 +49,34 @@ describe('PoolRegistry', function () {
 
     it('should register pool', async function () {
       // given
-      const before = await poolRegistry.getPools()
-      expect(before).to.deep.eq([])
+      const id = await poolRegistry.nextPoolId()
+      expect(id).eq(1)
+      expect(await poolRegistry.getPools()).to.deep.eq([])
 
       // when
       const tx = poolRegistry.registerPool(pool.address)
 
       // then
-      await expect(tx).emit(poolRegistry, 'PoolRegistered').withArgs(pool.address)
-      const after = await poolRegistry.getPools()
-      expect(after).to.deep.eq([pool.address])
+      await expect(tx).emit(poolRegistry, 'PoolRegistered').withArgs(id, pool.address)
+      expect(await poolRegistry.getPools()).to.deep.eq([pool.address])
+      expect(await poolRegistry.nextPoolId()).eq(2)
+      expect(await poolRegistry.idOfPool(pool.address)).eq(1)
+    })
+
+    it('should manage pool ids', async function () {
+      // given
+      expect(await poolRegistry.nextPoolId()).eq(1)
+
+      // when
+      await poolRegistry.registerPool(alice.address)
+      await poolRegistry.unregisterPool(alice.address)
+      await poolRegistry.registerPool(bob.address)
+      await poolRegistry.registerPool(alice.address)
+
+      // then
+      expect(await poolRegistry.idOfPool(alice.address)).eq(1)
+      expect(await poolRegistry.idOfPool(bob.address)).eq(2)
+      expect(await poolRegistry.nextPoolId()).eq(3)
     })
   })
 
@@ -80,16 +98,15 @@ describe('PoolRegistry', function () {
 
     it('should unregister pool', async function () {
       // given
-      const before = await poolRegistry.getPools()
-      expect(before).to.deep.eq([pool.address])
+      const id = await poolRegistry.idOfPool(pool.address)
+      expect(await poolRegistry.getPools()).to.deep.eq([pool.address])
 
       // when
       const tx = poolRegistry.unregisterPool(pool.address)
 
       // then
-      await expect(tx).emit(poolRegistry, 'PoolUnregistered').withArgs(pool.address)
-      const after = await poolRegistry.getPools()
-      expect(after).to.deep.eq([])
+      await expect(tx).emit(poolRegistry, 'PoolUnregistered').withArgs(id, pool.address)
+      expect(await poolRegistry.getPools()).to.deep.eq([])
     })
   })
 
