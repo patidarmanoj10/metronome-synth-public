@@ -1293,13 +1293,13 @@ describe('Pool', function () {
       await expect(tx).revertedWith('new-same-as-current')
     })
 
-    it('should revert if swap fee > 100%', async function () {
+    it('should revert if swap fee > 25%', async function () {
       // when
-      const newSwapFee = parseEther('1').add('1')
+      const newSwapFee = parseEther('0.25').add('1')
       const tx = pool.updateSwapFee(newSwapFee)
 
       // then
-      await expect(tx).revertedWith('max-is-100%')
+      await expect(tx).revertedWith('fee-gt-max')
     })
 
     it('should update swap fee param', async function () {
@@ -1473,13 +1473,13 @@ describe('Pool', function () {
       await expect(tx).revertedWith('new-same-as-current')
     })
 
-    it('should revert if deposit fee > 100%', async function () {
+    it('should revert if deposit fee > 25%', async function () {
       // when
-      const newDepositFee = parseEther('1').add('1')
+      const newDepositFee = parseEther('0.25').add('1')
       const tx = pool.updateDepositFee(newDepositFee)
 
       // then
-      await expect(tx).revertedWith('max-is-100%')
+      await expect(tx).revertedWith('fee-gt-max')
     })
 
     it('should update deposit fee param', async function () {
@@ -1514,13 +1514,13 @@ describe('Pool', function () {
       await expect(tx).revertedWith('new-same-as-current')
     })
 
-    it('should revert if issue fee > 100%', async function () {
+    it('should revert if issue fee > 25%', async function () {
       // when
-      const newIssueFee = parseEther('1').add('1')
+      const newIssueFee = parseEther('0.25').add('1')
       const tx = pool.updateIssueFee(newIssueFee)
 
       // then
-      await expect(tx).revertedWith('max-is-100%')
+      await expect(tx).revertedWith('fee-gt-max')
     })
 
     it('should update issue fee param', async function () {
@@ -1555,13 +1555,13 @@ describe('Pool', function () {
       await expect(tx).revertedWith('new-same-as-current')
     })
 
-    it('should revert if withdraw fee > 100%', async function () {
+    it('should revert if withdraw fee > 25%', async function () {
       // when
-      const newWithdrawFee = parseEther('1').add('1')
+      const newWithdrawFee = parseEther('0.25').add('1')
       const tx = pool.updateWithdrawFee(newWithdrawFee)
 
       // then
-      await expect(tx).revertedWith('max-is-100%')
+      await expect(tx).revertedWith('fee-gt-max')
     })
 
     it('should update withdraw fee param', async function () {
@@ -1596,13 +1596,13 @@ describe('Pool', function () {
       await expect(tx).revertedWith('new-same-as-current')
     })
 
-    it('should revert if repay fee > 100%', async function () {
+    it('should revert if repay fee > 25%', async function () {
       // when
-      const newRepayFee = parseEther('1').add('1')
+      const newRepayFee = parseEther('0.25').add('1')
       const tx = pool.updateRepayFee(newRepayFee)
 
       // then
-      await expect(tx).revertedWith('max-is-100%')
+      await expect(tx).revertedWith('fee-gt-max')
     })
 
     it('should update repay fee param', async function () {
@@ -1637,13 +1637,13 @@ describe('Pool', function () {
       await expect(tx).revertedWith('new-same-as-current')
     })
 
-    it('should revert if liquidator incentive > 100%', async function () {
+    it('should revert if liquidator incentive > 25%', async function () {
       // when
-      const newLiquidatorIncentive = parseEther('1').add('1')
+      const newLiquidatorIncentive = parseEther('0.25').add('1')
       const tx = pool.updateLiquidatorIncentive(newLiquidatorIncentive)
 
       // then
-      await expect(tx).revertedWith('max-is-100%')
+      await expect(tx).revertedWith('fee-gt-max')
     })
 
     it('should update liquidator incentive param', async function () {
@@ -1680,13 +1680,13 @@ describe('Pool', function () {
       await expect(tx).revertedWith('new-same-as-current')
     })
 
-    it('should revert if protocol liquidation fee > 100%', async function () {
+    it('should revert if protocol liquidation fee > 25%', async function () {
       // when
-      const newProtocolLiquidationFee = parseEther('1').add('1')
+      const newProtocolLiquidationFee = parseEther('0.25').add('1')
       const tx = pool.updateProtocolLiquidationFee(newProtocolLiquidationFee)
 
       // then
-      await expect(tx).revertedWith('max-is-100%')
+      await expect(tx).revertedWith('fee-gt-max')
     })
 
     it('should update protocol liquidation fee param', async function () {
