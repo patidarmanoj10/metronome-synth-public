@@ -17,6 +17,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
     using MappedEnumerableSet for MappedEnumerableSet.AddressSet;
 
     string public constant VERSION = "1.0.0";
+    uint256 internal constant MAX_FEE_VALUE = 0.25e18; // 25%
 
     /// @notice Emitted when protocol liquidation fee is updated
     event DebtFloorUpdated(uint256 oldDebtFloorInUsd, uint256 newDebtFloorInUsd);
@@ -727,7 +728,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @notice Update deposit fee
      */
     function updateDepositFee(uint256 newDepositFee_) external override onlyGovernor {
-        require(newDepositFee_ <= 1e18, "max-is-100%");
+        require(newDepositFee_ <= MAX_FEE_VALUE, "fee-gt-max");
         uint256 _currentDepositFee = depositFee;
         require(newDepositFee_ != _currentDepositFee, "new-same-as-current");
         emit DepositFeeUpdated(_currentDepositFee, newDepositFee_);
@@ -738,7 +739,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @notice Update issue fee
      */
     function updateIssueFee(uint256 newIssueFee_) external override onlyGovernor {
-        require(newIssueFee_ <= 1e18, "max-is-100%");
+        require(newIssueFee_ <= MAX_FEE_VALUE, "fee-gt-max");
         uint256 _currentIssueFee = issueFee;
         require(newIssueFee_ != _currentIssueFee, "new-same-as-current");
         emit IssueFeeUpdated(_currentIssueFee, newIssueFee_);
@@ -749,7 +750,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @notice Update liquidator incentive
      */
     function updateLiquidatorIncentive(uint128 newLiquidatorIncentive_) external override onlyGovernor {
-        require(newLiquidatorIncentive_ <= 1e18, "max-is-100%");
+        require(newLiquidatorIncentive_ <= MAX_FEE_VALUE, "fee-gt-max");
         uint256 _currentLiquidatorIncentive = liquidationFees.liquidatorIncentive;
         require(newLiquidatorIncentive_ != _currentLiquidatorIncentive, "new-same-as-current");
         emit LiquidatorIncentiveUpdated(_currentLiquidatorIncentive, newLiquidatorIncentive_);
@@ -771,7 +772,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @notice Update protocol liquidation fee
      */
     function updateProtocolLiquidationFee(uint128 newProtocolLiquidationFee_) external override onlyGovernor {
-        require(newProtocolLiquidationFee_ <= 1e18, "max-is-100%");
+        require(newProtocolLiquidationFee_ <= MAX_FEE_VALUE, "fee-gt-max");
         uint256 _currentProtocolLiquidationFee = liquidationFees.protocolFee;
         require(newProtocolLiquidationFee_ != _currentProtocolLiquidationFee, "new-same-as-current");
         emit ProtocolLiquidationFeeUpdated(_currentProtocolLiquidationFee, newProtocolLiquidationFee_);
@@ -782,7 +783,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @notice Update repay fee
      */
     function updateRepayFee(uint256 newRepayFee_) external override onlyGovernor {
-        require(newRepayFee_ <= 1e18, "max-is-100%");
+        require(newRepayFee_ <= MAX_FEE_VALUE, "fee-gt-max");
         uint256 _currentRepayFee = repayFee;
         require(newRepayFee_ != _currentRepayFee, "new-same-as-current");
         emit RepayFeeUpdated(_currentRepayFee, newRepayFee_);
@@ -809,7 +810,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @notice Update swap fee
      */
     function updateSwapFee(uint256 newSwapFee_) external override onlyGovernor {
-        require(newSwapFee_ <= 1e18, "max-is-100%");
+        require(newSwapFee_ <= MAX_FEE_VALUE, "fee-gt-max");
         uint256 _currentSwapFee = swapFee;
         require(newSwapFee_ != _currentSwapFee, "new-same-as-current");
         emit SwapFeeUpdated(_currentSwapFee, newSwapFee_);
@@ -820,7 +821,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @notice Update withdraw fee
      */
     function updateWithdrawFee(uint256 newWithdrawFee_) external override onlyGovernor {
-        require(newWithdrawFee_ <= 1e18, "max-is-100%");
+        require(newWithdrawFee_ <= MAX_FEE_VALUE, "fee-gt-max");
         uint256 _currentWithdrawFee = withdrawFee;
         require(newWithdrawFee_ != _currentWithdrawFee, "new-same-as-current");
         emit WithdrawFeeUpdated(_currentWithdrawFee, newWithdrawFee_);
