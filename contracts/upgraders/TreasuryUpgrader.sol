@@ -10,8 +10,8 @@ contract TreasuryUpgrader is UpgraderBase {
     }
 
     /// @inheritdoc UpgraderBase
-    function _calls() internal pure override returns (bytes[] memory calls) {}
-
-    /// @inheritdoc UpgraderBase
-    function _checkResults(bytes[] memory _beforeResults, bytes[] memory _afterResults) internal pure override {}
+    function _calls() internal pure override returns (bytes[] memory _callsList) {
+        _callsList = new bytes[](1);
+        _callsList[0] = abi.encodeWithSignature("governor()");
+    }
 }
