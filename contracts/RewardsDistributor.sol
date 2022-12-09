@@ -65,7 +65,7 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
      */
     modifier onlyIfTokenExists(address token_) {
         IPool _pool = pool;
-        if (!_pool.isDebtTokenExists(IDebtToken(token_)) && !_pool.isDepositTokenExists(IDepositToken(token_))) {
+        if (!_pool.doesDebtTokenExists(IDebtToken(token_)) && !_pool.doesDepositTokenExists(IDepositToken(token_))) {
             revert InvalidToken();
         }
         _;

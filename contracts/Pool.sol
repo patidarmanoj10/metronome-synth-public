@@ -122,7 +122,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @dev Throws if deposit token doesn't exist
      */
     modifier onlyIfDepositTokenExists(IDepositToken depositToken_) {
-        if (!isDepositTokenExists(depositToken_)) revert CollateralDoesNotExist();
+        if (!doesDepositTokenExists(depositToken_)) revert CollateralDoesNotExist();
         _;
     }
 
@@ -130,7 +130,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @dev Throws if synthetic token doesn't exist
      */
     modifier onlyIfSyntheticTokenExists(ISyntheticToken syntheticToken_) {
-        if (!isSyntheticTokenExists(syntheticToken_)) revert SyntheticDoesNotExist();
+        if (!doesSyntheticTokenExists(syntheticToken_)) revert SyntheticDoesNotExist();
         _;
     }
 
@@ -138,7 +138,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @dev Throws if `msg.sender` isn't a debt token
      */
     modifier onlyIfMsgSenderIsDebtToken() {
-        if (!isDebtTokenExists(IDebtToken(msg.sender))) revert SenderIsNotDebtToken();
+        if (!doesDebtTokenExists(IDebtToken(msg.sender))) revert SenderIsNotDebtToken();
         _;
     }
 
@@ -311,7 +311,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @param debtToken_ Asset to check
      * @return true if exist
      */
-    function isDebtTokenExists(IDebtToken debtToken_) public view override returns (bool) {
+    function doesDebtTokenExists(IDebtToken debtToken_) public view override returns (bool) {
         return debtTokens.contains(address(debtToken_));
     }
 
@@ -320,7 +320,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @param depositToken_ Asset to check
      * @return true if exist
      */
-    function isDepositTokenExists(IDepositToken depositToken_) public view override returns (bool) {
+    function doesDepositTokenExists(IDepositToken depositToken_) public view override returns (bool) {
         return depositTokens.contains(address(depositToken_));
     }
 
@@ -329,7 +329,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @param syntheticToken_ Asset to check
      * @return true if exist
      */
-    function isSyntheticTokenExists(ISyntheticToken syntheticToken_) public view override returns (bool) {
+    function doesSyntheticTokenExists(ISyntheticToken syntheticToken_) public view override returns (bool) {
         return address(debtTokenOf[syntheticToken_]) != address(0);
     }
 

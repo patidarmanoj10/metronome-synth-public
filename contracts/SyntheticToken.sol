@@ -229,7 +229,7 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
 
         return
             poolRegistry.poolIsRegistered(address(_pool)) &&
-            _pool.isDebtTokenExists(IDebtToken(msg.sender)) &&
+            _pool.doesDebtTokenExists(IDebtToken(msg.sender)) &&
             IDebtToken(msg.sender).syntheticToken() == this;
     }
 
@@ -237,7 +237,7 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
      * @notice Check if the sender is a valid Pool contract
      */
     function _isMsgSenderPool() private view returns (bool) {
-        return poolRegistry.poolIsRegistered(msg.sender) && IPool(msg.sender).isSyntheticTokenExists(this);
+        return poolRegistry.poolIsRegistered(msg.sender) && IPool(msg.sender).doesSyntheticTokenExists(this);
     }
 
     /**

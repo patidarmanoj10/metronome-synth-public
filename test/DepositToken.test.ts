@@ -67,7 +67,7 @@ describe('DepositToken', function () {
     poolMock.paused.returns(false)
     poolMock.everythingStopped.returns(false)
     poolMock.depositFee.returns('0')
-    poolMock.isDepositTokenExists.returns(true)
+    poolMock.doesDepositTokenExists.returns(true)
     poolMock.treasury.returns(treasury.address)
 
     const rewardsDistributorMockFactory = await smock.mock('RewardsDistributor')

@@ -24,7 +24,7 @@ describe('Treasury', function () {
     await met.deployed()
 
     poolMock = await smock.fake('Pool')
-    poolMock.isDepositTokenExists.returns(true)
+    poolMock.doesDepositTokenExists.returns(true)
 
     depositTokenMock = await smock.fake('DepositToken')
     depositTokenMock.underlying.returns(met.address)
@@ -45,7 +45,7 @@ describe('Treasury', function () {
     })
 
     it('should revert if not deposit token', async function () {
-      poolMock.isDepositTokenExists.returns(false)
+      poolMock.doesDepositTokenExists.returns(false)
       const tx = treasury.connect(user).pull(user.address, 0)
       await expect(tx).revertedWithCustomError(treasury, 'SenderIsNotDepositToken')
     })
