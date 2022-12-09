@@ -31,10 +31,10 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
     event MasterOracleUpdated(IMasterOracle indexed oldOracle, IMasterOracle indexed newOracle);
 
     /// @notice Emitted when a pool is registered
-    event PoolRegistered(uint256 id, address pool);
+    event PoolRegistered(uint256 indexed id, address indexed pool);
 
     /// @notice Emitted when a pool is unregistered
-    event PoolUnregistered(uint256 id, address pool);
+    event PoolUnregistered(uint256 indexed id, address indexed pool);
 
     function initialize(IMasterOracle masterOracle_, address feeCollector_) external initializer {
         if (address(masterOracle_) == address(0)) revert OracleIsNull();

@@ -16,16 +16,16 @@ error IsNotShutdown();
  */
 abstract contract Pauseable is IPauseable, Governable {
     /// @notice Emitted when contract is turned on
-    event Open(address caller);
+    event Open(address indexed caller);
 
     /// @notice Emitted when contract is paused
-    event Paused(address caller);
+    event Paused(address indexed caller);
 
     /// @notice Emitted when contract is shuted down
-    event Shutdown(address caller);
+    event Shutdown(address indexed caller);
 
     /// @notice Emitted when contract is unpaused
-    event Unpaused(address caller);
+    event Unpaused(address indexed caller);
 
     bool private _paused;
     bool private _everythingStopped;

@@ -31,7 +31,7 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     uint224 public constant MAX_REWARD_TOKENS = 20;
 
     /// @notice Emitted when reward is claimed
-    event RewardClaimed(address account, uint256 amount);
+    event RewardClaimed(address indexed account, uint256 amount);
 
     /// @notice Emitted when updating accrued token
     event TokensAccruedUpdated(IERC20 indexed token, address indexed account, uint256 tokensDelta, uint256 supplyIndex);

@@ -91,7 +91,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
     event RepayFeeUpdated(uint256 oldRepayFee, uint256 newRepayFee);
 
     /// @notice Emitted when rewards distributor contract is added
-    event RewardsDistributorAdded(IRewardsDistributor _distributor);
+    event RewardsDistributorAdded(IRewardsDistributor indexed _distributor);
 
     /// @notice Emitted when rewards distributor contract is removed
     event RewardsDistributorRemoved(IRewardsDistributor _distributor);
