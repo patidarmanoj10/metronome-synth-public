@@ -269,7 +269,7 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
         if (_currentSpeed > 0) {
             _updateTokenIndex(token_);
         } else if (newSpeed_ > 0) {
-            // Add token token to the list
+            // Add token to the list
             if (tokenStates[token_].index == 0) {
                 require(tokens.length < MAX_REWARD_TOKENS, "reached-max-reward-tokens");
                 tokenStates[token_] = TokenState({index: INITIAL_INDEX, timestamp: block.timestamp.toUint32()});

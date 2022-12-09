@@ -46,6 +46,7 @@ abstract contract TokenHolder {
 
     /**
      * @notice Function that reverts if the caller isn't allowed to sweep tokens
+     * @dev Usually requires the owner or governor as the caller
      */
     function _requireCanSweep() internal view virtual;
 }

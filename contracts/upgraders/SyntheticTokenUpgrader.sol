@@ -9,6 +9,7 @@ contract SyntheticTokenUpgrader is UpgraderBase {
         transferOwnership(_owner);
     }
 
+    /// @inheritdoc UpgraderBase
     function _calls() internal pure override returns (bytes[] memory calls) {
         calls = new bytes[](6);
         calls[0] = abi.encodeWithSignature("name()");
@@ -19,6 +20,7 @@ contract SyntheticTokenUpgrader is UpgraderBase {
         calls[5] = abi.encodeWithSignature("isActive()");
     }
 
+    /// @inheritdoc UpgraderBase
     function _checkResults(bytes[] memory _beforeResults, bytes[] memory _afterResults) internal pure override {
         _checkStringResults(_beforeResults, _afterResults, 0, 1);
         _checkUint8Results(_beforeResults, _afterResults, 2, 2);

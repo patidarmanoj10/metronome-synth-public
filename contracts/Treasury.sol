@@ -31,6 +31,7 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
     /**
      * @notice Transfer all funds to another contract
      * @dev This function can become too expensive depending on the length of the arrays
+     * @param newTreasury_ The new treasury
      */
     function migrateTo(address newTreasury_) external override onlyPool {
         require(newTreasury_ != address(0), "address-is-null");
@@ -51,6 +52,8 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
 
     /**
      * @notice Pull token from the Treasury
+     * @param to_ The transfer recipient
+     * @param amount_ The transfer amount
      */
     function pull(address to_, uint256 amount_) external override nonReentrant onlyIfDepositToken {
         require(to_ != address(0), "recipient-is-null");

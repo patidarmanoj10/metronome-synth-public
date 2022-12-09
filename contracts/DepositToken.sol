@@ -285,9 +285,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         _transfer(from_, to_, amount_);
     }
 
-    /**
-     * @notice Move `amount` tokens from the caller's account to `recipient`
-     */
+    /// @inheritdoc IERC20
     function transfer(address to_, uint256 amount_)
         external
         override
@@ -298,11 +296,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         return true;
     }
 
-    /**
-     * @notice Move `amount` tokens from `sender` to `recipient` using the
-     * allowance mechanism. `amount` is then deducted from the caller's
-     * allowance
-     */
+    /// @inheritdoc IERC20
     function transferFrom(
         address sender_,
         address recipient_,

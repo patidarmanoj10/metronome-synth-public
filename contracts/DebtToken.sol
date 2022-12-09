@@ -128,6 +128,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
         }
     }
 
+    /// @inheritdoc IERC20
     function allowance(
         address, /*owner_*/
         address /*spender_*/
@@ -135,6 +136,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
         revert("allowance-not-supported");
     }
 
+    /// @inheritdoc IERC20
     // solhint-disable-next-line
     function approve(
         address, /*spender_*/
@@ -374,6 +376,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
         return totalSupply_ + _interestAmountAccrued;
     }
 
+    /// @inheritdoc IERC20
     // solhint-disable-next-line
     function transfer(
         address, /*recipient_*/
@@ -382,6 +385,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
         revert("transfer-not-supported");
     }
 
+    /// @inheritdoc IERC20
     // solhint-disable-next-line
     function transferFrom(
         address, /*sender_*/

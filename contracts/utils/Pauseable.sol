@@ -89,7 +89,7 @@ abstract contract Pauseable is IPauseable, Governable {
     }
 
     /**
-     * @dev Pause contract operations, if contract is not paused.
+     * @dev Suspend deposit feature, if contract is not paused.
      */
     function pause() external virtual whenNotPaused onlyGovernor {
         _paused = true;
@@ -97,7 +97,7 @@ abstract contract Pauseable is IPauseable, Governable {
     }
 
     /**
-     * @dev Shutdown contract operations, if not already shutdown.
+     * @dev Suspend all features (issue, repay, deposit, withdraw, liquidate and swap), if not already shutdown.
      */
     function shutdown() external virtual whenNotShutdown onlyGovernor {
         _everythingStopped = true;

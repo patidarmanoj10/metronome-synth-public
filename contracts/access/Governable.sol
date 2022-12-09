@@ -16,14 +16,20 @@ import "../interfaces/IGovernable.sol";
  *
  */
 abstract contract Governable is IGovernable, TokenHolder, Initializable {
+    /**
+     * @notice The governor
+     * @dev By default the contract deployer is the initial governor
+     */
     address public governor;
+
+    /**
+     * @notice The proposed governor
+     * @dev Is empty (address(0)) if there isn't a proposed governor
+     */
     address public proposedGovernor;
 
     event UpdatedGovernor(address indexed previousGovernor, address indexed proposedGovernor);
 
-    /**
-     * @dev Initializes the contract setting the deployer as the initial governor.
-     */
     constructor() {
         governor = msg.sender;
         emit UpdatedGovernor(address(0), msg.sender);
@@ -47,11 +53,13 @@ abstract contract Governable is IGovernable, TokenHolder, Initializable {
         _;
     }
 
+    /// @inheritdoc TokenHolder
     function _requireCanSweep() internal view override onlyGovernor {}
 
     /**
-     * @dev Transfers governorship of the contract to a new account (`proposedGovernor`).
-     * Can only be called by the current owner.
+     * @notice Transfers governorship of the contract to a new account (`proposedGovernor`).
+     * @dev Can only be called by the current owner.
+     * @param proposedGovernor_ The new proposed governor
      */
     function transferGovernorship(address proposedGovernor_) external onlyGovernor {
         require(proposedGovernor_ != address(0), "proposed-governor-is-zero");
@@ -59,7 +67,7 @@ abstract contract Governable is IGovernable, TokenHolder, Initializable {
     }
 
     /**
-     * @dev Allows new governor to accept governorship of the contract.
+     * @notice Allows new governor to accept governorship of the contract.
      */
     function acceptGovernorship() external {
         address _proposedGovernor = proposedGovernor;

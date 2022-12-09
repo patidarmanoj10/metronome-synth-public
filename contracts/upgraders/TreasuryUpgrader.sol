@@ -9,7 +9,9 @@ contract TreasuryUpgrader is UpgraderBase {
         transferOwnership(_owner);
     }
 
+    /// @inheritdoc UpgraderBase
     function _calls() internal pure override returns (bytes[] memory calls) {}
 
+    /// @inheritdoc UpgraderBase
     function _checkResults(bytes[] memory _beforeResults, bytes[] memory _afterResults) internal pure override {}
 }

@@ -9,6 +9,7 @@ contract PoolUpgrader is UpgraderBase {
         transferOwnership(_owner);
     }
 
+    /// @inheritdoc UpgraderBase
     function _calls() internal pure override returns (bytes[] memory calls) {
         calls = new bytes[](11);
         calls[0] = abi.encodeWithSignature("debtFloorInUsd()");
@@ -24,6 +25,7 @@ contract PoolUpgrader is UpgraderBase {
         calls[10] = abi.encodeWithSignature("isSwapActive()");
     }
 
+    /// @inheritdoc UpgraderBase
     function _checkResults(bytes[] memory _beforeResults, bytes[] memory _afterResults) internal pure override {
         _checkUint256Results(_beforeResults, _afterResults, 0, 7);
         _checkAddressResults(_beforeResults, _afterResults, 8, 9);

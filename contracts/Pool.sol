@@ -170,7 +170,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
     }
 
     /**
-     * @notice Get if the debt position from an account is healthy
+     * @notice Returns whether the debt position from an account is healthy
      * @param account_ The account to check
      * @return _isHealthy Whether the account's position is healthy
      * @return _depositInUsd The total collateral deposited in USD

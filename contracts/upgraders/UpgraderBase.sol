@@ -10,6 +10,7 @@ abstract contract UpgraderBase is ProxyAdmin {
     // Note: `Multicall3` contract has same address for all chains
     address public constant multicall = 0xcA11bde05977b3631167028862bE2a173976CA11;
 
+    /// @inheritdoc ProxyAdmin
     function upgrade(TransparentUpgradeableProxy _proxy, address _implementation) public override onlyOwner {
         bytes[] memory calls = _calls();
         bytes[] memory beforeResults = _aggregate(_proxy, calls);
@@ -20,6 +21,7 @@ abstract contract UpgraderBase is ProxyAdmin {
         _checkResults(beforeResults, afterResults);
     }
 
+    /// @inheritdoc ProxyAdmin
     function upgradeAndCall(
         TransparentUpgradeableProxy _proxy,
         address _implementation,
@@ -34,6 +36,12 @@ abstract contract UpgraderBase is ProxyAdmin {
         _checkResults(beforeResults, afterResults);
     }
 
+    /**
+     * @notice Execute storage check calls using `Multicall3` contract
+     * @param _proxy The proxy being upgraded is the target contract
+     * @param _callDatas The array of storage calls to check
+     * @return results The storage values
+     */
     function _aggregate(TransparentUpgradeableProxy _proxy, bytes[] memory _callDatas)
         internal
         returns (bytes[] memory results)
@@ -47,10 +55,21 @@ abstract contract UpgraderBase is ProxyAdmin {
         (, results) = IMulticall(multicall).aggregate(calls);
     }
 
+    /**
+     * @notice Return list of storage calls
+     * @dev The values of those calls will be compared before and after upgrade to check storage integrity
+     */
     function _calls() internal virtual returns (bytes[] memory calls);
 
+    /**
+     * @notice Compare values
+     * @dev Throws if values are inconsistent
+     */
     function _checkResults(bytes[] memory _beforeResults, bytes[] memory _afterResults) internal virtual;
 
+    /**
+     * @notice Compare `string` values
+     */
     function _checkStringResults(
         bytes[] memory _beforeResults,
         bytes[] memory _afterResults,
@@ -64,6 +83,9 @@ abstract contract UpgraderBase is ProxyAdmin {
         }
     }
 
+    /**
+     * @notice Compare `uint8` values
+     */
     function _checkUint8Results(
         bytes[] memory _beforeResults,
         bytes[] memory _afterResults,
@@ -77,6 +99,9 @@ abstract contract UpgraderBase is ProxyAdmin {
         }
     }
 
+    /**
+     * @notice Compare `uint256` values
+     */
     function _checkUint256Results(
         bytes[] memory _beforeResults,
         bytes[] memory _afterResults,
@@ -90,6 +115,9 @@ abstract contract UpgraderBase is ProxyAdmin {
         }
     }
 
+    /**
+     * @notice Compare `address` values
+     */
     function _checkAddressResults(
         bytes[] memory _beforeResults,
         bytes[] memory _afterResults,
@@ -103,6 +131,9 @@ abstract contract UpgraderBase is ProxyAdmin {
         }
     }
 
+    /**
+     * @notice Compare `address` values
+     */
     function _checkBooleanResults(
         bytes[] memory _beforeResults,
         bytes[] memory _afterResults,

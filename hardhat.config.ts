@@ -16,11 +16,12 @@ const deployer = process.env.DEPLOYER || 0
 // More info https://github.com/NomicFoundation/hardhat/issues/2167
 // To avoid creating a new ENV VAR to store chainId, this function resolves it based on provider url
 function resolveChainId() {
-  const {NODE_URL} = process.env
-  if (NODE_URL!.includes('eth.connect')) {
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  const NODE_URL = process.env.NODE_URL!
+  if (NODE_URL.includes('eth.connect') || NODE_URL.includes('eth-mainnet')) {
     return 1
   }
-  if (NODE_URL!.includes('avax')) {
+  if (NODE_URL.includes('avax')) {
     return 43114
   }
   if (NODE_URL!.includes('bsc')) {

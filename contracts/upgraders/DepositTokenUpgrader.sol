@@ -9,6 +9,7 @@ contract DepositTokenUpgrader is UpgraderBase {
         transferOwnership(_owner);
     }
 
+    /// @inheritdoc UpgraderBase
     function _calls() internal pure override returns (bytes[] memory calls) {
         calls = new bytes[](8);
         calls[0] = abi.encodeWithSignature("name()");
@@ -21,6 +22,7 @@ contract DepositTokenUpgrader is UpgraderBase {
         calls[7] = abi.encodeWithSignature("isActive()");
     }
 
+    /// @inheritdoc UpgraderBase
     function _checkResults(bytes[] memory _beforeResults, bytes[] memory _afterResults) internal pure override {
         _checkStringResults(_beforeResults, _afterResults, 0, 1);
         _checkUint8Results(_beforeResults, _afterResults, 2, 2);
