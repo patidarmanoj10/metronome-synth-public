@@ -33,6 +33,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
     using WadRayMath for uint256;
 
     uint256 public constant SECONDS_PER_YEAR = 365.25 days;
+    uint256 private constant HUNDRED_PERCENT = 1e18;
 
     string public constant VERSION = "1.0.0";
 
@@ -258,7 +259,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
             return (amountToIssue_, _fee);
         }
 
-        _amount = amountToIssue_.wadDiv(1e18 - _issueFee);
+        _amount = amountToIssue_.wadDiv(HUNDRED_PERCENT - _issueFee);
         _fee = _amount - amountToIssue_;
     }
 
@@ -306,7 +307,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
             return (amount_, _fee);
         }
 
-        _amountToRepay = amount_.wadDiv(1e18 + _repayFee);
+        _amountToRepay = amount_.wadDiv(HUNDRED_PERCENT + _repayFee);
         _fee = amount_ - _amountToRepay;
     }
 
