@@ -6,6 +6,11 @@ import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./access/Manageable.sol";
 import "./storage/TreasuryStorage.sol";
 
+error SenderIsNotDepositToken();
+error AddressIsNull();
+error RecipientIsNull();
+error AmountIsZero();
+
 /**
  * @title Treasury contract
  */
@@ -19,7 +24,7 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
      * @dev Throws if caller isn't a deposit token
      */
     modifier onlyIfDepositToken() {
-        require(pool.isDepositTokenExists(IDepositToken(msg.sender)), "not-deposit-token");
+        if (!pool.isDepositTokenExists(IDepositToken(msg.sender))) revert SenderIsNotDepositToken();
         _;
     }
 
@@ -34,7 +39,7 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
      * @param newTreasury_ The new treasury
      */
     function migrateTo(address newTreasury_) external override onlyPool {
-        require(newTreasury_ != address(0), "address-is-null");
+        if (newTreasury_ == address(0)) revert AddressIsNull();
 
         address[] memory _depositTokens = pool.getDepositTokens();
         uint256 _depositTokensLength = _depositTokens.length;
@@ -56,8 +61,8 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
      * @param amount_ The transfer amount
      */
     function pull(address to_, uint256 amount_) external override nonReentrant onlyIfDepositToken {
-        require(to_ != address(0), "recipient-is-null");
-        require(amount_ > 0, "amount-is-zero");
+        if (to_ == address(0)) revert RecipientIsNull();
+        if (amount_ == 0) revert AmountIsZero();
         IDepositToken(msg.sender).underlying().safeTransfer(to_, amount_);
     }
 }

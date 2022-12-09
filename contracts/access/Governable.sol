@@ -6,6 +6,10 @@ import "../dependencies/openzeppelin/proxy/utils/Initializable.sol";
 import "../utils/TokenHolder.sol";
 import "../interfaces/IGovernable.sol";
 
+error SenderIsNotGovernor();
+error ProposedGovernorIsNull();
+error SenderIsNotTheProposedGovernor();
+
 /**
  * @dev Contract module which provides a basic access control mechanism, where
  * there is an account (governor) that can be granted exclusive access to
@@ -49,7 +53,7 @@ abstract contract Governable is IGovernable, TokenHolder, Initializable {
      * @dev Throws if called by any account other than the governor.
      */
     modifier onlyGovernor() {
-        require(governor == msg.sender, "not-governor");
+        if (governor != msg.sender) revert SenderIsNotGovernor();
         _;
     }
 
@@ -62,7 +66,7 @@ abstract contract Governable is IGovernable, TokenHolder, Initializable {
      * @param proposedGovernor_ The new proposed governor
      */
     function transferGovernorship(address proposedGovernor_) external onlyGovernor {
-        require(proposedGovernor_ != address(0), "proposed-governor-is-zero");
+        if (proposedGovernor_ == address(0)) revert ProposedGovernorIsNull();
         proposedGovernor = proposedGovernor_;
     }
 
@@ -71,7 +75,7 @@ abstract contract Governable is IGovernable, TokenHolder, Initializable {
      */
     function acceptGovernorship() external {
         address _proposedGovernor = proposedGovernor;
-        require(_proposedGovernor == msg.sender, "not-the-proposed-governor");
+        if (msg.sender != _proposedGovernor) revert SenderIsNotTheProposedGovernor();
         emit UpdatedGovernor(governor, _proposedGovernor);
         governor = _proposedGovernor;
         proposedGovernor = address(0);

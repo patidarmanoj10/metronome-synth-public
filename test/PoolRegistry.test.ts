@@ -33,18 +33,18 @@ describe('PoolRegistry', function () {
   describe('registerPool', function () {
     it('should revert if not governor', async function () {
       const tx = poolRegistry.connect(alice).registerPool(pool.address)
-      await expect(tx).revertedWith('not-governor')
+      await expect(tx).revertedWithCustomError(poolRegistry, 'SenderIsNotGovernor')
     })
 
     it('should revert if pool is null', async function () {
       const tx = poolRegistry.registerPool(ethers.constants.AddressZero)
-      await expect(tx).revertedWith('address-is-null')
+      await expect(tx).revertedWithCustomError(poolRegistry, 'AddressIsNull')
     })
 
     it('should revert if adding twice', async function () {
       await poolRegistry.registerPool(pool.address)
       const tx = poolRegistry.registerPool(pool.address)
-      await expect(tx).revertedWith('already-registered')
+      await expect(tx).revertedWithCustomError(poolRegistry, 'AlreadyRegistered')
     })
 
     it('should register pool', async function () {
@@ -87,13 +87,13 @@ describe('PoolRegistry', function () {
 
     it('should revert if not governor', async function () {
       const tx = poolRegistry.connect(alice).unregisterPool(pool.address)
-      await expect(tx).revertedWith('not-governor')
+      await expect(tx).revertedWithCustomError(poolRegistry, 'SenderIsNotGovernor')
     })
 
     it('should revert if pool does not registered', async function () {
       await poolRegistry.unregisterPool(pool.address)
       const tx = poolRegistry.unregisterPool(pool.address)
-      await expect(tx).revertedWith('not-registered')
+      await expect(tx).revertedWithCustomError(poolRegistry, 'NotRegistered')
     })
 
     it('should unregister pool', async function () {
@@ -113,12 +113,12 @@ describe('PoolRegistry', function () {
   describe('updateFeeCollector', function () {
     it('should revert if not governor', async function () {
       const tx = poolRegistry.connect(bob).updateFeeCollector(bob.address)
-      await expect(tx).revertedWith('not-governor')
+      await expect(tx).revertedWithCustomError(poolRegistry, 'SenderIsNotGovernor')
     })
 
     it('should revert if feeCollector is null', async function () {
       const tx = poolRegistry.updateFeeCollector(ethers.constants.AddressZero)
-      await expect(tx).revertedWith('fee-collector-is-null')
+      await expect(tx).revertedWithCustomError(poolRegistry, 'FeeCollectorIsNull')
     })
 
     it('should revert if using the same address', async function () {
@@ -129,7 +129,7 @@ describe('PoolRegistry', function () {
       const tx = poolRegistry.updateFeeCollector(feeCollector.address)
 
       // then
-      await expect(tx).revertedWith('new-same-as-current')
+      await expect(tx).revertedWithCustomError(poolRegistry, 'NewValueIsSameAsCurrent')
     })
 
     it('should update fee collector', async function () {
@@ -153,7 +153,7 @@ describe('PoolRegistry', function () {
       const tx = poolRegistry.connect(alice).updateMasterOracle(ethers.constants.AddressZero)
 
       // then
-      await expect(tx).revertedWith('not-governor')
+      await expect(tx).revertedWithCustomError(poolRegistry, 'SenderIsNotGovernor')
     })
 
     it('should revert if using the same address', async function () {
@@ -164,7 +164,7 @@ describe('PoolRegistry', function () {
       const tx = poolRegistry.updateMasterOracle(masterOracleMock.address)
 
       // then
-      await expect(tx).revertedWith('new-same-as-current')
+      await expect(tx).revertedWithCustomError(poolRegistry, 'NewValueIsSameAsCurrent')
     })
 
     it('should revert if address is zero', async function () {
@@ -172,7 +172,7 @@ describe('PoolRegistry', function () {
       const tx = poolRegistry.updateMasterOracle(ethers.constants.AddressZero)
 
       // then
-      await expect(tx).revertedWith('address-is-null')
+      await expect(tx).revertedWithCustomError(poolRegistry, 'AddressIsNull')
     })
 
     it('should update master oracle contract', async function () {

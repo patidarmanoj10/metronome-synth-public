@@ -6,6 +6,12 @@ import "../dependencies/openzeppelin/proxy/transparent/ProxyAdmin.sol";
 import "../dependencies/openzeppelin//proxy/transparent/TransparentUpgradeableProxy.sol";
 import "../interfaces/external/IMulticall.sol";
 
+error StringFieldIsNotEqual();
+error Uint8FieldIsNotEqual();
+error Uint256FieldIsNotEqual();
+error AddressFieldIsNotEqual();
+error BooleanFieldIsNotEqual();
+
 abstract contract UpgraderBase is ProxyAdmin {
     // Note: `Multicall3` contract has same address for all chains
     address public constant multicall = 0xcA11bde05977b3631167028862bE2a173976CA11;
@@ -79,7 +85,7 @@ abstract contract UpgraderBase is ProxyAdmin {
         for (uint256 i = _from; i <= _to; ++i) {
             string memory _before = abi.decode(_beforeResults[i], (string));
             string memory _after = abi.decode(_afterResults[i], (string));
-            require(keccak256(bytes(_before)) == keccak256(bytes(_after)), "an-string-simple-field-failed");
+            if (keccak256(bytes(_before)) != keccak256(bytes(_after))) revert StringFieldIsNotEqual();
         }
     }
 
@@ -95,7 +101,7 @@ abstract contract UpgraderBase is ProxyAdmin {
         for (uint256 i = _from; i <= _to; ++i) {
             uint256 _before = abi.decode(_beforeResults[i], (uint8));
             uint256 _after = abi.decode(_afterResults[i], (uint8));
-            require(_before == _after, "an-uint8-simple-field-failed");
+            if (_before != _after) revert Uint8FieldIsNotEqual();
         }
     }
 
@@ -111,7 +117,7 @@ abstract contract UpgraderBase is ProxyAdmin {
         for (uint256 i = _from; i <= _to; ++i) {
             uint256 _before = abi.decode(_beforeResults[i], (uint256));
             uint256 _after = abi.decode(_afterResults[i], (uint256));
-            require(_before == _after, "an-uint256-simple-field-failed");
+            if (_before != _after) revert Uint256FieldIsNotEqual();
         }
     }
 
@@ -127,7 +133,7 @@ abstract contract UpgraderBase is ProxyAdmin {
         for (uint256 i = _from; i <= _to; ++i) {
             address _before = abi.decode(_beforeResults[i], (address));
             address _after = abi.decode(_afterResults[i], (address));
-            require(_before == _after, "an-address-simple-field-failed");
+            if (_before != _after) revert AddressFieldIsNotEqual();
         }
     }
 
@@ -143,7 +149,7 @@ abstract contract UpgraderBase is ProxyAdmin {
         for (uint256 i = _from; i <= _to; ++i) {
             bool _before = abi.decode(_beforeResults[i], (bool));
             bool _after = abi.decode(_afterResults[i], (bool));
-            require(_before == _after, "an-address-simple-field-failed");
+            if (_before != _after) revert BooleanFieldIsNotEqual();
         }
     }
 }

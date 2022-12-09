@@ -4,6 +4,9 @@ pragma solidity 0.8.9;
 
 import "../dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
 
+error FallbackIsNotAllowed();
+error ReceiveIsNotAllowed();
+
 /**
  * @title Utils contract that handles tokens sent to it
  */
@@ -14,14 +17,14 @@ abstract contract TokenHolder {
      * @dev Revert fallback calls
      */
     fallback() external payable {
-        revert("fallback-not-allowed");
+        revert FallbackIsNotAllowed();
     }
 
     /**
      * @dev Revert when receiving by default
      */
     receive() external payable virtual {
-        revert("receive-not-allowed");
+        revert ReceiveIsNotAllowed();
     }
 
     /**

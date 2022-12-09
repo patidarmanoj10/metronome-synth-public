@@ -8,6 +8,13 @@ import "./storage/PoolRegistryStorage.sol";
 import "./interfaces/IPool.sol";
 import "./utils/Pauseable.sol";
 
+error OracleIsNull();
+error FeeCollectorIsNull();
+error AddressIsNull();
+error AlreadyRegistered();
+error NotRegistered();
+error NewValueIsSameAsCurrent();
+
 /**
  * @title PoolRegistry contract
  */
@@ -30,8 +37,8 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
     event PoolUnregistered(uint256 id, address pool);
 
     function initialize(IMasterOracle masterOracle_, address feeCollector_) external initializer {
-        require(address(masterOracle_) != address(0), "oracle-is-null");
-        require(feeCollector_ != address(0), "fee-collector-is-null");
+        if (address(masterOracle_) == address(0)) revert OracleIsNull();
+        if (feeCollector_ == address(0)) revert FeeCollectorIsNull();
 
         __ReentrancyGuard_init();
         __Pauseable_init();
@@ -64,8 +71,8 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
      * @notice Register pool
      */
     function registerPool(address pool_) external override onlyGovernor {
-        require(pool_ != address(0), "address-is-null");
-        require(pools.add(pool_), "already-registered");
+        if (pool_ == address(0)) revert AddressIsNull();
+        if (!pools.add(pool_)) revert AlreadyRegistered();
         uint256 _id = idOfPool[pool_];
         if (_id == 0) {
             _id = nextPoolId++;
@@ -78,7 +85,7 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
      * @notice Unregister pool
      */
     function unregisterPool(address pool_) external override onlyGovernor {
-        require(pools.remove(pool_), "not-registered");
+        if (!pools.remove(pool_)) revert NotRegistered();
         emit PoolUnregistered(idOfPool[pool_], pool_);
     }
 
@@ -86,9 +93,9 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
      * @notice Update fee collector
      */
     function updateFeeCollector(address newFeeCollector_) external override onlyGovernor {
-        require(newFeeCollector_ != address(0), "fee-collector-is-null");
+        if (newFeeCollector_ == address(0)) revert FeeCollectorIsNull();
         address _currentFeeCollector = feeCollector;
-        require(newFeeCollector_ != _currentFeeCollector, "new-same-as-current");
+        if (newFeeCollector_ == _currentFeeCollector) revert NewValueIsSameAsCurrent();
         emit FeeCollectorUpdated(_currentFeeCollector, newFeeCollector_);
         feeCollector = newFeeCollector_;
     }
@@ -97,9 +104,9 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
      * @notice Update master oracle contract
      */
     function updateMasterOracle(IMasterOracle newMasterOracle_) external override onlyGovernor {
-        require(address(newMasterOracle_) != address(0), "address-is-null");
+        if (address(newMasterOracle_) == address(0)) revert AddressIsNull();
         IMasterOracle _currentMasterOracle = masterOracle;
-        require(newMasterOracle_ != _currentMasterOracle, "new-same-as-current");
+        if (newMasterOracle_ == _currentMasterOracle) revert NewValueIsSameAsCurrent();
         emit MasterOracleUpdated(_currentMasterOracle, newMasterOracle_);
         masterOracle = newMasterOracle_;
     }

@@ -152,7 +152,7 @@ describe('DebtToken', function () {
       const tx = msUSDDebt.connect(user1).issue(toIssue, user1.address)
 
       // then
-      await expect(tx).revertedWith('shutdown')
+      await expect(tx).revertedWithCustomError(msUSDDebt, 'IsShutdown')
     })
 
     it('should revert if surpass max supply in usd', async function () {
@@ -163,7 +163,7 @@ describe('DebtToken', function () {
       const tx = msUSDDebt.connect(user1).issue(parseEther('11'), user1.address)
 
       // then
-      await expect(tx).revertedWith('surpass-max-debt-supply')
+      await expect(tx).revertedWithCustomError(msUSDDebt, 'SurpassMaxDebtSupply')
     })
 
     it('should revert if synthetic does not exist', async function () {
@@ -190,7 +190,7 @@ describe('DebtToken', function () {
       const tx = notListedDebtToken.issue(toIssue, user1.address)
 
       // then
-      await expect(tx).revertedWith('synthetic-inexistent')
+      await expect(tx).revertedWithCustomError(notListedDebtToken, 'SyntheticDoesNotExist')
     })
 
     it('should revert if synthetic is not active', async function () {
@@ -202,7 +202,7 @@ describe('DebtToken', function () {
       const tx = msUSDDebt.connect(user1).issue(toIssue, user1.address)
 
       // then
-      await expect(tx).revertedWith('synthetic-inactive')
+      await expect(tx).revertedWithCustomError(msUSDDebt, 'SyntheticIsInactive')
     })
 
     it('should revert if debt token is not active', async function () {
@@ -214,7 +214,7 @@ describe('DebtToken', function () {
       const tx = msUSDDebt.connect(user1).issue(toIssue, user1.address)
 
       // then
-      await expect(tx).revertedWith('debt-token-inactive')
+      await expect(tx).revertedWithCustomError(msUSDDebt, 'DebtTokenInactive')
     })
 
     it('should revert if user1 has not enough collateral deposited', async function () {
@@ -223,7 +223,7 @@ describe('DebtToken', function () {
       const tx = msUSDDebt.connect(user1).issue(toIssue, user1.address)
 
       // then
-      await expect(tx).revertedWith('not-enough-collateral')
+      await expect(tx).revertedWithCustomError(msUSDDebt, 'NotEnoughCollateral')
     })
 
     it('should revert if amount to issue is 0', async function () {
@@ -232,7 +232,7 @@ describe('DebtToken', function () {
       const tx = msUSDDebt.connect(user1).issue(toIssue, user1.address)
 
       // then
-      await expect(tx).revertedWith('amount-is-zero')
+      await expect(tx).revertedWithCustomError(msUSDDebt, 'AmountIsZero')
     })
 
     it('should revert if new debt < debt floor', async function () {
@@ -244,7 +244,7 @@ describe('DebtToken', function () {
       const tx = msUSDDebt.connect(user1).issue(toIssue, user1.address)
 
       // then
-      await expect(tx).revertedWith('debt-lt-floor')
+      await expect(tx).revertedWithCustomError(msUSDDebt, 'DebtLowerThanTheFloor')
     })
 
     it('should issue msAsset (issueFee == 0)', async function () {
@@ -344,7 +344,7 @@ describe('DebtToken', function () {
           const tx = msUSDDebt.connect(user1).repay(user1.address, amount)
 
           // then
-          await expect(tx).revertedWith('shutdown')
+          await expect(tx).revertedWithCustomError(msUSDDebt, 'IsShutdown')
         })
 
         it('should revert if amount is 0', async function () {
@@ -352,7 +352,7 @@ describe('DebtToken', function () {
           const tx = msUSDDebt.connect(user1).repay(user1.address, 0)
 
           // then
-          await expect(tx).revertedWith('amount-is-zero')
+          await expect(tx).revertedWithCustomError(msUSDDebt, 'AmountIsZero')
         })
 
         it('should revert if amount > unlocked collateral amount', async function () {
@@ -363,7 +363,7 @@ describe('DebtToken', function () {
           const tx = msUSDDebt.connect(user1).repay(user1.address, amount.add('1'))
 
           // then
-          await expect(tx).revertedWith('burn-amount-exceeds-balance')
+          await expect(tx).revertedWithCustomError(msUSDDebt, 'BurnAmountExceedsBalance')
         })
 
         it('should revert if new debt < debt floor', async function () {
@@ -378,7 +378,7 @@ describe('DebtToken', function () {
           const tx = msUSDDebt.connect(user1).repay(user1.address, toRepay)
 
           // then
-          await expect(tx).revertedWith('debt-lt-floor')
+          await expect(tx).revertedWithCustomError(msUSDDebt, 'DebtLowerThanTheFloor')
         })
 
         it('should allow repay if new debt == 0', async function () {
@@ -540,7 +540,7 @@ describe('DebtToken', function () {
           const tx = msUSDDebt.connect(user1).repayAll(user1.address)
 
           // then
-          await expect(tx).revertedWith('shutdown')
+          await expect(tx).revertedWithCustomError(msUSDDebt, 'IsShutdown')
         })
 
         it('should repay all debt (repayFee == 0)', async function () {
@@ -607,7 +607,7 @@ describe('DebtToken', function () {
 
       it('should revert if not authorized', async function () {
         const tx = msUSDDebt.connect(user1).burn(user1.address, parseEther('10'))
-        await expect(tx).revertedWith('not-pool')
+        await expect(tx).revertedWithCustomError(msUSDDebt, 'SenderIsNotPool')
       })
 
       it('should not add address(0) to the users array', async function () {
@@ -662,28 +662,28 @@ describe('DebtToken', function () {
     describe('transfer', function () {
       it('should revert when transferring', async function () {
         const tx = msUSDDebt.transfer(user2.address, parseEther('1'))
-        await expect(tx).revertedWith('transfer-not-supported')
+        await expect(tx).revertedWithCustomError(msUSDDebt, 'TransferNotSupported')
       })
     })
 
     describe('transferFrom', function () {
       it('should revert when transferring', async function () {
         const tx = msUSDDebt.connect(user2).transferFrom(user1.address, user2.address, parseEther('1'))
-        await expect(tx).revertedWith('transfer-not-supported')
+        await expect(tx).revertedWithCustomError(msUSDDebt, 'TransferNotSupported')
       })
     })
 
     describe('allowance', function () {
       it('should revert when calling allowance', async function () {
         const call = msUSDDebt.connect(user2).allowance(user1.address, user2.address)
-        await expect(call).revertedWith('allowance-not-supported')
+        await expect(call).revertedWithCustomError(msUSDDebt, 'AllowanceNotSupported')
       })
     })
 
     describe('approve', function () {
       it('should revert when approving', async function () {
         const tx = msUSDDebt.connect(user1).approve(user2.address, parseEther('1'))
-        await expect(tx).revertedWith('approval-not-supported')
+        await expect(tx).revertedWithCustomError(msUSDDebt, 'ApprovalNotSupported')
       })
     })
   })
@@ -883,12 +883,12 @@ describe('DebtToken', function () {
     it('should revert if using the current value', async function () {
       const currentMaxTotalSupply = await msUSDDebt.maxTotalSupply()
       const tx = msUSDDebt.updateMaxTotalSupply(currentMaxTotalSupply)
-      await expect(tx).revertedWith('new-same-as-current')
+      await expect(tx).revertedWithCustomError(msUSDDebt, 'NewValueIsSameAsCurrent')
     })
 
     it('should revert if not governor', async function () {
       const tx = msUSDDebt.connect(user1).updateMaxTotalSupply(parseEther('10'))
-      await expect(tx).revertedWith('not-governor')
+      await expect(tx).revertedWithCustomError(msUSDDebt, 'SenderIsNotGovernor')
     })
   })
 
@@ -904,12 +904,12 @@ describe('DebtToken', function () {
     it('should revert if using the current value', async function () {
       const currentInterestRate = await msUSDDebt.interestRate()
       const tx = msUSDDebt.updateInterestRate(currentInterestRate)
-      await expect(tx).revertedWith('new-same-as-current')
+      await expect(tx).revertedWithCustomError(msUSDDebt, 'NewValueIsSameAsCurrent')
     })
 
     it('should revert if not governor', async function () {
       const tx = msUSDDebt.connect(user1).updateInterestRate(parseEther('0.12'))
-      await expect(tx).revertedWith('not-governor')
+      await expect(tx).revertedWithCustomError(msUSDDebt, 'SenderIsNotGovernor')
     })
   })
 
@@ -924,7 +924,7 @@ describe('DebtToken', function () {
 
     it('should revert if not governor', async function () {
       const tx = msUSDDebt.connect(user1).toggleIsActive()
-      await expect(tx).revertedWith('not-governor')
+      await expect(tx).revertedWithCustomError(msUSDDebt, 'SenderIsNotGovernor')
     })
   })
 })

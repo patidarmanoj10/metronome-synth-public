@@ -19,7 +19,6 @@ import {
   Treasury__factory,
   PoolRegistry__factory,
   MasterOracleMock,
-  Treasury,
   PoolRegistry,
 } from '../typechain'
 
@@ -339,7 +338,7 @@ describe('Integration tests', function () {
             const tx = msETH_Debt_A.connect(bob).repay(alice.address, parseEther('0.1'))
 
             // then
-            await expect(tx).rejectedWith('burn-amount-exceeds-balance')
+            await expect(tx).rejectedWith('BurnAmountExceedsBalance')
           })
 
           describe('withdraw', function () {

@@ -7,6 +7,12 @@ import "../utils/TokenHolder.sol";
 import "../interfaces/IGovernable.sol";
 import "../interfaces/IManageable.sol";
 
+error SenderIsNotPool();
+error SenderIsNotGovernor();
+error IsPaused();
+error IsShutdown();
+error PoolAddressIsNull();
+
 /**
  * @title Reusable contract that handles accesses
  */
@@ -20,7 +26,7 @@ abstract contract Manageable is IManageable, TokenHolder, Initializable {
      * @dev Throws if `msg.sender` isn't the pool
      */
     modifier onlyPool() {
-        require(msg.sender == address(pool), "not-pool");
+        if (msg.sender != address(pool)) revert SenderIsNotPool();
         _;
     }
 
@@ -28,7 +34,7 @@ abstract contract Manageable is IManageable, TokenHolder, Initializable {
      * @dev Throws if `msg.sender` isn't the governor
      */
     modifier onlyGovernor() {
-        require(msg.sender == governor(), "not-governor");
+        if (msg.sender != governor()) revert SenderIsNotGovernor();
         _;
     }
 
@@ -36,7 +42,7 @@ abstract contract Manageable is IManageable, TokenHolder, Initializable {
      * @dev Throws if contract is paused
      */
     modifier whenNotPaused() {
-        require(!pool.paused(), "paused");
+        if (pool.paused()) revert IsPaused();
         _;
     }
 
@@ -44,13 +50,13 @@ abstract contract Manageable is IManageable, TokenHolder, Initializable {
      * @dev Throws if contract is shutdown
      */
     modifier whenNotShutdown() {
-        require(!pool.everythingStopped(), "shutdown");
+        if (pool.everythingStopped()) revert IsShutdown();
         _;
     }
 
     // solhint-disable-next-line func-name-mixedcase
     function __Manageable_init(IPool pool_) internal initializer {
-        require(address(pool_) != address(0), "pool-address-is-zero");
+        if (address(pool_) == address(0)) revert PoolAddressIsNull();
         pool = pool_;
     }
 

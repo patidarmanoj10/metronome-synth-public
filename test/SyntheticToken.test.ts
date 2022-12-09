@@ -132,7 +132,7 @@ describe('SyntheticToken', function () {
       const tx = msUSD.connect(poolMock.wallet).mint(user.address, parseEther('101'))
 
       // then
-      await expect(tx).revertedWith('surpass-max-synth-supply')
+      await expect(tx).revertedWithCustomError(msUSD, 'SurpassMaxSynthSupply')
     })
 
     it('should revert if msAsset is inactive', async function () {
@@ -143,7 +143,7 @@ describe('SyntheticToken', function () {
       const tx = msUSD.connect(poolMock.wallet).mint(deployer.address, '1')
 
       // then
-      await expect(tx).revertedWith('synthetic-inactive')
+      await expect(tx).revertedWithCustomError(msUSD, 'SyntheticIsInactive')
     })
   })
 
@@ -176,7 +176,7 @@ describe('SyntheticToken', function () {
 
     it('should revert if not governor', async function () {
       const tx = msUSD.connect(user).toggleIsActive()
-      await expect(tx).revertedWith('not-governor')
+      await expect(tx).revertedWithCustomError(msUSD, 'SenderIsNotGovernor')
     })
   })
 
@@ -192,12 +192,12 @@ describe('SyntheticToken', function () {
     it('should revert if using the current value', async function () {
       const currentMaxTotalSupply = await msUSD.maxTotalSupply()
       const tx = msUSD.connect(governor).updateMaxTotalSupply(currentMaxTotalSupply)
-      await expect(tx).revertedWith('new-same-as-current')
+      await expect(tx).revertedWithCustomError(msUSD, 'NewValueIsSameAsCurrent')
     })
 
     it('should revert if not governor', async function () {
       const tx = msUSD.connect(user).updateMaxTotalSupply(parseEther('10'))
-      await expect(tx).revertedWith('not-governor')
+      await expect(tx).revertedWithCustomError(msUSD, 'SenderIsNotGovernor')
     })
   })
 })

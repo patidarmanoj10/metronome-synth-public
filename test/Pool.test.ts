@@ -267,7 +267,7 @@ describe('Pool', function () {
           const tx = pool.liquidate(msEth.address, alice.address, 0, msdMET.address)
 
           // then
-          await expect(tx).revertedWith('amount-is-zero')
+          await expect(tx).revertedWithCustomError(pool, 'AmountIsZero')
         })
 
         it('should revert if liquidator == account', async function () {
@@ -275,7 +275,7 @@ describe('Pool', function () {
           const tx = pool.connect(alice).liquidate(msEth.address, alice.address, 1, msdMET.address)
 
           // then
-          await expect(tx).revertedWith('can-not-liquidate-own-position')
+          await expect(tx).revertedWithCustomError(pool, 'CanNotLiquidateOwnPosition')
         })
 
         it('should revert if position is healthy', async function () {
@@ -287,7 +287,7 @@ describe('Pool', function () {
           const tx = pool.liquidate(msEth.address, alice.address, parseEther('1'), msdMET.address)
 
           // then
-          await expect(tx).revertedWith('position-is-healthy')
+          await expect(tx).revertedWithCustomError(pool, 'PositionIsHealthy')
         })
 
         describe('when the position is unhealthy (collateral:debt >= 1)', function () {
@@ -340,7 +340,7 @@ describe('Pool', function () {
             const tx = pool.connect(liquidator).liquidate(msEth.address, alice.address, amountToRepay, msdMET.address)
 
             // then
-            await expect(tx).revertedWith('shutdown')
+            await expect(tx).revertedWithCustomError(pool, 'IsShutdown')
           })
 
           it('should revert if liquidator has not enough msAsset to repay', async function () {
@@ -357,7 +357,7 @@ describe('Pool', function () {
               .liquidate(msEth.address, alice.address, amountToRepayInMsEth, msdMET.address)
 
             // then
-            await expect(tx).revertedWith('burn-amount-exceeds-balance')
+            await expect(tx).revertedWithCustomError(msEth, 'BurnAmountExceedsBalance')
           })
 
           it('should revert if debt amount is < amount to repay', async function () {
@@ -369,7 +369,7 @@ describe('Pool', function () {
             const tx = pool.connect(liquidator).liquidate(msEth.address, alice.address, amountToRepay, msdMET.address)
 
             // then
-            await expect(tx).revertedWith('amount-gt-max-liquidable')
+            await expect(tx).revertedWithCustomError(pool, 'AmountGreaterThanMaxLiquidable')
           })
 
           describe('debt floor', function () {
@@ -384,7 +384,7 @@ describe('Pool', function () {
               const tx = pool.connect(liquidator).liquidate(msEth.address, alice.address, amountToRepay, msdMET.address)
 
               // then
-              await expect(tx).revertedWith('remaining-debt-lt-floor')
+              await expect(tx).revertedWithCustomError(pool, 'RemainingDebtIsLowerThanTheFloor')
             })
 
             it('should allow erase debt when debt floor set', async function () {
@@ -414,7 +414,7 @@ describe('Pool', function () {
             const tx = pool.connect(liquidator).liquidate(msEth.address, alice.address, amountToRepay, msdMET.address)
 
             // then
-            await expect(tx).revertedWith('amount-gt-max-liquidable')
+            await expect(tx).revertedWithCustomError(pool, 'AmountGreaterThanMaxLiquidable')
           })
 
           it('should liquidate by repaying all debt (protocolLiquidationFee == 0)', async function () {
@@ -752,7 +752,7 @@ describe('Pool', function () {
             const tx = pool.connect(liquidator).liquidate(msEth.address, alice.address, amountToRepay, msdMET.address)
 
             // then
-            await expect(tx).revertedWith('amount-too-high')
+            await expect(tx).revertedWithCustomError(pool, 'AmountIsTooHight')
           })
 
           it('should liquidate by repaying max possible amount (liquidateFee == 0)', async function () {
@@ -984,7 +984,7 @@ describe('Pool', function () {
           const tx = pool.connect(alice).swap(msEth.address, msDoge.address, amount)
 
           // then
-          await expect(tx).revertedWith('shutdown')
+          await expect(tx).revertedWithCustomError(pool, 'IsShutdown')
         })
 
         it('should revert if swap is paused', async function () {
@@ -996,7 +996,7 @@ describe('Pool', function () {
           const tx = pool.connect(alice).swap(msEth.address, msDoge.address, amount)
 
           // then
-          await expect(tx).revertedWith('swap-is-off')
+          await expect(tx).revertedWithCustomError(pool, 'SwapFeatureIsInactive')
         })
 
         it('should revert if amount == 0', async function () {
@@ -1004,7 +1004,7 @@ describe('Pool', function () {
           const tx = pool.connect(alice).swap(msEth.address, msDoge.address, 0)
 
           // then
-          await expect(tx).revertedWith('amount-in-is-invalid')
+          await expect(tx).revertedWithCustomError(pool, 'AmountInIsInvalid')
         })
 
         it('should revert if synthetic out is not active', async function () {
@@ -1016,7 +1016,7 @@ describe('Pool', function () {
           const tx = pool.connect(alice).swap(msEth.address, msDoge.address, amountIn)
 
           // then
-          await expect(tx).revertedWith('synthetic-inactive')
+          await expect(tx).revertedWithCustomError(msEth, 'SyntheticIsInactive')
         })
 
         it('should revert if user has not enough balance', async function () {
@@ -1028,7 +1028,7 @@ describe('Pool', function () {
           const tx = pool.connect(alice).swap(msEth.address, msDoge.address, amountIn)
 
           // then
-          await expect(tx).revertedWith('amount-in-is-invalid')
+          await expect(tx).revertedWithCustomError(pool, 'AmountInIsInvalid')
         })
 
         it('should swap synthetic tokens (swapFee == 0)', async function () {
@@ -1141,7 +1141,7 @@ describe('Pool', function () {
     describe('addDebtToken', function () {
       it('should revert if not governor', async function () {
         const tx = pool.connect(alice).addDebtToken(msEthDebtToken.address)
-        await expect(tx).revertedWith('not-governor')
+        await expect(tx).revertedWithCustomError(pool, 'SenderIsNotGovernor')
       })
 
       it('should add debt token', async function () {
@@ -1171,7 +1171,7 @@ describe('Pool', function () {
         const tx = pool.connect(alice).removeDebtToken(debtToken.address)
 
         // then
-        await expect(tx).revertedWith('not-governor')
+        await expect(tx).revertedWithCustomError(pool, 'SenderIsNotGovernor')
       })
 
       it('should revert if debt token has any supply', async function () {
@@ -1184,7 +1184,7 @@ describe('Pool', function () {
         const tx = pool.removeDebtToken(debtToken.address)
 
         // then
-        await expect(tx).revertedWith('supply-gt-0')
+        await expect(tx).revertedWithCustomError(pool, 'TotalSupplyIsNotZero')
       })
     })
 
@@ -1207,7 +1207,7 @@ describe('Pool', function () {
         const tx = pool.connect(alice).removeDepositToken(depositToken.address)
 
         // then
-        await expect(tx).revertedWith('not-governor')
+        await expect(tx).revertedWithCustomError(pool, 'SenderIsNotGovernor')
       })
 
       it('should revert if debt token has any supply', async function () {
@@ -1220,7 +1220,7 @@ describe('Pool', function () {
         const tx = pool.removeDepositToken(depositToken.address)
 
         // then
-        await expect(tx).revertedWith('supply-gt-0')
+        await expect(tx).revertedWithCustomError(pool, 'TotalSupplyIsNotZero')
       })
     })
   })
@@ -1234,7 +1234,7 @@ describe('Pool', function () {
       const tx = pool.updateTreasury(treasury.address)
 
       // then
-      await expect(tx).revertedWith('new-same-as-current')
+      await expect(tx).revertedWithCustomError(pool, 'NewValueIsSameAsCurrent')
     })
 
     it('should revert if caller is not governor', async function () {
@@ -1242,7 +1242,7 @@ describe('Pool', function () {
       const tx = pool.connect(alice).updateTreasury(treasury.address)
 
       // then
-      await expect(tx).revertedWith('not-governor')
+      await expect(tx).revertedWithCustomError(pool, 'SenderIsNotGovernor')
     })
 
     it('should revert if address is zero', async function () {
@@ -1250,7 +1250,7 @@ describe('Pool', function () {
       const tx = pool.updateTreasury(ethers.constants.AddressZero)
 
       // then
-      await expect(tx).revertedWith('address-is-null')
+      await expect(tx).revertedWithCustomError(pool, 'AddressIsNull')
     })
 
     it('should migrate funds to the new treasury', async function () {
@@ -1281,7 +1281,7 @@ describe('Pool', function () {
       const tx = pool.connect(alice).updateSwapFee(parseEther('1'))
 
       // then
-      await expect(tx).revertedWith('not-governor')
+      await expect(tx).revertedWithCustomError(pool, 'SenderIsNotGovernor')
     })
 
     it('should revert if using the current value', async function () {
@@ -1290,7 +1290,7 @@ describe('Pool', function () {
       const tx = pool.updateSwapFee(swapFee)
 
       // then
-      await expect(tx).revertedWith('new-same-as-current')
+      await expect(tx).revertedWithCustomError(pool, 'NewValueIsSameAsCurrent')
     })
 
     it('should revert if swap fee > 25%', async function () {
@@ -1299,7 +1299,7 @@ describe('Pool', function () {
       const tx = pool.updateSwapFee(newSwapFee)
 
       // then
-      await expect(tx).revertedWith('fee-gt-max')
+      await expect(tx).revertedWithCustomError(pool, 'FeeIsGreaterThanTheMax')
     })
 
     it('should update swap fee param', async function () {
@@ -1328,7 +1328,7 @@ describe('Pool', function () {
     describe('addToDepositTokensOfAccount', function () {
       it('should revert if caller is not a deposit token', async function () {
         const tx = pool.connect(alice).addToDepositTokensOfAccount(alice.address)
-        await expect(tx).revertedWith('caller-is-not-deposit-token')
+        await expect(tx).revertedWithCustomError(pool, 'SenderIsNotDepositToken')
       })
 
       // eslint-disable-next-line quotes
@@ -1352,7 +1352,7 @@ describe('Pool', function () {
         const tx = pool.connect(msdTOKEN.wallet).addToDepositTokensOfAccount(alice.address)
 
         // when
-        await expect(tx).revertedWith('deposit-token-exists')
+        await expect(tx).revertedWithCustomError(pool, 'DepositTokenAlreadyExists')
       })
     })
 
@@ -1363,7 +1363,7 @@ describe('Pool', function () {
 
       it('should revert if caller is not a deposit token', async function () {
         const tx = pool.connect(alice).removeFromDepositTokensOfAccount(alice.address)
-        await expect(tx).revertedWith('caller-is-not-deposit-token')
+        await expect(tx).revertedWithCustomError(pool, 'SenderIsNotDepositToken')
       })
 
       // eslint-disable-next-line quotes
@@ -1400,7 +1400,7 @@ describe('Pool', function () {
         invalidDebtToken.syntheticToken.returns(syntheticToken.address)
 
         const tx = pool.connect(invalidDebtToken.wallet).addToDebtTokensOfAccount(alice.address)
-        await expect(tx).revertedWith('caller-is-not-debt-token')
+        await expect(tx).revertedWithCustomError(pool, 'SenderIsNotDebtToken')
       })
 
       // eslint-disable-next-line quotes
@@ -1424,7 +1424,7 @@ describe('Pool', function () {
         const tx = pool.connect(debtToken.wallet).addToDebtTokensOfAccount(alice.address)
 
         // when
-        await expect(tx).revertedWith('debt-token-exists')
+        await expect(tx).revertedWithCustomError(pool, 'DebtTokenAlreadyExists')
       })
     })
 
@@ -1438,7 +1438,7 @@ describe('Pool', function () {
         invalidDebtToken.syntheticToken.returns(syntheticToken.address)
 
         const tx = pool.connect(invalidDebtToken.wallet).removeFromDebtTokensOfAccount(alice.address)
-        await expect(tx).revertedWith('caller-is-not-debt-token')
+        await expect(tx).revertedWithCustomError(pool, 'SenderIsNotDebtToken')
       })
 
       // eslint-disable-next-line quotes
@@ -1461,7 +1461,7 @@ describe('Pool', function () {
       const tx = pool.connect(alice).updateDepositFee(parseEther('1'))
 
       // then
-      await expect(tx).revertedWith('not-governor')
+      await expect(tx).revertedWithCustomError(pool, 'SenderIsNotGovernor')
     })
 
     it('should revert if using the current value', async function () {
@@ -1470,7 +1470,7 @@ describe('Pool', function () {
       const tx = pool.updateDepositFee(depositFee)
 
       // then
-      await expect(tx).revertedWith('new-same-as-current')
+      await expect(tx).revertedWithCustomError(pool, 'NewValueIsSameAsCurrent')
     })
 
     it('should revert if deposit fee > 25%', async function () {
@@ -1479,7 +1479,7 @@ describe('Pool', function () {
       const tx = pool.updateDepositFee(newDepositFee)
 
       // then
-      await expect(tx).revertedWith('fee-gt-max')
+      await expect(tx).revertedWithCustomError(pool, 'FeeIsGreaterThanTheMax')
     })
 
     it('should update deposit fee param', async function () {
@@ -1502,7 +1502,7 @@ describe('Pool', function () {
       const tx = pool.connect(alice).updateIssueFee(parseEther('1'))
 
       // then
-      await expect(tx).revertedWith('not-governor')
+      await expect(tx).revertedWithCustomError(pool, 'SenderIsNotGovernor')
     })
 
     it('should revert if using the current value', async function () {
@@ -1511,7 +1511,7 @@ describe('Pool', function () {
       const tx = pool.updateIssueFee(issueFee)
 
       // then
-      await expect(tx).revertedWith('new-same-as-current')
+      await expect(tx).revertedWithCustomError(pool, 'NewValueIsSameAsCurrent')
     })
 
     it('should revert if issue fee > 25%', async function () {
@@ -1520,7 +1520,7 @@ describe('Pool', function () {
       const tx = pool.updateIssueFee(newIssueFee)
 
       // then
-      await expect(tx).revertedWith('fee-gt-max')
+      await expect(tx).revertedWithCustomError(pool, 'FeeIsGreaterThanTheMax')
     })
 
     it('should update issue fee param', async function () {
@@ -1543,7 +1543,7 @@ describe('Pool', function () {
       const tx = pool.connect(alice).updateWithdrawFee(parseEther('1'))
 
       // then
-      await expect(tx).revertedWith('not-governor')
+      await expect(tx).revertedWithCustomError(pool, 'SenderIsNotGovernor')
     })
 
     it('should revert if using the current value', async function () {
@@ -1552,7 +1552,7 @@ describe('Pool', function () {
       const tx = pool.updateWithdrawFee(withdrawFee)
 
       // then
-      await expect(tx).revertedWith('new-same-as-current')
+      await expect(tx).revertedWithCustomError(pool, 'NewValueIsSameAsCurrent')
     })
 
     it('should revert if withdraw fee > 25%', async function () {
@@ -1561,7 +1561,7 @@ describe('Pool', function () {
       const tx = pool.updateWithdrawFee(newWithdrawFee)
 
       // then
-      await expect(tx).revertedWith('fee-gt-max')
+      await expect(tx).revertedWithCustomError(pool, 'FeeIsGreaterThanTheMax')
     })
 
     it('should update withdraw fee param', async function () {
@@ -1584,7 +1584,7 @@ describe('Pool', function () {
       const tx = pool.connect(alice).updateRepayFee(parseEther('1'))
 
       // then
-      await expect(tx).revertedWith('not-governor')
+      await expect(tx).revertedWithCustomError(pool, 'SenderIsNotGovernor')
     })
 
     it('should revert if using the current value', async function () {
@@ -1593,7 +1593,7 @@ describe('Pool', function () {
       const tx = pool.updateRepayFee(repayFee)
 
       // then
-      await expect(tx).revertedWith('new-same-as-current')
+      await expect(tx).revertedWithCustomError(pool, 'NewValueIsSameAsCurrent')
     })
 
     it('should revert if repay fee > 25%', async function () {
@@ -1602,7 +1602,7 @@ describe('Pool', function () {
       const tx = pool.updateRepayFee(newRepayFee)
 
       // then
-      await expect(tx).revertedWith('fee-gt-max')
+      await expect(tx).revertedWithCustomError(pool, 'FeeIsGreaterThanTheMax')
     })
 
     it('should update repay fee param', async function () {
@@ -1625,7 +1625,7 @@ describe('Pool', function () {
       const tx = pool.connect(alice).updateLiquidatorIncentive(parseEther('1'))
 
       // then
-      await expect(tx).revertedWith('not-governor')
+      await expect(tx).revertedWithCustomError(pool, 'SenderIsNotGovernor')
     })
 
     it('should revert if using the current value', async function () {
@@ -1634,7 +1634,7 @@ describe('Pool', function () {
       const tx = pool.updateLiquidatorIncentive(newLiquidatorIncentive)
 
       // then
-      await expect(tx).revertedWith('new-same-as-current')
+      await expect(tx).revertedWithCustomError(pool, 'NewValueIsSameAsCurrent')
     })
 
     it('should revert if liquidator incentive > 25%', async function () {
@@ -1643,7 +1643,7 @@ describe('Pool', function () {
       const tx = pool.updateLiquidatorIncentive(newLiquidatorIncentive)
 
       // then
-      await expect(tx).revertedWith('fee-gt-max')
+      await expect(tx).revertedWithCustomError(pool, 'FeeIsGreaterThanTheMax')
     })
 
     it('should update liquidator incentive param', async function () {
@@ -1668,7 +1668,7 @@ describe('Pool', function () {
       const tx = pool.connect(alice).updateProtocolLiquidationFee(parseEther('1'))
 
       // then
-      await expect(tx).revertedWith('not-governor')
+      await expect(tx).revertedWithCustomError(pool, 'SenderIsNotGovernor')
     })
 
     it('should revert if using the current value', async function () {
@@ -1677,7 +1677,7 @@ describe('Pool', function () {
       const tx = pool.updateProtocolLiquidationFee(newProtocolLiquidationFee)
 
       // then
-      await expect(tx).revertedWith('new-same-as-current')
+      await expect(tx).revertedWithCustomError(pool, 'NewValueIsSameAsCurrent')
     })
 
     it('should revert if protocol liquidation fee > 25%', async function () {
@@ -1686,7 +1686,7 @@ describe('Pool', function () {
       const tx = pool.updateProtocolLiquidationFee(newProtocolLiquidationFee)
 
       // then
-      await expect(tx).revertedWith('fee-gt-max')
+      await expect(tx).revertedWithCustomError(pool, 'FeeIsGreaterThanTheMax')
     })
 
     it('should update protocol liquidation fee param', async function () {
@@ -1711,7 +1711,7 @@ describe('Pool', function () {
       const tx = pool.connect(alice).updateMaxLiquidable(parseEther('1'))
 
       // then
-      await expect(tx).revertedWith('not-governor')
+      await expect(tx).revertedWithCustomError(pool, 'SenderIsNotGovernor')
     })
 
     it('should revert if using the current value', async function () {
@@ -1720,7 +1720,7 @@ describe('Pool', function () {
       const tx = pool.updateMaxLiquidable(maxLiquidable)
 
       // then
-      await expect(tx).revertedWith('new-same-as-current')
+      await expect(tx).revertedWithCustomError(pool, 'NewValueIsSameAsCurrent')
     })
 
     it('should revert if max liquidable > 100%', async function () {
@@ -1729,7 +1729,7 @@ describe('Pool', function () {
       const tx = pool.updateMaxLiquidable(maxLiquidable)
 
       // then
-      await expect(tx).revertedWith('max-is-100%')
+      await expect(tx).revertedWithCustomError(pool, 'MaxLiquidableTooHigh')
     })
 
     it('should update max liquidable param', async function () {
@@ -1751,7 +1751,7 @@ describe('Pool', function () {
       const tx = pool.connect(alice).updateDebtFloor(parseEther('1'))
 
       // then
-      await expect(tx).revertedWith('not-governor')
+      await expect(tx).revertedWithCustomError(pool, 'SenderIsNotGovernor')
     })
 
     it('should revert if using the current value', async function () {
@@ -1760,7 +1760,7 @@ describe('Pool', function () {
       const tx = pool.updateDebtFloor(debtFloorInUsd)
 
       // then
-      await expect(tx).revertedWith('new-same-as-current')
+      await expect(tx).revertedWithCustomError(pool, 'NewValueIsSameAsCurrent')
     })
 
     it('should update debt floor param', async function () {
@@ -1782,7 +1782,7 @@ describe('Pool', function () {
       const tx = pool.connect(alice).addRewardsDistributor(ethers.constants.AddressZero)
 
       // then
-      await expect(tx).revertedWith('not-governor')
+      await expect(tx).revertedWithCustomError(pool, 'SenderIsNotGovernor')
     })
 
     it('should revert if null', async function () {
@@ -1790,7 +1790,7 @@ describe('Pool', function () {
       const tx = pool.addRewardsDistributor(ethers.constants.AddressZero)
 
       // then
-      await expect(tx).revertedWith('address-is-null')
+      await expect(tx).revertedWithCustomError(pool, 'AddressIsNull')
     })
 
     it('should revert if already added', async function () {
@@ -1801,7 +1801,7 @@ describe('Pool', function () {
       const tx = pool.addRewardsDistributor(alice.address)
 
       // then
-      await expect(tx).revertedWith('contract-already-added')
+      await expect(tx).revertedWithCustomError(pool, 'RewardDistributorAlreadyExists')
     })
 
     it('should add a rewards distributor', async function () {
@@ -1825,7 +1825,7 @@ describe('Pool', function () {
       const tx = pool.connect(alice).removeRewardsDistributor(ethers.constants.AddressZero)
 
       // then
-      await expect(tx).revertedWith('not-governor')
+      await expect(tx).revertedWithCustomError(pool, 'SenderIsNotGovernor')
     })
 
     it('should revert if null', async function () {
@@ -1833,7 +1833,7 @@ describe('Pool', function () {
       const tx = pool.removeRewardsDistributor(ethers.constants.AddressZero)
 
       // then
-      await expect(tx).revertedWith('address-is-null')
+      await expect(tx).revertedWithCustomError(pool, 'AddressIsNull')
     })
 
     it('should revert if not ealready added', async function () {
@@ -1844,7 +1844,7 @@ describe('Pool', function () {
       const tx = pool.removeRewardsDistributor(bob.address)
 
       // then
-      await expect(tx).revertedWith('distribuitor-doesnt-exist')
+      await expect(tx).revertedWithCustomError(pool, 'RewardDistributorDoesNotExist')
     })
 
     it('should remove a rewards distributor', async function () {
@@ -1876,7 +1876,7 @@ describe('Pool', function () {
 
     it('should revert if not governor', async function () {
       const tx = pool.connect(alice).toggleIsSwapActive()
-      await expect(tx).revertedWith('not-governor')
+      await expect(tx).revertedWithCustomError(pool, 'SenderIsNotGovernor')
     })
   })
 })

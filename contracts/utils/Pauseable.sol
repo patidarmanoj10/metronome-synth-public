@@ -5,6 +5,11 @@ pragma solidity 0.8.9;
 import "../interfaces/IPauseable.sol";
 import "../access/Governable.sol";
 
+error IsPaused();
+error IsShutdown();
+error IsNotPaused();
+error IsNotShutdown();
+
 /**
  * @dev Contract module which allows children to implement an emergency stop
  * mechanism that can be triggered by an authorized account.
@@ -29,7 +34,7 @@ abstract contract Pauseable is IPauseable, Governable {
      * @dev Throws if contract is paused
      */
     modifier whenNotPaused() {
-        require(!paused(), "paused");
+        if (paused()) revert IsPaused();
         _;
     }
 
@@ -37,7 +42,7 @@ abstract contract Pauseable is IPauseable, Governable {
      * @dev Throws if contract is shutdown
      */
     modifier whenNotShutdown() {
-        require(!everythingStopped(), "shutdown");
+        if (everythingStopped()) revert IsShutdown();
         _;
     }
 
@@ -45,7 +50,7 @@ abstract contract Pauseable is IPauseable, Governable {
      * @dev Throws if contract is not paused
      */
     modifier whenPaused() {
-        require(paused(), "not-paused");
+        if (!paused()) revert IsNotPaused();
         _;
     }
 
@@ -53,7 +58,7 @@ abstract contract Pauseable is IPauseable, Governable {
      * @dev Throws if contract is not shutdown
      */
     modifier whenShutdown() {
-        require(everythingStopped(), "not-shutdown");
+        if (!everythingStopped()) revert IsNotShutdown();
         _;
     }
 

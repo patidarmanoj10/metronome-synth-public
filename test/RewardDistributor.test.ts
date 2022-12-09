@@ -67,7 +67,7 @@ describe('RewardDistributor', function () {
       const tx = rewardDistributor.connect(alice).updateTokenSpeed(msdTOKEN1.address, speed)
 
       // then
-      await expect(tx).revertedWith('not-governor')
+      await expect(tx).revertedWithCustomError(rewardDistributor, 'SenderIsNotGovernor')
     })
 
     it('should revert if not valid token', async function () {
@@ -78,7 +78,7 @@ describe('RewardDistributor', function () {
       const tx = rewardDistributor.updateTokenSpeed(msdTOKEN1.address, speed)
 
       // then
-      await expect(tx).revertedWith('invalid-token')
+      await expect(tx).revertedWithCustomError(rewardDistributor, 'InvalidToken')
     })
 
     it('should turn on', async function () {
@@ -138,7 +138,7 @@ describe('RewardDistributor', function () {
         )
 
       // then
-      await expect(tx).revertedWith('not-governor')
+      await expect(tx).revertedWithCustomError(rewardDistributor, 'SenderIsNotGovernor')
     })
 
     it('should update speeds', async function () {

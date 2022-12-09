@@ -7,6 +7,34 @@ import "./storage/PoolStorage.sol";
 import "./lib/WadRayMath.sol";
 import "./utils/Pauseable.sol";
 
+error CollateralDoesNotExist();
+error SyntheticDoesNotExist();
+error SenderIsNotDebtToken();
+error PoolRegistryIsNull();
+error DebtTokenAlreadyExists();
+error SenderIsNotDepositToken();
+error DepositTokenAlreadyExists();
+error AmountIsZero();
+error CanNotLiquidateOwnPosition();
+error PositionIsHealthy();
+error AmountGreaterThanMaxLiquidable();
+error RemainingDebtIsLowerThanTheFloor();
+error AmountIsTooHight();
+error DebtTokenDoesNotExist();
+error DepositTokenDoesNotExist();
+error SwapFeatureIsInactive();
+error AmountInIsInvalid();
+error AddressIsNull();
+error SyntheticIsNull();
+error SyntheticIsInUse();
+error UnderlyingAssetInUse();
+error RewardDistributorAlreadyExists();
+error RewardDistributorDoesNotExist();
+error TotalSupplyIsNotZero();
+error NewValueIsSameAsCurrent();
+error FeeIsGreaterThanTheMax();
+error MaxLiquidableTooHigh();
+
 /**
  * @title Pool contract
  */
@@ -94,7 +122,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @dev Throws if deposit token doesn't exist
      */
     modifier onlyIfDepositTokenExists(IDepositToken depositToken_) {
-        require(isDepositTokenExists(depositToken_), "collateral-inexistent");
+        if (!isDepositTokenExists(depositToken_)) revert CollateralDoesNotExist();
         _;
     }
 
@@ -102,7 +130,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @dev Throws if synthetic token doesn't exist
      */
     modifier onlyIfSyntheticTokenExists(ISyntheticToken syntheticToken_) {
-        require(isSyntheticTokenExists(syntheticToken_), "synthetic-inexistent");
+        if (!isSyntheticTokenExists(syntheticToken_)) revert SyntheticDoesNotExist();
         _;
     }
 
@@ -110,12 +138,12 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @dev Throws if `msg.sender` isn't a debt token
      */
     modifier onlyIfMsgSenderIsDebtToken() {
-        require(isDebtTokenExists(IDebtToken(msg.sender)), "caller-is-not-debt-token");
+        if (!isDebtTokenExists(IDebtToken(msg.sender))) revert SenderIsNotDebtToken();
         _;
     }
 
     function initialize(IPoolRegistry poolRegistry_) public initializer {
-        require(address(poolRegistry_) != address(0), "pool-registry-is-null");
+        if (address(poolRegistry_) == address(0)) revert PoolRegistryIsNull();
         __ReentrancyGuard_init();
         __Pauseable_init();
 
@@ -137,8 +165,8 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @dev The caller should ensure to not pass `address(0)` as `_account`
      * @param account_ The account address
      */
-    function addToDebtTokensOfAccount(address account_) external override onlyIfMsgSenderIsDebtToken {
-        require(debtTokensOfAccount.add(account_, msg.sender), "debt-token-exists");
+    function addToDebtTokensOfAccount(address account_) external onlyIfMsgSenderIsDebtToken {
+        if (!debtTokensOfAccount.add(account_, msg.sender)) revert DebtTokenAlreadyExists();
     }
 
     /**
@@ -147,9 +175,9 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @dev The caller should ensure to not pass `address(0)` as `_account`
      * @param account_ The account address
      */
-    function addToDepositTokensOfAccount(address account_) external override {
-        require(depositTokens.contains(msg.sender), "caller-is-not-deposit-token");
-        require(depositTokensOfAccount.add(account_, msg.sender), "deposit-token-exists");
+    function addToDepositTokensOfAccount(address account_) external {
+        if (!depositTokens.contains(msg.sender)) revert SenderIsNotDepositToken();
+        if (!depositTokensOfAccount.add(account_, msg.sender)) revert DepositTokenAlreadyExists();
     }
 
     /**
@@ -502,19 +530,23 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
             uint256 _fee
         )
     {
-        require(amountToRepay_ > 0, "amount-is-zero");
-        require(msg.sender != account_, "can-not-liquidate-own-position");
+        if (amountToRepay_ == 0) revert AmountIsZero();
+        if (msg.sender == account_) revert CanNotLiquidateOwnPosition();
 
         IDebtToken _debtToken = debtTokenOf[syntheticToken_];
         _debtToken.accrueInterest();
 
         (bool _isHealthy, , , , ) = debtPositionOf(account_);
 
-        require(!_isHealthy, "position-is-healthy");
+        if (_isHealthy) {
+            revert PositionIsHealthy();
+        }
 
         uint256 _debtTokenBalance = _debtToken.balanceOf(account_);
 
-        require(amountToRepay_.wadDiv(_debtTokenBalance) <= maxLiquidable, "amount-gt-max-liquidable");
+        if (amountToRepay_.wadDiv(_debtTokenBalance) > maxLiquidable) {
+            revert AmountGreaterThanMaxLiquidable();
+        }
 
         IMasterOracle _masterOracle = masterOracle();
 
@@ -523,12 +555,16 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
                 address(syntheticToken_),
                 _debtTokenBalance - amountToRepay_
             );
-            require(_newDebtInUsd == 0 || _newDebtInUsd >= debtFloorInUsd, "remaining-debt-lt-floor");
+            if (_newDebtInUsd > 0 && _newDebtInUsd < debtFloorInUsd) {
+                revert RemainingDebtIsLowerThanTheFloor();
+            }
         }
 
         (_totalSeized, _toLiquidator, _fee) = quoteLiquidateOut(syntheticToken_, amountToRepay_, depositToken_);
 
-        require(_totalSeized <= depositToken_.balanceOf(account_), "amount-too-high");
+        if (_totalSeized > depositToken_.balanceOf(account_)) {
+            revert AmountIsTooHight();
+        }
 
         syntheticToken_.burn(msg.sender, amountToRepay_);
         _debtToken.burn(account_, amountToRepay_);
@@ -561,8 +597,8 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @dev The caller should ensure to not pass `address(0)` as `_account`
      * @param account_ The account address
      */
-    function removeFromDebtTokensOfAccount(address account_) external override onlyIfMsgSenderIsDebtToken {
-        require(debtTokensOfAccount.remove(account_, msg.sender), "debt-token-doesnt-exist");
+    function removeFromDebtTokensOfAccount(address account_) external onlyIfMsgSenderIsDebtToken {
+        if (!debtTokensOfAccount.remove(account_, msg.sender)) revert DebtTokenDoesNotExist();
     }
 
     /**
@@ -571,9 +607,9 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @dev The caller should ensure to not pass `address(0)` as `_account`
      * @param account_ The account address
      */
-    function removeFromDepositTokensOfAccount(address account_) external override {
-        require(depositTokens.contains(msg.sender), "caller-is-not-deposit-token");
-        require(depositTokensOfAccount.remove(account_, msg.sender), "deposit-token-doesnt-exist");
+    function removeFromDepositTokensOfAccount(address account_) external {
+        if (!depositTokens.contains(msg.sender)) revert SenderIsNotDepositToken();
+        if (!depositTokensOfAccount.remove(account_, msg.sender)) revert DepositTokenDoesNotExist();
     }
 
     /**
@@ -595,8 +631,9 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
         onlyIfSyntheticTokenExists(syntheticTokenOut_)
         returns (uint256 _amountOut, uint256 _fee)
     {
-        require(isSwapActive, "swap-is-off");
-        require(amountIn_ > 0 && amountIn_ <= syntheticTokenIn_.balanceOf(msg.sender), "amount-in-is-invalid");
+        if (!isSwapActive) revert SwapFeatureIsInactive();
+        if (amountIn_ == 0 || amountIn_ > syntheticTokenIn_.balanceOf(msg.sender)) revert AmountInIsInvalid();
+
         syntheticTokenIn_.burn(msg.sender, amountIn_);
 
         (_amountOut, _fee) = quoteSwapOut(syntheticTokenIn_, syntheticTokenOut_, amountIn_);
@@ -615,12 +652,12 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @dev Must keep `debtTokenOf` mapping updated
      */
     function addDebtToken(IDebtToken debtToken_) external override onlyGovernor {
-        require(address(debtToken_) != address(0), "address-is-null");
+        if (address(debtToken_) == address(0)) revert AddressIsNull();
         ISyntheticToken _syntheticToken = debtToken_.syntheticToken();
-        require(address(_syntheticToken) != address(0), "synthetic-is-null");
-        require(address(debtTokenOf[_syntheticToken]) == address(0), "synth-in-use");
+        if (address(_syntheticToken) == address(0)) revert SyntheticIsNull();
+        if (address(debtTokenOf[_syntheticToken]) != address(0)) revert SyntheticIsInUse();
 
-        require(debtTokens.add(address(debtToken_)), "debt-exists");
+        if (!debtTokens.add(address(debtToken_))) revert DebtTokenAlreadyExists();
 
         debtTokenOf[_syntheticToken] = debtToken_;
 
@@ -631,11 +668,11 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @notice Add deposit token (i.e. collateral) to Synth
      */
     function addDepositToken(address depositToken_) external override onlyGovernor {
-        require(depositToken_ != address(0), "address-is-null");
+        if (depositToken_ == address(0)) revert AddressIsNull();
         IERC20 _underlying = IDepositToken(depositToken_).underlying();
-        require(address(depositTokenOf[_underlying]) == address(0), "underlying-in-use");
+        if (address(depositTokenOf[_underlying]) != address(0)) revert UnderlyingAssetInUse();
 
-        require(depositTokens.add(depositToken_), "deposit-token-exists");
+        if (!depositTokens.add(depositToken_)) revert DepositTokenAlreadyExists();
 
         depositTokenOf[_underlying] = IDepositToken(depositToken_);
 
@@ -646,11 +683,13 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @notice Add a RewardsDistributor contract
      */
     function addRewardsDistributor(IRewardsDistributor distributor_) external override onlyGovernor {
-        require(address(distributor_) != address(0), "address-is-null");
+        if (address(distributor_) == address(0)) revert AddressIsNull();
 
         uint256 _length = rewardsDistributors.length;
         for (uint256 i; i < _length; ++i) {
-            require(distributor_ != rewardsDistributors[i], "contract-already-added");
+            if (distributor_ == rewardsDistributors[i]) {
+                revert RewardDistributorAlreadyExists();
+            }
         }
 
         rewardsDistributors.push(distributor_);
@@ -662,8 +701,8 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @dev Must keep `debtTokenOf` mapping updated
      */
     function removeDebtToken(IDebtToken debtToken_) external override onlyGovernor {
-        require(debtToken_.totalSupply() == 0, "supply-gt-0");
-        require(debtTokens.remove(address(debtToken_)), "debt-doesnt-exist");
+        if (debtToken_.totalSupply() > 0) revert TotalSupplyIsNotZero();
+        if (!debtTokens.remove(address(debtToken_))) revert DebtTokenDoesNotExist();
 
         delete debtTokenOf[debtToken_.syntheticToken()];
 
@@ -674,9 +713,9 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @notice Remove deposit token (i.e. collateral) from Synth
      */
     function removeDepositToken(IDepositToken depositToken_) external override onlyGovernor {
-        require(depositToken_.totalSupply() == 0, "supply-gt-0");
+        if (depositToken_.totalSupply() > 0) revert TotalSupplyIsNotZero();
 
-        require(depositTokens.remove(address(depositToken_)), "deposit-token-doesnt-exist");
+        if (!depositTokens.remove(address(depositToken_))) revert DepositTokenDoesNotExist();
         delete depositTokenOf[depositToken_.underlying()];
 
         emit DepositTokenRemoved(depositToken_);
@@ -686,7 +725,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @notice Remove a RewardsDistributor contract
      */
     function removeRewardsDistributor(IRewardsDistributor distributor_) external override onlyGovernor {
-        require(address(distributor_) != address(0), "address-is-null");
+        if (address(distributor_) == address(0)) revert AddressIsNull();
 
         uint256 _length = rewardsDistributors.length;
         uint256 _index = _length;
@@ -696,7 +735,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
                 break;
             }
         }
-        require(_index < _length, "distribuitor-doesnt-exist");
+        if (_index == _length) revert RewardDistributorDoesNotExist();
         if (_index != _length - 1) {
             rewardsDistributors[_index] = rewardsDistributors[_length - 1];
         }
@@ -719,7 +758,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      */
     function updateDebtFloor(uint256 newDebtFloorInUsd_) external override onlyGovernor {
         uint256 _currentDebtFloorInUsd = debtFloorInUsd;
-        require(newDebtFloorInUsd_ != _currentDebtFloorInUsd, "new-same-as-current");
+        if (newDebtFloorInUsd_ == _currentDebtFloorInUsd) revert NewValueIsSameAsCurrent();
         emit DebtFloorUpdated(_currentDebtFloorInUsd, newDebtFloorInUsd_);
         debtFloorInUsd = newDebtFloorInUsd_;
     }
@@ -728,9 +767,9 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @notice Update deposit fee
      */
     function updateDepositFee(uint256 newDepositFee_) external override onlyGovernor {
-        require(newDepositFee_ <= MAX_FEE_VALUE, "fee-gt-max");
+        if (newDepositFee_ > MAX_FEE_VALUE) revert FeeIsGreaterThanTheMax();
         uint256 _currentDepositFee = depositFee;
-        require(newDepositFee_ != _currentDepositFee, "new-same-as-current");
+        if (newDepositFee_ == _currentDepositFee) revert NewValueIsSameAsCurrent();
         emit DepositFeeUpdated(_currentDepositFee, newDepositFee_);
         depositFee = newDepositFee_;
     }
@@ -739,9 +778,9 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @notice Update issue fee
      */
     function updateIssueFee(uint256 newIssueFee_) external override onlyGovernor {
-        require(newIssueFee_ <= MAX_FEE_VALUE, "fee-gt-max");
+        if (newIssueFee_ > MAX_FEE_VALUE) revert FeeIsGreaterThanTheMax();
         uint256 _currentIssueFee = issueFee;
-        require(newIssueFee_ != _currentIssueFee, "new-same-as-current");
+        if (newIssueFee_ == _currentIssueFee) revert NewValueIsSameAsCurrent();
         emit IssueFeeUpdated(_currentIssueFee, newIssueFee_);
         issueFee = newIssueFee_;
     }
@@ -750,9 +789,9 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @notice Update liquidator incentive
      */
     function updateLiquidatorIncentive(uint128 newLiquidatorIncentive_) external override onlyGovernor {
-        require(newLiquidatorIncentive_ <= MAX_FEE_VALUE, "fee-gt-max");
+        if (newLiquidatorIncentive_ > MAX_FEE_VALUE) revert FeeIsGreaterThanTheMax();
         uint256 _currentLiquidatorIncentive = liquidationFees.liquidatorIncentive;
-        require(newLiquidatorIncentive_ != _currentLiquidatorIncentive, "new-same-as-current");
+        if (newLiquidatorIncentive_ == _currentLiquidatorIncentive) revert NewValueIsSameAsCurrent();
         emit LiquidatorIncentiveUpdated(_currentLiquidatorIncentive, newLiquidatorIncentive_);
         liquidationFees.liquidatorIncentive = newLiquidatorIncentive_;
     }
@@ -761,9 +800,9 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @notice Update maxLiquidable (liquidation cap)
      */
     function updateMaxLiquidable(uint256 newMaxLiquidable_) external override onlyGovernor {
-        require(newMaxLiquidable_ <= 1e18, "max-is-100%");
+        if (newMaxLiquidable_ > 1e18) revert MaxLiquidableTooHigh();
         uint256 _currentMaxLiquidable = maxLiquidable;
-        require(newMaxLiquidable_ != _currentMaxLiquidable, "new-same-as-current");
+        if (newMaxLiquidable_ == _currentMaxLiquidable) revert NewValueIsSameAsCurrent();
         emit MaxLiquidableUpdated(_currentMaxLiquidable, newMaxLiquidable_);
         maxLiquidable = newMaxLiquidable_;
     }
@@ -772,9 +811,9 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @notice Update protocol liquidation fee
      */
     function updateProtocolLiquidationFee(uint128 newProtocolLiquidationFee_) external override onlyGovernor {
-        require(newProtocolLiquidationFee_ <= MAX_FEE_VALUE, "fee-gt-max");
+        if (newProtocolLiquidationFee_ > MAX_FEE_VALUE) revert FeeIsGreaterThanTheMax();
         uint256 _currentProtocolLiquidationFee = liquidationFees.protocolFee;
-        require(newProtocolLiquidationFee_ != _currentProtocolLiquidationFee, "new-same-as-current");
+        if (newProtocolLiquidationFee_ == _currentProtocolLiquidationFee) revert NewValueIsSameAsCurrent();
         emit ProtocolLiquidationFeeUpdated(_currentProtocolLiquidationFee, newProtocolLiquidationFee_);
         liquidationFees.protocolFee = newProtocolLiquidationFee_;
     }
@@ -783,9 +822,9 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @notice Update repay fee
      */
     function updateRepayFee(uint256 newRepayFee_) external override onlyGovernor {
-        require(newRepayFee_ <= MAX_FEE_VALUE, "fee-gt-max");
+        if (newRepayFee_ > MAX_FEE_VALUE) revert FeeIsGreaterThanTheMax();
         uint256 _currentRepayFee = repayFee;
-        require(newRepayFee_ != _currentRepayFee, "new-same-as-current");
+        if (newRepayFee_ == _currentRepayFee) revert NewValueIsSameAsCurrent();
         emit RepayFeeUpdated(_currentRepayFee, newRepayFee_);
         repayFee = newRepayFee_;
     }
@@ -794,9 +833,9 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @notice Update treasury contract - will migrate funds to the new contract
      */
     function updateTreasury(ITreasury newTreasury_) external override onlyGovernor {
-        require(address(newTreasury_) != address(0), "address-is-null");
+        if (address(newTreasury_) == address(0)) revert AddressIsNull();
         ITreasury _currentTreasury = treasury;
-        require(newTreasury_ != _currentTreasury, "new-same-as-current");
+        if (newTreasury_ == _currentTreasury) revert NewValueIsSameAsCurrent();
 
         if (address(_currentTreasury) != address(0)) {
             _currentTreasury.migrateTo(address(newTreasury_));
@@ -810,9 +849,9 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @notice Update swap fee
      */
     function updateSwapFee(uint256 newSwapFee_) external override onlyGovernor {
-        require(newSwapFee_ <= MAX_FEE_VALUE, "fee-gt-max");
+        if (newSwapFee_ > MAX_FEE_VALUE) revert FeeIsGreaterThanTheMax();
         uint256 _currentSwapFee = swapFee;
-        require(newSwapFee_ != _currentSwapFee, "new-same-as-current");
+        if (newSwapFee_ == _currentSwapFee) revert NewValueIsSameAsCurrent();
         emit SwapFeeUpdated(_currentSwapFee, newSwapFee_);
         swapFee = newSwapFee_;
     }
@@ -821,9 +860,9 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @notice Update withdraw fee
      */
     function updateWithdrawFee(uint256 newWithdrawFee_) external override onlyGovernor {
-        require(newWithdrawFee_ <= MAX_FEE_VALUE, "fee-gt-max");
+        if (newWithdrawFee_ > MAX_FEE_VALUE) revert FeeIsGreaterThanTheMax();
         uint256 _currentWithdrawFee = withdrawFee;
-        require(newWithdrawFee_ != _currentWithdrawFee, "new-same-as-current");
+        if (newWithdrawFee_ == _currentWithdrawFee) revert NewValueIsSameAsCurrent();
         emit WithdrawFeeUpdated(_currentWithdrawFee, newWithdrawFee_);
         withdrawFee = newWithdrawFee_;
     }
