@@ -23,7 +23,7 @@ describe('Pauseable', function () {
       const tx = pauseable.connect(user).pause()
 
       // then
-      await expect(tx).revertedWith('not-governor')
+      await expect(tx).revertedWithCustomError(pauseable, 'SenderIsNotGovernor')
     })
 
     it('should revert if already paused', async function () {
@@ -34,7 +34,7 @@ describe('Pauseable', function () {
       const tx = pauseable.connect(user).pause()
 
       // then
-      await expect(tx).revertedWith('paused')
+      await expect(tx).revertedWithCustomError(pauseable, 'IsPaused')
     })
 
     it('should pause', async function () {
@@ -56,7 +56,7 @@ describe('Pauseable', function () {
 
     it('should revert if caller is not governor', async function () {
       const tx = pauseable.connect(user).unpause()
-      await expect(tx).revertedWith('not-governor')
+      await expect(tx).revertedWithCustomError(pauseable, 'SenderIsNotGovernor')
     })
 
     it('should revert if not paused', async function () {
@@ -67,7 +67,7 @@ describe('Pauseable', function () {
       const tx = pauseable.unpause()
 
       // then
-      await expect(tx).revertedWith('not-paused')
+      await expect(tx).revertedWithCustomError(pauseable, 'IsNotPaused')
     })
 
     it('should revert if shutdown', async function () {
@@ -78,7 +78,7 @@ describe('Pauseable', function () {
       const tx = pauseable.unpause()
 
       // then
-      await expect(tx).revertedWith('shutdown')
+      await expect(tx).revertedWithCustomError(pauseable, 'IsShutdown')
     })
 
     it('should unpause', async function () {
@@ -100,7 +100,7 @@ describe('Pauseable', function () {
 
     it('should revert if caller is not governor', async function () {
       const tx = pauseable.connect(user).open()
-      await expect(tx).revertedWith('not-governor')
+      await expect(tx).revertedWithCustomError(pauseable, 'SenderIsNotGovernor')
     })
 
     it('should revert if not shutdown', async function () {
@@ -111,7 +111,7 @@ describe('Pauseable', function () {
       const tx = pauseable.open()
 
       // then
-      await expect(tx).revertedWith('not-shutdown')
+      await expect(tx).revertedWithCustomError(pauseable, 'IsNotShutdown')
     })
 
     it('should open', async function () {
@@ -131,13 +131,13 @@ describe('Pauseable', function () {
   describe('shutdown', function () {
     it('should revert if caller is not governor', async function () {
       const tx = pauseable.connect(user).shutdown()
-      await expect(tx).revertedWith('not-governor')
+      await expect(tx).revertedWithCustomError(pauseable, 'SenderIsNotGovernor')
     })
 
     it('should revert if already shutdown', async function () {
       await pauseable.shutdown()
       const tx = pauseable.connect(user).shutdown()
-      await expect(tx).revertedWith('shutdown')
+      await expect(tx).revertedWithCustomError(pauseable, 'IsShutdown')
     })
 
     it('should shutdown', async function () {

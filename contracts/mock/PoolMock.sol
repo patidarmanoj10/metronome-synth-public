@@ -225,15 +225,15 @@ contract PoolMock is IPool, Governable, Pauseable {
         revert("mock-does-not-implement");
     }
 
-    function isSyntheticTokenExists(ISyntheticToken _syntheticToken) external view override returns (bool) {
+    function doesSyntheticTokenExist(ISyntheticToken _syntheticToken) external view override returns (bool) {
         return address(_syntheticToken) == address(syntheticToken);
     }
 
-    function isDebtTokenExists(IDebtToken) external pure returns (bool) {
+    function doesDebtTokenExist(IDebtToken) external pure returns (bool) {
         return true;
     }
 
-    function isDepositTokenExists(IDepositToken) external pure override returns (bool) {
+    function doesDepositTokenExist(IDepositToken) external pure override returns (bool) {
         return true;
     }
 

@@ -24,7 +24,7 @@ describe('Treasury', function () {
     await met.deployed()
 
     poolMock = await smock.fake('Pool')
-    poolMock.isDepositTokenExists.returns(true)
+    poolMock.doesDepositTokenExist.returns(true)
 
     depositTokenMock = await smock.fake('DepositToken')
     depositTokenMock.underlying.returns(met.address)
@@ -45,14 +45,14 @@ describe('Treasury', function () {
     })
 
     it('should revert if not deposit token', async function () {
-      poolMock.isDepositTokenExists.returns(false)
+      poolMock.doesDepositTokenExist.returns(false)
       const tx = treasury.connect(user).pull(user.address, 0)
-      await expect(tx).revertedWith('not-deposit-token')
+      await expect(tx).revertedWithCustomError(treasury, 'SenderIsNotDepositToken')
     })
 
     it('should revert if amount == 0', async function () {
       const tx = treasury.connect(depositTokenMock.wallet).pull(user.address, 0)
-      await expect(tx).revertedWith('amount-is-zero')
+      await expect(tx).revertedWithCustomError(treasury, 'AmountIsZero')
     })
 
     it('should pull MET tokens ', async function () {

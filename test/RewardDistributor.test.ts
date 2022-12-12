@@ -52,8 +52,8 @@ describe('RewardDistributor', function () {
     debtToken1.debtIndex.returns(parseEther('1'))
     debtToken2.debtIndex.returns(parseEther('1'))
 
-    pool.isDepositTokenExists.returns(true)
-    pool.isSyntheticTokenExists.returns(true)
+    pool.doesDepositTokenExist.returns(true)
+    pool.doesSyntheticTokenExist.returns(true)
     pool.governor.returns(deployer.address)
     pool.getRewardsDistributors.returns([rewardDistributor.address])
   })
@@ -67,18 +67,18 @@ describe('RewardDistributor', function () {
       const tx = rewardDistributor.connect(alice).updateTokenSpeed(msdTOKEN1.address, speed)
 
       // then
-      await expect(tx).revertedWith('not-governor')
+      await expect(tx).revertedWithCustomError(rewardDistributor, 'SenderIsNotGovernor')
     })
 
     it('should revert if not valid token', async function () {
       // given
       const speed = parseEther('1')
-      pool.isDepositTokenExists.returns(false)
+      pool.doesDepositTokenExist.returns(false)
       // when
       const tx = rewardDistributor.updateTokenSpeed(msdTOKEN1.address, speed)
 
       // then
-      await expect(tx).revertedWith('invalid-token')
+      await expect(tx).revertedWithCustomError(rewardDistributor, 'InvalidToken')
     })
 
     it('should turn on', async function () {
@@ -138,7 +138,7 @@ describe('RewardDistributor', function () {
         )
 
       // then
-      await expect(tx).revertedWith('not-governor')
+      await expect(tx).revertedWithCustomError(rewardDistributor, 'SenderIsNotGovernor')
     })
 
     it('should update speeds', async function () {

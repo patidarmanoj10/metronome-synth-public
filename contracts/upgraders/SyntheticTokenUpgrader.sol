@@ -9,20 +9,15 @@ contract SyntheticTokenUpgrader is UpgraderBase {
         transferOwnership(_owner);
     }
 
-    function _calls() internal pure override returns (bytes[] memory calls) {
-        calls = new bytes[](6);
-        calls[0] = abi.encodeWithSignature("name()");
-        calls[1] = abi.encodeWithSignature("symbol()");
-        calls[2] = abi.encodeWithSignature("decimals()");
-        calls[3] = abi.encodeWithSignature("totalSupply()");
-        calls[4] = abi.encodeWithSignature("maxTotalSupply()");
-        calls[5] = abi.encodeWithSignature("isActive()");
-    }
-
-    function _checkResults(bytes[] memory _beforeResults, bytes[] memory _afterResults) internal pure override {
-        _checkStringResults(_beforeResults, _afterResults, 0, 1);
-        _checkUint8Results(_beforeResults, _afterResults, 2, 2);
-        _checkUint256Results(_beforeResults, _afterResults, 3, 4);
-        _checkBooleanResults(_beforeResults, _afterResults, 5, 5);
+    /// @inheritdoc UpgraderBase
+    function _calls() internal pure override returns (bytes[] memory _callsList) {
+        _callsList = new bytes[](7);
+        _callsList[0] = abi.encodeWithSignature("name()");
+        _callsList[1] = abi.encodeWithSignature("symbol()");
+        _callsList[2] = abi.encodeWithSignature("decimals()");
+        _callsList[3] = abi.encodeWithSignature("totalSupply()");
+        _callsList[4] = abi.encodeWithSignature("maxTotalSupply()");
+        _callsList[5] = abi.encodeWithSignature("isActive()");
+        _callsList[6] = abi.encodeWithSignature("poolRegistry()");
     }
 }

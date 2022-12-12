@@ -8,6 +8,31 @@ import "./lib/WadRayMath.sol";
 import "./access/Manageable.sol";
 import "./storage/DepositTokenStorage.sol";
 
+error CollateralIsInexistent();
+error DepositTokenIsInactive();
+error NotEnoughFreeBalance();
+error UnderlyingAssetIsNull();
+error PoolIsNull();
+error SymbolIsNull();
+error DecimalsIsNull();
+error CollateralFactorTooHigh();
+error DecreasedAllowanceBelowZero();
+error AmountIsZero();
+error BeneficiaryIsNull();
+error AmountExceedsAllowance();
+error RecipientIsNull();
+error AmountIsInvalid();
+error ApproveFromTheZeroAddress();
+error ApproveToTheZeroAddress();
+error BurnFromTheZeroAddress();
+error BurnAmountExceedsBalance();
+error MintToTheZeroAddress();
+error SurpassMaxDepositSupply();
+error TransferFromTheZeroAddress();
+error TransferToTheZeroAddress();
+error TransferAmountExceedsBalance();
+error NewValueIsSameAsCurrent();
+
 /**
  * @title Represents the users' deposits
  */
@@ -48,7 +73,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @dev Throws if sender can't seize
      */
     modifier onlyIfCanSeize() {
-        require(msg.sender == address(pool), "not-pool");
+        if (msg.sender != address(pool)) revert SenderIsNotPool();
         _;
     }
 
@@ -56,7 +81,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @dev Throws if deposit token doesn't exist
      */
     modifier onlyIfDepositTokenExists() {
-        require(pool.isDepositTokenExists(this), "collateral-inexistent");
+        if (!pool.doesDepositTokenExist(this)) revert CollateralIsInexistent();
         _;
     }
 
@@ -64,7 +89,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @dev Throws if deposit token isn't enabled
      */
     modifier onlyIfDepositTokenIsActive() {
-        require(isActive, "deposit-token-inactive");
+        if (!isActive) revert DepositTokenIsInactive();
         _;
     }
 
@@ -72,7 +97,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @notice Requires that amount is lower than the account's unlocked balance
      */
     modifier onlyIfUnlocked(address account_, uint256 amount_) {
-        require(unlockedBalanceOf(account_) >= amount_, "not-enough-free-balance");
+        if (unlockedBalanceOf(account_) < amount_) revert NotEnoughFreeBalance();
         _;
     }
 
@@ -111,12 +136,11 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         uint128 collateralFactor_,
         uint256 maxTotalSupply_
     ) external initializer {
-        require(address(underlying_) != address(0), "underlying-is-null");
-        require(address(pool_) != address(0), "pool-is-null");
-        require(bytes(name_).length > 0, "empty-name");
-        require(bytes(symbol_).length > 0, "empty-symbol");
-        require(decimals_ > 0, "decimals-is-zero");
-        require(collateralFactor_ <= 1e18, "collateral-factor-gt-100%");
+        if (address(underlying_) == address(0)) revert UnderlyingAssetIsNull();
+        if (address(pool_) == address(0)) revert PoolIsNull();
+        if (bytes(symbol_).length == 0) revert SymbolIsNull();
+        if (decimals_ == 0) revert DecimalsIsNull();
+        if (collateralFactor_ > 1e18) revert CollateralFactorTooHigh();
 
         __ReentrancyGuard_init();
         __Manageable_init(pool_);
@@ -143,7 +167,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      */
     function decreaseAllowance(address spender_, uint256 subtractedValue_) external returns (bool) {
         uint256 _currentAllowance = allowance[msg.sender][spender_];
-        require(_currentAllowance >= subtractedValue_, "decreased-allowance-below-zero");
+        if (_currentAllowance < subtractedValue_) revert DecreasedAllowanceBelowZero();
         unchecked {
             _approve(msg.sender, spender_, _currentAllowance - subtractedValue_);
         }
@@ -165,8 +189,8 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         onlyIfDepositTokenExists
         returns (uint256 _deposited, uint256 _fee)
     {
-        require(amount_ > 0, "amount-is-zero");
-        require(onBehalfOf_ != address(0), "beneficiary-is-null");
+        if (amount_ == 0) revert AmountIsZero();
+        if (onBehalfOf_ == address(0)) revert BeneficiaryIsNull();
 
         IPool _pool = pool;
         IERC20 _underlying = underlying;
@@ -285,9 +309,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         _transfer(from_, to_, amount_);
     }
 
-    /**
-     * @notice Move `amount` tokens from the caller's account to `recipient`
-     */
+    /// @inheritdoc IERC20
     function transfer(address to_, uint256 amount_)
         external
         override
@@ -298,11 +320,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         return true;
     }
 
-    /**
-     * @notice Move `amount` tokens from `sender` to `recipient` using the
-     * allowance mechanism. `amount` is then deducted from the caller's
-     * allowance
-     */
+    /// @inheritdoc IERC20
     function transferFrom(
         address sender_,
         address recipient_,
@@ -312,7 +330,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
 
         uint256 _currentAllowance = allowance[sender_][msg.sender];
         if (_currentAllowance != type(uint256).max) {
-            require(_currentAllowance >= amount_, "amount-exceeds-allowance");
+            if (_currentAllowance < amount_) revert AmountExceedsAllowance();
             unchecked {
                 _approve(sender_, msg.sender, _currentAllowance - amount_);
             }
@@ -353,8 +371,8 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         onlyIfDepositTokenExists
         returns (uint256 _withdrawn, uint256 _fee)
     {
-        require(to_ != address(0), "recipient-is-null");
-        require(amount_ > 0 && amount_ <= unlockedBalanceOf(msg.sender), "amount-is-invalid");
+        if (to_ == address(0)) revert RecipientIsNull();
+        if (amount_ == 0 || amount_ > unlockedBalanceOf(msg.sender)) revert AmountIsInvalid();
 
         IPool _pool = pool;
 
@@ -386,8 +404,8 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         address spender_,
         uint256 amount_
     ) private {
-        require(owner_ != address(0), "approve-from-the-zero-address");
-        require(spender_ != address(0), "approve-to-the-zero-address");
+        if (owner_ == address(0)) revert ApproveFromTheZeroAddress();
+        if (spender_ == address(0)) revert ApproveToTheZeroAddress();
 
         allowance[owner_][spender_] = amount_;
         emit Approval(owner_, spender_, amount_);
@@ -398,10 +416,10 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * total supply
      */
     function _burn(address _account, uint256 _amount) private updateRewardsBeforeMintOrBurn(_account) {
-        require(_account != address(0), "burn-from-the-zero-address");
+        if (_account == address(0)) revert BurnFromTheZeroAddress();
 
         uint256 _balanceBefore = balanceOf[_account];
-        require(_balanceBefore >= _amount, "burn-amount-exceeds-balance");
+        if (_balanceBefore < _amount) revert BurnAmountExceedsBalance();
         uint256 _balanceAfter;
         unchecked {
             _balanceAfter = _balanceBefore - _amount;
@@ -424,10 +442,10 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         onlyIfDepositTokenIsActive
         updateRewardsBeforeMintOrBurn(account_)
     {
-        require(account_ != address(0), "mint-to-the-zero-address");
+        if (account_ == address(0)) revert MintToTheZeroAddress();
 
         totalSupply += amount_;
-        require(totalSupply <= maxTotalSupply, "surpass-max-deposit-supply");
+        if (totalSupply > maxTotalSupply) revert SurpassMaxDepositSupply();
 
         uint256 _balanceBefore = balanceOf[account_];
         unchecked {
@@ -456,11 +474,11 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         address recipient_,
         uint256 amount_
     ) private updateRewardsBeforeTransfer(sender_, recipient_) {
-        require(sender_ != address(0), "transfer-from-the-zero-address");
-        require(recipient_ != address(0), "transfer-to-the-zero-address");
+        if (sender_ == address(0)) revert TransferFromTheZeroAddress();
+        if (recipient_ == address(0)) revert TransferToTheZeroAddress();
 
         uint256 _senderBalanceBefore = balanceOf[sender_];
-        require(_senderBalanceBefore >= amount_, "transfer-amount-exceeds-balance");
+        if (_senderBalanceBefore < amount_) revert TransferAmountExceedsBalance();
         uint256 _recipientBalanceBefore = balanceOf[recipient_];
         uint256 _senderBalanceAfter;
 
@@ -491,9 +509,9 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @param newCollateralFactor_ The new CF value
      */
     function updateCollateralFactor(uint128 newCollateralFactor_) external override onlyGovernor {
-        require(newCollateralFactor_ <= 1e18, "collateral-factor-gt-100%");
+        if (newCollateralFactor_ > 1e18) revert CollateralFactorTooHigh();
         uint256 _currentCollateralFactor = collateralFactor;
-        require(newCollateralFactor_ != _currentCollateralFactor, "new-same-as-current");
+        if (newCollateralFactor_ == _currentCollateralFactor) revert NewValueIsSameAsCurrent();
         emit CollateralFactorUpdated(_currentCollateralFactor, newCollateralFactor_);
         collateralFactor = newCollateralFactor_;
     }
@@ -504,7 +522,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      */
     function updateMaxTotalSupply(uint256 newMaxTotalSupply_) external override onlyGovernor {
         uint256 _currentMaxTotalSupply = maxTotalSupply;
-        require(newMaxTotalSupply_ != _currentMaxTotalSupply, "new-same-as-current");
+        if (newMaxTotalSupply_ == _currentMaxTotalSupply) revert NewValueIsSameAsCurrent();
         emit MaxTotalSupplyUpdated(_currentMaxTotalSupply, newMaxTotalSupply_);
         maxTotalSupply = newMaxTotalSupply_;
     }

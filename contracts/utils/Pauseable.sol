@@ -5,22 +5,27 @@ pragma solidity 0.8.9;
 import "../interfaces/IPauseable.sol";
 import "../access/Governable.sol";
 
+error IsPaused();
+error IsShutdown();
+error IsNotPaused();
+error IsNotShutdown();
+
 /**
  * @dev Contract module which allows children to implement an emergency stop
  * mechanism that can be triggered by an authorized account.
  */
 abstract contract Pauseable is IPauseable, Governable {
     /// @notice Emitted when contract is turned on
-    event Open(address caller);
+    event Open(address indexed caller);
 
     /// @notice Emitted when contract is paused
-    event Paused(address caller);
+    event Paused(address indexed caller);
 
     /// @notice Emitted when contract is shuted down
-    event Shutdown(address caller);
+    event Shutdown(address indexed caller);
 
     /// @notice Emitted when contract is unpaused
-    event Unpaused(address caller);
+    event Unpaused(address indexed caller);
 
     bool private _paused;
     bool private _everythingStopped;
@@ -29,7 +34,7 @@ abstract contract Pauseable is IPauseable, Governable {
      * @dev Throws if contract is paused
      */
     modifier whenNotPaused() {
-        require(!paused(), "paused");
+        if (paused()) revert IsPaused();
         _;
     }
 
@@ -37,7 +42,7 @@ abstract contract Pauseable is IPauseable, Governable {
      * @dev Throws if contract is shutdown
      */
     modifier whenNotShutdown() {
-        require(!everythingStopped(), "shutdown");
+        if (everythingStopped()) revert IsShutdown();
         _;
     }
 
@@ -45,7 +50,7 @@ abstract contract Pauseable is IPauseable, Governable {
      * @dev Throws if contract is not paused
      */
     modifier whenPaused() {
-        require(paused(), "not-paused");
+        if (!paused()) revert IsNotPaused();
         _;
     }
 
@@ -53,7 +58,7 @@ abstract contract Pauseable is IPauseable, Governable {
      * @dev Throws if contract is not shutdown
      */
     modifier whenShutdown() {
-        require(everythingStopped(), "not-shutdown");
+        if (!everythingStopped()) revert IsNotShutdown();
         _;
     }
 
@@ -89,7 +94,7 @@ abstract contract Pauseable is IPauseable, Governable {
     }
 
     /**
-     * @dev Pause contract operations, if contract is not paused.
+     * @dev Suspend deposit feature, if contract is not paused.
      */
     function pause() external virtual whenNotPaused onlyGovernor {
         _paused = true;
@@ -97,7 +102,7 @@ abstract contract Pauseable is IPauseable, Governable {
     }
 
     /**
-     * @dev Shutdown contract operations, if not already shutdown.
+     * @dev Suspend all features (issue, repay, deposit, withdraw, liquidate and swap), if not already shutdown.
      */
     function shutdown() external virtual whenNotShutdown onlyGovernor {
         _everythingStopped = true;

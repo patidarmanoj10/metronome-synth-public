@@ -67,7 +67,7 @@ describe('DepositToken', function () {
     poolMock.paused.returns(false)
     poolMock.everythingStopped.returns(false)
     poolMock.depositFee.returns('0')
-    poolMock.isDepositTokenExists.returns(true)
+    poolMock.doesDepositTokenExist.returns(true)
     poolMock.treasury.returns(treasury.address)
 
     const rewardsDistributorMockFactory = await smock.mock('RewardsDistributor')
@@ -141,7 +141,7 @@ describe('DepositToken', function () {
         const tx = metDepositToken.connect(alice).withdraw(toWithdraw, alice.address)
 
         // then
-        await expect(tx).revertedWith('shutdown')
+        await expect(tx).revertedWithCustomError(metDepositToken, 'IsShutdown')
       })
 
       it('should revert if amount is 0', async function () {
@@ -149,7 +149,7 @@ describe('DepositToken', function () {
         const tx = metDepositToken.connect(alice).withdraw(0, alice.address)
 
         // then
-        await expect(tx).revertedWith('amount-is-invalid')
+        await expect(tx).revertedWithCustomError(metDepositToken, 'AmountIsInvalid')
       })
 
       it('should revert if amount > unlocked collateral amount', async function () {
@@ -158,7 +158,7 @@ describe('DepositToken', function () {
         const tx = metDepositToken.connect(alice).withdraw(unlockedDeposit.add('1'), alice.address)
 
         // then
-        await expect(tx).revertedWith('amount-is-invalid')
+        await expect(tx).revertedWithCustomError(metDepositToken, 'AmountIsInvalid')
       })
 
       it('should withdraw if amount <= unlocked collateral amount (withdrawFee == 0)', async function () {
@@ -247,7 +247,7 @@ describe('DepositToken', function () {
         const tx = metDepositToken.connect(alice).deposit(toDeposit, alice.address)
 
         // then
-        await expect(tx).revertedWith('paused')
+        await expect(tx).revertedWithCustomError(metDepositToken, 'IsPaused')
       })
 
       it('should revert if shutdown', async function () {
@@ -260,7 +260,7 @@ describe('DepositToken', function () {
         const tx = metDepositToken.connect(alice).deposit(toDeposit, alice.address)
 
         // then
-        await expect(tx).revertedWith('paused')
+        await expect(tx).revertedWithCustomError(metDepositToken, 'IsPaused')
       })
 
       it('should revert if surpass max supply in usd', async function () {
@@ -271,13 +271,13 @@ describe('DepositToken', function () {
         const tx = metDepositToken.connect(alice).deposit(parseEther('11'), alice.address)
 
         // then
-        await expect(tx).revertedWith('surpass-max-deposit-supply')
+        await expect(tx).revertedWithCustomError(metDepositToken, 'SurpassMaxDepositSupply')
       })
 
       it('should revert if collateral amount is 0', async function () {
         const toDeposit = 0
         const tx = metDepositToken.connect(alice).deposit(toDeposit, alice.address)
-        await expect(tx).revertedWith('amount-is-zero')
+        await expect(tx).revertedWithCustomError(metDepositToken, 'AmountIsZero')
       })
 
       it('should revert if MET balance is not enough', async function () {
@@ -389,7 +389,7 @@ describe('DepositToken', function () {
         const tx = metDepositToken.connect(alice).transfer(deployer.address, _unlockedDeposit.add('1'))
 
         // then
-        await expect(tx).revertedWith('not-enough-free-balance')
+        await expect(tx).revertedWithCustomError(metDepositToken, 'NotEnoughFreeBalance')
       })
 
       // eslint-disable-next-line quotes
@@ -458,7 +458,7 @@ describe('DepositToken', function () {
           .transferFrom(alice.address, deployer.address, _unlockedDeposit.add('1'))
 
         // then
-        await expect(tx).revertedWith('not-enough-free-balance')
+        await expect(tx).revertedWithCustomError(metDepositToken, 'NotEnoughFreeBalance')
       })
 
       it('should trigger rewards update', async function () {
@@ -479,7 +479,7 @@ describe('DepositToken', function () {
     describe('seize', function () {
       it('should revert if not pool', async function () {
         const tx = metDepositToken.connect(alice).seize(alice.address, deployer.address, parseEther('10'))
-        await expect(tx).revertedWith('not-pool')
+        await expect(tx).revertedWithCustomError(metDepositToken, 'SenderIsNotPool')
       })
 
       it('should seize tokens', async function () {
@@ -533,12 +533,12 @@ describe('DepositToken', function () {
         const tx = metDepositToken.updateCollateralFactor(currentCollateralFactor)
 
         // then
-        await expect(tx).revertedWith('new-same-as-current')
+        await expect(tx).revertedWithCustomError(metDepositToken, 'NewValueIsSameAsCurrent')
       })
 
       it('should revert if not governor', async function () {
         const tx = metDepositToken.connect(alice).updateCollateralFactor(parseEther('10'))
-        await expect(tx).revertedWith('not-governor')
+        await expect(tx).revertedWithCustomError(metDepositToken, 'SenderIsNotGovernor')
       })
 
       it('should revert if > 100%', async function () {
@@ -546,7 +546,7 @@ describe('DepositToken', function () {
         const tx = metDepositToken.updateCollateralFactor(parseEther('1').add('1'))
 
         // then
-        await expect(tx).revertedWith('collateral-factor-gt-100%')
+        await expect(tx).revertedWithCustomError(metDepositToken, 'CollateralFactorTooHigh')
       })
     })
 
@@ -575,7 +575,7 @@ describe('DepositToken', function () {
         const tx = metDepositToken.updateMaxTotalSupply(currentMaxTotalSupply)
 
         // then
-        await expect(tx).revertedWith('new-same-as-current')
+        await expect(tx).revertedWithCustomError(metDepositToken, 'NewValueIsSameAsCurrent')
       })
 
       it('should revert if not governor', async function () {
@@ -583,7 +583,7 @@ describe('DepositToken', function () {
         const tx = metDepositToken.connect(alice).updateMaxTotalSupply('10')
 
         // then
-        await expect(tx).revertedWith('not-governor')
+        await expect(tx).revertedWithCustomError(metDepositToken, 'SenderIsNotGovernor')
       })
     })
 
@@ -606,7 +606,7 @@ describe('DepositToken', function () {
         const tx = metDepositToken.connect(alice).toggleIsActive()
 
         // then
-        await expect(tx).revertedWith('not-governor')
+        await expect(tx).revertedWithCustomError(metDepositToken, 'SenderIsNotGovernor')
       })
     })
   })

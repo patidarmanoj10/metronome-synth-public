@@ -10,6 +10,12 @@ import "./access/Manageable.sol";
 import "./storage/RewardsDistributorStorage.sol";
 import "./lib/WadRayMath.sol";
 
+error DistributorDoesNotExist();
+error InvalidToken();
+error RewardTokenIsNull();
+error ReachedMaxRewardTokens();
+error ArraysLengthDoNotMatch();
+
 /**
  * @title RewardsDistributor contract
  */
@@ -25,7 +31,7 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     uint224 public constant MAX_REWARD_TOKENS = 20;
 
     /// @notice Emitted when reward is claimed
-    event RewardClaimed(address account, uint256 amount);
+    event RewardClaimed(address indexed account, uint256 amount);
 
     /// @notice Emitted when updating accrued token
     event TokensAccruedUpdated(IERC20 indexed token, address indexed account, uint256 tokensDelta, uint256 supplyIndex);
@@ -49,7 +55,7 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
                 break;
             }
         }
-        require(_distributorAdded, "distributor-not-added");
+        if (!_distributorAdded) revert DistributorDoesNotExist();
         _;
     }
 
@@ -59,15 +65,14 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
      */
     modifier onlyIfTokenExists(address token_) {
         IPool _pool = pool;
-        require(
-            _pool.isDebtTokenExists(IDebtToken(token_)) || _pool.isDepositTokenExists(IDepositToken(token_)),
-            "invalid-token"
-        );
+        if (!_pool.doesDebtTokenExist(IDebtToken(token_)) && !_pool.doesDepositTokenExist(IDepositToken(token_))) {
+            revert InvalidToken();
+        }
         _;
     }
 
     function initialize(IPool pool_, IERC20 rewardToken_) external initializer {
-        require(address(rewardToken_) != address(0), "reward-token-is-null");
+        if (address(rewardToken_) == address(0)) revert RewardTokenIsNull();
 
         __ReentrancyGuard_init();
         __Manageable_init(pool_);
@@ -269,9 +274,9 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
         if (_currentSpeed > 0) {
             _updateTokenIndex(token_);
         } else if (newSpeed_ > 0) {
-            // Add token token to the list
+            // Add token to the list
             if (tokenStates[token_].index == 0) {
-                require(tokens.length < MAX_REWARD_TOKENS, "reached-max-reward-tokens");
+                if (tokens.length == MAX_REWARD_TOKENS) revert ReachedMaxRewardTokens();
                 tokenStates[token_] = TokenState({index: INITIAL_INDEX, timestamp: block.timestamp.toUint32()});
                 tokens.push(token_);
             } else {
@@ -298,7 +303,7 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
      */
     function updateTokenSpeeds(IERC20[] calldata tokens_, uint256[] calldata speeds_) external override onlyGovernor {
         uint256 _tokensLength = tokens_.length;
-        require(_tokensLength == speeds_.length, "invalid-input");
+        if (_tokensLength != speeds_.length) revert ArraysLengthDoNotMatch();
 
         for (uint256 i; i < _tokensLength; ++i) {
             _updateTokenSpeed(tokens_[i], speeds_[i]);

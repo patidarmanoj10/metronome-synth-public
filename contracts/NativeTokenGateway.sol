@@ -8,6 +8,8 @@ import "./interfaces/external/IWETH.sol";
 import "./interfaces/INativeTokenGateway.sol";
 import "./interfaces/IDepositToken.sol";
 
+error SenderIsNotNativeToken();
+
 /**
  * @title Helper contract to easily support native tokens (e.g. ETH/AVAX) as collateral
  */
@@ -52,6 +54,6 @@ contract NativeTokenGateway is ReentrancyGuard, Governable, INativeTokenGateway 
      * @dev Only `nativeToken` contract is allowed to transfer to here. Prevent other addresses to send coins to this contract.
      */
     receive() external payable override {
-        require(msg.sender == address(nativeToken), "receive-not-allowed");
+        if (msg.sender != address(nativeToken)) revert SenderIsNotNativeToken();
     }
 }

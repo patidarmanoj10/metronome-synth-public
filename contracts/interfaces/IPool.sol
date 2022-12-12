@@ -30,11 +30,11 @@ interface IPool is IPauseable, IGovernable {
 
     function maxLiquidable() external view returns (uint256);
 
-    function isSyntheticTokenExists(ISyntheticToken syntheticToken_) external view returns (bool);
+    function doesSyntheticTokenExist(ISyntheticToken syntheticToken_) external view returns (bool);
 
-    function isDebtTokenExists(IDebtToken debtToken_) external view returns (bool);
+    function doesDebtTokenExist(IDebtToken debtToken_) external view returns (bool);
 
-    function isDepositTokenExists(IDepositToken depositToken_) external view returns (bool);
+    function doesDepositTokenExist(IDepositToken depositToken_) external view returns (bool);
 
     function depositTokenOf(IERC20 underlying_) external view returns (IDepositToken);
 

@@ -8,6 +8,28 @@ import "./interfaces/IManageable.sol";
 import "./lib/WadRayMath.sol";
 import "./storage/SyntheticTokenStorage.sol";
 
+error SenderIsNotGovernor();
+error SenderCanNotBurn();
+error SenderCanNotMint();
+error SenderCanNotSeize();
+error SyntheticIsInactive();
+error NameIsNull();
+error SymbolIsNull();
+error DecimalsIsNull();
+error PoolRegistryIsNull();
+error DecreasedAllowanceBelowZero();
+error AmountExceedsAllowance();
+error ApproveFromTheZeroAddress();
+error ApproveToTheZeroAddress();
+error BurnFromTheZeroAddress();
+error BurnAmountExceedsBalance();
+error MintToTheZeroAddress();
+error SurpassMaxSynthSupply();
+error TransferFromTheZeroAddress();
+error TransferToTheZeroAddress();
+error TransferAmountExceedsBalance();
+error NewValueIsSameAsCurrent();
+
 /**
  * @title Synthetic Token contract
  */
@@ -26,7 +48,7 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
      * @notice Throws if caller isn't the governor
      */
     modifier onlyGovernor() {
-        require(msg.sender == poolRegistry.governor(), "not-governor");
+        if (msg.sender != poolRegistry.governor()) revert SenderIsNotGovernor();
         _;
     }
 
@@ -34,7 +56,7 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
      * @dev Throws if sender can't burn
      */
     modifier onlyIfCanBurn() {
-        require(_isMsgSenderPool() || _isMsgSenderDebtToken(), "sender-cant-burn");
+        if (!_isMsgSenderPool() && !_isMsgSenderDebtToken()) revert SenderCanNotBurn();
         _;
     }
 
@@ -42,7 +64,7 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
      * @dev Throws if sender can't mint
      */
     modifier onlyIfCanMint() {
-        require(_isMsgSenderPool() || _isMsgSenderDebtToken(), "sender-cant-mint");
+        if (!_isMsgSenderPool() && !_isMsgSenderDebtToken()) revert SenderCanNotMint();
         _;
     }
 
@@ -50,7 +72,7 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
      * @dev Throws if sender can't seize
      */
     modifier onlyIfCanSeize() {
-        require(_isMsgSenderPool() || _isMsgSenderDebtToken(), "sender-cant-seize");
+        if (!_isMsgSenderPool() && !_isMsgSenderDebtToken()) revert SenderCanNotSeize();
         _;
     }
 
@@ -58,7 +80,7 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
      * @dev Throws if synthetic token isn't enabled
      */
     modifier onlyIfSyntheticTokenIsActive() {
-        require(isActive, "synthetic-inactive");
+        if (!isActive) revert SyntheticIsInactive();
         _;
     }
 
@@ -68,10 +90,10 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
         uint8 decimals_,
         IPoolRegistry poolRegistry_
     ) external initializer {
-        require(bytes(name_).length > 0, "empty-name");
-        require(bytes(symbol_).length > 0, "empty-symbol");
-        require(decimals_ > 0, "decimals-is-zero");
-        require(address(poolRegistry_) != address(0), "pool-registry-is-null");
+        if (bytes(name_).length == 0) revert NameIsNull();
+        if (bytes(symbol_).length == 0) revert SymbolIsNull();
+        if (decimals_ == 0) revert DecimalsIsNull();
+        if (address(poolRegistry_) == address(0)) revert PoolRegistryIsNull();
 
         poolRegistry = poolRegistry_;
         name = name_;
@@ -103,7 +125,7 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
      */
     function decreaseAllowance(address spender_, uint256 subtractedValue_) external returns (bool) {
         uint256 _currentAllowance = allowance[msg.sender][spender_];
-        require(_currentAllowance >= subtractedValue_, "decreased-allowance-below-zero");
+        if (_currentAllowance < subtractedValue_) revert DecreasedAllowanceBelowZero();
         unchecked {
             _approve(msg.sender, spender_, _currentAllowance - subtractedValue_);
         }
@@ -142,19 +164,13 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
         _transfer(from_, to_, amount_);
     }
 
-    /**
-     * @notice Move `amount` tokens from the caller's account to `recipient`
-     */
+    /// @inheritdoc IERC20
     function transfer(address recipient_, uint256 amount_) external override returns (bool) {
         _transfer(msg.sender, recipient_, amount_);
         return true;
     }
 
-    /**
-     * @notice Move `amount` tokens from `sender` to `recipient` using the
-     * allowance mechanism. `amount` is then deducted from the caller's
-     * allowance
-     */
+    /// @inheritdoc IERC20
     function transferFrom(
         address sender_,
         address recipient_,
@@ -164,7 +180,7 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
 
         uint256 _currentAllowance = allowance[sender_][msg.sender];
         if (_currentAllowance != type(uint256).max) {
-            require(_currentAllowance >= amount_, "amount-exceeds-allowance");
+            if (_currentAllowance < amount_) revert AmountExceedsAllowance();
             unchecked {
                 _approve(sender_, msg.sender, _currentAllowance - amount_);
             }
@@ -181,8 +197,8 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
         address spender_,
         uint256 amount_
     ) private {
-        require(owner_ != address(0), "approve-from-the-zero-address");
-        require(spender_ != address(0), "approve-to-the-zero-address");
+        if (owner_ == address(0)) revert ApproveFromTheZeroAddress();
+        if (spender_ == address(0)) revert ApproveToTheZeroAddress();
 
         allowance[owner_][spender_] = amount_;
         emit Approval(owner_, spender_, amount_);
@@ -193,10 +209,10 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
      * total supply
      */
     function _burn(address account_, uint256 amount_) private {
-        require(account_ != address(0), "burn-from-the-zero-address");
+        if (account_ == address(0)) revert BurnFromTheZeroAddress();
 
         uint256 _currentBalance = balanceOf[account_];
-        require(_currentBalance >= amount_, "burn-amount-exceeds-balance");
+        if (_currentBalance < amount_) revert BurnAmountExceedsBalance();
         unchecked {
             balanceOf[account_] = _currentBalance - amount_;
             totalSupply -= amount_;
@@ -213,7 +229,7 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
 
         return
             poolRegistry.poolIsRegistered(address(_pool)) &&
-            _pool.isDebtTokenExists(IDebtToken(msg.sender)) &&
+            _pool.doesDebtTokenExist(IDebtToken(msg.sender)) &&
             IDebtToken(msg.sender).syntheticToken() == this;
     }
 
@@ -221,7 +237,7 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
      * @notice Check if the sender is a valid Pool contract
      */
     function _isMsgSenderPool() private view returns (bool) {
-        return poolRegistry.poolIsRegistered(msg.sender) && IPool(msg.sender).isSyntheticTokenExists(this);
+        return poolRegistry.poolIsRegistered(msg.sender) && IPool(msg.sender).doesSyntheticTokenExist(this);
     }
 
     /**
@@ -229,10 +245,10 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
      * the total supply
      */
     function _mint(address account_, uint256 amount_) private onlyIfSyntheticTokenIsActive {
-        require(account_ != address(0), "mint-to-the-zero-address");
+        if (account_ == address(0)) revert MintToTheZeroAddress();
 
         totalSupply += amount_;
-        require(totalSupply <= maxTotalSupply, "surpass-max-synth-supply");
+        if (totalSupply > maxTotalSupply) revert SurpassMaxSynthSupply();
         balanceOf[account_] += amount_;
         emit Transfer(address(0), account_, amount_);
     }
@@ -245,11 +261,11 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
         address recipient_,
         uint256 amount_
     ) private {
-        require(sender_ != address(0), "transfer-from-the-zero-address");
-        require(recipient_ != address(0), "transfer-to-the-zero-address");
+        if (sender_ == address(0)) revert TransferFromTheZeroAddress();
+        if (recipient_ == address(0)) revert TransferToTheZeroAddress();
 
         uint256 senderBalance = balanceOf[sender_];
-        require(senderBalance >= amount_, "transfer-amount-exceeds-balance");
+        if (senderBalance < amount_) revert TransferAmountExceedsBalance();
         unchecked {
             balanceOf[sender_] = senderBalance - amount_;
             balanceOf[recipient_] += amount_;
@@ -273,7 +289,7 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
      */
     function updateMaxTotalSupply(uint256 newMaxTotalSupply_) external override onlyGovernor {
         uint256 _currentMaxTotalSupply = maxTotalSupply;
-        require(newMaxTotalSupply_ != _currentMaxTotalSupply, "new-same-as-current");
+        if (newMaxTotalSupply_ == _currentMaxTotalSupply) revert NewValueIsSameAsCurrent();
         emit MaxTotalSupplyUpdated(_currentMaxTotalSupply, newMaxTotalSupply_);
         maxTotalSupply = newMaxTotalSupply_;
     }

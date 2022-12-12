@@ -7,6 +7,26 @@ import "./access/Manageable.sol";
 import "./storage/DebtTokenStorage.sol";
 import "./lib/WadRayMath.sol";
 
+error SyntheticDoesNotExist();
+error SyntheticIsInactive();
+error DebtTokenInactive();
+error NameIsNull();
+error SymbolIsNull();
+error PoolIsNull();
+error SyntheticIsNull();
+error AllowanceNotSupported();
+error ApprovalNotSupported();
+error AmountIsZero();
+error NotEnoughCollateral();
+error DebtLowerThanTheFloor();
+error RemainingDebtIsLowerThanTheFloor();
+error TransferNotSupported();
+error BurnFromNullAddress();
+error BurnAmountExceedsBalance();
+error MintToNullAddress();
+error SurpassMaxDebtSupply();
+error NewValueIsSameAsCurrent();
+
 /**
  * @title Non-transferable token that represents users' debts
  */
@@ -14,6 +34,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
     using WadRayMath for uint256;
 
     uint256 public constant SECONDS_PER_YEAR = 365.25 days;
+    uint256 private constant HUNDRED_PERCENT = 1e18;
 
     string public constant VERSION = "1.0.0";
 
@@ -42,7 +63,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
      * @dev Throws if sender can't burn
      */
     modifier onlyIfCanBurn() {
-        require(msg.sender == address(pool), "not-pool");
+        if (msg.sender != address(pool)) revert SenderIsNotPool();
         _;
     }
 
@@ -50,7 +71,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
      * @dev Throws if synthetic token doesn't exist
      */
     modifier onlyIfSyntheticTokenExists() {
-        require(pool.isSyntheticTokenExists(syntheticToken), "synthetic-inexistent");
+        if (!pool.doesSyntheticTokenExist(syntheticToken)) revert SyntheticDoesNotExist();
         _;
     }
 
@@ -58,8 +79,8 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
      * @dev Throws if synthetic token isn't enabled
      */
     modifier onlyIfSyntheticTokenIsActive() {
-        require(syntheticToken.isActive(), "synthetic-inactive");
-        require(isActive, "debt-token-inactive");
+        if (!syntheticToken.isActive()) revert SyntheticIsInactive();
+        if (!isActive) revert DebtTokenInactive();
         _;
     }
 
@@ -85,10 +106,10 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
         uint256 interestRate_,
         uint256 maxTotalSupply_
     ) external initializer {
-        require(bytes(name_).length > 0, "empty-name");
-        require(bytes(symbol_).length > 0, "empty-symbol");
-        require(address(pool_) != address(0), "pool-is-null");
-        require(address(syntheticToken_) != address(0), "synthetic-is-null");
+        if (bytes(name_).length == 0) revert NameIsNull();
+        if (bytes(symbol_).length == 0) revert SymbolIsNull();
+        if (address(pool_) == address(0)) revert PoolIsNull();
+        if (address(syntheticToken_) == address(0)) revert SyntheticIsNull();
 
         __ReentrancyGuard_init();
         __Manageable_init(pool_);
@@ -128,19 +149,21 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
         }
     }
 
+    /// @inheritdoc IERC20
     function allowance(
         address, /*owner_*/
         address /*spender_*/
     ) external pure override returns (uint256) {
-        revert("allowance-not-supported");
+        revert AllowanceNotSupported();
     }
 
+    /// @inheritdoc IERC20
     // solhint-disable-next-line
     function approve(
         address, /*spender_*/
         uint256 /*amount_*/
     ) external override returns (bool) {
-        revert("approval-not-supported");
+        revert ApprovalNotSupported();
     }
 
     /**
@@ -183,7 +206,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
         onlyIfSyntheticTokenIsActive
         returns (uint256 _issued, uint256 _fee)
     {
-        require(amount_ > 0, "amount-is-zero");
+        if (amount_ == 0) revert AmountIsZero();
 
         accrueInterest();
 
@@ -194,19 +217,17 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
 
         IMasterOracle _masterOracle = _pool.masterOracle();
 
-        require(
-            amount_ <= _masterOracle.quoteUsdToToken(address(_syntheticToken), _issuableInUsd),
-            "not-enough-collateral"
-        );
+        if (amount_ > _masterOracle.quoteUsdToToken(address(syntheticToken), _issuableInUsd)) {
+            revert NotEnoughCollateral();
+        }
 
         uint256 _debtFloorInUsd = _pool.debtFloorInUsd();
 
-        if (_debtFloorInUsd > 0) {
-            require(
-                _masterOracle.quoteTokenToUsd(address(_syntheticToken), balanceOf(msg.sender) + amount_) >=
-                    _debtFloorInUsd,
-                "debt-lt-floor"
-            );
+        if (
+            _debtFloorInUsd > 0 &&
+            _masterOracle.quoteTokenToUsd(address(syntheticToken), balanceOf(msg.sender) + amount_) < _debtFloorInUsd
+        ) {
+            revert DebtLowerThanTheFloor();
         }
 
         (_issued, _fee) = quoteIssueOut(amount_);
@@ -239,7 +260,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
             return (amountToIssue_, _fee);
         }
 
-        _amount = amountToIssue_.wadDiv(1e18 - _issueFee);
+        _amount = amountToIssue_.wadDiv(HUNDRED_PERCENT - _issueFee);
         _fee = _amount - amountToIssue_;
     }
 
@@ -287,7 +308,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
             return (amount_, _fee);
         }
 
-        _amountToRepay = amount_.wadDiv(1e18 + _repayFee);
+        _amountToRepay = amount_.wadDiv(HUNDRED_PERCENT + _repayFee);
         _fee = amount_ - _amountToRepay;
     }
 
@@ -305,7 +326,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
         nonReentrant
         returns (uint256 _repaid, uint256 _fee)
     {
-        require(amount_ > 0, "amount-is-zero");
+        if (amount_ == 0) revert AmountIsZero();
 
         accrueInterest();
 
@@ -323,7 +344,9 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
                 address(_syntheticToken),
                 balanceOf(onBehalfOf_) - _repaid
             );
-            require(_newDebtInUsd == 0 || _newDebtInUsd >= _debtFloorInUsd, "debt-lt-floor");
+            if (_newDebtInUsd > 0 && _newDebtInUsd < _debtFloorInUsd) {
+                revert RemainingDebtIsLowerThanTheFloor();
+            }
         }
 
         _syntheticToken.burn(msg.sender, _repaid);
@@ -349,7 +372,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
         accrueInterest();
 
         _repaid = balanceOf(onBehalfOf_);
-        require(_repaid > 0, "amount-is-zero");
+        if (_repaid == 0) revert AmountIsZero();
 
         ISyntheticToken _syntheticToken = syntheticToken;
 
@@ -374,21 +397,23 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
         return totalSupply_ + _interestAmountAccrued;
     }
 
+    /// @inheritdoc IERC20
     // solhint-disable-next-line
     function transfer(
         address, /*recipient_*/
         uint256 /*amount_*/
     ) external override returns (bool) {
-        revert("transfer-not-supported");
+        revert TransferNotSupported();
     }
 
+    /// @inheritdoc IERC20
     // solhint-disable-next-line
     function transferFrom(
         address, /*sender_*/
         address, /*recipient_*/
         uint256 /*amount_*/
     ) external override returns (bool) {
-        revert("transfer-not-supported");
+        revert TransferNotSupported();
     }
 
     /**
@@ -405,10 +430,10 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
      * total supply
      */
     function _burn(address account_, uint256 amount_) private updateRewardsBeforeMintOrBurn(account_) {
-        require(account_ != address(0), "burn-from-the-zero-address");
+        if (account_ == address(0)) revert BurnFromNullAddress();
 
         uint256 _accountBalance = balanceOf(account_);
-        require(_accountBalance >= amount_, "burn-amount-exceeds-balance");
+        if (_accountBalance < amount_) revert BurnAmountExceedsBalance();
 
         unchecked {
             principalOf[account_] = _accountBalance - amount_;
@@ -453,12 +478,12 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
      * the total supply
      */
     function _mint(address account_, uint256 amount_) private updateRewardsBeforeMintOrBurn(account_) {
-        require(account_ != address(0), "mint-to-the-zero-address");
+        if (account_ == address(0)) revert MintToNullAddress();
 
         uint256 _balanceBefore = balanceOf(account_);
 
         totalSupply_ += amount_;
-        require(totalSupply_ <= maxTotalSupply, "surpass-max-debt-supply");
+        if (totalSupply_ > maxTotalSupply) revert SurpassMaxDebtSupply();
 
         principalOf[account_] += amount_;
         debtIndexOf[account_] = debtIndex;
@@ -481,7 +506,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
      */
     function updateMaxTotalSupply(uint256 newMaxTotalSupply_) external override onlyGovernor {
         uint256 _currentMaxTotalSupply = maxTotalSupply;
-        require(newMaxTotalSupply_ != _currentMaxTotalSupply, "new-same-as-current");
+        if (newMaxTotalSupply_ == _currentMaxTotalSupply) revert NewValueIsSameAsCurrent();
         emit MaxTotalSupplyUpdated(_currentMaxTotalSupply, newMaxTotalSupply_);
         maxTotalSupply = newMaxTotalSupply_;
     }
@@ -492,7 +517,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
     function updateInterestRate(uint256 newInterestRate_) external override onlyGovernor {
         accrueInterest();
         uint256 _currentInterestRate = interestRate;
-        require(newInterestRate_ != _currentInterestRate, "new-same-as-current");
+        if (newInterestRate_ == _currentInterestRate) revert NewValueIsSameAsCurrent();
         emit InterestRateUpdated(_currentInterestRate, newInterestRate_);
         interestRate = newInterestRate_;
     }

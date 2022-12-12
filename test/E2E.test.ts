@@ -23,8 +23,8 @@ import {
   ERC20__factory,
   PoolRegistry,
 } from '../typechain'
-const {MaxUint256} = ethers.constants
 
+const {MaxUint256} = ethers.constants
 const dust = toUSD('20')
 
 async function fixture() {
@@ -70,7 +70,7 @@ async function fixture() {
   }
 }
 
-describe('Integration tests', function () {
+describe('E2E tests', function () {
   let governor: SignerWithAddress
   let alice: SignerWithAddress
   let bob: SignerWithAddress
@@ -89,6 +89,8 @@ describe('Integration tests', function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[, alice, bob] = await ethers.getSigners()
     ;({governor, usdc, pool, msUSD, msdUSDC, msUSDDebt, msETH} = await loadFixture(fixture))
+    await setTokenBalance(usdc.address, alice.address, parseEther('10'))
+    await usdc.connect(alice).approve(msdUSDC.address, MaxUint256)
   })
 
   describe('synth mainnet end to end sanity tests', function () {

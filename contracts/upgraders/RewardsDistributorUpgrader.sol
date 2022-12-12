@@ -9,12 +9,10 @@ contract RewardsDistributorUpgrader is UpgraderBase {
         transferOwnership(_owner);
     }
 
-    function _calls() internal pure override returns (bytes[] memory calls) {
-        calls = new bytes[](1);
-        calls[0] = abi.encodeWithSignature("rewardToken()");
-    }
-
-    function _checkResults(bytes[] memory _beforeResults, bytes[] memory _afterResults) internal pure override {
-        _checkAddressResults(_beforeResults, _afterResults, 0, 0);
+    /// @inheritdoc UpgraderBase
+    function _calls() internal pure override returns (bytes[] memory _callsList) {
+        _callsList = new bytes[](2);
+        _callsList[0] = abi.encodeWithSignature("rewardToken()");
+        _callsList[1] = abi.encodeWithSignature("governor()");
     }
 }
