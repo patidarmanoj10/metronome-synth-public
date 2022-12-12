@@ -28,7 +28,7 @@ abstract contract Governable is IGovernable, TokenHolder, Initializable {
 
     /**
      * @notice The proposed governor
-     * @dev Is empty (address(0)) if there isn't a proposed governor
+     * @dev It will be empty (address(0)) if there isn't a proposed governor
      */
     address public proposedGovernor;
 

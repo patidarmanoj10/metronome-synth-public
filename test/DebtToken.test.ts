@@ -378,7 +378,7 @@ describe('DebtToken', function () {
           const tx = msUSDDebt.connect(user1).repay(user1.address, toRepay)
 
           // then
-          await expect(tx).revertedWithCustomError(msUSDDebt, 'DebtLowerThanTheFloor')
+          await expect(tx).revertedWithCustomError(msUSDDebt, 'RemainingDebtIsLowerThanTheFloor')
         })
 
         it('should allow repay if new debt == 0', async function () {

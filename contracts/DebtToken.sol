@@ -19,6 +19,7 @@ error ApprovalNotSupported();
 error AmountIsZero();
 error NotEnoughCollateral();
 error DebtLowerThanTheFloor();
+error RemainingDebtIsLowerThanTheFloor();
 error TransferNotSupported();
 error BurnFromNullAddress();
 error BurnAmountExceedsBalance();
@@ -344,7 +345,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
                 balanceOf(onBehalfOf_) - _repaid
             );
             if (_newDebtInUsd > 0 && _newDebtInUsd < _debtFloorInUsd) {
-                revert DebtLowerThanTheFloor();
+                revert RemainingDebtIsLowerThanTheFloor();
             }
         }
 
