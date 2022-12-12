@@ -100,8 +100,8 @@ describe('SyntheticToken', function () {
     poolRegistryMock.feeCollector.returns(feeCollector.address)
     poolRegistryMock.masterOracle.returns(masterOracleMock.address)
     poolRegistryMock.poolIsRegistered.returns((address: string) => address == poolMock.address)
-    poolMock.doesSyntheticTokenExists.returns((address: string) => address == msUSD.address)
-    poolMock.doesDebtTokenExists.returns((address: string) => address == msUSDDebt.address)
+    poolMock.doesSyntheticTokenExist.returns((address: string) => address == msUSD.address)
+    poolMock.doesDebtTokenExist.returns((address: string) => address == msUSDDebt.address)
   })
 
   it('default values', async function () {

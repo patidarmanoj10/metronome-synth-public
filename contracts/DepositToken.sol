@@ -81,7 +81,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @dev Throws if deposit token doesn't exist
      */
     modifier onlyIfDepositTokenExists() {
-        if (!pool.doesDepositTokenExists(this)) revert CollateralIsInexistent();
+        if (!pool.doesDepositTokenExist(this)) revert CollateralIsInexistent();
         _;
     }
 

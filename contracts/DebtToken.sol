@@ -71,7 +71,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
      * @dev Throws if synthetic token doesn't exist
      */
     modifier onlyIfSyntheticTokenExists() {
-        if (!pool.doesSyntheticTokenExists(syntheticToken)) revert SyntheticDoesNotExist();
+        if (!pool.doesSyntheticTokenExist(syntheticToken)) revert SyntheticDoesNotExist();
         _;
     }
 

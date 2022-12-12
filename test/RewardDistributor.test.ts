@@ -52,8 +52,8 @@ describe('RewardDistributor', function () {
     debtToken1.debtIndex.returns(parseEther('1'))
     debtToken2.debtIndex.returns(parseEther('1'))
 
-    pool.doesDepositTokenExists.returns(true)
-    pool.doesSyntheticTokenExists.returns(true)
+    pool.doesDepositTokenExist.returns(true)
+    pool.doesSyntheticTokenExist.returns(true)
     pool.governor.returns(deployer.address)
     pool.getRewardsDistributors.returns([rewardDistributor.address])
   })
@@ -73,7 +73,7 @@ describe('RewardDistributor', function () {
     it('should revert if not valid token', async function () {
       // given
       const speed = parseEther('1')
-      pool.doesDepositTokenExists.returns(false)
+      pool.doesDepositTokenExist.returns(false)
       // when
       const tx = rewardDistributor.updateTokenSpeed(msdTOKEN1.address, speed)
 

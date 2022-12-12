@@ -24,7 +24,7 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
      * @dev Throws if caller isn't a deposit token
      */
     modifier onlyIfDepositToken() {
-        if (!pool.doesDepositTokenExists(IDepositToken(msg.sender))) revert SenderIsNotDepositToken();
+        if (!pool.doesDepositTokenExist(IDepositToken(msg.sender))) revert SenderIsNotDepositToken();
         _;
     }
 
