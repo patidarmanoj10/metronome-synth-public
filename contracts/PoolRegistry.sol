@@ -10,6 +10,7 @@ import "./utils/Pauseable.sol";
 
 error OracleIsNull();
 error FeeCollectorIsNull();
+error NativeTokenGatewayIsNull();
 error AddressIsNull();
 error AlreadyRegistered();
 error NotRegistered();
@@ -29,6 +30,9 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
 
     /// @notice Emitted when master oracle contract is updated
     event MasterOracleUpdated(IMasterOracle indexed oldOracle, IMasterOracle indexed newOracle);
+
+    /// @notice Emitted when native token gateway is updated
+    event NativeTokenGatewayUpdated(INativeTokenGateway indexed oldGateway, INativeTokenGateway indexed newGateway);
 
     /// @notice Emitted when a pool is registered
     event PoolRegistered(uint256 indexed id, address indexed pool);
@@ -104,10 +108,21 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
      * @notice Update master oracle contract
      */
     function updateMasterOracle(IMasterOracle newMasterOracle_) external override onlyGovernor {
-        if (address(newMasterOracle_) == address(0)) revert AddressIsNull();
+        if (address(newMasterOracle_) == address(0)) revert OracleIsNull();
         IMasterOracle _currentMasterOracle = masterOracle;
         if (newMasterOracle_ == _currentMasterOracle) revert NewValueIsSameAsCurrent();
         emit MasterOracleUpdated(_currentMasterOracle, newMasterOracle_);
         masterOracle = newMasterOracle_;
+    }
+
+    /**
+     * @notice Update native token gateway
+     */
+    function updateNativeTokenGateway(INativeTokenGateway newGateway_) external override onlyGovernor {
+        if (address(newGateway_) == address(0)) revert NativeTokenGatewayIsNull();
+        INativeTokenGateway _currentGateway = nativeTokenGateway;
+        if (newGateway_ == _currentGateway) revert NewValueIsSameAsCurrent();
+        emit NativeTokenGatewayUpdated(_currentGateway, newGateway_);
+        nativeTokenGateway = newGateway_;
     }
 }

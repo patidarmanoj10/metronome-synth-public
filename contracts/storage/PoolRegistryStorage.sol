@@ -23,6 +23,11 @@ abstract contract PoolRegistryStorageV1 is IPoolRegistry {
     address public override feeCollector;
 
     /**
+     * @notice Native token gateway address
+     */
+    INativeTokenGateway public override nativeTokenGateway;
+
+    /**
      * @notice Map of the ids of the pools
      */
     mapping(address => uint256) public override idOfPool;

@@ -1,6 +1,6 @@
 /* eslint-disable camelcase */
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
-import {expect} from 'chai'
+import chai, {expect} from 'chai'
 import {parseEther} from 'ethers/lib/utils'
 import {ethers} from 'hardhat'
 import {
@@ -22,6 +22,9 @@ import {
 import {disableForking, enableForking} from './helpers'
 import Address from '../helpers/address'
 import {toUSD} from '../helpers'
+import {FakeContract, MockContract, smock} from '@defi-wonderland/smock'
+
+chai.use(smock.matchers)
 
 const {NATIVE_TOKEN_ADDRESS} = Address
 
@@ -34,6 +37,7 @@ describe('NativeTokenGateway', function () {
   let msdNativeToken: DepositToken
   let treasury: Treasury
   let masterOracleMock: MasterOracleMock
+  let poolRegistryMock: FakeContract
   let poolMock: PoolMock
   let nativeTokenGateway: NativeTokenGateway
   let tokenMock: ERC20Mock
@@ -60,6 +64,9 @@ describe('NativeTokenGateway', function () {
     treasury = await treasuryFactory.deploy()
     await treasury.deployed()
 
+    poolRegistryMock = await smock.fake('PoolRegistry')
+    poolRegistryMock.poolIsRegistered.returns(true)
+
     const poolMockFactory = new PoolMock__factory(deployer)
     poolMock = await poolMockFactory.deploy(
       msdNativeToken.address,
@@ -71,7 +78,7 @@ describe('NativeTokenGateway', function () {
     await poolMock.deployed()
 
     const nativeTokenGatewayFactory = new NativeTokenGateway__factory(deployer)
-    nativeTokenGateway = await nativeTokenGatewayFactory.deploy(NATIVE_TOKEN_ADDRESS)
+    nativeTokenGateway = await nativeTokenGatewayFactory.deploy(poolRegistryMock.address, NATIVE_TOKEN_ADDRESS)
     await nativeTokenGateway.deployed()
 
     await msdNativeToken.initialize(
@@ -99,6 +106,18 @@ describe('NativeTokenGateway', function () {
   })
 
   describe('deposit', function () {
+    it('should revert if pool is not registered', async function () {
+      // given
+      poolRegistryMock.poolIsRegistered.returns(false)
+
+      // when
+      const value = parseEther('1')
+      const tx = nativeTokenGateway.connect(user).deposit(poolMock.address, {value})
+
+      // then
+      await expect(tx).revertedWithCustomError(nativeTokenGateway, 'InvalidPool')
+    })
+
     it('should deposit ETH to Pool', async function () {
       // when
       const value = parseEther('1')
@@ -131,6 +150,18 @@ describe('NativeTokenGateway', function () {
       const value = parseEther('100')
       await nativeTokenGateway.connect(user).deposit(poolMock.address, {value})
       await msdNativeToken.connect(user).approve(nativeTokenGateway.address, value)
+    })
+
+    it('should revert if pool is not registered', async function () {
+      // given
+      poolRegistryMock.poolIsRegistered.returns(false)
+
+      // when
+      const amount = parseEther('1')
+      const tx = nativeTokenGateway.connect(user).withdraw(poolMock.address, amount)
+
+      // then
+      await expect(tx).revertedWithCustomError(nativeTokenGateway, 'InvalidPool')
     })
 
     it('should withdraw ETH from Pool', async function () {
