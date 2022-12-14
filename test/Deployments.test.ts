@@ -187,6 +187,7 @@ describe('Deployments', function () {
       expect(await wethGateway.nativeToken()).eq(NATIVE_TOKEN_ADDRESS)
       expect(await wethGateway.governor()).eq(deployer.address)
       expect(await wethGateway.proposedGovernor()).eq(ethers.constants.AddressZero)
+      expect(await wethGateway.poolRegistry()).eq(poolRegistry.address)
     })
   })
 
@@ -399,7 +400,8 @@ describe('Deployments', function () {
       it('should have correct params', async function () {
         expect(await poolRegistry.governor()).eq(deployer.address)
         expect(await poolRegistry.masterOracle()).eq(MASTER_ORACLE_ADDRESS)
-        expect(await poolRegistry.poolIsRegistered(pool.address)).true
+        expect(await poolRegistry.isPoolRegistered(pool.address)).true
+        expect(await poolRegistry.nativeTokenGateway()).eq(wethGateway.address)
       })
 
       it('should upgrade implementation', async function () {

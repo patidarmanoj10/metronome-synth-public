@@ -93,7 +93,7 @@ describe('PoolRegistry', function () {
     it('should revert if pool does not registered', async function () {
       await poolRegistry.unregisterPool(pool.address)
       const tx = poolRegistry.unregisterPool(pool.address)
-      await expect(tx).revertedWithCustomError(poolRegistry, 'NotRegistered')
+      await expect(tx).revertedWithCustomError(poolRegistry, 'UnregisteredPool')
     })
 
     it('should unregister pool', async function () {
@@ -172,7 +172,7 @@ describe('PoolRegistry', function () {
       const tx = poolRegistry.updateMasterOracle(ethers.constants.AddressZero)
 
       // then
-      await expect(tx).revertedWithCustomError(poolRegistry, 'AddressIsNull')
+      await expect(tx).revertedWithCustomError(poolRegistry, 'OracleIsNull')
     })
 
     it('should update master oracle contract', async function () {
@@ -187,6 +187,50 @@ describe('PoolRegistry', function () {
       // then
       await expect(tx).emit(poolRegistry, 'MasterOracleUpdated').withArgs(currentMasterOracle, newMasterOracle)
       expect(await poolRegistry.masterOracle()).eq(newMasterOracle)
+    })
+  })
+
+  describe('updateNativeTokenGateway', function () {
+    it('should revert if not governor', async function () {
+      // when
+      const tx = poolRegistry.connect(alice).updateNativeTokenGateway(ethers.constants.AddressZero)
+
+      // then
+      await expect(tx).revertedWithCustomError(poolRegistry, 'SenderIsNotGovernor')
+    })
+
+    it('should revert if using the same address', async function () {
+      // given
+      await poolRegistry.updateNativeTokenGateway(alice.address)
+      expect(await poolRegistry.nativeTokenGateway()).eq(alice.address)
+
+      // when
+      const tx = poolRegistry.updateNativeTokenGateway(alice.address)
+
+      // then
+      await expect(tx).revertedWithCustomError(poolRegistry, 'NewValueIsSameAsCurrent')
+    })
+
+    it('should revert if address is zero', async function () {
+      // when
+      const tx = poolRegistry.updateNativeTokenGateway(ethers.constants.AddressZero)
+
+      // then
+      await expect(tx).revertedWithCustomError(poolRegistry, 'NativeTokenGatewayIsNull')
+    })
+
+    it('should update native token gateway contract', async function () {
+      // given
+      const currentGateway = await poolRegistry.nativeTokenGateway()
+      const newGateway = bob.address
+      expect(currentGateway).not.eq(newGateway)
+
+      // when
+      const tx = poolRegistry.updateNativeTokenGateway(newGateway)
+
+      // then
+      await expect(tx).emit(poolRegistry, 'NativeTokenGatewayUpdated').withArgs(currentGateway, newGateway)
+      expect(await poolRegistry.nativeTokenGateway()).eq(newGateway)
     })
   })
 })
