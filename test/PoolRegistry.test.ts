@@ -93,7 +93,7 @@ describe('PoolRegistry', function () {
     it('should revert if pool does not registered', async function () {
       await poolRegistry.unregisterPool(pool.address)
       const tx = poolRegistry.unregisterPool(pool.address)
-      await expect(tx).revertedWithCustomError(poolRegistry, 'NotRegistered')
+      await expect(tx).revertedWithCustomError(poolRegistry, 'UnregisteredPool')
     })
 
     it('should unregister pool', async function () {

@@ -13,7 +13,7 @@ error FeeCollectorIsNull();
 error NativeTokenGatewayIsNull();
 error AddressIsNull();
 error AlreadyRegistered();
-error NotRegistered();
+error UnregisteredPool();
 error NewValueIsSameAsCurrent();
 
 /**
@@ -32,7 +32,7 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
     event MasterOracleUpdated(IMasterOracle indexed oldOracle, IMasterOracle indexed newOracle);
 
     /// @notice Emitted when native token gateway is updated
-    event NativeTokenGatewayUpdated(INativeTokenGateway indexed oldGateway, INativeTokenGateway indexed newGateway);
+    event NativeTokenGatewayUpdated(address indexed oldGateway, address indexed newGateway);
 
     /// @notice Emitted when a pool is registered
     event PoolRegistered(uint256 indexed id, address indexed pool);
@@ -67,7 +67,7 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
      * @param pool_ Pool to check
      * @return true if exists
      */
-    function poolIsRegistered(address pool_) external view override returns (bool) {
+    function isPoolRegistered(address pool_) external view override returns (bool) {
         return pools.contains(pool_);
     }
 
@@ -89,7 +89,7 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
      * @notice Unregister pool
      */
     function unregisterPool(address pool_) external override onlyGovernor {
-        if (!pools.remove(pool_)) revert NotRegistered();
+        if (!pools.remove(pool_)) revert UnregisteredPool();
         emit PoolUnregistered(idOfPool[pool_], pool_);
     }
 
@@ -118,9 +118,9 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
     /**
      * @notice Update native token gateway
      */
-    function updateNativeTokenGateway(INativeTokenGateway newGateway_) external override onlyGovernor {
+    function updateNativeTokenGateway(address newGateway_) external override onlyGovernor {
         if (address(newGateway_) == address(0)) revert NativeTokenGatewayIsNull();
-        INativeTokenGateway _currentGateway = nativeTokenGateway;
+        address _currentGateway = nativeTokenGateway;
         if (newGateway_ == _currentGateway) revert NewValueIsSameAsCurrent();
         emit NativeTokenGatewayUpdated(_currentGateway, newGateway_);
         nativeTokenGateway = newGateway_;

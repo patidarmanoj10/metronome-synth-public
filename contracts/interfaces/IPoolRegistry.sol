@@ -6,14 +6,13 @@ import "./external/IMasterOracle.sol";
 import "./IPauseable.sol";
 import "./IGovernable.sol";
 import "./ISyntheticToken.sol";
-import "./INativeTokenGateway.sol";
 
 interface IPoolRegistry is IPauseable, IGovernable {
-    function poolIsRegistered(address pool_) external view returns (bool);
+    function isPoolRegistered(address pool_) external view returns (bool);
 
     function feeCollector() external view returns (address);
 
-    function nativeTokenGateway() external view returns (INativeTokenGateway);
+    function nativeTokenGateway() external view returns (address);
 
     function getPools() external view returns (address[] memory);
 
@@ -27,7 +26,7 @@ interface IPoolRegistry is IPauseable, IGovernable {
 
     function updateFeeCollector(address newFeeCollector_) external;
 
-    function updateNativeTokenGateway(INativeTokenGateway newGateway_) external;
+    function updateNativeTokenGateway(address newGateway_) external;
 
     function idOfPool(address pool_) external view returns (uint256);
 

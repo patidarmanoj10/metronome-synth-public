@@ -99,7 +99,7 @@ describe('SyntheticToken', function () {
     poolRegistryMock.governor.returns(governor.address)
     poolRegistryMock.feeCollector.returns(feeCollector.address)
     poolRegistryMock.masterOracle.returns(masterOracleMock.address)
-    poolRegistryMock.poolIsRegistered.returns((address: string) => address == poolMock.address)
+    poolRegistryMock.isPoolRegistered.returns((address: string) => address == poolMock.address)
     poolMock.doesSyntheticTokenExist.returns((address: string) => address == msUSD.address)
     poolMock.doesDebtTokenExist.returns((address: string) => address == msUSDDebt.address)
   })

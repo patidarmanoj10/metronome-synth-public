@@ -104,7 +104,7 @@ describe('DebtToken', function () {
     await masterOracleMock.updatePrice(msUSD.address, toUSD('1'))
     await masterOracleMock.updatePrice(met.address, toUSD('1'))
 
-    poolRegistryMock.poolIsRegistered.returns((address: string) => address == poolMock.address)
+    poolRegistryMock.isPoolRegistered.returns((address: string) => address == poolMock.address)
     poolRegistryMock.governor.returns(governor.address)
     poolRegistryMock.feeCollector.returns(feeCollector.address)
 

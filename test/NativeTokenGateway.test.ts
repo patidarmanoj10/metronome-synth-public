@@ -65,7 +65,7 @@ describe('NativeTokenGateway', function () {
     await treasury.deployed()
 
     poolRegistryMock = await smock.fake('PoolRegistry')
-    poolRegistryMock.poolIsRegistered.returns(true)
+    poolRegistryMock.isPoolRegistered.returns(true)
 
     const poolMockFactory = new PoolMock__factory(deployer)
     poolMock = await poolMockFactory.deploy(
@@ -108,14 +108,14 @@ describe('NativeTokenGateway', function () {
   describe('deposit', function () {
     it('should revert if pool is not registered', async function () {
       // given
-      poolRegistryMock.poolIsRegistered.returns(false)
+      poolRegistryMock.isPoolRegistered.returns(false)
 
       // when
       const value = parseEther('1')
       const tx = nativeTokenGateway.connect(user).deposit(poolMock.address, {value})
 
       // then
-      await expect(tx).revertedWithCustomError(nativeTokenGateway, 'InvalidPool')
+      await expect(tx).revertedWithCustomError(nativeTokenGateway, 'UnregisteredPool')
     })
 
     it('should deposit ETH to Pool', async function () {
@@ -154,14 +154,14 @@ describe('NativeTokenGateway', function () {
 
     it('should revert if pool is not registered', async function () {
       // given
-      poolRegistryMock.poolIsRegistered.returns(false)
+      poolRegistryMock.isPoolRegistered.returns(false)
 
       // when
       const amount = parseEther('1')
       const tx = nativeTokenGateway.connect(user).withdraw(poolMock.address, amount)
 
       // then
-      await expect(tx).revertedWithCustomError(nativeTokenGateway, 'InvalidPool')
+      await expect(tx).revertedWithCustomError(nativeTokenGateway, 'UnregisteredPool')
     })
 
     it('should withdraw ETH from Pool', async function () {

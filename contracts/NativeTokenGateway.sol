@@ -9,7 +9,7 @@ import "./interfaces/INativeTokenGateway.sol";
 import "./interfaces/IDepositToken.sol";
 
 error SenderIsNotNativeToken();
-error InvalidPool();
+error UnregisteredPool();
 
 /**
  * @title Helper contract to easily support native tokens (e.g. ETH/AVAX) as collateral
@@ -34,7 +34,7 @@ contract NativeTokenGateway is ReentrancyGuard, Governable, INativeTokenGateway 
      * @param pool_ The Pool contract
      */
     function deposit(IPool pool_) external payable override {
-        if (!poolRegistry.poolIsRegistered(address(pool_))) revert InvalidPool();
+        if (!poolRegistry.isPoolRegistered(address(pool_))) revert UnregisteredPool();
 
         nativeToken.deposit{value: msg.value}();
         IDepositToken _depositToken = pool_.depositTokenOf(nativeToken);
@@ -48,7 +48,7 @@ contract NativeTokenGateway is ReentrancyGuard, Governable, INativeTokenGateway 
      * @param amount_ The amount of deposit tokens to withdraw and receive native ETH
      */
     function withdraw(IPool pool_, uint256 amount_) external override nonReentrant {
-        if (!poolRegistry.poolIsRegistered(address(pool_))) revert InvalidPool();
+        if (!poolRegistry.isPoolRegistered(address(pool_))) revert UnregisteredPool();
 
         IDepositToken _depositToken = pool_.depositTokenOf(nativeToken);
         _depositToken.safeTransferFrom(msg.sender, address(this), amount_);
