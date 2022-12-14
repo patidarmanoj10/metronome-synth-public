@@ -1,7 +1,7 @@
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
 import Address from '../../../helpers/address'
-import {UpgradableContracts, transferGovernorshipIfNeeded} from '../../helpers'
+import {UpgradableContracts} from '../../helpers'
 
 const {
   PoolRegistry: {alias: PoolRegistry},
@@ -13,22 +13,21 @@ const NativeTokenGateway = 'NativeTokenGateway'
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {getNamedAccounts, deployments} = hre
-  const {deploy, get, execute, getOrNull} = deployments
-  const {deployer} = await getNamedAccounts()
-
-  const wasDeployed = !!(await getOrNull(NativeTokenGateway))
+  const {deploy, get, read, execute} = deployments
+  const {deployer: from} = await getNamedAccounts()
 
   const {address: poolRegistryAddress} = await get(PoolRegistry)
 
   const {address: nativeTokenGatewayAddress} = await deploy(NativeTokenGateway, {
-    from: deployer,
+    from,
     log: true,
     args: [poolRegistryAddress, NATIVE_TOKEN_ADDRESS],
   })
 
-  if (!wasDeployed) {
-    await execute(PoolRegistry, {from: deployer, log: true}, 'updateNativeTokenGateway', nativeTokenGatewayAddress)
-    await transferGovernorshipIfNeeded(hre, NativeTokenGateway)
+  const currentGateway = await read(PoolRegistry, 'nativeTokenGateway')
+
+  if (currentGateway !== nativeTokenGatewayAddress) {
+    await execute(PoolRegistry, {from, log: true}, 'updateNativeTokenGateway', nativeTokenGatewayAddress)
   }
 }
 

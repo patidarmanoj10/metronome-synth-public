@@ -76,7 +76,6 @@ const config: HardhatUserConfig = {
   },
   namedAccounts: {
     deployer,
-    governor: process.env.GOVERNOR || deployer,
   },
   contractSizer: {
     alphaSort: true,

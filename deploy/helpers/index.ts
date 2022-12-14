@@ -210,21 +210,3 @@ export const buildDepositDeployFunction = ({
 
   return deployFunction
 }
-
-export const transferGovernorshipIfNeeded = async (
-  hre: HardhatRuntimeEnvironment,
-  contractAlias: string
-): Promise<void> => {
-  const {getNamedAccounts, deployments} = hre
-  const {execute, read} = deployments
-  const {deployer, governor} = await getNamedAccounts()
-
-  const current = await Promise.all([
-    await read(contractAlias, 'governor'),
-    await read(contractAlias, 'proposedGovernor'),
-  ])
-
-  if (!current.includes(governor)) {
-    await execute(contractAlias, {from: deployer, log: true}, 'transferGovernorship', governor)
-  }
-}

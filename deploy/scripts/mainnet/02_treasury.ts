@@ -9,10 +9,8 @@ const {
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {getNamedAccounts, deployments} = hre
-  const {execute, get, getOrNull} = deployments
+  const {execute, get, read} = deployments
   const {deployer} = await getNamedAccounts()
-
-  const wasDeployed = !!(await getOrNull(Treasury))
 
   const pool = await get(Pool)
 
@@ -22,7 +20,9 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     initializeArgs: [pool.address],
   })
 
-  if (!wasDeployed) {
+  const currentTreasury = await read(Pool, 'treasury')
+
+  if (currentTreasury !== treasuryAddress) {
     await execute(Pool, {from: deployer, log: true}, 'updateTreasury', treasuryAddress)
   }
 }
