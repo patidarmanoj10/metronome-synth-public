@@ -336,7 +336,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
     /**
      * @notice Quote synth  `_amountToRepay` in order to seize `totalToSeized_`
      * @param syntheticToken_ Synth for repayment
-     * @param totalToSeized_ Collateral total amount to size
+     * @param totalToSeize_ Collateral total amount to size
      * @param depositToken_ Collateral's deposit token
      * @return _amountToRepay Synth amount to burn
      * @return _toLiquidator Seized amount to the liquidator
@@ -344,7 +344,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      */
     function quoteLiquidateIn(
         ISyntheticToken syntheticToken_,
-        uint256 totalToSeized_,
+        uint256 totalToSeize_,
         IDepositToken depositToken_
     )
         public
@@ -358,7 +358,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
     {
         LiquidationFees memory _fees = liquidationFees;
         uint256 _totalFees = _fees.protocolFee + _fees.liquidatorIncentive;
-        uint256 _repayAmountInCollateral = totalToSeized_;
+        uint256 _repayAmountInCollateral = totalToSeize_;
 
         if (_totalFees > 0) {
             _repayAmountInCollateral = _repayAmountInCollateral.wadDiv(1e18 + _totalFees);
