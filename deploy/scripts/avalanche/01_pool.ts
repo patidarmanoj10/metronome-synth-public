@@ -1,6 +1,6 @@
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
-import {UpgradableContracts, deployUpgradable, transferGovernorshipIfNeeded} from '../../helpers'
+import {UpgradableContracts, deployUpgradable} from '../../helpers'
 
 const {
   Pool: {alias: Pool},
@@ -9,22 +9,21 @@ const {
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {deployments, getNamedAccounts} = hre
-  const {get, getOrNull, execute} = deployments
+  const {get, read, execute} = deployments
   const {deployer: from} = await getNamedAccounts()
-
-  const wasDeployed = !!(await getOrNull(Pool))
 
   const poolRegistry = await get(PoolRegistry)
 
-  const {address} = await deployUpgradable({
+  const {address: poolAddress} = await deployUpgradable({
     hre,
     contractConfig: UpgradableContracts.Pool,
     initializeArgs: [poolRegistry.address],
   })
 
-  if (!wasDeployed) {
-    await transferGovernorshipIfNeeded(hre, Pool)
-    await execute(PoolRegistry, {from, log: true}, 'registerPool', address)
+  const isRegistered = await read(PoolRegistry, 'isPoolRegistered', poolAddress)
+
+  if (!isRegistered) {
+    await execute(PoolRegistry, {from, log: true}, 'registerPool', poolAddress)
   }
 }
 
