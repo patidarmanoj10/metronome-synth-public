@@ -1,5 +1,5 @@
 {
-  "address": "0x335e4BA7152C96dd19Db8c7138C55B8Bd74ea53A",
+  "address": "0xA77B145c7Fa5B412eb8aD41D587bE892b9c1EfC3",
   "abi": [
     {
       "anonymous": false,
@@ -125,6 +125,161 @@
       "type": "receive"
     },
     {
+      "inputs": [],
+      "name": "AmountExceedsAllowance",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "AmountIsInvalid",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "AmountIsZero",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "ApproveFromTheZeroAddress",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "ApproveToTheZeroAddress",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "BeneficiaryIsNull",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "BurnAmountExceedsBalance",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "BurnFromTheZeroAddress",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "CollateralFactorTooHigh",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "CollateralIsInexistent",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "DecimalsIsNull",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "DecreasedAllowanceBelowZero",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "DepositTokenIsInactive",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "FallbackIsNotAllowed",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "IsPaused",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "IsShutdown",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "MintToTheZeroAddress",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "NewValueIsSameAsCurrent",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "NotEnoughFreeBalance",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "PoolAddressIsNull",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "PoolIsNull",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "ReceiveIsNotAllowed",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "RecipientIsNull",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "SenderIsNotGovernor",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "SenderIsNotPool",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "SurpassMaxDepositSupply",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "SymbolIsNull",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "TransferAmountExceedsBalance",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "TransferFromTheZeroAddress",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "TransferToTheZeroAddress",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "UnderlyingAssetIsNull",
+      "type": "error"
+    },
+    {
       "anonymous": false,
       "inputs": [
         {
@@ -173,11 +328,36 @@
         {
           "indexed": false,
           "internalType": "uint256",
+          "name": "deposited",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
           "name": "fee",
           "type": "uint256"
         }
       ],
       "name": "CollateralDeposited",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "oldCollateralFactor",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "newCollateralFactor",
+          "type": "uint256"
+        }
+      ],
+      "name": "CollateralFactorUpdated",
       "type": "event"
     },
     {
@@ -204,30 +384,17 @@
         {
           "indexed": false,
           "internalType": "uint256",
-          "name": "fee",
-          "type": "uint256"
-        }
-      ],
-      "name": "CollateralWithdrawn",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "oldCollateralizationRatio",
+          "name": "withdrawn",
           "type": "uint256"
         },
         {
           "indexed": false,
           "internalType": "uint256",
-          "name": "newCollateralizationRatio",
+          "name": "fee",
           "type": "uint256"
         }
       ],
-      "name": "CollateralizationRatioUpdated",
+      "name": "CollateralWithdrawn",
       "type": "event"
     },
     {
@@ -369,7 +536,7 @@
     },
     {
       "inputs": [],
-      "name": "collateralizationRatio",
+      "name": "collateralFactor",
       "outputs": [
         {
           "internalType": "uint256",
@@ -431,7 +598,18 @@
         }
       ],
       "name": "deposit",
-      "outputs": [],
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "_deposited",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_fee",
+          "type": "uint256"
+        }
+      ],
       "stateMutability": "nonpayable",
       "type": "function"
     },
@@ -486,6 +664,11 @@
         },
         {
           "internalType": "string",
+          "name": "name_",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
           "name": "symbol_",
           "type": "string"
         },
@@ -496,7 +679,7 @@
         },
         {
           "internalType": "uint128",
-          "name": "collateralizationRatio_",
+          "name": "collateralFactor_",
           "type": "uint128"
         },
         {
@@ -518,25 +701,6 @@
           "internalType": "bool",
           "name": "",
           "type": "bool"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "name": "lastDepositOf",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
         }
       ],
       "stateMutability": "view",
@@ -595,6 +759,102 @@
           "internalType": "contract IPool",
           "name": "",
           "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "amountToDeposit_",
+          "type": "uint256"
+        }
+      ],
+      "name": "quoteDepositIn",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "_amount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_fee",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "amount_",
+          "type": "uint256"
+        }
+      ],
+      "name": "quoteDepositOut",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "_amountToDeposit",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_fee",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "amountToWithdraw_",
+          "type": "uint256"
+        }
+      ],
+      "name": "quoteWithdrawIn",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "_amount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_fee",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "amount_",
+          "type": "uint256"
+        }
+      ],
+      "name": "quoteWithdrawOut",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "_amountToWithdraw",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_fee",
+          "type": "uint256"
         }
       ],
       "stateMutability": "view",
@@ -768,11 +1028,11 @@
       "inputs": [
         {
           "internalType": "uint128",
-          "name": "newCollateralizationRatio_",
+          "name": "newCollateralFactor_",
           "type": "uint128"
         }
       ],
-      "name": "updateCollateralizationRatio",
+      "name": "updateCollateralFactor",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -804,7 +1064,18 @@
         }
       ],
       "name": "withdraw",
-      "outputs": [],
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "_withdrawn",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_fee",
+          "type": "uint256"
+        }
+      ],
       "stateMutability": "nonpayable",
       "type": "function"
     },
@@ -830,52 +1101,52 @@
       "type": "constructor"
     }
   ],
-  "transactionHash": "0x8eab12c33794165cf66e3ff73c9c086d512eb8c93ea84744584b6b69fec97b94",
+  "transactionHash": "0x09e576a7e7bd538cc184917257a0ee256c78f8dc82fbc85d4f78201e102aadad",
   "receipt": {
     "to": null,
-    "from": "0x76d266DFD3754f090488ae12F6Bd115cD7E77eBD",
-    "contractAddress": "0x335e4BA7152C96dd19Db8c7138C55B8Bd74ea53A",
-    "transactionIndex": 0,
-    "gasUsed": "904649",
-    "logsBloom": "0x00000000000000000000000000000800400000000000000000000000000000040000000000800000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000004000000000000000000004000000000000000000000020000000000000000000000000000000000400000000000000000000000000000000000000000000200000000000000000000000000000000000000000",
-    "blockHash": "0xf650c7e43abba36f82cb2460fccb2a7133b586b47dbe649b2426fc6198910bd2",
-    "transactionHash": "0x8eab12c33794165cf66e3ff73c9c086d512eb8c93ea84744584b6b69fec97b94",
+    "from": "0x421af9aBC87197A917b87f8d2b2D8B0213D47Dbe",
+    "contractAddress": "0xA77B145c7Fa5B412eb8aD41D587bE892b9c1EfC3",
+    "transactionIndex": 131,
+    "gasUsed": "906137",
+    "logsBloom": "0x00000000000000000000000000000000400000000000000000000000800000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000000002000000000000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000000000000000000000000880000000000000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000400000000000000000004000000000200000000000200000000000000000000000000000000000000000000",
+    "blockHash": "0x406665d3e8470e3f799706e4f983b4a9fb8f231a289b207236d5d4ee8155b54e",
+    "transactionHash": "0x09e576a7e7bd538cc184917257a0ee256c78f8dc82fbc85d4f78201e102aadad",
     "logs": [
       {
-        "transactionIndex": 0,
-        "blockNumber": 15696002,
-        "transactionHash": "0x8eab12c33794165cf66e3ff73c9c086d512eb8c93ea84744584b6b69fec97b94",
-        "address": "0x335e4BA7152C96dd19Db8c7138C55B8Bd74ea53A",
+        "transactionIndex": 131,
+        "blockNumber": 16192093,
+        "transactionHash": "0x09e576a7e7bd538cc184917257a0ee256c78f8dc82fbc85d4f78201e102aadad",
+        "address": "0xA77B145c7Fa5B412eb8aD41D587bE892b9c1EfC3",
         "topics": [
           "0xbc7cd75a20ee27fd9adebab32041f755214dbc6bffa90cc0225b39da2e5c2d3b",
-          "0x000000000000000000000000e4dfd8bf9fa718af957a808b9bf8ec3fe5ed31c9"
+          "0x000000000000000000000000d2a807d8bfd8a8666fa22e2d76acd38bf893f244"
         ],
         "data": "0x",
-        "logIndex": 0,
-        "blockHash": "0xf650c7e43abba36f82cb2460fccb2a7133b586b47dbe649b2426fc6198910bd2"
+        "logIndex": 262,
+        "blockHash": "0x406665d3e8470e3f799706e4f983b4a9fb8f231a289b207236d5d4ee8155b54e"
       },
       {
-        "transactionIndex": 0,
-        "blockNumber": 15696002,
-        "transactionHash": "0x8eab12c33794165cf66e3ff73c9c086d512eb8c93ea84744584b6b69fec97b94",
-        "address": "0x335e4BA7152C96dd19Db8c7138C55B8Bd74ea53A",
+        "transactionIndex": 131,
+        "blockNumber": 16192093,
+        "transactionHash": "0x09e576a7e7bd538cc184917257a0ee256c78f8dc82fbc85d4f78201e102aadad",
+        "address": "0xA77B145c7Fa5B412eb8aD41D587bE892b9c1EfC3",
         "topics": [
           "0x7e644d79422f17c01e4894b5f4f588d331ebfa28653d42ae832dc59e38c9798f"
         ],
-        "data": "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000f3d0cdc22672ecf1eda6438bfa88126ac382aec6",
-        "logIndex": 1,
-        "blockHash": "0xf650c7e43abba36f82cb2460fccb2a7133b586b47dbe649b2426fc6198910bd2"
+        "data": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000009f9dacf7a44c961b747a550631a6086e71bf696b",
+        "logIndex": 263,
+        "blockHash": "0x406665d3e8470e3f799706e4f983b4a9fb8f231a289b207236d5d4ee8155b54e"
       }
     ],
-    "blockNumber": 15696002,
-    "cumulativeGasUsed": "904649",
+    "blockNumber": 16192093,
+    "cumulativeGasUsed": "11804268",
     "status": 1,
     "byzantium": true
   },
   "args": [
-    "0xE4DFD8bf9fa718af957a808B9bf8eC3fE5eD31C9",
-    "0xF3D0CDC22672ecF1EDa6438bfa88126AC382aEc6",
-    "0xea180f27000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc20000000000000000000000003f18ab22298b5faca652c267bf0b6a5bca078bac00000000000000000000000000000000000000000000000000000000000000c0000000000000000000000000000000000000000000000000000000000000001200000000000000000000000000000000000000000000000006f05b59d3b200000000000000000000000000000000000000000000000000022b1c8c1227a0000000000000000000000000000000000000000000000000000000000000000000076d73645745544800000000000000000000000000000000000000000000000000"
+    "0xD2a807d8bfd8a8666FA22E2d76acD38BF893F244",
+    "0x9f9DAcF7A44C961B747a550631A6086e71Bf696b",
+    "0xffc0e17e000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc20000000000000000000000003364f53cb866762aef66deef2a6b1a17c1f17f4600000000000000000000000000000000000000000000000000000000000000e00000000000000000000000000000000000000000000000000000000000000120000000000000000000000000000000000000000000000000000000000000001200000000000000000000000000000000000000000000000006f05b59d3b200000000000000000000000000000000000000000000000000022b1c8c1227a00000000000000000000000000000000000000000000000000000000000000000001c4d6574726f6e6f6d652053796e746820574554482d4465706f7369740000000000000000000000000000000000000000000000000000000000000000000000096d7364574554482d310000000000000000000000000000000000000000000000"
   ],
   "numDeployments": 1,
   "solcInputHash": "0e89febeebc7444140de8e67c9067d2c",
@@ -886,8 +1157,9 @@
     "methodName": "initialize",
     "args": [
       "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
-      "0x3F18AB22298b5FAca652c267BF0b6A5bCa078bAc",
-      "msdWETH",
+      "0x3364f53cB866762Aef66DeEF2a6b1a17C1F17f46",
+      "Metronome Synth WETH-Deposit",
+      "msdWETH-1",
       18,
       {
         "type": "BigNumber",
@@ -899,7 +1171,7 @@
       }
     ]
   },
-  "implementation": "0xE4DFD8bf9fa718af957a808B9bf8eC3fE5eD31C9",
+  "implementation": "0xD2a807d8bfd8a8666FA22E2d76acD38BF893F244",
   "devdoc": {
     "details": "This contract implements a proxy that is upgradeable by an admin. To avoid https://medium.com/nomic-labs-blog/malicious-backdoors-in-ethereum-proxies-62629adf3357[proxy selector clashing], which can potentially be used in an attack, this contract uses the https://blog.openzeppelin.com/the-transparent-proxy-pattern/[transparent proxy pattern]. This pattern implies two things that go hand in hand: 1. If any account other than the admin calls the proxy, the call will be forwarded to the implementation, even if that call matches one of the admin functions exposed by the proxy itself. 2. If the admin calls the proxy, it can access the admin functions, but its calls will never be forwarded to the implementation. If the admin tries to call a function on the implementation it will fail with an error that says \"admin cannot fallback to proxy target\". These properties mean that the admin account can only be used for admin actions like upgrading the proxy or changing the admin, so it's best if it's a dedicated account that is not used for anything else. This will avoid headaches due to sudden errors when trying to call a function from the proxy implementation. Our recommendation is for the dedicated account to be an instance of the {ProxyAdmin} contract. If set up this way, you should think of the `ProxyAdmin` instance as the real administrative interface of your proxy.",
     "kind": "dev",

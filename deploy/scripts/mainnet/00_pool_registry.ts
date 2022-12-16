@@ -2,7 +2,6 @@ import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
 import {UpgradableContracts, deployUpgradable} from '../../helpers'
 import Address from '../../../helpers/address'
-const {MASTER_ORACLE_ADDRESS} = Address
 
 const {
   PoolRegistry: {alias: PoolRegistry},

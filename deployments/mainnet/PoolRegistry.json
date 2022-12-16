@@ -1,5 +1,5 @@
 {
-  "address": "0xbf571976E411cbEC9E5a3BcE817Ae9E4fC570115",
+  "address": "0x11eaD85C679eAF528c9C1FE094bF538Db880048A",
   "abi": [
     {
       "anonymous": false,
@@ -125,6 +125,86 @@
       "type": "receive"
     },
     {
+      "inputs": [],
+      "name": "AddressIsNull",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "AlreadyRegistered",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "FallbackIsNotAllowed",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "FeeCollectorIsNull",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "IsNotPaused",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "IsNotShutdown",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "IsPaused",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "IsShutdown",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "NativeTokenGatewayIsNull",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "NewValueIsSameAsCurrent",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "OracleIsNull",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "ProposedGovernorIsNull",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "ReceiveIsNotAllowed",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "SenderIsNotGovernor",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "SenderIsNotTheProposedGovernor",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "UnregisteredPool",
+      "type": "error"
+    },
+    {
       "anonymous": false,
       "inputs": [
         {
@@ -166,7 +246,26 @@
       "anonymous": false,
       "inputs": [
         {
-          "indexed": false,
+          "indexed": true,
+          "internalType": "address",
+          "name": "oldGateway",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "newGateway",
+          "type": "address"
+        }
+      ],
+      "name": "NativeTokenGatewayUpdated",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
           "internalType": "address",
           "name": "caller",
           "type": "address"
@@ -179,7 +278,7 @@
       "anonymous": false,
       "inputs": [
         {
-          "indexed": false,
+          "indexed": true,
           "internalType": "address",
           "name": "caller",
           "type": "address"
@@ -192,7 +291,13 @@
       "anonymous": false,
       "inputs": [
         {
-          "indexed": false,
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "id",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
           "internalType": "address",
           "name": "pool",
           "type": "address"
@@ -205,7 +310,13 @@
       "anonymous": false,
       "inputs": [
         {
-          "indexed": false,
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "id",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
           "internalType": "address",
           "name": "pool",
           "type": "address"
@@ -218,7 +329,7 @@
       "anonymous": false,
       "inputs": [
         {
-          "indexed": false,
+          "indexed": true,
           "internalType": "address",
           "name": "caller",
           "type": "address"
@@ -231,7 +342,7 @@
       "anonymous": false,
       "inputs": [
         {
-          "indexed": false,
+          "indexed": true,
           "internalType": "address",
           "name": "caller",
           "type": "address"
@@ -334,6 +445,25 @@
     {
       "inputs": [
         {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "idOfPool",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
           "internalType": "contract IMasterOracle",
           "name": "masterOracle_",
           "type": "address"
@@ -350,6 +480,25 @@
       "type": "function"
     },
     {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "pool_",
+          "type": "address"
+        }
+      ],
+      "name": "isPoolRegistered",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
       "inputs": [],
       "name": "masterOracle",
       "outputs": [
@@ -357,6 +506,32 @@
           "internalType": "contract IMasterOracle",
           "name": "",
           "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "nativeTokenGateway",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "nextPoolId",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
         }
       ],
       "stateMutability": "view",
@@ -379,25 +554,6 @@
     {
       "inputs": [],
       "name": "paused",
-      "outputs": [
-        {
-          "internalType": "bool",
-          "name": "",
-          "type": "bool"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "pool_",
-          "type": "address"
-        }
-      ],
-      "name": "poolExists",
       "outputs": [
         {
           "internalType": "bool",
@@ -527,6 +683,19 @@
       "inputs": [
         {
           "internalType": "address",
+          "name": "newGateway_",
+          "type": "address"
+        }
+      ],
+      "name": "updateNativeTokenGateway",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
           "name": "_logic",
           "type": "address"
         },
@@ -545,66 +714,66 @@
       "type": "constructor"
     }
   ],
-  "transactionHash": "0x82d55d6801f5894e06863f2c1b1a31a7dfba5e92948ff72984314e15194977eb",
+  "transactionHash": "0x7ca9d807f25e88f43dcc3a788cb9e15d1d155d8e64e865ffbbcbbbf0cf42903f",
   "receipt": {
     "to": null,
-    "from": "0x76d266DFD3754f090488ae12F6Bd115cD7E77eBD",
-    "contractAddress": "0xbf571976E411cbEC9E5a3BcE817Ae9E4fC570115",
-    "transactionIndex": 14,
-    "gasUsed": "836985",
-    "logsBloom": "0x00000000000000000000000000000800400000000004000000000000000000000000000000000000000000000000000000000000000000000000a00000000000040000000000000400000000000002000000000000000000000000000000000000000000020100000000002000000800000000800000000000000000000000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000008000000000000000000000000000000000000000000020000010000000000000000000000000000400000000000000000020000000000000000000000000000000000000000000400000000000000001000000",
-    "blockHash": "0xea6904a9800e8da398417ea1197da32b33d0719cb3ba6eb2e7377b5a341d6a97",
-    "transactionHash": "0x82d55d6801f5894e06863f2c1b1a31a7dfba5e92948ff72984314e15194977eb",
+    "from": "0x421af9aBC87197A917b87f8d2b2D8B0213D47Dbe",
+    "contractAddress": "0x11eaD85C679eAF528c9C1FE094bF538Db880048A",
+    "transactionIndex": 150,
+    "gasUsed": "859135",
+    "logsBloom": "0x00100000000000000000000000000000400000000000000000000000000000000040000000000000000000000000000000000000000000000020800000000000000000000000000400000000000002000000000000000000000000000000000000000000020000000010000000000800000000800000000000000000000100000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000008000000000000000000000000000000000000000000820000000000002000000000000000000000400000000000040000020000000000000000000000000000000200000000000000000000000000000000000",
+    "blockHash": "0x9bacfdc03ace1ff71371aec7a5fa9c59206d43f806761da51d43394a5aa5dd44",
+    "transactionHash": "0x7ca9d807f25e88f43dcc3a788cb9e15d1d155d8e64e865ffbbcbbbf0cf42903f",
     "logs": [
       {
-        "transactionIndex": 14,
-        "blockNumber": 15695977,
-        "transactionHash": "0x82d55d6801f5894e06863f2c1b1a31a7dfba5e92948ff72984314e15194977eb",
-        "address": "0xbf571976E411cbEC9E5a3BcE817Ae9E4fC570115",
+        "transactionIndex": 150,
+        "blockNumber": 16191971,
+        "transactionHash": "0x7ca9d807f25e88f43dcc3a788cb9e15d1d155d8e64e865ffbbcbbbf0cf42903f",
+        "address": "0x11eaD85C679eAF528c9C1FE094bF538Db880048A",
         "topics": [
           "0xbc7cd75a20ee27fd9adebab32041f755214dbc6bffa90cc0225b39da2e5c2d3b",
-          "0x000000000000000000000000baf4eaed7cc1cbb3d6f2f3b89493dbb9764e8b44"
+          "0x000000000000000000000000017cc576e12c700660f98481affdf46dcbf78a1b"
         ],
         "data": "0x",
-        "logIndex": 39,
-        "blockHash": "0xea6904a9800e8da398417ea1197da32b33d0719cb3ba6eb2e7377b5a341d6a97"
+        "logIndex": 339,
+        "blockHash": "0x9bacfdc03ace1ff71371aec7a5fa9c59206d43f806761da51d43394a5aa5dd44"
       },
       {
-        "transactionIndex": 14,
-        "blockNumber": 15695977,
-        "transactionHash": "0x82d55d6801f5894e06863f2c1b1a31a7dfba5e92948ff72984314e15194977eb",
-        "address": "0xbf571976E411cbEC9E5a3BcE817Ae9E4fC570115",
+        "transactionIndex": 150,
+        "blockNumber": 16191971,
+        "transactionHash": "0x7ca9d807f25e88f43dcc3a788cb9e15d1d155d8e64e865ffbbcbbbf0cf42903f",
+        "address": "0x11eaD85C679eAF528c9C1FE094bF538Db880048A",
         "topics": [
           "0xd4459d5b8b913cab0244230fd9b1c08b6ceace7fe9230e60d0f74cbffdf849d0",
           "0x0000000000000000000000000000000000000000000000000000000000000000",
-          "0x00000000000000000000000076d266dfd3754f090488ae12f6bd115cd7e77ebd"
+          "0x000000000000000000000000421af9abc87197a917b87f8d2b2d8b0213d47dbe"
         ],
         "data": "0x",
-        "logIndex": 40,
-        "blockHash": "0xea6904a9800e8da398417ea1197da32b33d0719cb3ba6eb2e7377b5a341d6a97"
+        "logIndex": 340,
+        "blockHash": "0x9bacfdc03ace1ff71371aec7a5fa9c59206d43f806761da51d43394a5aa5dd44"
       },
       {
-        "transactionIndex": 14,
-        "blockNumber": 15695977,
-        "transactionHash": "0x82d55d6801f5894e06863f2c1b1a31a7dfba5e92948ff72984314e15194977eb",
-        "address": "0xbf571976E411cbEC9E5a3BcE817Ae9E4fC570115",
+        "transactionIndex": 150,
+        "blockNumber": 16191971,
+        "transactionHash": "0x7ca9d807f25e88f43dcc3a788cb9e15d1d155d8e64e865ffbbcbbbf0cf42903f",
+        "address": "0x11eaD85C679eAF528c9C1FE094bF538Db880048A",
         "topics": [
           "0x7e644d79422f17c01e4894b5f4f588d331ebfa28653d42ae832dc59e38c9798f"
         ],
-        "data": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000005079e29313b3d9021bc4a82194b6bc32abe8315b",
-        "logIndex": 41,
-        "blockHash": "0xea6904a9800e8da398417ea1197da32b33d0719cb3ba6eb2e7377b5a341d6a97"
+        "data": "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000559fe5aef2c472100d77bd7184565ddec06d09d6",
+        "logIndex": 341,
+        "blockHash": "0x9bacfdc03ace1ff71371aec7a5fa9c59206d43f806761da51d43394a5aa5dd44"
       }
     ],
-    "blockNumber": 15695977,
-    "cumulativeGasUsed": "1842022",
+    "blockNumber": 16191971,
+    "cumulativeGasUsed": "15232709",
     "status": 1,
     "byzantium": true
   },
   "args": [
-    "0xbaf4eAED7CC1Cbb3d6f2f3B89493dbb9764E8B44",
-    "0x5079E29313b3D9021Bc4a82194B6BC32AbE8315B",
-    "0x485cc955000000000000000000000000db2d0baae78f1dc2a8504b471f3cea257b2c3766000000000000000000000000d1de3f9cd4ae2f23da941a67ca4c739f8dd9af33"
+    "0x017Cc576e12C700660f98481affDF46dCBf78A1b",
+    "0x559fe5AEF2C472100D77bd7184565DDeC06d09d6",
+    "0x485cc95500000000000000000000000080704acdf97723963263c78f861f091ad04f46e2000000000000000000000000d1de3f9cd4ae2f23da941a67ca4c739f8dd9af33"
   ],
   "numDeployments": 1,
   "solcInputHash": "0e89febeebc7444140de8e67c9067d2c",
@@ -614,11 +783,11 @@
   "execute": {
     "methodName": "initialize",
     "args": [
-      "0xdB2D0baae78f1dc2A8504B471F3cea257b2C3766",
+      "0x80704Acdf97723963263c78F861F091ad04F46E2",
       "0xd1DE3F9CD4AE2F23DA941a67cA4C739f8dD9Af33"
     ]
   },
-  "implementation": "0xbaf4eAED7CC1Cbb3d6f2f3B89493dbb9764E8B44",
+  "implementation": "0x017Cc576e12C700660f98481affDF46dCBf78A1b",
   "devdoc": {
     "details": "This contract implements a proxy that is upgradeable by an admin. To avoid https://medium.com/nomic-labs-blog/malicious-backdoors-in-ethereum-proxies-62629adf3357[proxy selector clashing], which can potentially be used in an attack, this contract uses the https://blog.openzeppelin.com/the-transparent-proxy-pattern/[transparent proxy pattern]. This pattern implies two things that go hand in hand: 1. If any account other than the admin calls the proxy, the call will be forwarded to the implementation, even if that call matches one of the admin functions exposed by the proxy itself. 2. If the admin calls the proxy, it can access the admin functions, but its calls will never be forwarded to the implementation. If the admin tries to call a function on the implementation it will fail with an error that says \"admin cannot fallback to proxy target\". These properties mean that the admin account can only be used for admin actions like upgrading the proxy or changing the admin, so it's best if it's a dedicated account that is not used for anything else. This will avoid headaches due to sudden errors when trying to call a function from the proxy implementation. Our recommendation is for the dedicated account to be an instance of the {ProxyAdmin} contract. If set up this way, you should think of the `ProxyAdmin` instance as the real administrative interface of your proxy.",
     "kind": "dev",
