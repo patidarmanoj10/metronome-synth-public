@@ -8,8 +8,8 @@ const func = buildDepositDeployFunction({
   underlyingAddress: VAWBTC_ADDRESS,
   underlyingSymbol: 'vaWBTC',
   underlyingDecimals: 18,
-  collateralFactor: parseEther('0.5'), // 50%
-  maxTotalSupply: parseEther('5'),
+  collateralFactor: parseEther('0.6'), // 60%
+  maxTotalSupply: parseEther('6'),
 })
 
 export default func

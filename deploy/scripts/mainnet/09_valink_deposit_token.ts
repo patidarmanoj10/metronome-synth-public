@@ -8,8 +8,8 @@ const func = buildDepositDeployFunction({
   underlyingAddress: VALINK_ADDRESS,
   underlyingSymbol: 'vaLINK',
   underlyingDecimals: 18,
-  collateralFactor: parseEther('0.5'), // 50%
-  maxTotalSupply: parseEther('7000'),
+  collateralFactor: parseEther('0.6'), // 60%
+  maxTotalSupply: parseEther('14000'),
 })
 
 export default func

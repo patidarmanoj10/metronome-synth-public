@@ -5,8 +5,8 @@ const func = buildSyntheticDeployFunction({
   name: 'Metronome Synth ETH',
   symbol: 'msETH',
   decimals: 18,
-  interestRate: parseEther('0'), // 0%
-  maxTotalSupply: parseEther('40'),
+  interestRate: parseEther('0.01'), // 1%
+  maxTotalSupply: parseEther('1250'),
 })
 
 export default func
