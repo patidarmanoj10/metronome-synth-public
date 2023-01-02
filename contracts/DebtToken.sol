@@ -485,7 +485,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
         totalSupply_ += amount_;
         if (totalSupply_ > maxTotalSupply) revert SurpassMaxDebtSupply();
 
-        principalOf[account_] += amount_;
+        principalOf[account_] = _balanceBefore + amount_;
         debtIndexOf[account_] = debtIndex;
         emit Transfer(address(0), account_, amount_);
 

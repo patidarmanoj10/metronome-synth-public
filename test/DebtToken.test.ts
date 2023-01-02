@@ -869,6 +869,114 @@ describe('DebtToken', function () {
       expect(creditOfUser).eq(principal)
       expect(totalCredit).eq(creditOfUser.add(creditOfFeeCollector))
     })
+
+    describe('should accrue correctly when issuing/repaying successively', function () {
+      const dust = '1000'
+
+      beforeEach(async function () {
+        expect(await msUSD.balanceOf(user1.address)).eq(parseEther('100'))
+        expect(await msUSDDebt.balanceOf(user1.address)).eq(parseEther('100'))
+        await msUSDDebt.updateInterestRate(parseEther('0.1')) // 10%
+      })
+
+      it('calling accrueInterest', async function () {
+        // given
+        await time.increase(time.duration.years(1))
+        await msUSDDebt.accrueInterest()
+        expect(await msUSD.balanceOf(user1.address)).eq(parseEther('100'))
+        expect(await msUSDDebt.balanceOf(user1.address)).closeTo(parseEther('110'), parseEther('1'))
+        expect(await msUSDDebt.totalSupply()).eq(await msUSDDebt.balanceOf(user1.address))
+
+        // when
+        // 2nd issuance
+        await msUSDDebt.connect(user1).issue(parseEther('100'), user1.address)
+        expect(await msUSD.balanceOf(user1.address)).eq(parseEther('200'))
+        expect(await msUSDDebt.balanceOf(user1.address)).closeTo(parseEther('210'), parseEther('1'))
+        expect(await msUSDDebt.totalSupply()).closeTo(await msUSDDebt.balanceOf(user1.address), dust)
+        await time.increase(time.duration.years(1))
+        await msUSDDebt.accrueInterest()
+        expect(await msUSD.balanceOf(user1.address)).eq(parseEther('200'))
+        expect(await msUSDDebt.balanceOf(user1.address)).closeTo(parseEther('231'), parseEther('1'))
+        expect(await msUSDDebt.totalSupply()).closeTo(await msUSDDebt.balanceOf(user1.address), dust)
+        // 1st repayment
+        await msUSDDebt.connect(user1).repay(user1.address, parseEther('100'))
+        expect(await msUSD.balanceOf(user1.address)).eq(parseEther('100'))
+        expect(await msUSDDebt.balanceOf(user1.address)).closeTo(parseEther('131'), parseEther('1'))
+        expect(await msUSDDebt.totalSupply()).closeTo(await msUSDDebt.balanceOf(user1.address), dust)
+        await time.increase(time.duration.years(1))
+        await msUSDDebt.accrueInterest()
+        expect(await msUSD.balanceOf(user1.address)).eq(parseEther('100'))
+        expect(await msUSDDebt.balanceOf(user1.address)).closeTo(parseEther('144'), parseEther('1'))
+        expect(await msUSDDebt.totalSupply()).closeTo(await msUSDDebt.balanceOf(user1.address), dust)
+        // 2nd repayment
+        await msUSDDebt.connect(user1).repay(user1.address, parseEther('50'))
+        expect(await msUSD.balanceOf(user1.address)).eq(parseEther('50'))
+        expect(await msUSDDebt.balanceOf(user1.address)).closeTo(parseEther('94'), parseEther('1'))
+        expect(await msUSDDebt.totalSupply()).closeTo(await msUSDDebt.balanceOf(user1.address), dust)
+        await time.increase(time.duration.years(1))
+        await msUSDDebt.accrueInterest()
+        expect(await msUSD.balanceOf(user1.address)).eq(parseEther('50'))
+        expect(await msUSDDebt.balanceOf(user1.address)).closeTo(parseEther('103'), parseEther('1'))
+        expect(await msUSDDebt.totalSupply()).closeTo(await msUSDDebt.balanceOf(user1.address), dust)
+        // 3rd repayment (all)
+        const {_amount: repayAllAmount} = await msUSDDebt.quoteRepayIn(await msUSDDebt.balanceOf(user1.address))
+        await met.mint(user2.address, parseEther('1000'))
+        await met.connect(user2).approve(msdMET.address, ethers.constants.MaxUint256)
+        await msdMET.connect(user2).deposit(parseEther('1000'), user2.address)
+
+        await msUSDDebt.connect(user2).issue(repayAllAmount, user1.address)
+        await msUSDDebt.connect(user1).repayAll(user1.address)
+        expect(await msUSDDebt.balanceOf(user1.address)).eq(0)
+        expect(await msUSDDebt.totalSupply()).closeTo(await msUSDDebt.balanceOf(user2.address), dust)
+      })
+
+      it('without calling accrueInterest', async function () {
+        // given
+        await time.increase(time.duration.years(1))
+        await msUSDDebt.accrueInterest()
+        expect(await msUSD.balanceOf(user1.address)).eq(parseEther('100'))
+        expect(await msUSDDebt.balanceOf(user1.address)).closeTo(parseEther('110'), parseEther('1'))
+        expect(await msUSDDebt.totalSupply()).eq(await msUSDDebt.balanceOf(user1.address))
+
+        // when
+        // 2nd issuance
+        await msUSDDebt.connect(user1).issue(parseEther('100'), user1.address)
+        expect(await msUSD.balanceOf(user1.address)).eq(parseEther('200'))
+        expect(await msUSDDebt.balanceOf(user1.address)).closeTo(parseEther('210'), parseEther('1'))
+        expect(await msUSDDebt.totalSupply()).closeTo(await msUSDDebt.balanceOf(user1.address), dust)
+        await time.increase(time.duration.years(1))
+        expect(await msUSD.balanceOf(user1.address)).eq(parseEther('200'))
+        expect(await msUSDDebt.balanceOf(user1.address)).closeTo(parseEther('231'), parseEther('1'))
+        expect(await msUSDDebt.totalSupply()).closeTo(await msUSDDebt.balanceOf(user1.address), dust)
+        // 1st repayment
+        await msUSDDebt.connect(user1).repay(user1.address, parseEther('100'))
+        expect(await msUSD.balanceOf(user1.address)).eq(parseEther('100'))
+        expect(await msUSDDebt.balanceOf(user1.address)).closeTo(parseEther('131'), parseEther('1'))
+        expect(await msUSDDebt.totalSupply()).closeTo(await msUSDDebt.balanceOf(user1.address), dust)
+        await time.increase(time.duration.years(1))
+        expect(await msUSD.balanceOf(user1.address)).eq(parseEther('100'))
+        expect(await msUSDDebt.balanceOf(user1.address)).closeTo(parseEther('144'), parseEther('1'))
+        expect(await msUSDDebt.totalSupply()).closeTo(await msUSDDebt.balanceOf(user1.address), dust)
+        // 2nd repayment
+        await msUSDDebt.connect(user1).repay(user1.address, parseEther('50'))
+        expect(await msUSD.balanceOf(user1.address)).eq(parseEther('50'))
+        expect(await msUSDDebt.balanceOf(user1.address)).closeTo(parseEther('94'), parseEther('1'))
+        expect(await msUSDDebt.totalSupply()).closeTo(await msUSDDebt.balanceOf(user1.address), dust)
+        await time.increase(time.duration.years(1))
+        expect(await msUSD.balanceOf(user1.address)).eq(parseEther('50'))
+        expect(await msUSDDebt.balanceOf(user1.address)).closeTo(parseEther('103'), parseEther('1'))
+        expect(await msUSDDebt.totalSupply()).closeTo(await msUSDDebt.balanceOf(user1.address), dust)
+        // 3rd repayment (all)
+        const {_amount: repayAllAmount} = await msUSDDebt.quoteRepayIn(await msUSDDebt.balanceOf(user1.address))
+        await met.mint(user2.address, parseEther('1000'))
+        await met.connect(user2).approve(msdMET.address, ethers.constants.MaxUint256)
+        await msdMET.connect(user2).deposit(parseEther('1000'), user2.address)
+        await msUSDDebt.connect(user2).issue(repayAllAmount, user1.address)
+        await msUSDDebt.connect(user1).repayAll(user1.address)
+        expect(await msUSDDebt.balanceOf(user1.address)).eq(0)
+        expect(await msUSDDebt.totalSupply()).closeTo(await msUSDDebt.balanceOf(user2.address), dust)
+      })
+    })
   })
 
   describe('updateMaxTotalSupply', function () {
