@@ -95,9 +95,12 @@ const getBalancesSlot = (token: string) => {
       [Address.WETH_ADDRESS]: 3,
       [Address.USDC_ADDRESS]: 9,
       [Address.DAI_ADDRESS]: 2,
+      [Address.FRAX_ADDRESS]: 0,      
       [Address.USDT_ADDRESS]: 2,
-      [Address.VAWBTC_ADDRESS]: 0,
+      [Address.VAFRAX_ADDRESS]: 0,
+      [Address.VAUSDC_ADDRESS]: 0,
       [Address.VAETH_ADDRESS]: 0,
+      [Address.WBTC_ADDRESS]: 0,
     },
     [43114]: {
       [Address.WAVAX_ADDRESS]: 3,

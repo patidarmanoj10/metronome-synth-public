@@ -8,8 +8,8 @@ const func = buildDepositDeployFunction({
   underlyingAddress: VADAI_ADDRESS,
   underlyingSymbol: 'vaDAI',
   underlyingDecimals: 18,
-  collateralFactor: parseEther('0.5'), // 50%
-  maxTotalSupply: parseEther('50000'),
+  collateralFactor: parseEther('0.6'), // 60%
+  maxTotalSupply: parseEther('100000'),
 })
 
 export default func

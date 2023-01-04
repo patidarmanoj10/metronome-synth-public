@@ -8,8 +8,8 @@ const func = buildDepositDeployFunction({
   underlyingAddress: WETH_ADDRESS,
   underlyingSymbol: 'WETH',
   underlyingDecimals: 18,
-  collateralFactor: parseEther('0.5'), // 50%
-  maxTotalSupply: parseEther('40'),
+  collateralFactor: parseEther('0.7'), // 70%
+  maxTotalSupply: parseEther('80'),
 })
 
 export default func
