@@ -32,6 +32,10 @@ import {
   PoolRegistryUpgrader__factory,
   PoolUpgrader,
   PoolUpgrader__factory,
+  FeeProvider,
+  FeeProviderUpgrader,
+  FeeProvider__factory,
+  FeeProviderUpgrader__factory,
 } from '../typechain'
 import {disableForking, enableForking} from './helpers'
 import Address from '../helpers/address'
@@ -57,6 +61,8 @@ describe('Deployments', function () {
   let wethGateway: NativeTokenGateway
   let poolRegistry: PoolRegistry
   let poolRegistryUpgrader: PoolRegistryUpgrader
+  let feeProvider: FeeProvider
+  let feeProviderUpgrader: FeeProviderUpgrader
 
   // Note: Enabling fork to be able to use MultiCall contract
   before(enableForking)
@@ -84,6 +90,8 @@ describe('Deployments', function () {
       NativeTokenGateway: {address: wethGatewayAddress},
       PoolRegistry: {address: poolRegistryAddress},
       PoolRegistryUpgrader: {address: poolRegistryUpgraderAddress},
+      FeeProvider: {address: feeProviderAddress},
+      FeeProviderUpgrader: {address: feeProviderUpgraderAddress},
     } = await deployments.fixture()
 
     pool = Pool__factory.connect(poolAddress, deployer)
@@ -108,6 +116,9 @@ describe('Deployments', function () {
 
     poolRegistry = PoolRegistry__factory.connect(poolRegistryAddress, deployer)
     poolRegistryUpgrader = PoolRegistryUpgrader__factory.connect(poolRegistryUpgraderAddress, deployer)
+
+    feeProvider = FeeProvider__factory.connect(feeProviderAddress, deployer)
+    feeProviderUpgrader = FeeProviderUpgrader__factory.connect(feeProviderUpgraderAddress, deployer)
   })
 
   const upgradeTestCase = async function ({
@@ -395,22 +406,55 @@ describe('Deployments', function () {
         })
       })
     })
+  })
 
-    describe('PoolRegistry', function () {
-      it('should have correct params', async function () {
-        expect(await poolRegistry.governor()).eq(deployer.address)
-        expect(await poolRegistry.masterOracle()).eq(MASTER_ORACLE_ADDRESS)
-        expect(await poolRegistry.isPoolRegistered(pool.address)).true
-        expect(await poolRegistry.nativeTokenGateway()).eq(wethGateway.address)
+  describe('PoolRegistry', function () {
+    it('should have correct params', async function () {
+      expect(await poolRegistry.governor()).eq(deployer.address)
+      expect(await poolRegistry.masterOracle()).eq(MASTER_ORACLE_ADDRESS)
+      expect(await poolRegistry.isPoolRegistered(pool.address)).true
+      expect(await poolRegistry.nativeTokenGateway()).eq(wethGateway.address)
+    })
+
+    it('should upgrade implementation', async function () {
+      await upgradeTestCase({
+        newImplFactory: new PoolRegistry__factory(deployer),
+        proxy: poolRegistry,
+        upgrader: poolRegistryUpgrader,
+        expectToFail: false,
       })
+    })
+  })
 
-      it('should upgrade implementation', async function () {
-        await upgradeTestCase({
-          newImplFactory: new PoolRegistry__factory(deployer),
-          proxy: poolRegistry,
-          upgrader: poolRegistryUpgrader,
-          expectToFail: false,
-        })
+  describe('FeeProvider', function () {
+    it('should have correct params', async function () {
+      expect(await feeProvider.governor()).eq(deployer.address)
+      expect(await feeProvider.proposedGovernor()).eq(ethers.constants.AddressZero)
+      expect(await feeProvider.depositFee()).eq(parseEther('0'))
+      expect(await feeProvider.issueFee()).eq(parseEther('0'))
+      expect(await feeProvider.withdrawFee()).eq(parseEther('0'))
+      expect(await feeProvider.repayFee()).eq(parseEther('0'))
+      expect(await feeProvider.swapFee()).eq(parseEther('0.0025'))
+      const {liquidatorIncentive, protocolFee} = await feeProvider.liquidationFees()
+      expect(liquidatorIncentive).eq(parseEther('0.1'))
+      expect(protocolFee).eq(parseEther('0.08'))
+    })
+
+    it('should upgrade implementation', async function () {
+      await upgradeTestCase({
+        newImplFactory: new FeeProvider__factory(deployer),
+        proxy: feeProvider,
+        upgrader: feeProviderUpgrader,
+        expectToFail: false,
+      })
+    })
+
+    it('should fail if implementation breaks storage', async function () {
+      await upgradeTestCase({
+        newImplFactory: new MasterOracleMock__factory(deployer),
+        proxy: feeProvider,
+        upgrader: feeProviderUpgrader,
+        expectToFail: true,
       })
     })
   })

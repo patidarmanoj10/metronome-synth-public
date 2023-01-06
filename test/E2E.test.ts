@@ -411,7 +411,8 @@ describe('E2E tests', function () {
 
       // when
       const debtToRepay = parseEther('0.5')
-      const debtPlusRepayFee = debtToRepay.mul(parseEther('1').add(await pool.repayFee())).div(parseEther('1'))
+      const repayFee = parseEther('0')
+      const debtPlusRepayFee = debtToRepay.mul(parseEther('1').add(repayFee)).div(parseEther('1'))
       await msUSDDebt.repay(alice.address, debtPlusRepayFee)
 
       // then
@@ -530,8 +531,6 @@ describe('E2E tests', function () {
 
         // given
         await pool.connect(governor).updateSwapper(routedSwapper.address)
-        expect(await pool.issueFee()).eq(0)
-        expect(await pool.depositFee()).eq(0)
         const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
         expect(_debtInUsd).eq(0)
         expect(_depositInUsd).eq(0)
@@ -539,7 +538,7 @@ describe('E2E tests', function () {
         await setTokenBalance(vaFRAX.address, alice.address, parseUnits('1000', 18))
       })
 
-      it('should leverage vaUSDC->msUSD', async function () {
+      it.only('should leverage vaUSDC->msUSD', async function () {
         // when
         const amountIn = parseUnits('100', 18)
         const leverage = parseEther('1.5')

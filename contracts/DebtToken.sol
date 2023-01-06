@@ -268,7 +268,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
      * @return _fee The fee amount to collect
      */
     function quoteIssueIn(uint256 amountToIssue_) external view override returns (uint256 _amount, uint256 _fee) {
-        uint256 _issueFee = pool.issueFee();
+        uint256 _issueFee = pool.feeProvider().issueFee();
         if (_issueFee == 0) {
             return (amountToIssue_, _fee);
         }
@@ -284,7 +284,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
      * @return _fee The fee amount to collect
      */
     function quoteIssueOut(uint256 amount_) public view override returns (uint256 _amountToIssue, uint256 _fee) {
-        uint256 _issueFee = pool.issueFee();
+        uint256 _issueFee = pool.feeProvider().issueFee();
         if (_issueFee == 0) {
             return (amount_, _fee);
         }
@@ -300,7 +300,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
      * @return _fee The fee amount to collect
      */
     function quoteRepayIn(uint256 amountToRepay_) public view override returns (uint256 _amount, uint256 _fee) {
-        uint256 _repayFee = pool.repayFee();
+        uint256 _repayFee = pool.feeProvider().repayFee();
         if (_repayFee == 0) {
             return (amountToRepay_, _fee);
         }
@@ -316,7 +316,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
      * @return _fee The fee amount to collect
      */
     function quoteRepayOut(uint256 amount_) public view override returns (uint256 _amountToRepay, uint256 _fee) {
-        uint256 _repayFee = pool.repayFee();
+        uint256 _repayFee = pool.feeProvider().repayFee();
         if (_repayFee == 0) {
             return (amount_, _fee);
         }

@@ -15,6 +15,10 @@ import {
   MasterOracleMock__factory,
   SyntheticToken,
   SyntheticToken__factory,
+  PoolMock__factory,
+  FeeProvider,
+  FeeProvider__factory,
+  PoolMock,
 } from '../typechain'
 import {FakeContract, MockContract, smock} from '@defi-wonderland/smock'
 import {BigNumber} from 'ethers'
@@ -35,13 +39,14 @@ describe('DebtToken', function () {
   let treasury: SignerWithAddress
   let feeCollector: SignerWithAddress
   let poolRegistryMock: FakeContract
-  let poolMock: MockContract
+  let poolMock: MockContract<PoolMock>
   let msUSD: SyntheticToken
   let met: ERC20Mock
   let msdMET: DepositToken
   let msUSDDebt: DebtToken
   let masterOracleMock: MasterOracleMock
   let rewardsDistributorMock: MockContract
+  let feeProvider: FeeProvider
 
   const metCF = parseEther('0.5') // 50%
   const name = 'msETH Debt'
@@ -74,13 +79,19 @@ describe('DebtToken', function () {
     msUSDDebt = await debtTokenFactory.deploy()
     await msUSDDebt.deployed()
 
-    const poolMockFactory = await smock.mock('PoolMock')
+    const feeProviderFactory = new FeeProvider__factory(deployer)
+    feeProvider = await feeProviderFactory.deploy()
+    await feeProvider.deployed()
+    await feeProvider.initialize()
+
+    const poolMockFactory = await smock.mock<PoolMock__factory>('PoolMock')
     poolMock = await poolMockFactory.deploy(
       msdMET.address,
       masterOracleMock.address,
       msUSD.address,
       msUSDDebt.address,
-      poolRegistryMock.address
+      poolRegistryMock.address,
+      feeProvider.address
     )
     await poolMock.deployed()
     await poolMock.updateTreasury(treasury.address)
@@ -266,7 +277,7 @@ describe('DebtToken', function () {
     it('should issue msAsset (issueFee > 0)', async function () {
       // given
       const issueFee = parseEther('0.1') // 10%
-      await poolMock.updateIssueFee(issueFee)
+      await feeProvider.updateIssueFee(issueFee)
 
       // when
       const amount = parseEther('1')
@@ -298,7 +309,7 @@ describe('DebtToken', function () {
     it('should issue max issuable amount (issueFee > 0)', async function () {
       // given
       const issueFee = parseEther('0.1') // 10%
-      await poolMock.updateIssueFee(issueFee)
+      await feeProvider.updateIssueFee(issueFee)
       expect(await msUSDDebt.balanceOf(user1.address)).eq(0)
 
       const {_issuableInUsd} = await poolMock.debtPositionOf(user1.address)
@@ -383,7 +394,6 @@ describe('DebtToken', function () {
 
         it('should allow repay if new debt == 0', async function () {
           // given
-          await poolMock.updateRepayFee(0)
           await poolMock.updateDebtFloor(toUSD('3,000'))
           const amount = await msUSDDebt.balanceOf(user1.address)
 
@@ -397,7 +407,6 @@ describe('DebtToken', function () {
 
         it('should allow repay if new debt > debt floor', async function () {
           // given
-          await poolMock.updateRepayFee(0)
           await poolMock.updateDebtFloor(toUSD('0.5'))
           expect(await msUSDDebt.balanceOf(user1.address)).eq(toUSD('1'))
 
@@ -410,7 +419,6 @@ describe('DebtToken', function () {
 
         it('should repay all debt (repayFee == 0)', async function () {
           // given
-          await poolMock.updateRepayFee(0)
           const lockedCollateralBefore = await msdMET.lockedBalanceOf(user1.address)
           expect(lockedCollateralBefore).gt(0)
           const debtBefore = await msUSDDebt.balanceOf(user1.address)
@@ -429,7 +437,6 @@ describe('DebtToken', function () {
 
         it('should repay if amount < debt (repayFee == 0)', async function () {
           // given
-          await poolMock.updateRepayFee(0)
           const lockedCollateralBefore = await msdMET.lockedBalanceOf(user1.address)
           expect(lockedCollateralBefore).gt(0)
 
@@ -447,7 +454,7 @@ describe('DebtToken', function () {
         it('should repay if amount == debt (repayFee > 0)', async function () {
           // given
           const repayFee = parseEther('0.1') // 10%
-          await poolMock.updateRepayFee(repayFee)
+          await feeProvider.updateRepayFee(repayFee)
           const {_debtInUsd: debtInUsdBefore} = await poolMock.debtPositionOf(user1.address)
           const msUsdBefore = await msUSD.balanceOf(user1.address)
           expect(msUsdBefore).eq(debtInUsdBefore)
@@ -472,7 +479,7 @@ describe('DebtToken', function () {
         it('should repay if amount < debt (repayFee > 0)', async function () {
           // given
           const repayFee = parseEther('0.1') // 10%
-          await poolMock.updateRepayFee(repayFee)
+          await feeProvider.updateRepayFee(repayFee)
           const {_debtInUsd: debtInUsdBefore} = await poolMock.debtPositionOf(user1.address)
           const msUsdBefore = await msUSDDebt.balanceOf(user1.address)
           expect(msUsdBefore).eq(debtInUsdBefore)
@@ -499,7 +506,7 @@ describe('DebtToken', function () {
         it('should repay all debt (repayFee > 0)', async function () {
           // given
           const repayFee = parseEther('0.1') // 10%
-          await poolMock.updateRepayFee(repayFee)
+          await feeProvider.updateRepayFee(repayFee)
 
           // sending extra msUSD to cover fee
           await met.mint(user2.address, parseEther('1000'))
@@ -545,7 +552,6 @@ describe('DebtToken', function () {
 
         it('should repay all debt (repayFee == 0)', async function () {
           // given
-          await poolMock.updateRepayFee(0)
           const lockedCollateralBefore = await msdMET.lockedBalanceOf(user1.address)
           expect(lockedCollateralBefore).gt(0)
 
@@ -563,7 +569,7 @@ describe('DebtToken', function () {
         it('should repay all debt (repayFee > 0)', async function () {
           // given
           const repayFee = parseEther('0.1') // 10%
-          await poolMock.updateRepayFee(repayFee)
+          await feeProvider.updateRepayFee(repayFee)
 
           // sending extra msUSD to cover fee
           await met.mint(user2.address, parseEther('1000'))

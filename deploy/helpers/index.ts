@@ -16,6 +16,7 @@ interface UpgradableContractsConfig {
   SyntheticToken: ContractConfig
   DebtToken: ContractConfig
   MetRewardsDistributor: ContractConfig
+  FeeProvider: ContractConfig
 }
 
 interface SyntheticDeployFunctionProps {
@@ -52,6 +53,7 @@ export const UpgradableContracts: UpgradableContractsConfig = {
     contract: 'RewardsDistributor',
     adminContract: 'RewardsDistributorUpgrader',
   },
+  FeeProvider: {alias: 'FeeProvider', contract: 'FeeProvider', adminContract: 'FeeProviderUpgrader'},
 }
 
 const {
