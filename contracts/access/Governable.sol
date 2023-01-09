@@ -2,9 +2,13 @@
 
 pragma solidity 0.8.9;
 
-import "../dependencies/openzeppelin/utils/Context.sol";
 import "../dependencies/openzeppelin/proxy/utils/Initializable.sol";
-import "../interface/IGovernable.sol";
+import "../utils/TokenHolder.sol";
+import "../interfaces/IGovernable.sol";
+
+error SenderIsNotGovernor();
+error ProposedGovernorIsNull();
+error SenderIsNotTheProposedGovernor();
 
 /**
  * @dev Contract module which provides a basic access control mechanism, where
@@ -15,19 +19,24 @@ import "../interface/IGovernable.sol";
  * can later be changed with {transferGovernorship}.
  *
  */
-abstract contract Governable is IGovernable, Context, Initializable {
+abstract contract Governable is IGovernable, TokenHolder, Initializable {
+    /**
+     * @notice The governor
+     * @dev By default the contract deployer is the initial governor
+     */
     address public governor;
-    address private proposedGovernor;
+
+    /**
+     * @notice The proposed governor
+     * @dev It will be empty (address(0)) if there isn't a proposed governor
+     */
+    address public proposedGovernor;
 
     event UpdatedGovernor(address indexed previousGovernor, address indexed proposedGovernor);
 
-    /**
-     * @dev Initializes the contract setting the deployer as the initial governor.
-     */
     constructor() {
-        address msgSender = _msgSender();
-        governor = msgSender;
-        emit UpdatedGovernor(address(0), msgSender);
+        governor = msg.sender;
+        emit UpdatedGovernor(address(0), msg.sender);
     }
 
     /**
@@ -36,35 +45,39 @@ abstract contract Governable is IGovernable, Context, Initializable {
      */
     // solhint-disable-next-line func-name-mixedcase
     function __Governable_init() internal initializer {
-        address msgSender = _msgSender();
-        governor = msgSender;
-        emit UpdatedGovernor(address(0), msgSender);
+        governor = msg.sender;
+        emit UpdatedGovernor(address(0), msg.sender);
     }
 
     /**
      * @dev Throws if called by any account other than the governor.
      */
     modifier onlyGovernor() {
-        require(governor == _msgSender(), "not-governor");
+        if (governor != msg.sender) revert SenderIsNotGovernor();
         _;
     }
 
+    /// @inheritdoc TokenHolder
+    function _requireCanSweep() internal view override onlyGovernor {}
+
     /**
-     * @dev Transfers governorship of the contract to a new account (`proposedGovernor`).
-     * Can only be called by the current owner.
+     * @notice Transfers governorship of the contract to a new account (`proposedGovernor`).
+     * @dev Can only be called by the current owner.
+     * @param proposedGovernor_ The new proposed governor
      */
-    function transferGovernorship(address _proposedGovernor) external onlyGovernor {
-        require(_proposedGovernor != address(0), "proposed-governor-is-zero");
-        proposedGovernor = _proposedGovernor;
+    function transferGovernorship(address proposedGovernor_) external onlyGovernor {
+        if (proposedGovernor_ == address(0)) revert ProposedGovernorIsNull();
+        proposedGovernor = proposedGovernor_;
     }
 
     /**
-     * @dev Allows new governor to accept governorship of the contract.
+     * @notice Allows new governor to accept governorship of the contract.
      */
     function acceptGovernorship() external {
-        require(proposedGovernor == _msgSender(), "not-the-proposed-governor");
-        emit UpdatedGovernor(governor, proposedGovernor);
-        governor = proposedGovernor;
+        address _proposedGovernor = proposedGovernor;
+        if (msg.sender != _proposedGovernor) revert SenderIsNotTheProposedGovernor();
+        emit UpdatedGovernor(governor, _proposedGovernor);
+        governor = _proposedGovernor;
         proposedGovernor = address(0);
     }
 }

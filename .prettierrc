@@ -2,7 +2,7 @@
   "printWidth": 120,
   "overrides": [
     {
-      "files": ["test/*.ts", "test/**/*.ts", "tasks/*.ts", "*.ts"],
+      "files": ["test/*.ts", "test/**/*.ts", "tasks/*.ts", "*.ts", ".solcover.js"],
       "options": {
         "semi": false,
         "singleQuote": true

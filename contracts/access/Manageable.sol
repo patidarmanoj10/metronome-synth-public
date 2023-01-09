@@ -2,51 +2,74 @@
 
 pragma solidity 0.8.9;
 
-import "../dependencies/openzeppelin/utils/Context.sol";
 import "../dependencies/openzeppelin/proxy/utils/Initializable.sol";
-import "../interface/IGovernable.sol";
-import "../interface/IController.sol";
+import "../utils/TokenHolder.sol";
+import "../interfaces/IGovernable.sol";
+import "../interfaces/IManageable.sol";
+
+error SenderIsNotPool();
+error SenderIsNotGovernor();
+error IsPaused();
+error IsShutdown();
+error PoolAddressIsNull();
 
 /**
  * @title Reusable contract that handles accesses
  */
-abstract contract Manageable is Context, Initializable {
+abstract contract Manageable is IManageable, TokenHolder, Initializable {
     /**
-     * @notice Controller contract
+     * @notice Pool contract
      */
-    IController public controller;
-
-    // solhint-disable-next-line func-name-mixedcase
-    function __Manageable_init() internal initializer {}
+    IPool public pool;
 
     /**
-     * @notice Requires that the caller is the Controller contract
+     * @dev Throws if `msg.sender` isn't the pool
      */
-    modifier onlyController() {
-        require(_msgSender() == address(controller), "not-controller");
+    modifier onlyPool() {
+        if (msg.sender != address(pool)) revert SenderIsNotPool();
         _;
     }
 
     /**
-     * @notice Requires that the caller is the Controller contract
+     * @dev Throws if `msg.sender` isn't the governor
      */
     modifier onlyGovernor() {
-        require(_msgSender() == governor(), "not-governor");
+        if (msg.sender != governor()) revert SenderIsNotGovernor();
         _;
     }
 
-    function governor() public view returns (address _governor) {
-        _governor = IGovernable(address(controller)).governor();
+    /**
+     * @dev Throws if contract is paused
+     */
+    modifier whenNotPaused() {
+        if (pool.paused()) revert IsPaused();
+        _;
     }
 
     /**
-     * @notice Update Controller contract
-     * @param _controller The new Controller contract
+     * @dev Throws if contract is shutdown
      */
-    function setController(IController _controller) public onlyGovernor {
-        require(address(_controller) != address(0), "new-controller-address-is-zero");
-        controller = _controller;
+    modifier whenNotShutdown() {
+        if (pool.everythingStopped()) revert IsShutdown();
+        _;
     }
+
+    // solhint-disable-next-line func-name-mixedcase
+    function __Manageable_init(IPool pool_) internal initializer {
+        if (address(pool_) == address(0)) revert PoolAddressIsNull();
+        pool = pool_;
+    }
+
+    /**
+     * @notice Get the governor
+     * @return _governor The governor
+     */
+    function governor() public view returns (address _governor) {
+        _governor = IGovernable(address(pool)).governor();
+    }
+
+    /// @inheritdoc TokenHolder
+    function _requireCanSweep() internal view override onlyGovernor {}
 
     uint256[49] private __gap;
 }

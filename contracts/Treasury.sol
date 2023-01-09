@@ -2,10 +2,14 @@
 
 pragma solidity 0.8.9;
 
-import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./access/Manageable.sol";
 import "./storage/TreasuryStorage.sol";
+
+error SenderIsNotDepositToken();
+error AddressIsNull();
+error RecipientIsNull();
+error AmountIsZero();
 
 /**
  * @title Treasury contract
@@ -16,52 +20,49 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
 
     string public constant VERSION = "1.0.0";
 
-    function initialize(IController _controller) public initializer {
-        require(address(_controller) != address(0), "controller-address-is-zero");
-
-        __ReentrancyGuard_init();
-        __Manageable_init();
-
-        controller = _controller;
+    /**
+     * @dev Throws if caller isn't a deposit token
+     */
+    modifier onlyIfDepositToken() {
+        if (!pool.doesDepositTokenExist(IDepositToken(msg.sender))) revert SenderIsNotDepositToken();
+        _;
     }
 
-    /**
-     * @notice Pull token from the Treasury
-     */
-    function pull(
-        IERC20 _token,
-        address _to,
-        uint256 _amount
-    ) external override nonReentrant onlyController {
-        require(_amount > 0, "amount-is-zero");
-        _token.safeTransfer(_to, _amount);
+    function initialize(IPool pool_) external initializer {
+        __ReentrancyGuard_init();
+        __Manageable_init(pool_);
     }
 
     /**
      * @notice Transfer all funds to another contract
      * @dev This function can become too expensive depending on the length of the arrays
+     * @param newTreasury_ The new treasury
      */
-    function migrateTo(address _newTreasury) external onlyController {
-        address[] memory _depositTokens = controller.getDepositTokens();
+    function migrateTo(address newTreasury_) external override onlyPool {
+        if (newTreasury_ == address(0)) revert AddressIsNull();
 
-        for (uint256 i = 0; i < _depositTokens.length; ++i) {
-            IDepositToken _depositToken = IDepositToken(_depositTokens[i]);
+        address[] memory _depositTokens = pool.getDepositTokens();
+        uint256 _depositTokensLength = _depositTokens.length;
 
-            uint256 _balance = _depositToken.balanceOf(address(this));
-            uint256 _underlyingBalance = _depositToken.underlying().balanceOf(address(this));
+        for (uint256 i; i < _depositTokensLength; ++i) {
+            IERC20 _underlying = IDepositToken(_depositTokens[i]).underlying();
 
-            if (_balance > 0) _depositToken.safeTransfer(_newTreasury, _balance);
-            if (_underlyingBalance > 0) _depositToken.underlying().safeTransfer(_newTreasury, _underlyingBalance);
-        }
+            uint256 _underlyingBalance = _underlying.balanceOf(address(this));
 
-        address[] memory _syntheticAssets = controller.getSyntheticAssets();
-
-        for (uint256 i = 0; i < _syntheticAssets.length; ++i) {
-            IERC20 _vsAsset = IERC20(_syntheticAssets[i]);
-            uint256 _balance = _vsAsset.balanceOf(address(this));
-            if (_balance > 0) {
-                _vsAsset.safeTransfer(_newTreasury, _balance);
+            if (_underlyingBalance > 0) {
+                _underlying.safeTransfer(newTreasury_, _underlyingBalance);
             }
         }
+    }
+
+    /**
+     * @notice Pull token from the Treasury
+     * @param to_ The transfer recipient
+     * @param amount_ The transfer amount
+     */
+    function pull(address to_, uint256 amount_) external override nonReentrant onlyIfDepositToken {
+        if (to_ == address(0)) revert RecipientIsNull();
+        if (amount_ == 0) revert AmountIsZero();
+        IDepositToken(msg.sender).underlying().safeTransfer(to_, amount_);
     }
 }
