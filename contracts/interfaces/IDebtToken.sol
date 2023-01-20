@@ -20,6 +20,8 @@ interface IDebtToken is IERC20Metadata {
 
     function issue(uint256 amount_, address to_) external returns (uint256 _issued, uint256 _fee);
 
+    function flashIssue(address borrower_, uint256 amount_) external returns (uint256 _issued, uint256 _fee);
+
     function repay(address onBehalfOf_, uint256 amount_) external returns (uint256 _repaid, uint256 _fee);
 
     function repayAll(address onBehalfOf_) external returns (uint256 _repaid, uint256 _fee);
