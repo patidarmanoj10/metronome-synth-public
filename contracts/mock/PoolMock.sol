@@ -89,22 +89,6 @@ contract PoolMock is IPool, Governable, Pauseable {
         _issuableInUsd = _debtInUsd < _issuableLimitInUsd ? _issuableLimitInUsd - _debtInUsd : 0;
     }
 
-    function addDebtToken(IDebtToken) external pure override {
-        revert("mock-does-not-implement");
-    }
-
-    function removeDebtToken(IDebtToken) external pure override {
-        revert("mock-does-not-implement");
-    }
-
-    function addDepositToken(address) external pure override {
-        revert("mock-does-not-implement");
-    }
-
-    function removeDepositToken(IDepositToken) external pure override {
-        revert("mock-does-not-implement");
-    }
-
     function leverage(IDepositToken, ISyntheticToken, uint256, uint256, uint256, uint8) external pure override {
         revert("mock-does-not-implement");
     }
@@ -150,12 +134,8 @@ contract PoolMock is IPool, Governable, Pauseable {
         revert("mock-does-not-implement");
     }
 
-    function updateDebtFloor(uint256 _newDebtFloorInUsd) external override {
+    function updateDebtFloor(uint256 _newDebtFloorInUsd) external {
         debtFloorInUsd = _newDebtFloorInUsd;
-    }
-
-    function updateMaxLiquidable(uint256) external pure override {
-        revert("mock-does-not-implement");
     }
 
     function doesSyntheticTokenExist(ISyntheticToken _syntheticToken) external view override returns (bool) {
@@ -170,7 +150,7 @@ contract PoolMock is IPool, Governable, Pauseable {
         return true;
     }
 
-    function updateTreasury(ITreasury _treasury) external override {
+    function updateTreasury(ITreasury _treasury) external {
         treasury = _treasury;
     }
 
@@ -198,22 +178,10 @@ contract PoolMock is IPool, Governable, Pauseable {
         revert("mock-does-not-implement");
     }
 
-    function addRewardsDistributor(IRewardsDistributor) external pure override {
-        revert("mock-does-not-implement");
-    }
-
-    function removeRewardsDistributor(IRewardsDistributor) external pure override {
-        revert("mock-does-not-implement");
-    }
-
     function getRewardsDistributors()
         external
         pure
         override
         returns (IRewardsDistributor[] memory _rewardsDistributors)
     {}
-
-    function toggleIsSwapActive() external pure override {
-        revert("mock-does-not-implement");
-    }
 }

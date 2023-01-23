@@ -709,7 +709,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
      * @notice Add debt token to offerings
      * @dev Must keep `debtTokenOf` mapping updated
      */
-    function addDebtToken(IDebtToken debtToken_) external override onlyGovernor {
+    function addDebtToken(IDebtToken debtToken_) external onlyGovernor {
         if (address(debtToken_) == address(0)) revert AddressIsNull();
         ISyntheticToken _syntheticToken = debtToken_.syntheticToken();
         if (address(_syntheticToken) == address(0)) revert SyntheticIsNull();
@@ -725,7 +725,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
     /**
      * @notice Add deposit token (i.e. collateral) to Synth
      */
-    function addDepositToken(address depositToken_) external override onlyGovernor {
+    function addDepositToken(address depositToken_) external onlyGovernor {
         if (depositToken_ == address(0)) revert AddressIsNull();
         IERC20 _underlying = IDepositToken(depositToken_).underlying();
         if (address(depositTokenOf[_underlying]) != address(0)) revert UnderlyingAssetInUse();
@@ -740,7 +740,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
     /**
      * @notice Add a RewardsDistributor contract
      */
-    function addRewardsDistributor(IRewardsDistributor distributor_) external override onlyGovernor {
+    function addRewardsDistributor(IRewardsDistributor distributor_) external onlyGovernor {
         if (address(distributor_) == address(0)) revert AddressIsNull();
 
         uint256 _length = rewardsDistributors.length;
@@ -758,7 +758,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
      * @notice Remove debt token from offerings
      * @dev Must keep `debtTokenOf` mapping updated
      */
-    function removeDebtToken(IDebtToken debtToken_) external override onlyGovernor {
+    function removeDebtToken(IDebtToken debtToken_) external onlyGovernor {
         if (debtToken_.totalSupply() > 0) revert TotalSupplyIsNotZero();
         if (!debtTokens.remove(address(debtToken_))) revert DebtTokenDoesNotExist();
 
@@ -770,7 +770,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
     /**
      * @notice Remove deposit token (i.e. collateral) from Synth
      */
-    function removeDepositToken(IDepositToken depositToken_) external override onlyGovernor {
+    function removeDepositToken(IDepositToken depositToken_) external onlyGovernor {
         if (depositToken_.totalSupply() > 0) revert TotalSupplyIsNotZero();
 
         if (!depositTokens.remove(address(depositToken_))) revert DepositTokenDoesNotExist();
@@ -782,7 +782,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
     /**
      * @notice Remove a RewardsDistributor contract
      */
-    function removeRewardsDistributor(IRewardsDistributor distributor_) external override onlyGovernor {
+    function removeRewardsDistributor(IRewardsDistributor distributor_) external onlyGovernor {
         if (address(distributor_) == address(0)) revert AddressIsNull();
 
         uint256 _length = rewardsDistributors.length;
@@ -805,7 +805,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
     /**
      * @notice Turn swap on/off
      */
-    function toggleIsSwapActive() external override onlyGovernor {
+    function toggleIsSwapActive() external onlyGovernor {
         bool _newIsSwapActive = !isSwapActive;
         emit SwapActiveUpdated(_newIsSwapActive);
         isSwapActive = _newIsSwapActive;
@@ -814,7 +814,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
     /**
      * @notice Update debt floor
      */
-    function updateDebtFloor(uint256 newDebtFloorInUsd_) external override onlyGovernor {
+    function updateDebtFloor(uint256 newDebtFloorInUsd_) external onlyGovernor {
         uint256 _currentDebtFloorInUsd = debtFloorInUsd;
         if (newDebtFloorInUsd_ == _currentDebtFloorInUsd) revert NewValueIsSameAsCurrent();
         emit DebtFloorUpdated(_currentDebtFloorInUsd, newDebtFloorInUsd_);
@@ -824,7 +824,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
     /**
      * @notice Update maxLiquidable (liquidation cap)
      */
-    function updateMaxLiquidable(uint256 newMaxLiquidable_) external override onlyGovernor {
+    function updateMaxLiquidable(uint256 newMaxLiquidable_) external onlyGovernor {
         if (newMaxLiquidable_ > 1e18) revert MaxLiquidableTooHigh();
         uint256 _currentMaxLiquidable = maxLiquidable;
         if (newMaxLiquidable_ == _currentMaxLiquidable) revert NewValueIsSameAsCurrent();
@@ -835,7 +835,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
     /**
      * @notice Update treasury contract - will migrate funds to the new contract
      */
-    function updateTreasury(ITreasury newTreasury_) external override onlyGovernor {
+    function updateTreasury(ITreasury newTreasury_) external onlyGovernor {
         if (address(newTreasury_) == address(0)) revert AddressIsNull();
         ITreasury _currentTreasury = treasury;
         if (newTreasury_ == _currentTreasury) revert NewValueIsSameAsCurrent();

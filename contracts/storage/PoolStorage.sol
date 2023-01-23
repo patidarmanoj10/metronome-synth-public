@@ -91,5 +91,5 @@ abstract contract PoolStorageV2 is PoolStorageV1 {
     /**
      * @notice FeeProvider contract
      */
-    IFeeProvider public feeProvider;
+    IFeeProvider public override feeProvider;
 }

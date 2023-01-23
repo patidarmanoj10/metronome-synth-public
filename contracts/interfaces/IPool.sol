@@ -9,6 +9,7 @@ import "./IRewardsDistributor.sol";
 import "./IPoolRegistry.sol";
 import "./IFeeProvider.sol";
 import "./external/ISwapper.sol";
+import "../interfaces/IFeeProvider.sol";
 
 /**
  * @notice Pool interface
@@ -44,7 +45,9 @@ interface IPool is IPauseable, IGovernable {
 
     function depositOf(address account_) external view returns (uint256 _depositInUsd, uint256 _issuableLimitInUsd);
 
-    function debtPositionOf(address account_)
+    function debtPositionOf(
+        address account_
+    )
         external
         view
         returns (
@@ -54,14 +57,6 @@ interface IPool is IPauseable, IGovernable {
             uint256 _issuableLimitInUsd,
             uint256 _issuableInUsd
         );
-
-    function addDebtToken(IDebtToken debtToken_) external;
-
-    function removeDebtToken(IDebtToken debtToken_) external;
-
-    function addDepositToken(address depositToken_) external;
-
-    function removeDepositToken(IDepositToken depositToken_) external;
 
     function leverage(
         IDepositToken depositToken_,
@@ -135,12 +130,6 @@ interface IPool is IPauseable, IGovernable {
         uint256 amountIn_
     ) external returns (uint256 _amountOut, uint256 _fee);
 
-    function updateDebtFloor(uint256 newDebtFloorInUsd_) external;
-
-    function updateMaxLiquidable(uint256 newMaxLiquidable_) external;
-
-    function updateTreasury(ITreasury newTreasury_) external;
-
     function treasury() external view returns (ITreasury);
 
     function masterOracle() external view returns (IMasterOracle);
@@ -158,12 +147,6 @@ interface IPool is IPauseable, IGovernable {
     function getDepositTokensOfAccount(address account_) external view returns (address[] memory);
 
     function getDebtTokensOfAccount(address account_) external view returns (address[] memory);
-
-    function addRewardsDistributor(IRewardsDistributor distributor_) external;
-
-    function removeRewardsDistributor(IRewardsDistributor distributor_) external;
-
-    function toggleIsSwapActive() external;
 
     function isSwapActive() external view returns (bool);
 }
