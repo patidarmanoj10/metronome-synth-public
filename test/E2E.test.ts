@@ -27,6 +27,8 @@ import {
   NativeTokenGateway,
   PoolRegistry,
   NativeTokenGateway__factory,
+  IRoutedSwapper__factory,
+  TransparentUpgradeableProxy__factory,
 } from '../typechain'
 import {address as POOL_REGISTRY_ADDRESS} from '../deployments/mainnet/PoolRegistry.json'
 import {address as USDC_DEPOSIT_ADDRESS} from '../deployments/mainnet/USDCDepositToken.json'
@@ -46,8 +48,10 @@ import {address as MSBTC_SYNTHETIC_ADDRESS} from '../deployments/mainnet/MsBTCSy
 import {address as MSDOGE_SYNTHETIC_ADDRESS} from '../deployments/mainnet/MsDOGESynthetic.json'
 import {address as MSETH_SYNTHETIC_ADDRESS} from '../deployments/mainnet/MsETHSynthetic.json'
 import {address as NATIVE_TOKEN_GATEWAY_ADDRESS} from '../deployments/mainnet/NativeTokenGateway.json'
+import {address as POOL_UPGRADER_ADDRESS} from '../deployments/mainnet/PoolUpgrader.json'
+import {address as DEBT_TOKEN_UPGRADER_ADDRESS} from '../deployments/mainnet/DebtTokenUpgrader.json'
 
-const {MaxUint256} = ethers.constants
+const {MaxUint256, AddressZero} = ethers.constants
 const dust = toUSD('20')
 
 describe('E2E tests', function () {
@@ -285,7 +289,6 @@ describe('E2E tests', function () {
       await expect(tx).changeTokenBalance(msdVaUSDC, alice, amount)
     })
 
-
     it('should deposit vaETH', async function () {
       // given
       const amount = parseUnits('1', 18)
@@ -441,6 +444,134 @@ describe('E2E tests', function () {
       // then
       const {_depositInUsd: depositAfter} = await pool.depositOf(alice.address)
       expect(depositAfter).closeTo(0, dust)
+    })
+
+    describe('leverage', function () {
+      const abi = ethers.utils.defaultAbiCoder
+
+      beforeEach(async function () {
+        //
+        // Setup RoutedSwapper with necessary routings
+        //
+        const oracleGovernor = await impersonateAccount(Address.MASTER_ORACLE_GOVERNOR_ADDRESS)
+        const routedSwapper = IRoutedSwapper__factory.connect(Address.ROUTED_SWAPPER, oracleGovernor)
+        const swapType = 0 // EXACT_INPUT
+        const exchangeType = 7 //Curve
+
+        const path_msUSD_USDC = abi.encode(
+          ['address[9]', 'uint256[3][4]'],
+          [
+            [
+              msUSD.address,
+              Address.CURVE_MSUSD_FRAXBP_POOL_ADDRESS,
+              usdc.address,
+              AddressZero,
+              AddressZero,
+              AddressZero,
+              AddressZero,
+              AddressZero,
+              AddressZero,
+            ],
+            [
+              [0, 2, 2],
+              [0, 0, 0],
+              [0, 0, 0],
+              [0, 0, 0],
+            ],
+          ]
+        )
+
+        const path_msUSD_FRAX = abi.encode(
+          ['address[9]', 'uint256[3][4]'],
+          [
+            [
+              msUSD.address,
+              Address.CURVE_MSUSD_FRAXBP_POOL_ADDRESS,
+              frax.address,
+              AddressZero,
+              AddressZero,
+              AddressZero,
+              AddressZero,
+              AddressZero,
+              AddressZero,
+            ],
+            [
+              [0, 1, 2],
+              [0, 0, 0],
+              [0, 0, 0],
+              [0, 0, 0],
+            ],
+          ]
+        )
+
+        // Note: It won't be necessary when routings are added on mainnet
+        await routedSwapper.setDefaultRouting(swapType, msUSD.address, usdc.address, exchangeType, path_msUSD_USDC)
+        await routedSwapper.setDefaultRouting(swapType, msUSD.address, frax.address, exchangeType, path_msUSD_FRAX)
+
+        //
+        // Update `Pool` implementation
+        // Note: It won't be necessary when leverage feature get online
+        //
+        const poolProxyOwner = await impersonateAccount(POOL_UPGRADER_ADDRESS)
+        const poolProxy = TransparentUpgradeableProxy__factory.connect(pool.address, poolProxyOwner)
+        const wipPoolImplFactory = new Pool__factory(poolProxyOwner)
+        const wipPoolImpl = await wipPoolImplFactory.deploy()
+        await poolProxy.upgradeTo(wipPoolImpl.address)
+
+        //
+        // Update `DebtToken` implementation
+        // Note: It won't be necessary when leverage feature get online
+        //
+        const debtTokenProxyOwner = await impersonateAccount(DEBT_TOKEN_UPGRADER_ADDRESS)
+        const debtTokenProxy = TransparentUpgradeableProxy__factory.connect(msUSDDebt.address, debtTokenProxyOwner)
+        const wipDebtTokenImplFactory = new DebtToken__factory(debtTokenProxyOwner)
+        const wipDebtTokenImpl = await wipDebtTokenImplFactory.deploy()
+        await debtTokenProxy.upgradeTo(wipDebtTokenImpl.address)
+
+        // given
+        await pool.connect(governor).updateSwapper(routedSwapper.address)
+        expect(await pool.issueFee()).eq(0)
+        expect(await pool.depositFee()).eq(0)
+        const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
+        expect(_debtInUsd).eq(0)
+        expect(_depositInUsd).eq(0)
+        await setTokenBalance(vaUSDC.address, alice.address, parseUnits('1000', 18))
+        await setTokenBalance(vaFRAX.address, alice.address, parseUnits('1000', 18))
+      })
+
+      it('should leverage vaUSDC->msUSD', async function () {
+        // when
+        const amountIn = parseUnits('100', 18)
+        const leverage = parseEther('1.5')
+        await vaUSDC.connect(alice).approve(pool.address, MaxUint256)
+        const tx = await pool.leverage(msdVaUSDC.address, msUSD.address, amountIn, leverage, 0, 1)
+
+        // then
+        const {gasUsed} = await tx.wait()
+        expect(gasUsed.lt(1.4e6))
+        const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
+        expect(_depositInUsd).closeTo(amountIn.mul(leverage).div(parseEther('1')), parseEther('10')) // ~$150
+        expect(_debtInUsd).closeTo(amountIn.mul(leverage.sub(parseEther('1'))).div(parseEther('1')), parseEther('10')) // ~$50
+      })
+
+      it('should leverage vaFRAX->msUSD', async function () {
+        // when
+        const amountIn = parseUnits('100', 18)
+        const leverage = parseEther('1.5')
+        await vaFRAX.connect(alice).approve(pool.address, MaxUint256)
+        const tx = await pool.leverage(msdVaFRAX.address, msUSD.address, amountIn, leverage, 0, 1)
+
+        // then
+        const {gasUsed} = await tx.wait()
+        expect(gasUsed.lt(1.4e6))
+        const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
+        expect(_depositInUsd).closeTo(amountIn.mul(leverage).div(parseEther('1')), parseEther('10')) // ~$150
+        expect(_debtInUsd).closeTo(amountIn.mul(leverage.sub(parseEther('1'))).div(parseEther('1')), parseEther('10')) // ~$50
+      })
+
+      it('should leverage vaETH->msETH', async function () {
+        // TODO
+      })
     })
   })
 })

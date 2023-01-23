@@ -6,6 +6,7 @@ import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./storage/PoolStorage.sol";
 import "./lib/WadRayMath.sol";
 import "./utils/Pauseable.sol";
+import "./interfaces/external/IVPool.sol";
 
 error CollateralDoesNotExist();
 error SyntheticDoesNotExist();
@@ -14,6 +15,10 @@ error PoolRegistryIsNull();
 error DebtTokenAlreadyExists();
 error SenderIsNotDepositToken();
 error DepositTokenAlreadyExists();
+error LeverageTooLow();
+error LeverageTooHigh();
+error LeverageSlippageTooHigh();
+error PositionIsNotHealthy();
 error AmountIsZero();
 error CanNotLiquidateOwnPosition();
 error PositionIsHealthy();
@@ -38,7 +43,7 @@ error MaxLiquidableTooHigh();
 /**
  * @title Pool contract
  */
-contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
+contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
     using SafeERC20 for IERC20;
     using WadRayMath for uint256;
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -101,6 +106,9 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
 
     /// @notice Emitted when the swap active flag is updated
     event SwapActiveUpdated(bool newActive);
+
+    /// @notice Emitted when swapper contract is updated
+    event SwapperUpdated(ISwapper oldSwapFee, ISwapper newSwapFee);
 
     /// @notice Emitted when synthetic token is swapped
     event SyntheticTokenSwapped(
@@ -504,6 +512,60 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
     }
 
     /**
+     * @notice Leverage yield position
+     * @param depositToken_ The collateral to deposit
+     * @param syntheticToken_ The msAsset to mint
+     * @param amountIn_ The amount to deposit
+     * @param leverage_ The leverage X param (e.g. 1.5e18 for 1.5X)
+     * @param depositAmountMin_ The min final deposit amount (slippage)
+     * @param depositTokenType_ The type of the collateral (0 = vToken)
+     */
+    function leverage(
+        IDepositToken depositToken_,
+        ISyntheticToken syntheticToken_,
+        uint256 amountIn_,
+        uint256 leverage_,
+        uint256 depositAmountMin_,
+        uint8 depositTokenType_
+    )
+        external
+        override
+        whenNotShutdown
+        nonReentrant
+        onlyIfDepositTokenExists(depositToken_)
+        onlyIfSyntheticTokenExists(syntheticToken_)
+    {
+        if (leverage_ <= 1e18) revert LeverageTooLow();
+        if (leverage_ > uint256(1e18).wadDiv(1e18 - depositToken_.collateralFactor())) revert LeverageTooHigh();
+
+        // 1. transfer collateral
+        IERC20 _collateral = depositToken_.underlying();
+        uint256 _balanceBefore = _collateral.balanceOf(address(this));
+        _collateral.safeTransferFrom(msg.sender, address(this), amountIn_);
+
+        // 2. mint synth
+        uint256 _debtAmount = masterOracle().quote(
+            address(_collateral),
+            address(syntheticToken_),
+            (leverage_ - 1e18).wadMul(amountIn_)
+        );
+        (uint256 _issued, ) = debtTokenOf[syntheticToken_].flashIssue(msg.sender, _debtAmount);
+
+        // 3. swap synth for collateral
+        _leverageSwap(syntheticToken_, _collateral, _issued, depositTokenType_);
+        uint256 _depositAmount = _collateral.balanceOf(address(this)) - _balanceBefore;
+        if (_depositAmount < depositAmountMin_) revert LeverageSlippageTooHigh();
+
+        // 4. deposit collateral
+        _collateral.approve(address(depositToken_), _depositAmount);
+        depositToken_.deposit(_depositAmount, msg.sender);
+
+        // 5. check the health of the outcome position
+        (bool _isHealthy, , , , ) = debtPositionOf(msg.sender);
+        if (!_isHealthy) revert PositionIsNotHealthy();
+    }
+
+    /**
      * @notice Burn synthetic token, unlock deposit token and send liquidator incentive
      * @param syntheticToken_ The msAsset to use for repayment
      * @param account_ The account with an unhealthy position
@@ -645,6 +707,28 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
         syntheticTokenOut_.mint(msg.sender, _amountOut);
 
         emit SyntheticTokenSwapped(msg.sender, syntheticTokenIn_, syntheticTokenOut_, amountIn_, _amountOut, _fee);
+    }
+
+    /**
+     * @notice Leverage swap function
+     * @param syntheticToken_ The synthetic token to swap from
+     * @param collateral_ The collateral to swap to
+     * @param amountIn_ The swap input amount
+     * @dev For now we only support vaToken as collateral, we may extend it in future
+     */
+    function _leverageSwap(
+        ISyntheticToken syntheticToken_,
+        IERC20 collateral_,
+        uint256 amountIn_,
+        uint8 /*depositTokenType_*/
+    ) private {
+        ISwapper _swapper = swapper;
+        IVPool _vToken = IVPool(address(collateral_));
+        address _token = _vToken.token();
+        syntheticToken_.approve(address(_swapper), amountIn_);
+        uint256 _amountOut = _swapper.swapExactInput(address(syntheticToken_), _token, amountIn_, 0, address(this));
+        IERC20(_token).approve(address(_vToken), _amountOut);
+        _vToken.deposit(_amountOut);
     }
 
     /**
@@ -854,6 +938,18 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
         if (newSwapFee_ == _currentSwapFee) revert NewValueIsSameAsCurrent();
         emit SwapFeeUpdated(_currentSwapFee, newSwapFee_);
         swapFee = newSwapFee_;
+    }
+
+    /**
+     * @notice Update swapper contract
+     */
+    function updateSwapper(ISwapper newSwapper_) external onlyGovernor {
+        if (address(newSwapper_) == address(0)) revert AddressIsNull();
+        ISwapper _currentSwapper = swapper;
+        if (newSwapper_ == _currentSwapper) revert NewValueIsSameAsCurrent();
+
+        emit SwapperUpdated(_currentSwapper, newSwapper_);
+        swapper = newSwapper_;
     }
 
     /**

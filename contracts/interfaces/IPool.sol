@@ -69,6 +69,15 @@ interface IPool is IPauseable, IGovernable {
 
     function removeDepositToken(IDepositToken depositToken_) external;
 
+    function leverage(
+        IDepositToken depositToken_,
+        ISyntheticToken syntheticToken_,
+        uint256 amountIn_,
+        uint256 leverage_,
+        uint256 depositAmountMin_,
+        uint8 depositTokenType_
+    ) external;
+
     function liquidate(
         ISyntheticToken syntheticToken_,
         address account_,

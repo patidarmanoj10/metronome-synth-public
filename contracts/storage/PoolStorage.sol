@@ -5,6 +5,7 @@ pragma solidity 0.8.9;
 import "../dependencies/openzeppelin/utils/structs/EnumerableSet.sol";
 import "../lib/MappedEnumerableSet.sol";
 import "../interfaces/IPool.sol";
+import "../interfaces/external/ISwapper.sol";
 
 abstract contract PoolStorageV1 is IPool {
     struct LiquidationFees {
@@ -109,4 +110,11 @@ abstract contract PoolStorageV1 is IPool {
      * @notice Get the debt token's address from given synthetic asset
      */
     mapping(ISyntheticToken => IDebtToken) public override debtTokenOf;
+}
+
+abstract contract PoolStorageV2 is PoolStorageV1 {
+    /**
+     * @notice Swapper contract
+     */
+    ISwapper public swapper;
 }

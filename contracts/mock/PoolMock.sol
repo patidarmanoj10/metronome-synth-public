@@ -107,6 +107,10 @@ contract PoolMock is IPool, Governable, Pauseable {
         revert("mock-does-not-implement");
     }
 
+    function leverage(IDepositToken, ISyntheticToken, uint256, uint256, uint256, uint8) external pure override {
+        revert("mock-does-not-implement");
+    }
+
     function liquidate(
         ISyntheticToken,
         address,
