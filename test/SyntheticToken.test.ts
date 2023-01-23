@@ -73,10 +73,12 @@ describe('SyntheticToken', function () {
     msUSD = await syntheticTokenFactory.deploy()
     await msUSD.deployed()
 
+    const esMET = await smock.fake('IESMET')
+
     const feeProviderFactory = new FeeProvider__factory(deployer)
     feeProvider = await feeProviderFactory.deploy()
     await feeProvider.deployed()
-    await feeProvider.initialize()
+    await feeProvider.initialize(poolRegistryMock.address, esMET.address)
 
     const poolMockFactory = await smock.mock<PoolMock__factory>('PoolMock')
     poolMock = await poolMockFactory.deploy(

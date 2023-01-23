@@ -446,7 +446,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
         ISyntheticToken syntheticTokenOut_,
         uint256 amountOut_
     ) external view override returns (uint256 _amountIn, uint256 _fee) {
-        uint256 _swapFee = feeProvider.swapFee();
+        uint256 _swapFee = feeProvider.swapFeeFor(msg.sender);
         if (_swapFee > 0) {
             amountOut_ = amountOut_.wadDiv(1e18 - _swapFee);
             _fee = amountOut_.wadMul(_swapFee);
@@ -478,7 +478,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
             amountIn_
         );
 
-        uint256 _swapFee = feeProvider.swapFee();
+        uint256 _swapFee = feeProvider.swapFeeFor(msg.sender);
         if (_swapFee > 0) {
             _fee = _amountOut.wadMul(_swapFee);
             _amountOut -= _fee;

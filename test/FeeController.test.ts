@@ -1,30 +1,176 @@
 /* eslint-disable camelcase */
+import {FakeContract, smock} from '@defi-wonderland/smock'
 import {parseEther} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
-import {FeeProvider__factory, FeeProvider} from '../typechain'
+import {FeeProvider__factory, FeeProvider, PoolRegistry} from '../typechain'
 
 describe('FeeProvider', function () {
   let deployer: SignerWithAddress
   let alice: SignerWithAddress
-  let bob: SignerWithAddress
   let feeProvider: FeeProvider
+  let esMET: FakeContract
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
-    ;[deployer, alice, bob] = await ethers.getSigners()
+    ;[deployer, alice] = await ethers.getSigners()
+
+    esMET = await smock.fake('IESMET')
+
+    const poolMockRegistry = await smock.fake<PoolRegistry>('PoolRegistry')
+    poolMockRegistry.governor.returns(deployer.address)
 
     const feeProviderFactory = new FeeProvider__factory(deployer)
     feeProvider = await feeProviderFactory.deploy()
     await feeProvider.deployed()
-    await feeProvider.initialize()
+    await feeProvider.initialize(poolMockRegistry.address, esMET.address)
   })
 
-  describe('updateSwapFee', function () {
+  describe('swapFeeFor', function () {
+    beforeEach(async function () {
+      await feeProvider.updateTiers([
+        {min: parseEther('10'), discount: parseEther('0.1')},
+        {min: parseEther('20'), discount: parseEther('0.2')},
+        {min: parseEther('30'), discount: parseEther('0.3')},
+      ])
+    })
+
+    it('should get fee if balance < tier[0]', async function () {
+      const fee = await feeProvider.swapFeeFor(alice.address)
+      expect(fee).eq(parseEther('0.0025'))
+    })
+
+    it('should get fee if matches tiers[0]', async function () {
+      esMET.balanceOf.returns(parseEther('11'))
+      const fee = await feeProvider.swapFeeFor(alice.address)
+      expect(fee).eq(parseEther('0.00225'))
+    })
+
+    it('should get fee if matches tiers[1]', async function () {
+      esMET.balanceOf.returns(parseEther('21'))
+      const fee = await feeProvider.swapFeeFor(alice.address)
+      expect(fee).eq(parseEther('0.002'))
+    })
+
+    it('should get fee if matches tiers[N]', async function () {
+      esMET.balanceOf.returns(parseEther('31'))
+      const fee = await feeProvider.swapFeeFor(alice.address)
+      expect(fee).eq(parseEther('0.00175'))
+    })
+  })
+
+  describe('updateTiers', function () {
+    const getTiers = async () =>
+      (await feeProvider.getTiers()).map(({min, discount}) => ({
+        min,
+        discount,
+      }))
+
+    it('should set tiers', async function () {
+      // given
+      const oldTiers: any[] = []
+      expect(await getTiers()).deep.eq(oldTiers)
+
+      // when
+      const newTiers = [
+        {min: parseEther('10'), discount: parseEther('0.1')},
+        {min: parseEther('20'), discount: parseEther('0.2')},
+      ]
+      const tx = feeProvider.updateTiers(newTiers)
+
+      // then
+      await expect(tx).emit(feeProvider, 'TiersUpdated')
+      expect(await getTiers()).deep.eq(newTiers)
+    })
+
+    it('should increase tiers', async function () {
+      // given
+      const oldTiers = [
+        {min: parseEther('10'), discount: parseEther('0.1')},
+        {min: parseEther('20'), discount: parseEther('0.2')},
+      ]
+      await feeProvider.updateTiers(oldTiers)
+      expect(await getTiers()).deep.eq(oldTiers)
+
+      // when
+      const newTiers = [
+        {min: parseEther('10'), discount: parseEther('0.1')},
+        {min: parseEther('20'), discount: parseEther('0.2')},
+        {min: parseEther('30'), discount: parseEther('0.3')},
+      ]
+      const tx = feeProvider.updateTiers(newTiers)
+
+      // then
+      await expect(tx).emit(feeProvider, 'TiersUpdated')
+      expect(await getTiers()).deep.eq(newTiers)
+    })
+
+    it('should decrease tiers', async function () {
+      // given
+      const oldTiers = [
+        {min: parseEther('10'), discount: parseEther('0.1')},
+        {min: parseEther('20'), discount: parseEther('0.2')},
+      ]
+      await feeProvider.updateTiers(oldTiers)
+      expect(await getTiers()).deep.eq(oldTiers)
+
+      // when
+      const newTiers = [{min: parseEther('50'), discount: parseEther('0.5')}]
+      const tx = feeProvider.updateTiers(newTiers)
+
+      // then
+      await expect(tx).emit(feeProvider, 'TiersUpdated')
+      expect(await getTiers()).deep.eq(newTiers)
+    })
+
+    it('should erase all tiers', async function () {
+      // given
+      const oldTiers = [
+        {min: parseEther('10'), discount: parseEther('0.1')},
+        {min: parseEther('20'), discount: parseEther('0.2')},
+      ]
+      await feeProvider.updateTiers(oldTiers)
+      expect(await getTiers()).deep.eq(oldTiers)
+
+      // when
+      const newTiers: any[] = []
+      const tx = feeProvider.updateTiers(newTiers)
+
+      // then
+      await expect(tx).emit(feeProvider, 'TiersUpdated')
+      expect(await getTiers()).deep.eq(newTiers)
+    })
+
+    it('should revert if discount is invalid', async function () {
+      // when
+      const newTiers = [
+        {min: parseEther('10'), discount: parseEther('0.1')},
+        {min: parseEther('20'), discount: parseEther('1.001')},
+      ]
+      const tx = feeProvider.updateTiers(newTiers)
+
+      // then
+      await expect(tx).revertedWithCustomError(feeProvider, 'TierDiscountTooHigh')
+    })
+
+    it('should revert if not ordered', async function () {
+      // when
+      const newTiers = [
+        {min: parseEther('20'), discount: parseEther('0.2')},
+        {min: parseEther('10'), discount: parseEther('0.1')},
+      ]
+      const tx = feeProvider.updateTiers(newTiers)
+
+      // then
+      await expect(tx).revertedWithCustomError(feeProvider, 'TiersNotOrderedByMin')
+    })
+  })
+
+  describe('updateDefaultSwapFee', function () {
     it('should revert if caller is not governor', async function () {
       // when
-      const tx = feeProvider.connect(alice).updateSwapFee(parseEther('1'))
+      const tx = feeProvider.connect(alice).updateDefaultSwapFee(parseEther('1'))
 
       // then
       await expect(tx).revertedWithCustomError(feeProvider, 'SenderIsNotGovernor')
@@ -32,8 +178,8 @@ describe('FeeProvider', function () {
 
     it('should revert if using the current value', async function () {
       // when
-      const swapFee = await feeProvider.swapFee()
-      const tx = feeProvider.updateSwapFee(swapFee)
+      const swapFee = await feeProvider.defaultSwapFee()
+      const tx = feeProvider.updateDefaultSwapFee(swapFee)
 
       // then
       await expect(tx).revertedWithCustomError(feeProvider, 'NewValueIsSameAsCurrent')
@@ -42,7 +188,7 @@ describe('FeeProvider', function () {
     it('should revert if swap fee > 25%', async function () {
       // when
       const newSwapFee = parseEther('0.25').add('1')
-      const tx = feeProvider.updateSwapFee(newSwapFee)
+      const tx = feeProvider.updateDefaultSwapFee(newSwapFee)
 
       // then
       await expect(tx).revertedWithCustomError(feeProvider, 'FeeIsGreaterThanTheMax')
@@ -50,15 +196,15 @@ describe('FeeProvider', function () {
 
     it('should update swap fee param', async function () {
       // given
-      const currentSwapFee = await feeProvider.swapFee()
+      const currentSwapFee = await feeProvider.defaultSwapFee()
       const newSwapFee = parseEther('0.01')
       expect(newSwapFee).not.eq(currentSwapFee)
 
       // when
-      const tx = feeProvider.updateSwapFee(newSwapFee)
+      const tx = feeProvider.updateDefaultSwapFee(newSwapFee)
 
       // then
-      await expect(tx).emit(feeProvider, 'SwapFeeUpdated').withArgs(currentSwapFee, newSwapFee)
+      await expect(tx).emit(feeProvider, 'SwapDefaultFeeUpdated').withArgs(currentSwapFee, newSwapFee)
     })
   })
 

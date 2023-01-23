@@ -23,6 +23,7 @@ import {
   FeeProvider__factory,
   FeeProvider,
 } from '../typechain'
+import {smock} from '@defi-wonderland/smock'
 
 const {MaxUint256} = ethers.constants
 
@@ -53,9 +54,11 @@ async function fixture() {
   const poolRegistry = await poolRegistryFactory.deploy()
   await poolRegistry.deployed()
 
+  const esMET = await smock.fake('IESMET')
+
   const feeProvider = await feeProviderFactory.deploy()
   await feeProvider.deployed()
-  await feeProvider.initialize()
+  await feeProvider.initialize(poolRegistry.address, esMET.address)
 
   const msETH = await syntheticTokenFactory.deploy()
   await msETH.deployed()

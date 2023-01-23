@@ -148,7 +148,7 @@ describe('Pool', function () {
     poolRegistryMock.masterOracle.returns(masterOracle.address)
     poolRegistryMock.feeCollector.returns(feeCollector.address)
 
-    // const esMET = await smock.fake('IESMET')
+    const esMET = await smock.fake('IESMET')
 
     // Deployment tasks
     await msdMET.initialize(met.address, pool.address, 'Metronome Synth WETH-Deposit', 'msdMET', 18, metCF, MaxUint256)
@@ -176,8 +176,7 @@ describe('Pool', function () {
     )
     await msUSD.initialize('Metronome Synth USD', 'msUSD', 18, poolRegistryMock.address)
     await msUsdDebtToken.initialize('msUSD Debt', 'msUSD-Debt', pool.address, msUSD.address, interestRate, MaxUint256)
-    // await feeProvider.initialize(poolRegistryMock.address, esMET.address)
-    await feeProvider.initialize()
+    await feeProvider.initialize(poolRegistryMock.address, esMET.address)
 
     await pool.initialize(poolRegistryMock.address)
     await pool.updateMaxLiquidable(parseEther('1')) // 100%
@@ -1190,7 +1189,7 @@ describe('Pool', function () {
 
         it('should swap synthetic tokens (swapFee == 0)', async function () {
           // given
-          await feeProvider.updateSwapFee(0)
+          await feeProvider.updateDefaultSwapFee(0)
           const msAssetInBalanceBefore = await msEth.balanceOf(alice.address)
           const msAssetOutBalanceBefore = await msDoge.balanceOf(alice.address)
           expect(msAssetOutBalanceBefore).eq(0)
@@ -1219,7 +1218,7 @@ describe('Pool', function () {
         it('should swap synthetic tokens (swapFee > 0)', async function () {
           // given
           const swapFee = parseEther('0.1') // 10%
-          await feeProvider.updateSwapFee(swapFee)
+          await feeProvider.updateDefaultSwapFee(swapFee)
           const msAssetInBalanceBefore = await msEth.balanceOf(alice.address)
           const msAssetOutBalanceBefore = await msDoge.balanceOf(alice.address)
           expect(msAssetOutBalanceBefore).eq(0)

@@ -16,6 +16,7 @@ import {
   Pool,
   FeeProvider,
   FeeProvider__factory,
+  PoolRegistry,
 } from '../typechain'
 import {setBalance} from '@nomicfoundation/hardhat-network-helpers'
 import {FakeContract, MockContract, smock} from '@defi-wonderland/smock'
@@ -60,10 +61,15 @@ describe('DepositToken', function () {
     treasury = await treasuryFactory.deploy()
     await treasury.deployed()
 
+    const esMET = await smock.fake('IESMET')
+
+    const poolMockRegistry = await smock.fake<PoolRegistry>('PoolRegistry')
+    poolMockRegistry.governor.returns(governor.address)
+
     const feeProviderFactory = new FeeProvider__factory(deployer)
     feeProvider = await feeProviderFactory.deploy()
     await feeProvider.deployed()
-    await feeProvider.initialize()
+    await feeProvider.initialize(poolMockRegistry.address, esMET.address)
 
     const depositTokenFactory = new DepositToken__factory(deployer)
     metDepositToken = await depositTokenFactory.deploy()
@@ -191,7 +197,7 @@ describe('DepositToken', function () {
 
       it('should withdraw if amount <= unlocked collateral amount (withdrawFee > 0)', async function () {
         // given
-        await feeProvider.updateWithdrawFee(parseEther('0.1')) // 10%
+        await feeProvider.connect(governor).updateWithdrawFee(parseEther('0.1')) // 10%
         const metBalanceBefore = await met.balanceOf(alice.address)
         const depositBefore = await metDepositToken.balanceOf(alice.address)
         const amount = await metDepositToken.unlockedBalanceOf(alice.address)
@@ -329,7 +335,7 @@ describe('DepositToken', function () {
 
       it('should deposit MET and mint msdMET (depositFee > 0)', async function () {
         // given
-        await feeProvider.updateDepositFee(parseEther('0.01')) // 1%
+        await feeProvider.connect(governor).updateDepositFee(parseEther('0.01')) // 1%
 
         // when
         const amount = parseEther('100')

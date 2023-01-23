@@ -1,21 +1,25 @@
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
 import {UpgradableContracts, deployUpgradable} from '../../helpers'
+import Address from '../../../helpers/address'
 
 const {
   Pool: {alias: Pool},
   FeeProvider: {alias: FeeProvider},
+  PoolRegistry: {alias: PoolRegistry},
 } = UpgradableContracts
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {getNamedAccounts, deployments} = hre
-  const {execute, read} = deployments
+  const {get, execute, read} = deployments
   const {deployer} = await getNamedAccounts()
+
+  const {address: poolRegistryAddress} = await get(PoolRegistry)
 
   const {address: feeProviderAddress} = await deployUpgradable({
     hre,
     contractConfig: UpgradableContracts.FeeProvider,
-    initializeArgs: [],
+    initializeArgs: [poolRegistryAddress, Address.ESMET],
   })
 
   const currentFeeProvider = await read(Pool, 'feeProvider')

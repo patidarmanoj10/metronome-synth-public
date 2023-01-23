@@ -428,13 +428,11 @@ describe('Deployments', function () {
 
   describe('FeeProvider', function () {
     it('should have correct params', async function () {
-      expect(await feeProvider.governor()).eq(deployer.address)
-      expect(await feeProvider.proposedGovernor()).eq(ethers.constants.AddressZero)
       expect(await feeProvider.depositFee()).eq(parseEther('0'))
       expect(await feeProvider.issueFee()).eq(parseEther('0'))
       expect(await feeProvider.withdrawFee()).eq(parseEther('0'))
       expect(await feeProvider.repayFee()).eq(parseEther('0'))
-      expect(await feeProvider.swapFee()).eq(parseEther('0.0025'))
+      expect(await feeProvider.defaultSwapFee()).eq(parseEther('0.0025'))
       const {liquidatorIncentive, protocolFee} = await feeProvider.liquidationFees()
       expect(liquidatorIncentive).eq(parseEther('0.1'))
       expect(protocolFee).eq(parseEther('0.08'))

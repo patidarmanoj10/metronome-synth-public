@@ -538,7 +538,7 @@ describe('E2E tests', function () {
         await setTokenBalance(vaFRAX.address, alice.address, parseUnits('1000', 18))
       })
 
-      it.only('should leverage vaUSDC->msUSD', async function () {
+      it('should leverage vaUSDC->msUSD', async function () {
         // when
         const amountIn = parseUnits('100', 18)
         const leverage = parseEther('1.5')

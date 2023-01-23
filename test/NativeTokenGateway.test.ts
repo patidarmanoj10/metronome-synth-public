@@ -68,10 +68,12 @@ describe('NativeTokenGateway', function () {
     poolRegistryMock = await smock.fake('PoolRegistry')
     poolRegistryMock.isPoolRegistered.returns(true)
 
+    const esMET = await smock.fake('IESMET')
+
     const feeProviderFactory = new FeeProvider__factory(deployer)
     const feeProvider = await feeProviderFactory.deploy()
     await feeProvider.deployed()
-    await feeProvider.initialize()
+    await feeProvider.initialize(poolRegistryMock.address, esMET.address)
 
     const poolMockFactory = new PoolMock__factory(deployer)
     poolMock = await poolMockFactory.deploy(
