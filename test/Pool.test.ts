@@ -26,6 +26,8 @@ import {
   SwapperMock__factory,
   VPoolMock,
   VPoolMock__factory,
+  FeeProvider__factory,
+  FeeProvider,
 } from '../typechain'
 import {getMinLiquidationAmountInUsd} from './helpers'
 import {setBalance} from '@nomicfoundation/hardhat-network-helpers'
@@ -71,6 +73,7 @@ describe('Pool', function () {
   let masterOracle: MasterOracleMock
   let pool: Pool
   let poolRegistryMock: FakeContract
+  let feeProvider: FeeProvider
 
   async function fixture() {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
@@ -131,6 +134,10 @@ describe('Pool', function () {
     msUSD = await syntheticTokenFactory.deploy()
     await msUSD.deployed()
 
+    const feeProviderFactory = new FeeProvider__factory(deployer)
+    feeProvider = await feeProviderFactory.deploy()
+    await feeProvider.deployed()
+
     const poolFactory = new Pool__factory(deployer)
     pool = await poolFactory.deploy()
     await pool.deployed()
@@ -140,6 +147,8 @@ describe('Pool', function () {
     poolRegistryMock.isPoolRegistered.returns((address: string) => address == pool.address)
     poolRegistryMock.masterOracle.returns(masterOracle.address)
     poolRegistryMock.feeCollector.returns(feeCollector.address)
+
+    const esMET = await smock.fake('IESMET')
 
     // Deployment tasks
     await msdMET.initialize(met.address, pool.address, 'Metronome Synth WETH-Deposit', 'msdMET', 18, metCF, MaxUint256)
@@ -167,12 +176,14 @@ describe('Pool', function () {
     )
     await msUSD.initialize('Metronome Synth USD', 'msUSD', 18, poolRegistryMock.address)
     await msUsdDebtToken.initialize('msUSD Debt', 'msUSD-Debt', pool.address, msUSD.address, interestRate, MaxUint256)
+    await feeProvider.initialize(poolRegistryMock.address, esMET.address)
 
     await pool.initialize(poolRegistryMock.address)
     await pool.updateMaxLiquidable(parseEther('1')) // 100%
     await pool.updateTreasury(treasury.address)
     await pool.updateSwapper(swapper.address)
-    const liquidationFees = await pool.liquidationFees()
+    await pool.updateFeeProvider(feeProvider.address)
+    const liquidationFees = await feeProvider.liquidationFees()
     expect(liquidationFees.liquidatorIncentive).eq(liquidatorIncentive)
     await pool.addDepositToken(msdMET.address)
     await pool.addDebtToken(msEthDebtToken.address)
@@ -207,8 +218,8 @@ describe('Pool', function () {
       await pool.connect(deployer).addDebtToken(msUsdDebtToken.address)
 
       // given
-      expect(await pool.issueFee()).eq(0)
-      expect(await pool.depositFee()).eq(0)
+      expect(await feeProvider.issueFee()).eq(0)
+      expect(await feeProvider.depositFee()).eq(0)
       const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
       expect(_debtInUsd).eq(0)
       expect(_depositInUsd).eq(0)
@@ -564,7 +575,7 @@ describe('Pool', function () {
 
           it('should liquidate by repaying all debt (protocolLiquidationFee == 0)', async function () {
             // given
-            await pool.updateProtocolLiquidationFee(0)
+            await feeProvider.updateProtocolLiquidationFee(0)
             const debtInUsdBefore = await pool.debtOf(alice.address)
             const {_depositInUsd: collateralInUsdBefore} = await pool.debtPositionOf(alice.address)
 
@@ -601,7 +612,7 @@ describe('Pool', function () {
           it('should liquidate by repaying all debt (protocolLiquidationFee > 0)', async function () {
             // given
             const protocolLiquidationFee = parseEther('0.01') // 1%
-            await pool.updateProtocolLiquidationFee(protocolLiquidationFee)
+            await feeProvider.updateProtocolLiquidationFee(protocolLiquidationFee)
             const debtInUsdBefore = await pool.debtOf(alice.address)
             const {_depositInUsd: depositInUsdBefore} = await pool.debtPositionOf(alice.address)
             const depositBefore = await masterOracle.quoteUsdToToken(met.address, depositInUsdBefore)
@@ -644,7 +655,7 @@ describe('Pool', function () {
 
           it('should liquidate by repaying > needed (protocolLiquidationFee == 0)', async function () {
             // given
-            await pool.updateProtocolLiquidationFee(0)
+            await feeProvider.updateProtocolLiquidationFee(0)
             const debtInUsdBefore = await pool.debtOf(alice.address)
             const {_depositInUsd: collateralInUsdBefore} = await pool.debtPositionOf(alice.address)
             const collateralBefore = await masterOracle.quoteUsdToToken(met.address, collateralInUsdBefore)
@@ -681,7 +692,7 @@ describe('Pool', function () {
           it('should liquidate by repaying > needed (protocolLiquidationFee > 0)', async function () {
             // given
             const protocolLiquidationFee = parseEther('0.01') // 1%
-            await pool.updateProtocolLiquidationFee(protocolLiquidationFee)
+            await feeProvider.updateProtocolLiquidationFee(protocolLiquidationFee)
             const debtInUsdBefore = await pool.debtOf(alice.address)
             const {_depositInUsd: collateralInUsdBefore} = await pool.debtPositionOf(alice.address)
             const minAmountToRepayInUsd = await getMinLiquidationAmountInUsd(pool, alice.address, msdMET)
@@ -726,7 +737,7 @@ describe('Pool', function () {
 
           it('should liquidate by repaying < needed (protocolLiquidationFee == 0)', async function () {
             // given
-            await pool.updateProtocolLiquidationFee(0)
+            await feeProvider.updateProtocolLiquidationFee(0)
             const {_depositInUsd: collateralInUsdBefore} = await pool.debtPositionOf(alice.address)
             const collateralBefore = await masterOracle.quoteUsdToToken(met.address, collateralInUsdBefore)
 
@@ -761,7 +772,7 @@ describe('Pool', function () {
           it('should liquidate by repaying < needed (protocolLiquidationFee > 0)', async function () {
             // given
             const protocolLiquidationFee = parseEther('0.01') // 1%
-            await pool.updateProtocolLiquidationFee(protocolLiquidationFee)
+            await feeProvider.updateProtocolLiquidationFee(protocolLiquidationFee)
             const {_depositInUsd: collateralInUsdBefore} = await pool.debtPositionOf(alice.address)
             const collateralBefore = await masterOracle.quoteUsdToToken(met.address, collateralInUsdBefore)
 
@@ -802,7 +813,7 @@ describe('Pool', function () {
 
           it('should liquidate by repaying the exact amount needed (protocolLiquidationFee == 0)', async function () {
             // given
-            await pool.updateProtocolLiquidationFee(0)
+            await feeProvider.updateProtocolLiquidationFee(0)
             const {_depositInUsd: depositInUsdBefore} = await pool.debtPositionOf(alice.address)
             const depositBefore = await masterOracle.quoteUsdToToken(met.address, depositInUsdBefore)
 
@@ -838,7 +849,7 @@ describe('Pool', function () {
           it('should liquidate by repaying the exact amount needed (protocolLiquidationFee > 0)', async function () {
             // given
             const protocolLiquidationFee = parseEther('0.01') // 1%
-            await pool.updateProtocolLiquidationFee(protocolLiquidationFee)
+            await feeProvider.updateProtocolLiquidationFee(protocolLiquidationFee)
             const {_depositInUsd: depositBeforeInUsd} = await pool.debtPositionOf(alice.address)
             const depositBefore = await masterOracle.quoteUsdToToken(met.address, depositBeforeInUsd)
 
@@ -902,7 +913,7 @@ describe('Pool', function () {
 
           it('should liquidate by repaying max possible amount (liquidateFee == 0)', async function () {
             // given
-            await pool.updateProtocolLiquidationFee(0)
+            await feeProvider.updateProtocolLiquidationFee(0)
             const depositBefore = await msdMET.balanceOf(alice.address)
 
             // when
@@ -933,7 +944,7 @@ describe('Pool', function () {
           it('should liquidate by repaying max possible amount (liquidateFee > 0)', async function () {
             // given
             const protocolLiquidationFee = parseEther('0.01') // 1%
-            await pool.updateProtocolLiquidationFee(protocolLiquidationFee)
+            await feeProvider.updateProtocolLiquidationFee(protocolLiquidationFee)
             const depositBefore = await msdMET.balanceOf(alice.address)
 
             // when
@@ -984,7 +995,7 @@ describe('Pool', function () {
 
           it('should liquidate by not repaying all debt (liquidateFee == 0)', async function () {
             // given
-            await pool.updateProtocolLiquidationFee(0)
+            await feeProvider.updateProtocolLiquidationFee(0)
             const {_depositInUsd: collateralInUsdBefore} = await pool.debtPositionOf(alice.address)
             const collateralBefore = await masterOracle.quoteUsdToToken(met.address, collateralInUsdBefore)
 
@@ -1024,7 +1035,7 @@ describe('Pool', function () {
           it('should liquidate by not repaying all debt (liquidateFee > 0)', async function () {
             // given
             const protocolLiquidationFee = parseEther('0.01') // 1%
-            await pool.updateProtocolLiquidationFee(protocolLiquidationFee)
+            await feeProvider.updateProtocolLiquidationFee(protocolLiquidationFee)
             const {_depositInUsd: collateralInUsdBefore} = await pool.debtPositionOf(alice.address)
             const collateralBefore = await masterOracle.quoteUsdToToken(met.address, collateralInUsdBefore)
 
@@ -1072,7 +1083,7 @@ describe('Pool', function () {
 
         describe('when user minted both msETH and msDOGE using all collateral', function () {
           beforeEach(async function () {
-            await pool.updateProtocolLiquidationFee(0)
+            await feeProvider.updateProtocolLiquidationFee(0)
 
             const {_issuableInUsd} = await pool.debtPositionOf(alice.address)
             const maxIssuableDoge = await masterOracle.quoteUsdToToken(msDoge.address, _issuableInUsd)
@@ -1178,7 +1189,7 @@ describe('Pool', function () {
 
         it('should swap synthetic tokens (swapFee == 0)', async function () {
           // given
-          await pool.updateSwapFee(0)
+          await feeProvider.updateDefaultSwapFee(0)
           const msAssetInBalanceBefore = await msEth.balanceOf(alice.address)
           const msAssetOutBalanceBefore = await msDoge.balanceOf(alice.address)
           expect(msAssetOutBalanceBefore).eq(0)
@@ -1207,7 +1218,7 @@ describe('Pool', function () {
         it('should swap synthetic tokens (swapFee > 0)', async function () {
           // given
           const swapFee = parseEther('0.1') // 10%
-          await pool.updateSwapFee(swapFee)
+          await feeProvider.updateDefaultSwapFee(swapFee)
           const msAssetInBalanceBefore = await msEth.balanceOf(alice.address)
           const msAssetOutBalanceBefore = await msDoge.balanceOf(alice.address)
           expect(msAssetOutBalanceBefore).eq(0)
@@ -1420,47 +1431,6 @@ describe('Pool', function () {
     })
   })
 
-  describe('updateSwapFee', function () {
-    it('should revert if caller is not governor', async function () {
-      // when
-      const tx = pool.connect(alice).updateSwapFee(parseEther('1'))
-
-      // then
-      await expect(tx).revertedWithCustomError(pool, 'SenderIsNotGovernor')
-    })
-
-    it('should revert if using the current value', async function () {
-      // when
-      const swapFee = await pool.swapFee()
-      const tx = pool.updateSwapFee(swapFee)
-
-      // then
-      await expect(tx).revertedWithCustomError(pool, 'NewValueIsSameAsCurrent')
-    })
-
-    it('should revert if swap fee > 25%', async function () {
-      // when
-      const newSwapFee = parseEther('0.25').add('1')
-      const tx = pool.updateSwapFee(newSwapFee)
-
-      // then
-      await expect(tx).revertedWithCustomError(pool, 'FeeIsGreaterThanTheMax')
-    })
-
-    it('should update swap fee param', async function () {
-      // given
-      const currentSwapFee = await pool.swapFee()
-      const newSwapFee = parseEther('0.01')
-      expect(newSwapFee).not.eq(currentSwapFee)
-
-      // when
-      const tx = pool.updateSwapFee(newSwapFee)
-
-      // then
-      await expect(tx).emit(pool, 'SwapFeeUpdated').withArgs(currentSwapFee, newSwapFee)
-    })
-  })
-
   describe('depositTokensOfAccount', function () {
     let msdTOKEN: FakeContract
 
@@ -1597,256 +1567,6 @@ describe('Pool', function () {
         // when
         expect(await pool.getDebtTokensOfAccount(alice.address)).deep.eq([])
       })
-    })
-  })
-
-  describe('updateDepositFee', function () {
-    it('should revert if caller is not governor', async function () {
-      // when
-      const tx = pool.connect(alice).updateDepositFee(parseEther('1'))
-
-      // then
-      await expect(tx).revertedWithCustomError(pool, 'SenderIsNotGovernor')
-    })
-
-    it('should revert if using the current value', async function () {
-      // when
-      const depositFee = await pool.depositFee()
-      const tx = pool.updateDepositFee(depositFee)
-
-      // then
-      await expect(tx).revertedWithCustomError(pool, 'NewValueIsSameAsCurrent')
-    })
-
-    it('should revert if deposit fee > 25%', async function () {
-      // when
-      const newDepositFee = parseEther('0.25').add('1')
-      const tx = pool.updateDepositFee(newDepositFee)
-
-      // then
-      await expect(tx).revertedWithCustomError(pool, 'FeeIsGreaterThanTheMax')
-    })
-
-    it('should update deposit fee param', async function () {
-      // given
-      const currentDepositFee = await pool.depositFee()
-      const newDepositFee = parseEther('0.01')
-      expect(newDepositFee).not.eq(currentDepositFee)
-
-      // when
-      const tx = pool.updateDepositFee(newDepositFee)
-
-      // then
-      await expect(tx).emit(pool, 'DepositFeeUpdated').withArgs(currentDepositFee, newDepositFee)
-    })
-  })
-
-  describe('updateIssueFee', function () {
-    it('should revert if caller is not governor', async function () {
-      // when
-      const tx = pool.connect(alice).updateIssueFee(parseEther('1'))
-
-      // then
-      await expect(tx).revertedWithCustomError(pool, 'SenderIsNotGovernor')
-    })
-
-    it('should revert if using the current value', async function () {
-      // when
-      const issueFee = await pool.issueFee()
-      const tx = pool.updateIssueFee(issueFee)
-
-      // then
-      await expect(tx).revertedWithCustomError(pool, 'NewValueIsSameAsCurrent')
-    })
-
-    it('should revert if issue fee > 25%', async function () {
-      // when
-      const newIssueFee = parseEther('0.25').add('1')
-      const tx = pool.updateIssueFee(newIssueFee)
-
-      // then
-      await expect(tx).revertedWithCustomError(pool, 'FeeIsGreaterThanTheMax')
-    })
-
-    it('should update issue fee param', async function () {
-      // given
-      const currentIssueFee = await pool.issueFee()
-      const newIssueFee = parseEther('0.01')
-      expect(newIssueFee).not.eq(currentIssueFee)
-
-      // when
-      const tx = pool.updateIssueFee(newIssueFee)
-
-      // then
-      await expect(tx).emit(pool, 'IssueFeeUpdated').withArgs(currentIssueFee, newIssueFee)
-    })
-  })
-
-  describe('updateWithdrawFee', function () {
-    it('should revert if caller is not governor', async function () {
-      // when
-      const tx = pool.connect(alice).updateWithdrawFee(parseEther('1'))
-
-      // then
-      await expect(tx).revertedWithCustomError(pool, 'SenderIsNotGovernor')
-    })
-
-    it('should revert if using the current value', async function () {
-      // when
-      const withdrawFee = await pool.withdrawFee()
-      const tx = pool.updateWithdrawFee(withdrawFee)
-
-      // then
-      await expect(tx).revertedWithCustomError(pool, 'NewValueIsSameAsCurrent')
-    })
-
-    it('should revert if withdraw fee > 25%', async function () {
-      // when
-      const newWithdrawFee = parseEther('0.25').add('1')
-      const tx = pool.updateWithdrawFee(newWithdrawFee)
-
-      // then
-      await expect(tx).revertedWithCustomError(pool, 'FeeIsGreaterThanTheMax')
-    })
-
-    it('should update withdraw fee param', async function () {
-      // given
-      const currentWithdrawFee = await pool.withdrawFee()
-      const newWithdrawFee = parseEther('0.01')
-      expect(newWithdrawFee).not.eq(currentWithdrawFee)
-
-      // when
-      const tx = pool.updateWithdrawFee(newWithdrawFee)
-
-      // then
-      await expect(tx).emit(pool, 'WithdrawFeeUpdated').withArgs(currentWithdrawFee, newWithdrawFee)
-    })
-  })
-
-  describe('updateRepayFee', function () {
-    it('should revert if caller is not governor', async function () {
-      // when
-      const tx = pool.connect(alice).updateRepayFee(parseEther('1'))
-
-      // then
-      await expect(tx).revertedWithCustomError(pool, 'SenderIsNotGovernor')
-    })
-
-    it('should revert if using the current value', async function () {
-      // when
-      const repayFee = await pool.repayFee()
-      const tx = pool.updateRepayFee(repayFee)
-
-      // then
-      await expect(tx).revertedWithCustomError(pool, 'NewValueIsSameAsCurrent')
-    })
-
-    it('should revert if repay fee > 25%', async function () {
-      // when
-      const newRepayFee = parseEther('0.25').add('1')
-      const tx = pool.updateRepayFee(newRepayFee)
-
-      // then
-      await expect(tx).revertedWithCustomError(pool, 'FeeIsGreaterThanTheMax')
-    })
-
-    it('should update repay fee param', async function () {
-      // given
-      const currentRepayFee = await pool.repayFee()
-      const newRepayFee = parseEther('0.01')
-      expect(newRepayFee).not.eq(currentRepayFee)
-
-      // when
-      const tx = pool.updateRepayFee(newRepayFee)
-
-      // then
-      await expect(tx).emit(pool, 'RepayFeeUpdated').withArgs(currentRepayFee, newRepayFee)
-    })
-  })
-
-  describe('updateLiquidatorIncentive', function () {
-    it('should revert if caller is not governor', async function () {
-      // when
-      const tx = pool.connect(alice).updateLiquidatorIncentive(parseEther('1'))
-
-      // then
-      await expect(tx).revertedWithCustomError(pool, 'SenderIsNotGovernor')
-    })
-
-    it('should revert if using the current value', async function () {
-      // when
-      const [newLiquidatorIncentive] = await pool.liquidationFees()
-      const tx = pool.updateLiquidatorIncentive(newLiquidatorIncentive)
-
-      // then
-      await expect(tx).revertedWithCustomError(pool, 'NewValueIsSameAsCurrent')
-    })
-
-    it('should revert if liquidator incentive > 25%', async function () {
-      // when
-      const newLiquidatorIncentive = parseEther('0.25').add('1')
-      const tx = pool.updateLiquidatorIncentive(newLiquidatorIncentive)
-
-      // then
-      await expect(tx).revertedWithCustomError(pool, 'FeeIsGreaterThanTheMax')
-    })
-
-    it('should update liquidator incentive param', async function () {
-      // given
-      const [currentLiquidatorIncentive] = await pool.liquidationFees()
-      const newLiquidatorIncentive = parseEther('0.01')
-      expect(newLiquidatorIncentive).not.eq(currentLiquidatorIncentive)
-
-      // when
-      const tx = pool.updateLiquidatorIncentive(newLiquidatorIncentive)
-
-      // then
-      await expect(tx)
-        .emit(pool, 'LiquidatorIncentiveUpdated')
-        .withArgs(currentLiquidatorIncentive, newLiquidatorIncentive)
-    })
-  })
-
-  describe('updateProtocolLiquidationFee', function () {
-    it('should revert if caller is not governor', async function () {
-      // when
-      const tx = pool.connect(alice).updateProtocolLiquidationFee(parseEther('1'))
-
-      // then
-      await expect(tx).revertedWithCustomError(pool, 'SenderIsNotGovernor')
-    })
-
-    it('should revert if using the current value', async function () {
-      // when
-      const [, newProtocolLiquidationFee] = await pool.liquidationFees()
-      const tx = pool.updateProtocolLiquidationFee(newProtocolLiquidationFee)
-
-      // then
-      await expect(tx).revertedWithCustomError(pool, 'NewValueIsSameAsCurrent')
-    })
-
-    it('should revert if protocol liquidation fee > 25%', async function () {
-      // when
-      const newProtocolLiquidationFee = parseEther('0.25').add('1')
-      const tx = pool.updateProtocolLiquidationFee(newProtocolLiquidationFee)
-
-      // then
-      await expect(tx).revertedWithCustomError(pool, 'FeeIsGreaterThanTheMax')
-    })
-
-    it('should update protocol liquidation fee param', async function () {
-      // given
-      const [, currentProtocolLiquidationFee] = await pool.liquidationFees()
-      const newProtocolLiquidationFee = parseEther('0.01')
-      expect(newProtocolLiquidationFee).not.eq(currentProtocolLiquidationFee)
-
-      // when
-      const tx = pool.updateProtocolLiquidationFee(newProtocolLiquidationFee)
-
-      // then
-      await expect(tx)
-        .emit(pool, 'ProtocolLiquidationFeeUpdated')
-        .withArgs(currentProtocolLiquidationFee, newProtocolLiquidationFee)
     })
   })
 
@@ -2064,6 +1784,48 @@ describe('Pool', function () {
       // then
       await expect(tx).emit(pool, 'SwapperUpdated').withArgs(before, after)
       expect(await pool.swapper()).eq(after)
+    })
+  })
+
+  describe('updateFeeProvider', function () {
+    it('should revert if using the same address', async function () {
+      // given
+      expect(await pool.feeProvider()).eq(feeProvider.address)
+
+      // when
+      const tx = pool.updateFeeProvider(feeProvider.address)
+
+      // then
+      await expect(tx).revertedWithCustomError(pool, 'NewValueIsSameAsCurrent')
+    })
+
+    it('should revert if caller is not governor', async function () {
+      // when
+      const tx = pool.connect(alice).updateFeeProvider(treasury.address)
+
+      // then
+      await expect(tx).revertedWithCustomError(pool, 'SenderIsNotGovernor')
+    })
+
+    it('should revert if address is zero', async function () {
+      // when
+      const tx = pool.updateFeeProvider(ethers.constants.AddressZero)
+
+      // then
+      await expect(tx).revertedWithCustomError(pool, 'AddressIsNull')
+    })
+
+    it('should update fee provider', async function () {
+      // given
+      const before = await pool.feeProvider()
+      const after = bob.address
+      expect(before).not.eq(after)
+
+      // when
+      const tx = pool.updateFeeProvider(after)
+
+      // then
+      await expect(tx).to.emit(pool, 'FeeProviderUpdated').withArgs(before, after)
     })
   })
 })

@@ -29,6 +29,7 @@ import {
   NativeTokenGateway__factory,
   IRoutedSwapper__factory,
   TransparentUpgradeableProxy__factory,
+  FeeProvider__factory,
 } from '../typechain'
 import {address as POOL_REGISTRY_ADDRESS} from '../deployments/mainnet/PoolRegistry.json'
 import {address as USDC_DEPOSIT_ADDRESS} from '../deployments/mainnet/USDCDepositToken.json'
@@ -50,6 +51,8 @@ import {address as MSETH_SYNTHETIC_ADDRESS} from '../deployments/mainnet/MsETHSy
 import {address as NATIVE_TOKEN_GATEWAY_ADDRESS} from '../deployments/mainnet/NativeTokenGateway.json'
 import {address as POOL_UPGRADER_ADDRESS} from '../deployments/mainnet/PoolUpgrader.json'
 import {address as DEBT_TOKEN_UPGRADER_ADDRESS} from '../deployments/mainnet/DebtTokenUpgrader.json'
+import {address as DEPOSIT_TOKEN_UPGRADER_ADDRESS} from '../deployments/mainnet/DepositTokenUpgrader.json'
+import {smock} from '@defi-wonderland/smock'
 
 const {MaxUint256, AddressZero} = ethers.constants
 const dust = toUSD('20')
@@ -411,7 +414,8 @@ describe('E2E tests', function () {
 
       // when
       const debtToRepay = parseEther('0.5')
-      const debtPlusRepayFee = debtToRepay.mul(parseEther('1').add(await pool.repayFee())).div(parseEther('1'))
+      const repayFee = parseEther('0')
+      const debtPlusRepayFee = debtToRepay.mul(parseEther('1').add(repayFee)).div(parseEther('1'))
       await msUSDDebt.repay(alice.address, debtPlusRepayFee)
 
       // then
@@ -509,6 +513,16 @@ describe('E2E tests', function () {
         await routedSwapper.setDefaultRouting(swapType, msUSD.address, frax.address, exchangeType, path_msUSD_FRAX)
 
         //
+        // Deploy `FeeProvider` implementation
+        // Note: It won't be necessary when fee provider contract get online
+        //
+        const esMET = await smock.fake('IESMET')
+        const feeProviderFactory = new FeeProvider__factory(governor)
+        const feeProvider = await feeProviderFactory.deploy()
+        await feeProvider.deployed()
+        await feeProvider.initialize(poolRegistry.address, esMET.address)
+
+        //
         // Update `Pool` implementation
         // Note: It won't be necessary when leverage feature get online
         //
@@ -528,10 +542,21 @@ describe('E2E tests', function () {
         const wipDebtTokenImpl = await wipDebtTokenImplFactory.deploy()
         await debtTokenProxy.upgradeTo(wipDebtTokenImpl.address)
 
+        //
+        // Update `DepositToken` implementation
+        // Note: It won't be necessary when fee provider contract get online
+        //
+        const depositTokenProxyOwner = await impersonateAccount(DEPOSIT_TOKEN_UPGRADER_ADDRESS)
+        const wipDepositTokenImplFactory = new DepositToken__factory(depositTokenProxyOwner)
+        const wipDepositTokenImpl = await wipDepositTokenImplFactory.deploy()
+        const msdVaUSDCProxy = TransparentUpgradeableProxy__factory.connect(msdVaUSDC.address, depositTokenProxyOwner)
+        await msdVaUSDCProxy.upgradeTo(wipDepositTokenImpl.address)
+        const msdVaFRAXProxy = TransparentUpgradeableProxy__factory.connect(msdVaFRAX.address, depositTokenProxyOwner)
+        await msdVaFRAXProxy.upgradeTo(wipDepositTokenImpl.address)
+
         // given
         await pool.connect(governor).updateSwapper(routedSwapper.address)
-        expect(await pool.issueFee()).eq(0)
-        expect(await pool.depositFee()).eq(0)
+        await pool.connect(governor).updateFeeProvider(feeProvider.address)
         const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
         expect(_debtInUsd).eq(0)
         expect(_depositInUsd).eq(0)

@@ -237,7 +237,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @return _fee Fee amount to collect
      */
     function quoteDepositIn(uint256 amountToDeposit_) external view override returns (uint256 _amount, uint256 _fee) {
-        uint256 _depositFee = pool.depositFee();
+        uint256 _depositFee = pool.feeProvider().depositFee();
         if (_depositFee == 0) {
             return (amountToDeposit_, _fee);
         }
@@ -253,7 +253,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @return _fee Fee amount to collect
      */
     function quoteDepositOut(uint256 amount_) public view override returns (uint256 _amountToDeposit, uint256 _fee) {
-        uint256 _depositFee = pool.depositFee();
+        uint256 _depositFee = pool.feeProvider().depositFee();
         if (_depositFee == 0) {
             return (amount_, _fee);
         }
@@ -269,7 +269,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @return _fee Fee amount to collect
      */
     function quoteWithdrawIn(uint256 amountToWithdraw_) external view override returns (uint256 _amount, uint256 _fee) {
-        uint256 _withdrawFee = pool.withdrawFee();
+        uint256 _withdrawFee = pool.feeProvider().withdrawFee();
         if (_withdrawFee == 0) {
             return (amountToWithdraw_, _fee);
         }
@@ -285,7 +285,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @return _fee Fee amount to collect
      */
     function quoteWithdrawOut(uint256 amount_) public view override returns (uint256 _amountToWithdraw, uint256 _fee) {
-        uint256 _withdrawFee = pool.withdrawFee();
+        uint256 _withdrawFee = pool.feeProvider().withdrawFee();
         if (_withdrawFee == 0) {
             return (amount_, _fee);
         }

@@ -20,7 +20,10 @@ import {
   PoolRegistry__factory,
   MasterOracleMock,
   PoolRegistry,
+  FeeProvider__factory,
+  FeeProvider,
 } from '../typechain'
+import {smock} from '@defi-wonderland/smock'
 
 const {MaxUint256} = ethers.constants
 
@@ -37,6 +40,7 @@ async function fixture() {
   const depositTokenFactory = new DepositToken__factory(deployer)
   const debtTokenFactory = new DebtToken__factory(deployer)
   const syntheticTokenFactory = new SyntheticToken__factory(deployer)
+  const feeProviderFactory = new FeeProvider__factory(deployer)
 
   const dai = await erc20MockFactory.deploy('Dai Stablecoin', 'DAI', 18)
   await dai.deployed()
@@ -49,6 +53,12 @@ async function fixture() {
 
   const poolRegistry = await poolRegistryFactory.deploy()
   await poolRegistry.deployed()
+
+  const esMET = await smock.fake('IESMET')
+
+  const feeProvider = await feeProviderFactory.deploy()
+  await feeProvider.deployed()
+  await feeProvider.initialize(poolRegistry.address, esMET.address)
 
   const msETH = await syntheticTokenFactory.deploy()
   await msETH.deployed()
@@ -100,6 +110,7 @@ async function fixture() {
   await msDOGE.initialize('Metronome Synth DOGE', 'msDOGE', 18, poolRegistry.address)
 
   await poolA.initialize(poolRegistry.address)
+  await poolA.updateFeeProvider(feeProvider.address)
   await treasuryA.initialize(poolA.address)
   await msdMET_A.initialize(
     met.address,
@@ -138,6 +149,7 @@ async function fixture() {
   await poolA.addDebtToken(msUSD_Debt_A.address)
 
   await poolB.initialize(poolRegistry.address)
+  await poolB.updateFeeProvider(feeProvider.address)
   await treasuryB.initialize(poolB.address)
   await msdDAI_B.initialize(
     dai.address,
@@ -174,6 +186,7 @@ async function fixture() {
     met,
     masterOracle,
     poolRegistry,
+    feeProvider,
     msETH,
     msDOGE,
     msUSD,
@@ -199,6 +212,7 @@ describe('Integration tests', function () {
   let met: IERC20
   let masterOracle: MasterOracleMock
   let poolRegistry: PoolRegistry
+  let feeProvider: FeeProvider
   let msETH: SyntheticToken
   let msDOGE: SyntheticToken
   let msUSD: SyntheticToken
@@ -220,6 +234,7 @@ describe('Integration tests', function () {
       met,
       masterOracle,
       poolRegistry,
+      feeProvider,
       msETH,
       msDOGE,
       msUSD,
@@ -310,17 +325,16 @@ describe('Integration tests', function () {
             expect(await poolB.debtOf(bob.address)).eq(toUSD('2,000'))
             expect(await msUSD_Debt_A.balanceOf(alice.address)).eq(toUSD('500'))
             expect(await msUSD_Debt_B.balanceOf(bob.address)).eq(toUSD('2,000'))
-            const repayFeeA = await poolA.repayFee()
-            const repayFeeB = await poolB.repayFee()
+            const repayFee = await feeProvider.repayFee()
 
             // when
             // alice pays part of bob's msUSD debt
             const bobDebtToRepay = parseEther('500')
-            const bobDebtPlusRepayFee = bobDebtToRepay.mul(parseEther('1').add(repayFeeB)).div(parseEther('1'))
+            const bobDebtPlusRepayFee = bobDebtToRepay.mul(parseEther('1').add(repayFee)).div(parseEther('1'))
             await msUSD_Debt_B.connect(alice).repay(bob.address, bobDebtPlusRepayFee)
             // bob pays all alice's msETH debt
             const aliceDebtToRepay = parseEther('1')
-            const aliceDebtPlusRepayFee = aliceDebtToRepay.mul(parseEther('1').add(repayFeeA)).div(parseEther('1'))
+            const aliceDebtPlusRepayFee = aliceDebtToRepay.mul(parseEther('1').add(repayFee)).div(parseEther('1'))
             await msETH_Debt_A.connect(bob).repay(alice.address, aliceDebtPlusRepayFee)
 
             // then

@@ -12,6 +12,11 @@ import {
   MasterOracleMock,
   Treasury,
   Treasury__factory,
+  PoolMock,
+  Pool,
+  FeeProvider,
+  FeeProvider__factory,
+  PoolRegistry,
 } from '../typechain'
 import {setBalance} from '@nomicfoundation/hardhat-network-helpers'
 import {FakeContract, MockContract, smock} from '@defi-wonderland/smock'
@@ -30,10 +35,11 @@ describe('DepositToken', function () {
   let feeCollector: SignerWithAddress
   let treasury: Treasury
   let met: ERC20Mock
-  let poolMock: FakeContract
+  let poolMock: FakeContract<Pool>
   let metDepositToken: DepositToken
   let masterOracle: MasterOracleMock
   let rewardsDistributorMock: MockContract
+  let feeProvider: FeeProvider
 
   const metPrice = toUSD('4') // 1 MET = $4
   const metCF = parseEther('0.5') // 50%
@@ -55,20 +61,30 @@ describe('DepositToken', function () {
     treasury = await treasuryFactory.deploy()
     await treasury.deployed()
 
+    const esMET = await smock.fake('IESMET')
+
+    const poolMockRegistry = await smock.fake<PoolRegistry>('PoolRegistry')
+    poolMockRegistry.governor.returns(governor.address)
+
+    const feeProviderFactory = new FeeProvider__factory(deployer)
+    feeProvider = await feeProviderFactory.deploy()
+    await feeProvider.deployed()
+    await feeProvider.initialize(poolMockRegistry.address, esMET.address)
+
     const depositTokenFactory = new DepositToken__factory(deployer)
     metDepositToken = await depositTokenFactory.deploy()
     await metDepositToken.deployed()
 
-    poolMock = await smock.fake('Pool')
+    poolMock = await smock.fake<Pool>('Pool')
     await setBalance(poolMock.address, parseEther('10'))
     poolMock.masterOracle.returns(masterOracle.address)
     poolMock.governor.returns(governor.address)
     poolMock.feeCollector.returns(feeCollector.address)
     poolMock.paused.returns(false)
     poolMock.everythingStopped.returns(false)
-    poolMock.depositFee.returns('0')
     poolMock.doesDepositTokenExist.returns(true)
     poolMock.treasury.returns(treasury.address)
+    poolMock.feeProvider.returns(feeProvider.address)
 
     const rewardsDistributorMockFactory = await smock.mock('RewardsDistributor')
     rewardsDistributorMock = await rewardsDistributorMockFactory.deploy()
@@ -181,8 +197,7 @@ describe('DepositToken', function () {
 
       it('should withdraw if amount <= unlocked collateral amount (withdrawFee > 0)', async function () {
         // given
-        const withdrawFee = parseEther('0.1') // 10%
-        poolMock.withdrawFee.returns(withdrawFee)
+        await feeProvider.connect(governor).updateWithdrawFee(parseEther('0.1')) // 10%
         const metBalanceBefore = await met.balanceOf(alice.address)
         const depositBefore = await metDepositToken.balanceOf(alice.address)
         const amount = await metDepositToken.unlockedBalanceOf(alice.address)
@@ -320,8 +335,7 @@ describe('DepositToken', function () {
 
       it('should deposit MET and mint msdMET (depositFee > 0)', async function () {
         // given
-        const depositFee = parseEther('0.01') // 1%
-        poolMock.depositFee.returns(depositFee)
+        await feeProvider.connect(governor).updateDepositFee(parseEther('0.01')) // 1%
 
         // when
         const amount = parseEther('100')

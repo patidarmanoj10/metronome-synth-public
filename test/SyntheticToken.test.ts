@@ -15,6 +15,10 @@ import {
   ERC20Mock,
   DepositToken__factory,
   DepositToken,
+  PoolMock,
+  PoolMock__factory,
+  FeeProvider,
+  FeeProvider__factory,
 } from '../typechain'
 import {toUSD} from '../helpers'
 import {FakeContract, MockContract, smock} from '@defi-wonderland/smock'
@@ -29,12 +33,13 @@ describe('SyntheticToken', function () {
   let treasury: SignerWithAddress
   let feeCollector: SignerWithAddress
   let poolRegistryMock: FakeContract
-  let poolMock: MockContract
+  let poolMock: MockContract<PoolMock>
   let met: ERC20Mock
   let msdMET: DepositToken
   let msUSD: SyntheticToken
   let msUSDDebt: DebtToken
   let masterOracleMock: MasterOracleMock
+  let feeProvider: FeeProvider
 
   const metCF = parseEther('0.5') // 50%
   const name = 'Metronome Synth ETH'
@@ -68,13 +73,21 @@ describe('SyntheticToken', function () {
     msUSD = await syntheticTokenFactory.deploy()
     await msUSD.deployed()
 
-    const poolMockFactory = await smock.mock('PoolMock')
+    const esMET = await smock.fake('IESMET')
+
+    const feeProviderFactory = new FeeProvider__factory(deployer)
+    feeProvider = await feeProviderFactory.deploy()
+    await feeProvider.deployed()
+    await feeProvider.initialize(poolRegistryMock.address, esMET.address)
+
+    const poolMockFactory = await smock.mock<PoolMock__factory>('PoolMock')
     poolMock = await poolMockFactory.deploy(
       msdMET.address,
       masterOracleMock.address,
       msUSD.address,
       msUSDDebt.address,
-      poolRegistryMock.address
+      poolRegistryMock.address,
+      feeProvider.address
     )
     await poolMock.deployed()
     await poolMock.transferGovernorship(governor.address)

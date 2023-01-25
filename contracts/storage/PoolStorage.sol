@@ -5,55 +5,25 @@ pragma solidity 0.8.9;
 import "../dependencies/openzeppelin/utils/structs/EnumerableSet.sol";
 import "../lib/MappedEnumerableSet.sol";
 import "../interfaces/IPool.sol";
-import "../interfaces/external/ISwapper.sol";
 
 abstract contract PoolStorageV1 is IPool {
-    struct LiquidationFees {
-        uint128 liquidatorIncentive;
-        uint128 protocolFee;
-    }
-
     /**
      * @notice The debt floor (in USD) for each synthetic token
      * This parameters is used to keep incentive for liquidators (i.e. cover gas and provide enough profit)
      */
     uint256 public override debtFloorInUsd;
 
-    /**
-     * @notice The fee charged when depositing collateral
-     * @dev Use 18 decimals (e.g. 1e16 = 1%)
-     */
-    uint256 public override depositFee;
+    uint256 private depositFee__DEPRECATED;
 
-    /**
-     * @notice The fee charged when minting a synthetic token
-     * @dev Use 18 decimals (e.g. 1e16 = 1%)
-     */
-    uint256 public override issueFee;
+    uint256 private issueFee__DEPRECATED;
 
-    /**
-     * @notice The fee charged when withdrawing collateral
-     * @dev Use 18 decimals (e.g. 1e16 = 1%)
-     */
-    uint256 public override withdrawFee;
+    uint256 private withdrawFee__DEPRECATED;
 
-    /**
-     * @notice The fee charged when repaying debt
-     * @dev Use 18 decimals (e.g. 1e16 = 1%)
-     */
-    uint256 public override repayFee;
+    uint256 private repayFee__DEPRECATED;
 
-    /**
-     * @notice The fee charged when swapping synthetic tokens
-     * @dev Use 18 decimals (e.g. 1e16 = 1%)
-     */
-    uint256 public override swapFee;
+    uint256 private swapFee__DEPRECATED;
 
-    /**
-     * @notice The fees charged when liquidating a position
-     * @dev Use 18 decimals (e.g. 1e16 = 1%)
-     */
-    LiquidationFees public override liquidationFees;
+    uint256 private liquidationFees__DEPRECATED;
 
     /**
      * @notice The max percent of the debt allowed to liquidate
@@ -117,4 +87,9 @@ abstract contract PoolStorageV2 is PoolStorageV1 {
      * @notice Swapper contract
      */
     ISwapper public swapper;
+
+    /**
+     * @notice FeeProvider contract
+     */
+    IFeeProvider public override feeProvider;
 }

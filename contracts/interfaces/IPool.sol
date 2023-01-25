@@ -7,6 +7,9 @@ import "./IDebtToken.sol";
 import "./ITreasury.sol";
 import "./IRewardsDistributor.sol";
 import "./IPoolRegistry.sol";
+import "./IFeeProvider.sol";
+import "./external/ISwapper.sol";
+import "../interfaces/IFeeProvider.sol";
 
 /**
  * @notice Pool interface
@@ -14,19 +17,11 @@ import "./IPoolRegistry.sol";
 interface IPool is IPauseable, IGovernable {
     function debtFloorInUsd() external view returns (uint256);
 
-    function depositFee() external view returns (uint256);
-
-    function issueFee() external view returns (uint256);
-
-    function withdrawFee() external view returns (uint256);
-
-    function repayFee() external view returns (uint256);
-
-    function swapFee() external view returns (uint256);
-
-    function liquidationFees() external view returns (uint128 liquidatorIncentive, uint128 protocolFee);
-
     function feeCollector() external view returns (address);
+
+    function swapper() external view returns (ISwapper);
+
+    function feeProvider() external view returns (IFeeProvider);
 
     function maxLiquidable() external view returns (uint256);
 
@@ -50,7 +45,9 @@ interface IPool is IPauseable, IGovernable {
 
     function depositOf(address account_) external view returns (uint256 _depositInUsd, uint256 _issuableLimitInUsd);
 
-    function debtPositionOf(address account_)
+    function debtPositionOf(
+        address account_
+    )
         external
         view
         returns (
@@ -60,14 +57,6 @@ interface IPool is IPauseable, IGovernable {
             uint256 _issuableLimitInUsd,
             uint256 _issuableInUsd
         );
-
-    function addDebtToken(IDebtToken debtToken_) external;
-
-    function removeDebtToken(IDebtToken debtToken_) external;
-
-    function addDepositToken(address depositToken_) external;
-
-    function removeDepositToken(IDepositToken depositToken_) external;
 
     function leverage(
         IDepositToken depositToken_,
@@ -141,26 +130,6 @@ interface IPool is IPauseable, IGovernable {
         uint256 amountIn_
     ) external returns (uint256 _amountOut, uint256 _fee);
 
-    function updateSwapFee(uint256 newSwapFee_) external;
-
-    function updateDebtFloor(uint256 newDebtFloorInUsd_) external;
-
-    function updateDepositFee(uint256 newDepositFee_) external;
-
-    function updateIssueFee(uint256 newIssueFee_) external;
-
-    function updateWithdrawFee(uint256 newWithdrawFee_) external;
-
-    function updateRepayFee(uint256 newRepayFee_) external;
-
-    function updateLiquidatorIncentive(uint128 newLiquidatorIncentive_) external;
-
-    function updateProtocolLiquidationFee(uint128 newProtocolLiquidationFee_) external;
-
-    function updateMaxLiquidable(uint256 newMaxLiquidable_) external;
-
-    function updateTreasury(ITreasury newTreasury_) external;
-
     function treasury() external view returns (ITreasury);
 
     function masterOracle() external view returns (IMasterOracle);
@@ -178,12 +147,6 @@ interface IPool is IPauseable, IGovernable {
     function getDepositTokensOfAccount(address account_) external view returns (address[] memory);
 
     function getDebtTokensOfAccount(address account_) external view returns (address[] memory);
-
-    function addRewardsDistributor(IRewardsDistributor distributor_) external;
-
-    function removeRewardsDistributor(IRewardsDistributor distributor_) external;
-
-    function toggleIsSwapActive() external;
 
     function isSwapActive() external view returns (bool);
 }
