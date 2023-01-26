@@ -36,8 +36,9 @@ const config: HardhatUserConfig = {
   networks: {
     localhost: {
       saveDeployments: true,
-      accounts,
+      autoImpersonate: true,
       chainId,
+      deploy: ['deploy/scripts/mainnet'],
     },
     hardhat: {
       // Note: Forking is being made from those test suites that need it

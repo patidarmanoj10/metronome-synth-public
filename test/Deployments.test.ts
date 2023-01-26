@@ -30,8 +30,8 @@ import {
   PoolRegistry,
   PoolRegistryUpgrader,
   PoolRegistryUpgrader__factory,
-  PoolUpgrader,
-  PoolUpgrader__factory,
+  PoolUpgraderV2,
+  PoolUpgraderV2__factory,
   FeeProvider,
   FeeProviderUpgrader,
   FeeProvider__factory,
@@ -46,7 +46,7 @@ const {USDC_ADDRESS, NATIVE_TOKEN_ADDRESS, WAVAX_ADDRESS, MASTER_ORACLE_ADDRESS}
 describe('Deployments', function () {
   let deployer: SignerWithAddress
   let pool: Pool
-  let poolUpgrader: PoolUpgrader
+  let poolUpgrader: PoolUpgraderV2
   let treasury: Treasury
   let treasuryUpgrader: TreasuryUpgrader
   let depositTokenUpgrader: DepositTokenUpgrader
@@ -75,7 +75,7 @@ describe('Deployments', function () {
 
     const {
       Pool: {address: poolAddress},
-      PoolUpgrader: {address: poolUpgraderAddress},
+      PoolUpgraderV2: {address: poolUpgraderAddress},
       Treasury: {address: treasuryAddress},
       TreasuryUpgrader: {address: treasuryUpgraderAddress},
       DepositTokenUpgrader: {address: depositTokenUpgraderAddress},
@@ -95,7 +95,7 @@ describe('Deployments', function () {
     } = await deployments.fixture()
 
     pool = Pool__factory.connect(poolAddress, deployer)
-    poolUpgrader = PoolUpgrader__factory.connect(poolUpgraderAddress, deployer)
+    poolUpgrader = PoolUpgraderV2__factory.connect(poolUpgraderAddress, deployer)
 
     treasury = Treasury__factory.connect(treasuryAddress, deployer)
     treasuryUpgrader = TreasuryUpgrader__factory.connect(treasuryUpgraderAddress, deployer)
