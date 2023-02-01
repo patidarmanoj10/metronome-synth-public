@@ -4,7 +4,7 @@
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {Contract} from 'ethers'
-import {ethers} from 'hardhat'
+import hre, {ethers} from 'hardhat'
 import {loadFixture, time} from '@nomicfoundation/hardhat-network-helpers'
 import {toUSD, parseEther, parseUnits} from '../helpers'
 import {disableForking, enableForking} from './helpers'
@@ -52,10 +52,11 @@ import {address as NATIVE_TOKEN_GATEWAY_ADDRESS} from '../deployments/mainnet/Na
 import {address as POOL_UPGRADER_ADDRESS} from '../deployments/mainnet/PoolUpgrader.json'
 import {address as DEBT_TOKEN_UPGRADER_ADDRESS} from '../deployments/mainnet/DebtTokenUpgrader.json'
 import {address as DEPOSIT_TOKEN_UPGRADER_ADDRESS} from '../deployments/mainnet/DepositTokenUpgrader.json'
-import {smock} from '@defi-wonderland/smock'
 
 const {MaxUint256, AddressZero} = ethers.constants
-const dust = toUSD('20')
+const dust = toUSD('5')
+
+const isNodeHardhat = hre.network.name === 'hardhat'
 
 describe('E2E tests', function () {
   let governor: SignerWithAddress
@@ -90,9 +91,11 @@ describe('E2E tests', function () {
   let msDOGE: SyntheticToken
   let msETH: SyntheticToken
 
-  before(enableForking)
+  if (isNodeHardhat) {
+    before(enableForking)
 
-  after(disableForking)
+    after(disableForking)
+  }
 
   async function fixture() {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
@@ -168,6 +171,11 @@ describe('E2E tests', function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[, alice, bob] = await ethers.getSigners()
     await loadFixture(fixture)
+
+    if (!isNodeHardhat) {
+      // See more: https://github.com/wighawag/hardhat-deploy/issues/152#issuecomment-1402298376
+      await impersonateAccount(process.env.DEPLOYER!)
+    }
   })
 
   describe('initial setup', function () {
@@ -355,19 +363,23 @@ describe('E2E tests', function () {
       // given
       await msdUSDC.deposit(parseUnits('500', await usdc.decimals()), alice.address)
       await msUSDDebt.issue(parseEther('100'), alice.address)
+      const debtBefore = await msUSDDebt.balanceOf(alice.address)
 
       // when
-      await msUSDDebt.connect(governor).updateInterestRate(parseEther('0.02')) // 2%
+      const interestRate = parseEther('0.02') // 2%
+      await msUSDDebt.connect(governor).updateInterestRate(interestRate)
       await time.increase(time.duration.years(1))
       await msUSDDebt.accrueInterest()
 
       // then
-      expect(await pool.debtOf(alice.address)).closeTo(parseEther('102'), parseEther('0.01'))
+      const expectedDebt = debtBefore.mul(parseEther('1').add(interestRate)).div(parseEther('1'))
+      expect(await pool.debtOf(alice.address)).closeTo(expectedDebt, parseEther('0.01'))
     })
 
     it('should liquidate unhealthy position', async function () {
       // given
       await msdUSDC.deposit(parseUnits('400', await usdc.decimals()), alice.address)
+      await msUSDDebt.connect(governor).updateInterestRate(parseEther('0')) // 10%
       const {_issuableInUsd} = await pool.debtPositionOf(alice.address)
       await msUSDDebt.issue(_issuableInUsd, alice.address)
       await msUSDDebt.connect(governor).updateInterestRate(parseEther('0.1')) // 10%
@@ -381,7 +393,7 @@ describe('E2E tests', function () {
       const amountToRepay = parseEther('50') // repay all user's debt
       const tx = await pool.connect(bob).liquidate(msUSD.address, alice.address, amountToRepay, msdUSDC.address)
 
-      // // then
+      // then
       await expect(tx).emit(pool, 'PositionLiquidated')
       expect((await pool.debtPositionOf(alice.address))._isHealthy).true
     })
@@ -407,10 +419,13 @@ describe('E2E tests', function () {
     it('should repay', async function () {
       // given
       await msdUSDC.deposit(parseUnits('10', await usdc.decimals()), alice.address)
-      await msUSDDebt.issue(parseEther('1'), alice.address)
+      const debtBefore = await msUSDDebt.balanceOf(alice.address)
+      const debtToIssue = parseEther('1')
+      await msUSDDebt.issue(debtToIssue, alice.address)
       const msUSDDebtBalance = await msUSDDebt.balanceOf(alice.address)
-      expect(await pool.debtOf(alice.address)).eq(toUSD('1'))
-      expect(msUSDDebtBalance).eq(toUSD('1'))
+      const expectedDebt = debtBefore.add(debtToIssue)
+      expect(await pool.debtOf(alice.address)).closeTo(expectedDebt, dust)
+      expect(await msUSD.balanceOf(alice.address)).closeTo(expectedDebt, dust)
 
       // when
       const debtToRepay = parseEther('0.5')
@@ -425,9 +440,12 @@ describe('E2E tests', function () {
     it('should revert if repaying using wrong synthetic asset', async function () {
       // given
       await msdUSDC.deposit(parseUnits('10', await usdc.decimals()), alice.address)
-      await msUSDDebt.issue(parseEther('1'), alice.address)
-      expect(await pool.debtOf(alice.address)).eq(toUSD('1'))
-      expect(await msUSD.balanceOf(alice.address)).closeTo(parseEther('1'), dust)
+      const debtBefore = await msUSDDebt.balanceOf(alice.address)
+      const debtToIssue = parseEther('1')
+      await msUSDDebt.issue(debtToIssue, alice.address)
+      const expectedDebt = debtBefore.add(debtToIssue)
+      expect(await pool.debtOf(alice.address)).closeTo(expectedDebt, dust)
+      expect(await msUSD.balanceOf(alice.address)).closeTo(expectedDebt, dust)
       await pool.swap(msUSD.address, msETH.address, await msUSD.balanceOf(alice.address))
 
       // when
@@ -451,6 +469,11 @@ describe('E2E tests', function () {
     })
 
     describe('leverage', function () {
+      if (!isNodeHardhat) {
+        // Note: Skipping for now since leverage feature isn't available on mainnet yet
+        return
+      }
+
       const abi = ethers.utils.defaultAbiCoder
 
       beforeEach(async function () {
@@ -516,11 +539,10 @@ describe('E2E tests', function () {
         // Deploy `FeeProvider` implementation
         // Note: It won't be necessary when fee provider contract get online
         //
-        const esMET = await smock.fake('IESMET')
         const feeProviderFactory = new FeeProvider__factory(governor)
         const feeProvider = await feeProviderFactory.deploy()
         await feeProvider.deployed()
-        await feeProvider.initialize(poolRegistry.address, esMET.address)
+        await feeProvider.initialize(poolRegistry.address, Address.ESMET)
 
         //
         // Update `Pool` implementation
