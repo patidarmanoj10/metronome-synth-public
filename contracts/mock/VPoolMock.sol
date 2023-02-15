@@ -14,7 +14,12 @@ contract VPoolMock is IVPool, ERC20 {
 
     function deposit(uint256 amount_) external {
         IERC20(token).transferFrom(msg.sender, address(this), amount_);
-        _mint(msg.sender, amount_);
+        _mint(msg.sender, amount_ * (10 ** (decimals() - IERC20Metadata(token).decimals())));
+    }
+
+    function withdraw(uint256 shares_) external {
+        _burn(msg.sender, shares_);
+        IERC20(token).transfer(msg.sender, shares_ / (10 ** (decimals() - IERC20Metadata(token).decimals())));
     }
 
     function mint(address to_, uint256 amount_) external {

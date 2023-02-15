@@ -30,6 +30,7 @@ import {
   IRoutedSwapper__factory,
   TransparentUpgradeableProxy__factory,
   FeeProvider__factory,
+  VesperGateway__factory,
 } from '../typechain'
 import {address as POOL_REGISTRY_ADDRESS} from '../deployments/mainnet/PoolRegistry.json'
 import {address as USDC_DEPOSIT_ADDRESS} from '../deployments/mainnet/USDCDepositToken.json'
@@ -298,6 +299,29 @@ describe('E2E tests', function () {
 
       // then
       await expect(tx).changeTokenBalance(msdVaUSDC, alice, amount)
+    })
+
+    it('should deposit vaUSDC using USDC', async function () {
+      //
+      // Deploy `VesperGateway` implementation
+      // Note: It won't be necessary when this contract get online
+      //
+      const vesperGatewayFactory = new VesperGateway__factory(alice)
+      const vesperGateway = await vesperGatewayFactory.deploy(poolRegistry.address)
+
+      // given
+      const amount6 = parseUnits('1', 6)
+      const amount18 = parseUnits('1', 18)
+      const before = await msdVaUSDC.balanceOf(alice.address)
+      expect(before).eq(0)
+
+      // when
+      await usdc.approve(vesperGateway.address, amount6)
+      await vesperGateway.deposit(pool.address, vaUSDC.address, amount6)
+
+      // then
+      const after = await msdVaUSDC.balanceOf(alice.address)
+      expect(after).closeTo(amount18, parseUnits('0.1', 18))
     })
 
     it('should deposit vaETH', async function () {
