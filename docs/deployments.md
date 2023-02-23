@@ -31,20 +31,20 @@ The following steps minimize issues during deployment (e.g. storage breaking, us
 
 2. After having `main` branch ready, create the deployment PR and follow the steps below (Click [here](./deployment-e2e-tests.md) for more details about steps below):
 
-   1. Run a forked node from a recent block
+   2.1. Run a forked node from a recent block
 
-   2. Run the E2E tests (just to ensure that's all good with the current chain state and test)
+   2.2. Run the E2E tests (just to ensure that's all good with the current chain state and test)
 
-   3. Run the deployment script that's useful because:
+3. Run the deployment script that's useful because:
 
-      3.1. To see if it'll run without errors;
+   3.1. To see if it'll run without errors;
 
-      3.2. Copy and share the deployment script output for pair review to see if the transactions made are actually the expected (e.g. a simple interface change can trigger several undesired upgrades).
+   3.2. Copy and share the deployment script output for peer review to see if the transactions made are actually the expected (e.g. a simple interface change can trigger several undesired upgrades).
 
-   4. Change the E2E tests to exercise the new changes (e.g. If it's a new token addition, create deposit or mint test case for it)
+4. Change the E2E tests to exercise the new changes (e.g. If it's a new token addition, create deposit or mint test case for it)
 
-   5. Run the E2E test again (This round simulates the after-deployment state behavior and all tests must pass)
+5. Run the E2E test again (This round simulates the after-deployment state behavior and all tests must pass)
 
-   6. After having the second E2E run pass and the deployment output approved, we're good to go
+6. After having the second E2E run pass and the deployment output approved, we're good to go
 
-   7. Run deployment script, update releases file and push deployment json files to the PR
+7. Run deployment script, update releases file and push deployment json files to the PR
