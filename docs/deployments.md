@@ -2,15 +2,17 @@
 
 ## Branches
 
-`main`: Must have the same code as production/live. It's updated in two cases:
+The `main`: Must have the same code as production/live. It's updated in two cases:
 
-    1. A "hot deployment" by-passing current on-going changes (e.g. Hotfix, new token addition);
-    2. After a `develop` revision is ready for production, A `main<-develop` PR is raised and merged before deployments/upgrades.
+1. A "hot deployment" by-passing current on-going changes (e.g. Hotfix, new token addition);
 
-`develop`: Holds the on-going changes. <u>It must have the `main` branch state plus new commits</u>. It's updated in two cases:
+2. After a `develop` revision is ready for production, A `main<-develop` PR is raised and merged before deployments/upgrades.
 
-    1. Usual development PRs;
-    2. After a "hot deployment", the changed files (i.e. deployment script(s) and `.json` files) are cherry-picked on top of the `develop` branch
+The `develop`: Holds the on-going changes. <u>It must have the `main` branch state plus new commits</u>. It's updated in two cases:
+
+1. Usual development PRs;
+
+2. After a "hot deployment", the changed files (i.e. deployment script(s) and `.json` files) are cherry-picked on top of the `develop` branch
 
 ## Audits
 
