@@ -52,9 +52,9 @@ contract NativeTokenGateway is ReentrancyGuard, Governable, INativeTokenGateway 
 
         IDepositToken _depositToken = pool_.depositTokenOf(nativeToken);
         _depositToken.safeTransferFrom(msg.sender, address(this), amount_);
-        _depositToken.withdraw(amount_, address(this));
-        nativeToken.withdraw(amount_);
-        Address.sendValue(payable(msg.sender), amount_);
+        (uint256 _withdrawn, ) = _depositToken.withdraw(amount_, address(this));
+        nativeToken.withdraw(_withdrawn);
+        Address.sendValue(payable(msg.sender), _withdrawn);
     }
 
     /**
