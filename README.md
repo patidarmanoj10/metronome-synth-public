@@ -32,15 +32,4 @@ npm run coverage
 
 ### Deploy
 
-Setup the env vars properly (See `.env.template` file)
-
-```sh
-# deploy
-$ npm run deploy -- --gasprice <gas price in wei> --network <network>
-
-# create release
-$ npx hardhat create-release --release <semver> --network <network>
-
-# verify
-$ npm run verify -- --network avalanche
-```
+See deployment [documentation](./docs/deployments.md)

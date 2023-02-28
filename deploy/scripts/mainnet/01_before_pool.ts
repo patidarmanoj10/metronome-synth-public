@@ -1,5 +1,9 @@
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
+import {executeUsingMultiSig} from '../../helpers/multisig-helpers'
+import Address from '../../../helpers/address'
+
+const {GNOSIS_SAFE_ADDRESS} = Address
 
 /**
  * This script is used when need to upgrade an Upgrader contract
@@ -12,16 +16,34 @@ const NewUpgrader = 'PoolUpgraderV2'
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {getNamedAccounts, deployments} = hre
-  const {deploy, get, execute} = deployments
-  const {deployer: from} = await getNamedAccounts()
+  const {deploy, get, getOrNull, execute, catchUnknownSigner} = deployments
+  const {deployer} = await getNamedAccounts()
   const {address: proxyAddress} = await get(Contract)
+
+  const alreadyDeployed = !!(await getOrNull(NewUpgrader))
+
+  if (alreadyDeployed) {
+    return
+  }
+
   const {address: newAdmin} = await deploy(NewUpgrader, {
-    from,
+    from: deployer,
     log: true,
-    args: [from],
+    args: [deployer],
   })
 
-  await execute(CurrentUpgrader, {from, log: true}, 'changeProxyAdmin', proxyAddress, newAdmin)
+  await execute(NewUpgrader, {from: deployer, log: true}, 'transferOwnership', GNOSIS_SAFE_ADDRESS)
+
+  const multiSigTx = await catchUnknownSigner(
+    execute(CurrentUpgrader, {from: GNOSIS_SAFE_ADDRESS, log: true}, 'changeProxyAdmin', proxyAddress, newAdmin),
+    {
+      log: true,
+    }
+  )
+
+  if (multiSigTx) {
+    await executeUsingMultiSig(hre, multiSigTx)
+  }
 }
 
 export default func
