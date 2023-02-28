@@ -33,11 +33,11 @@ import {
   PoolUpgrader,
   PoolUpgrader__factory,
 } from '../typechain'
-import {disableForking, enableForking} from './helpers'
+import {disableForking, enableForking, impersonateAccount} from './helpers'
 import Address from '../helpers/address'
 import {parseEther} from 'ethers/lib/utils'
 
-const {USDC_ADDRESS, NATIVE_TOKEN_ADDRESS, WAVAX_ADDRESS, MASTER_ORACLE_ADDRESS} = Address
+const {USDC_ADDRESS, NATIVE_TOKEN_ADDRESS, WAVAX_ADDRESS, MASTER_ORACLE_ADDRESS, GNOSIS_SAFE_ADDRESS} = Address
 
 describe('Deployments', function () {
   let deployer: SignerWithAddress
@@ -129,7 +129,8 @@ describe('Deployments', function () {
     expect(oldImpl).not.eq(newImpl.address)
 
     // when
-    const tx = upgrader.upgrade(proxy.address, newImpl.address)
+    const proxyAdmin = await impersonateAccount(GNOSIS_SAFE_ADDRESS)
+    const tx = upgrader.connect(proxyAdmin).upgrade(proxy.address, newImpl.address)
 
     // then
     if (expectToFail) {
