@@ -368,10 +368,11 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         whenNotShutdown
         nonReentrant
         onlyIfDepositTokenExists
+        onlyIfUnlocked(msg.sender, amount_)
         returns (uint256 _withdrawn, uint256 _fee)
     {
         if (to_ == address(0)) revert RecipientIsNull();
-        if (amount_ == 0 || amount_ > unlockedBalanceOf(msg.sender)) revert AmountIsInvalid();
+        if (amount_ == 0) revert AmountIsZero();
 
         IPool _pool = pool;
 

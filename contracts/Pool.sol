@@ -158,7 +158,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
      * @param account_ The account address
      */
     function addToDepositTokensOfAccount(address account_) external {
-        if (!depositTokens.contains(msg.sender)) revert SenderIsNotDepositToken();
+        if (!doesDepositTokenExist(IDepositToken(msg.sender))) revert SenderIsNotDepositToken();
         if (!depositTokensOfAccount.add(account_, msg.sender)) revert DepositTokenAlreadyExists();
     }
 
@@ -645,7 +645,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
      * @param account_ The account address
      */
     function removeFromDepositTokensOfAccount(address account_) external {
-        if (!depositTokens.contains(msg.sender)) revert SenderIsNotDepositToken();
+        if (!doesDepositTokenExist(IDepositToken(msg.sender))) revert SenderIsNotDepositToken();
         if (!depositTokensOfAccount.remove(account_, msg.sender)) revert DepositTokenDoesNotExist();
     }
 
