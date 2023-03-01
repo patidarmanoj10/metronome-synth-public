@@ -69,6 +69,7 @@ describe('FeeProvider', function () {
 
     it('should set tiers', async function () {
       // given
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const oldTiers: any[] = []
       expect(await getTiers()).deep.eq(oldTiers)
 
@@ -134,6 +135,7 @@ describe('FeeProvider', function () {
       expect(await getTiers()).deep.eq(oldTiers)
 
       // when
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const newTiers: any[] = []
       const tx = feeProvider.updateTiers(newTiers)
 
