@@ -1,6 +1,7 @@
 ## Setup (.env)
 
-- Set `NODE_URL`, `BLOCK_NUMBER` and `DEPLOYER` (Use `Address.GNOSIS_SAFE_ADDRESS`)
+- Set `NODE_URL`, `BLOCK_NUMBER`
+- If you only want to test changes bypassing multi-sig logic, set `DEPLOYER` with `GNOSIS_SAFE_ADDRESS` otherwise use real address or leave it empty
 
 ```sh
 source .env
@@ -14,17 +15,22 @@ rm artifacts/ cache/ -rf
 npx hardhat node --fork $NODE_URL --fork-block-number $BLOCK_NUMBER --no-deploy
 ```
 
-## run test before
+## run test before (optional)
 
 ```sh
 npx hardhat test --network localhost test/E2E.test.ts
 ```
 
-## run deployment (save and share scripts output)
+## run deployment
 
 ```sh
 cp deployments/mainnet/ deployments/localhost -r
+```
 
+Note: If you want to check `deployments/` files changes easier, uncomment `deployments/localhost` line from `.gitignore` and stage them.
+All modifications done by the scripts will appear on the git changes are.
+
+```sh
 npx hardhat deploy --network localhost > DEPLOYMENT_OUTPUT.txt
 ```
 
