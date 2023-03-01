@@ -185,7 +185,6 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         override
         whenNotPaused
         nonReentrant
-        onlyIfDepositTokenIsActive
         onlyIfDepositTokenExists
         returns (uint256 _deposited, uint256 _fee)
     {
