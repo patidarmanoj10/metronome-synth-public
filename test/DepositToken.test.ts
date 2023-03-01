@@ -134,6 +134,14 @@ describe('DepositToken', function () {
       poolMock.debtPositionOf.returns(debtPositionOf_returnsAllUnlocked(depositedAmount))
     })
 
+    describe('transfer', function () {
+      it('should transfer to himself', async function () {
+        expect(await metDepositToken.balanceOf(alice.address)).eq(depositedAmount)
+        await metDepositToken.connect(alice).transfer(alice.address, depositedAmount)
+        expect(await metDepositToken.balanceOf(alice.address)).eq(depositedAmount)
+      })
+    })
+
     describe('withdraw', function () {
       it('should revert not if paused', async function () {
         // given

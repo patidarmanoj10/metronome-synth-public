@@ -480,19 +480,16 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         uint256 _senderBalanceBefore = balanceOf[sender_];
         if (_senderBalanceBefore < amount_) revert TransferAmountExceedsBalance();
         uint256 _recipientBalanceBefore = balanceOf[recipient_];
-        uint256 _senderBalanceAfter;
 
         unchecked {
-            _senderBalanceAfter = _senderBalanceBefore - amount_;
-            balanceOf[recipient_] = _recipientBalanceBefore + amount_;
+            balanceOf[sender_] = _senderBalanceBefore - amount_;
+            balanceOf[recipient_] += amount_;
         }
-
-        balanceOf[sender_] = _senderBalanceAfter;
 
         emit Transfer(sender_, recipient_, amount_);
 
         _addToDepositTokensOfRecipientIfNeeded(recipient_, _recipientBalanceBefore);
-        _removeFromDepositTokensOfSenderIfNeeded(sender_, _senderBalanceAfter);
+        _removeFromDepositTokensOfSenderIfNeeded(sender_, balanceOf[sender_]);
     }
 
     /**
