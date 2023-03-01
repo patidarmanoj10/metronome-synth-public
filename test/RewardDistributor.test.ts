@@ -509,21 +509,41 @@ describe('RewardDistributor', function () {
       expect(after).eq(parseEther('10'))
     })
 
-    it('claimRewards(address[],address[])', async function () {
-      // given
-      const before = await Promise.all([vsp.balanceOf(alice.address), vsp.balanceOf(bob.address)])
-      expect(before).deep.eq([BigNumber.from(0), BigNumber.from(0)])
+    describe('claimRewards(address[],address[])', function () {
+      const expectedReward = parseEther('10')
 
-      // when
-      await rewardDistributor['claimRewards(address[],address[])'](
-        [alice.address, bob.address],
-        [debtToken1.address, debtToken2.address]
-      )
-      await mine()
+      it('should claim', async function () {
+        // given
+        const before = await Promise.all([vsp.balanceOf(alice.address), vsp.balanceOf(bob.address)])
+        expect(before).deep.eq([BigNumber.from(0), BigNumber.from(0)])
 
-      // then
-      const after = await Promise.all([vsp.balanceOf(alice.address), vsp.balanceOf(bob.address)])
-      expect(after).deep.eq([parseEther('10'), parseEther('10')])
+        // when
+        await rewardDistributor['claimRewards(address[],address[])'](
+          [alice.address, bob.address],
+          [debtToken1.address, debtToken2.address]
+        )
+        await mine()
+
+        // then
+        const after = await Promise.all([vsp.balanceOf(alice.address), vsp.balanceOf(bob.address)])
+        expect(after).deep.eq([expectedReward, expectedReward])
+      })
+
+      it('should not receive extra tokens by duplicating accounts', async function () {
+        // given
+        expect(await vsp.balanceOf(alice.address)).eq(0)
+        expect(await vsp.balanceOf(rewardDistributor.address)).gt(expectedReward)
+
+        // when
+        await rewardDistributor['claimRewards(address[],address[])'](
+          [alice.address, alice.address],
+          [debtToken1.address, debtToken2.address, debtToken1.address, debtToken2.address]
+        )
+        await mine()
+
+        // then
+        expect(await vsp.balanceOf(alice.address)).eq(expectedReward)
+      })
     })
   })
 })
