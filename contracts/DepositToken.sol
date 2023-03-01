@@ -326,8 +326,6 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         address recipient_,
         uint256 amount_
     ) external override nonReentrant onlyIfUnlocked(sender_, amount_) returns (bool) {
-        _transfer(sender_, recipient_, amount_);
-
         uint256 _currentAllowance = allowance[sender_][msg.sender];
         if (_currentAllowance != type(uint256).max) {
             if (_currentAllowance < amount_) revert AmountExceedsAllowance();
@@ -335,6 +333,8 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
                 _approve(sender_, msg.sender, _currentAllowance - amount_);
             }
         }
+
+        _transfer(sender_, recipient_, amount_);
 
         return true;
     }
