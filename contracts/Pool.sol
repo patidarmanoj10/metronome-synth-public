@@ -559,6 +559,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
         override
         whenNotShutdown
         nonReentrant
+        onlyIfSyntheticTokenExists(syntheticToken_)
         onlyIfDepositTokenExists(depositToken_)
         returns (
             uint256 _totalSeized,
