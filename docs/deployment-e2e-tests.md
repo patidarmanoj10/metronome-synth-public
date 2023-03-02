@@ -1,30 +1,37 @@
 ## Setup (.env)
 
-- Update `BLOCK_NUMBER`
-- Set `DEPLOYER` with the correct EOA deployer account (For test purposes only, use `0xd1de3f9cd4ae2f23da941a67ca4c739f8dd9af33` that's the current `ProxyAdmin` owner)
+- Set `NODE_URL`, `BLOCK_NUMBER`
+- If you only want to test changes bypassing multi-sig logic, set `DEPLOYER` with `GNOSIS_SAFE_ADDRESS` otherwise use real address or leave it empty
 
 ```sh
-rm artifacts/ cache/ -rf
+source .env
 ```
 
 ## fork mainnet
 
 ```sh
-npx hardhat node --fork https://eth.connect.bloq.cloud/v1/witness-open-trouble --fork-block-number <BLOCK_NUMBER> --no-deploy
+rm artifacts/ cache/ -rf
+
+npx hardhat node --fork $NODE_URL --fork-block-number $BLOCK_NUMBER --no-deploy
 ```
 
-## run test before
+## run test before (optional)
 
 ```sh
 npx hardhat test --network localhost test/E2E.test.ts
 ```
 
-## run deployment scripts
+## run deployment
 
 ```sh
 cp deployments/mainnet/ deployments/localhost -r
+```
 
-npx hardhat deploy --network localhost
+Note: If you want to check `deployments/` files changes easier, uncomment `deployments/localhost` line from `.gitignore` and stage them.
+All modifications done by the scripts will appear on the git changes are.
+
+```sh
+npx hardhat deploy --network localhost > DEPLOYMENT_OUTPUT.txt
 ```
 
 ## run test after

@@ -1,6 +1,7 @@
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
 import {UpgradableContracts, deployUpgradable} from '../../helpers'
+import {saveForMultiSigBatchExecution} from '../../helpers/multisig-helpers'
 import Address from '../../../helpers/address'
 
 const {
@@ -10,9 +11,8 @@ const {
 } = UpgradableContracts
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
-  const {getNamedAccounts, deployments} = hre
-  const {get, execute, read} = deployments
-  const {deployer} = await getNamedAccounts()
+  const {deployments} = hre
+  const {get, execute, read, catchUnknownSigner} = deployments
 
   const {address: poolRegistryAddress} = await get(PoolRegistry)
 
@@ -25,7 +25,16 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const currentFeeProvider = await read(Pool, 'feeProvider')
 
   if (currentFeeProvider !== feeProviderAddress) {
-    await execute(Pool, {from: deployer, log: true}, 'updateFeeProvider', feeProviderAddress)
+    const governor = await read(Pool, 'governor')
+
+    const multiSigTx = await catchUnknownSigner(
+      execute(Pool, {from: governor, log: true}, 'updateFeeProvider', feeProviderAddress),
+      {log: true}
+    )
+
+    if (multiSigTx) {
+      await saveForMultiSigBatchExecution(multiSigTx)
+    }
   }
 }
 
