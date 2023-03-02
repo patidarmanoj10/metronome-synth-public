@@ -12,7 +12,6 @@ import {
   MasterOracleMock,
   Treasury,
   Treasury__factory,
-  PoolMock,
   Pool,
   FeeProvider,
   FeeProvider__factory,
@@ -134,14 +133,6 @@ describe('DepositToken', function () {
       poolMock.debtPositionOf.returns(debtPositionOf_returnsAllUnlocked(depositedAmount))
     })
 
-    describe('transfer', function () {
-      it('should transfer to himself', async function () {
-        expect(await metDepositToken.balanceOf(alice.address)).eq(depositedAmount)
-        await metDepositToken.connect(alice).transfer(alice.address, depositedAmount)
-        expect(await metDepositToken.balanceOf(alice.address)).eq(depositedAmount)
-      })
-    })
-
     describe('withdraw', function () {
       it('should revert not if paused', async function () {
         // given
@@ -173,7 +164,7 @@ describe('DepositToken', function () {
         const tx = metDepositToken.connect(alice).withdraw(0, alice.address)
 
         // then
-        await expect(tx).revertedWithCustomError(metDepositToken, 'AmountIsInvalid')
+        await expect(tx).revertedWithCustomError(metDepositToken, 'AmountIsZero')
       })
 
       it('should revert if amount > unlocked collateral amount', async function () {
@@ -182,7 +173,7 @@ describe('DepositToken', function () {
         const tx = metDepositToken.connect(alice).withdraw(unlockedDeposit.add('1'), alice.address)
 
         // then
-        await expect(tx).revertedWithCustomError(metDepositToken, 'AmountIsInvalid')
+        await expect(tx).revertedWithCustomError(metDepositToken, 'NotEnoughFreeBalance')
       })
 
       it('should withdraw if amount <= unlocked collateral amount (withdrawFee == 0)', async function () {
@@ -454,6 +445,12 @@ describe('DepositToken', function () {
         expect(rewardsDistributorMock.updateBeforeTransfer).called
         expect(rewardsDistributorMock.updateBeforeTransfer.getCall(0).args[1]).eq(alice.address)
         expect(rewardsDistributorMock.updateBeforeTransfer.getCall(0).args[2]).eq(bob.address)
+      })
+
+      it('should transfer to himself', async function () {
+        expect(await metDepositToken.balanceOf(alice.address)).eq(depositedAmount)
+        await metDepositToken.connect(alice).transfer(alice.address, depositedAmount)
+        expect(await metDepositToken.balanceOf(alice.address)).eq(depositedAmount)
       })
     })
 

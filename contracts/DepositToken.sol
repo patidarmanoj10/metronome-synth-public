@@ -185,7 +185,6 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         override
         whenNotPaused
         nonReentrant
-        onlyIfDepositTokenIsActive
         onlyIfDepositTokenExists
         returns (uint256 _deposited, uint256 _fee)
     {
@@ -326,8 +325,6 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         address recipient_,
         uint256 amount_
     ) external override nonReentrant onlyIfUnlocked(sender_, amount_) returns (bool) {
-        _transfer(sender_, recipient_, amount_);
-
         uint256 _currentAllowance = allowance[sender_][msg.sender];
         if (_currentAllowance != type(uint256).max) {
             if (_currentAllowance < amount_) revert AmountExceedsAllowance();
@@ -335,6 +332,8 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
                 _approve(sender_, msg.sender, _currentAllowance - amount_);
             }
         }
+
+        _transfer(sender_, recipient_, amount_);
 
         return true;
     }
@@ -369,10 +368,11 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         whenNotShutdown
         nonReentrant
         onlyIfDepositTokenExists
+        onlyIfUnlocked(msg.sender, amount_)
         returns (uint256 _withdrawn, uint256 _fee)
     {
         if (to_ == address(0)) revert RecipientIsNull();
-        if (amount_ == 0 || amount_ > unlockedBalanceOf(msg.sender)) revert AmountIsInvalid();
+        if (amount_ == 0) revert AmountIsZero();
 
         IPool _pool = pool;
 

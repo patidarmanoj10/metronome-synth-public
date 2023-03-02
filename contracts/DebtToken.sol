@@ -337,6 +337,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
         override
         whenNotShutdown
         nonReentrant
+        onlyIfSyntheticTokenExists
         returns (uint256 _repaid, uint256 _fee)
     {
         if (amount_ == 0) revert AmountIsZero();
@@ -380,6 +381,7 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
         override
         whenNotShutdown
         nonReentrant
+        onlyIfSyntheticTokenExists
         returns (uint256 _repaid, uint256 _fee)
     {
         accrueInterest();
