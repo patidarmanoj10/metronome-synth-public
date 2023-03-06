@@ -1,6 +1,10 @@
 import {BigNumber} from 'ethers'
 import {DeployFunction} from 'hardhat-deploy/types'
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
+import Address from '../../helpers/address'
+import {executeUsingMultiSig, saveForMultiSigBatchExecution} from './multisig-helpers'
+
+const {GNOSIS_SAFE_ADDRESS} = Address
 
 interface ContractConfig {
   alias: string
@@ -38,6 +42,9 @@ interface DeployUpgradableFunctionProps {
   hre: HardhatRuntimeEnvironment
   contractConfig: ContractConfig
   initializeArgs: unknown[]
+  // If true, doesn't add upgrade tx to batch but require multi sig to run it immediately
+  // It's needed when a later script needs to interact to a new ABI fragment
+  forceUpgrade?: boolean
 }
 
 export const UpgradableContracts: UpgradableContractsConfig = {
@@ -68,40 +75,66 @@ export const deployUpgradable = async ({
   hre,
   contractConfig,
   initializeArgs,
+  forceUpgrade,
 }: DeployUpgradableFunctionProps): Promise<{
   address: string
   implementationAddress?: string | undefined
 }> => {
   const {
-    deployments: {deploy, read, execute},
+    deployments: {deploy, read, get, execute, catchUnknownSigner},
     getNamedAccounts,
   } = hre
-
   const {deployer} = await getNamedAccounts()
   const {alias, contract, adminContract} = contractConfig
 
-  const {address, implementation: implementationAddress} = await deploy(alias, {
-    from: deployer,
-    log: true,
-    proxy: {
-      proxyContract: 'OpenZeppelinTransparentProxy',
-      viaAdminContract: adminContract,
-      implementationName: alias === contract ? undefined : contract,
-      execute: {
-        init: {
-          methodName: 'initialize',
-          args: initializeArgs,
+  const deployFunction = () =>
+    deploy(alias, {
+      from: deployer,
+      log: true,
+      proxy: {
+        owner: GNOSIS_SAFE_ADDRESS,
+        proxyContract: 'OpenZeppelinTransparentProxy',
+        viaAdminContract: adminContract,
+        implementationName: alias === contract ? undefined : contract,
+        execute: {
+          init: {
+            methodName: 'initialize',
+            args: initializeArgs,
+          },
         },
       },
-    },
-  })
+    })
+
+  const multiSigDeployTx = await catchUnknownSigner(deployFunction, {log: true})
+
+  if (multiSigDeployTx) {
+    if (forceUpgrade) {
+      await executeUsingMultiSig(hre, multiSigDeployTx)
+
+      // Note: This second run will update `deployments/`, this will be necessary for later scripts that need new ABI
+      // Refs: https://github.com/wighawag/hardhat-deploy/issues/178#issuecomment-918088504
+      await deployFunction()
+    } else {
+      await saveForMultiSigBatchExecution(multiSigDeployTx)
+    }
+  }
+
+  const {address, implementation: implementationAddress} = await get(alias)
 
   // Note: `hardhat-deploy` is partially not working when upgrading an implementation used by many proxies
   // It deploy the new implementation contract, updates the deployment JSON files but isn't properly calling `upgrade()`
   // See more: https://github.com/wighawag/hardhat-deploy/issues/284#issuecomment-1139971427
   const actualImpl = await read(adminContract, 'getProxyImplementation', address)
+
   if (actualImpl !== implementationAddress) {
-    await execute(adminContract, {from: deployer, log: true}, 'upgrade', address, implementationAddress)
+    const multiSigUpgradeTx = await catchUnknownSigner(
+      execute(adminContract, {from: GNOSIS_SAFE_ADDRESS, log: true}, 'upgrade', address, implementationAddress),
+      {log: true}
+    )
+
+    if (multiSigUpgradeTx) {
+      await saveForMultiSigBatchExecution(multiSigUpgradeTx)
+    }
   }
 
   return {address, implementationAddress}
@@ -118,9 +151,8 @@ export const buildSyntheticDeployFunction = ({
   const syntheticAlias = `${capitalize(symbol)}Synthetic`
 
   const deployFunction: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
-    const {getNamedAccounts, deployments} = hre
-    const {execute, get, read, getOrNull} = deployments
-    const {deployer} = await getNamedAccounts()
+    const {deployments} = hre
+    const {execute, get, read, getOrNull, catchUnknownSigner} = deployments
 
     const {address: poolRegistryAddress} = await get(PoolRegistry)
     const {address: poolAddress} = await get(Pool)
@@ -154,7 +186,16 @@ export const buildSyntheticDeployFunction = ({
     })
 
     if (!wasDeployed) {
-      await execute(Pool, {from: deployer, log: true}, 'addDebtToken', debtTokenAddress)
+      const governor = await read(Pool, 'governor')
+
+      const multiSigTx = await catchUnknownSigner(
+        execute(Pool, {from: governor, log: true}, 'addDebtToken', debtTokenAddress),
+        {log: true}
+      )
+
+      if (multiSigTx) {
+        await saveForMultiSigBatchExecution(multiSigTx)
+      }
     }
   }
 
@@ -174,9 +215,8 @@ export const buildDepositDeployFunction = ({
   const alias = `${underlyingSymbol}DepositToken`
 
   const deployFunction: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
-    const {getNamedAccounts, deployments} = hre
-    const {execute, get, read, getOrNull} = deployments
-    const {deployer} = await getNamedAccounts()
+    const {deployments} = hre
+    const {execute, get, read, getOrNull, catchUnknownSigner} = deployments
 
     const {address: poolAddress} = await get(Pool)
     const poolId = await read(PoolRegistry, 'idOfPool', poolAddress)
@@ -201,7 +241,16 @@ export const buildDepositDeployFunction = ({
     })
 
     if (!wasDeployed) {
-      await execute(Pool, {from: deployer, log: true}, 'addDepositToken', msdAddress)
+      const governor = await read(Pool, 'governor')
+
+      const multiSigTx = await catchUnknownSigner(
+        execute(Pool, {from: governor, log: true}, 'addDepositToken', msdAddress),
+        {log: true}
+      )
+
+      if (multiSigTx) {
+        await saveForMultiSigBatchExecution(multiSigTx)
+      }
     }
   }
 
