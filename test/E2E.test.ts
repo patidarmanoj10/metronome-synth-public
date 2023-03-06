@@ -4,7 +4,7 @@
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {Contract} from 'ethers'
-import {ethers} from 'hardhat'
+import hre, {ethers} from 'hardhat'
 import {loadFixture, time} from '@nomicfoundation/hardhat-network-helpers'
 import {toUSD, parseEther, parseUnits} from '../helpers'
 import {disableForking, enableForking} from './helpers'
@@ -53,6 +53,8 @@ const SRFXETH_DEPOSIT_ADDRESS = ''
 const {MaxUint256} = ethers.constants
 const dust = toUSD('20')
 
+const isNodeHardhat = hre.network.name === 'hardhat'
+
 describe('E2E tests', function () {
   let governor: SignerWithAddress
   let alice: SignerWithAddress
@@ -88,9 +90,11 @@ describe('E2E tests', function () {
   let msDOGE: SyntheticToken
   let msETH: SyntheticToken
 
-  before(enableForking)
+  if (isNodeHardhat) {
+    before(enableForking)
 
-  after(disableForking)
+    after(disableForking)
+  }
 
   async function fixture() {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
@@ -172,6 +176,11 @@ describe('E2E tests', function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[, alice, bob] = await ethers.getSigners()
     await loadFixture(fixture)
+
+    if (!isNodeHardhat && process.env.DEPLOYER) {
+      // See more: https://github.com/wighawag/hardhat-deploy/issues/152#issuecomment-1402298376
+      await impersonateAccount(process.env.DEPLOYER!)
+    }
   })
 
   describe('initial setup', function () {
