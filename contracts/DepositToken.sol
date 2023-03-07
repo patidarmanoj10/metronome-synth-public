@@ -388,15 +388,6 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     }
 
     /**
-     * @notice Add this token to the deposit tokens list if the recipient is receiving it for the 1st time
-     */
-    function _addToDepositTokensOfRecipientIfNeeded(address recipient_, uint256 recipientBalanceBefore_) private {
-        if (recipientBalanceBefore_ == 0) {
-            pool.addToDepositTokensOfAccount(recipient_);
-        }
-    }
-
-    /**
      * @notice Set `amount` as the allowance of `spender` over the caller's tokens
      */
     function _approve(
@@ -430,7 +421,10 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
 
         emit Transfer(_account, address(0), _amount);
 
-        _removeFromDepositTokensOfSenderIfNeeded(_account, _balanceAfter);
+        // Remove this token from the deposit tokens list if the sender's balance goes to zero
+        if (_amount > 0 && _balanceAfter == 0) {
+            pool.removeFromDepositTokensOfAccount(_account);
+        }
     }
 
     /**
@@ -454,15 +448,9 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
 
         emit Transfer(address(0), account_, amount_);
 
-        _addToDepositTokensOfRecipientIfNeeded(account_, _balanceBefore);
-    }
-
-    /**
-     * @notice Remove this token to the deposit tokens list if the sender's balance goes to zero
-     */
-    function _removeFromDepositTokensOfSenderIfNeeded(address sender_, uint256 senderBalanceAfter_) private {
-        if (senderBalanceAfter_ == 0) {
-            pool.removeFromDepositTokensOfAccount(sender_);
+        // Add this token to the deposit tokens list if the recipient is receiving it for the 1st time
+        if (_balanceBefore == 0 && amount_ > 0) {
+            pool.addToDepositTokensOfAccount(account_);
         }
     }
 
@@ -488,8 +476,15 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
 
         emit Transfer(sender_, recipient_, amount_);
 
-        _addToDepositTokensOfRecipientIfNeeded(recipient_, _recipientBalanceBefore);
-        _removeFromDepositTokensOfSenderIfNeeded(sender_, balanceOf[sender_]);
+        // Add this token to the deposit tokens list if the recipient is receiving it for the 1st time
+        if (_recipientBalanceBefore == 0 && amount_ > 0) {
+            pool.addToDepositTokensOfAccount(recipient_);
+        }
+
+        // Remove this token from the deposit tokens list if the sender's balance goes to zero
+        if (amount_ > 0 && balanceOf[sender_] == 0) {
+            pool.removeFromDepositTokensOfAccount(sender_);
+        }
     }
 
     /**

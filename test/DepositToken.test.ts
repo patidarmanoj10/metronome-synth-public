@@ -433,6 +433,23 @@ describe('DepositToken', function () {
         expect(poolMock.removeFromDepositTokensOfAccount).calledWith(alice.address)
       })
 
+      it('should only add deposit token if the new balance > 0', async function () {
+        // given
+        poolMock.addToDepositTokensOfAccount.reset()
+        expect(await metDepositToken.balanceOf(deployer.address)).eq(0)
+
+        // when
+        // Note: Set `gasLimit` prevents messing up the calls counter
+        // See more: https://github.com/defi-wonderland/smock/issues/99
+        const gasLimit = 250000
+
+        await metDepositToken.connect(alice).transfer(deployer.address, 0, {gasLimit})
+
+        // then
+        expect(await metDepositToken.balanceOf(deployer.address)).eq(0)
+        expect(poolMock.addToDepositTokensOfAccount).callCount(0)
+      })
+
       it('should trigger rewards update', async function () {
         // given
         rewardsDistributorMock.updateBeforeTransfer.reset()
