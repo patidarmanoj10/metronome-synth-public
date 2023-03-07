@@ -3,6 +3,7 @@
 pragma solidity 0.8.9;
 
 import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
+import "./utils/TokenHolder.sol";
 import "./access/Manageable.sol";
 import "./storage/DebtTokenStorage.sol";
 import "./lib/WadRayMath.sol";
@@ -30,7 +31,7 @@ error NewValueIsSameAsCurrent();
 /**
  * @title Non-transferable token that represents users' debts
  */
-contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
+contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorageV1 {
     using WadRayMath for uint256;
 
     uint256 public constant SECONDS_PER_YEAR = 365.25 days;
@@ -555,6 +556,9 @@ contract DebtToken is ReentrancyGuard, Manageable, DebtTokenStorageV1 {
             pool.removeFromDebtTokensOfAccount(sender_);
         }
     }
+
+    /// @inheritdoc TokenHolder
+    function _requireCanSweep() internal view override onlyGovernor {}
 
     /**
      * @notice Update max total supply

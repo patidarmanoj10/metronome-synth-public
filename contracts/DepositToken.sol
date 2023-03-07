@@ -5,6 +5,7 @@ pragma solidity 0.8.9;
 import "./dependencies/openzeppelin/utils/math/Math.sol";
 import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./lib/WadRayMath.sol";
+import "./utils/TokenHolder.sol";
 import "./access/Manageable.sol";
 import "./storage/DepositTokenStorage.sol";
 
@@ -36,7 +37,7 @@ error NewValueIsSameAsCurrent();
 /**
  * @title Represents the users' deposits
  */
-contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
+contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenStorageV1 {
     using SafeERC20 for IERC20;
     using WadRayMath for uint256;
 
@@ -465,6 +466,9 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
             pool.removeFromDepositTokensOfAccount(sender_);
         }
     }
+
+    /// @inheritdoc TokenHolder
+    function _requireCanSweep() internal view override onlyGovernor {}
 
     /**
      * @notice Move `amount` of tokens from `sender` to `recipient`
