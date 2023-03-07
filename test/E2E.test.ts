@@ -179,7 +179,7 @@ describe('E2E tests', function () {
 
     if (!isNodeHardhat && process.env.DEPLOYER) {
       // See more: https://github.com/wighawag/hardhat-deploy/issues/152#issuecomment-1402298376
-      await impersonateAccount(process.env.DEPLOYER!)
+      await impersonateAccount(process.env.DEPLOYER)
     }
   })
 
@@ -383,19 +383,23 @@ describe('E2E tests', function () {
       // given
       await msdUSDC.deposit(parseUnits('500', await usdc.decimals()), alice.address)
       await msUSDDebt.issue(parseEther('100'), alice.address)
+      const debtBefore = await msUSDDebt.balanceOf(alice.address)
 
       // when
-      await msUSDDebt.connect(governor).updateInterestRate(parseEther('0.02')) // 2%
+      const interestRate = parseEther('0.02') // 2%
+      await msUSDDebt.connect(governor).updateInterestRate(interestRate)
       await time.increase(time.duration.years(1))
       await msUSDDebt.accrueInterest()
 
       // then
-      expect(await pool.debtOf(alice.address)).closeTo(parseEther('102'), parseEther('0.01'))
+      const expectedDebt = debtBefore.mul(parseEther('1').add(interestRate)).div(parseEther('1'))
+      expect(await pool.debtOf(alice.address)).closeTo(expectedDebt, parseEther('0.01'))
     })
 
     it('should liquidate unhealthy position', async function () {
       // given
       await msdUSDC.deposit(parseUnits('400', await usdc.decimals()), alice.address)
+      await msUSDDebt.connect(governor).updateInterestRate(parseEther('0')) // 0%
       const {_issuableInUsd} = await pool.debtPositionOf(alice.address)
       await msUSDDebt.issue(_issuableInUsd, alice.address)
       await msUSDDebt.connect(governor).updateInterestRate(parseEther('0.1')) // 10%
@@ -409,7 +413,7 @@ describe('E2E tests', function () {
       const amountToRepay = parseEther('50') // repay all user's debt
       const tx = await pool.connect(bob).liquidate(msUSD.address, alice.address, amountToRepay, msdUSDC.address)
 
-      // // then
+      // then
       await expect(tx).emit(pool, 'PositionLiquidated')
       expect((await pool.debtPositionOf(alice.address))._isHealthy).true
     })
@@ -435,14 +439,18 @@ describe('E2E tests', function () {
     it('should repay', async function () {
       // given
       await msdUSDC.deposit(parseUnits('10', await usdc.decimals()), alice.address)
-      await msUSDDebt.issue(parseEther('1'), alice.address)
+      const debtBefore = await msUSDDebt.balanceOf(alice.address)
+      const debtToIssue = parseEther('1')
+      await msUSDDebt.issue(debtToIssue, alice.address)
       const msUSDDebtBalance = await msUSDDebt.balanceOf(alice.address)
-      expect(await pool.debtOf(alice.address)).eq(toUSD('1'))
-      expect(msUSDDebtBalance).eq(toUSD('1'))
+      const expectedDebt = debtBefore.add(debtToIssue)
+      expect(await pool.debtOf(alice.address)).closeTo(expectedDebt, dust)
+      expect(await msUSD.balanceOf(alice.address)).closeTo(expectedDebt, dust)
 
       // when
       const debtToRepay = parseEther('0.5')
-      const debtPlusRepayFee = debtToRepay.mul(parseEther('1').add(await pool.repayFee())).div(parseEther('1'))
+      const repayFee = parseEther('0')
+      const debtPlusRepayFee = debtToRepay.mul(parseEther('1').add(repayFee)).div(parseEther('1'))
       await msUSDDebt.repay(alice.address, debtPlusRepayFee)
 
       // then
@@ -452,9 +460,12 @@ describe('E2E tests', function () {
     it('should revert if repaying using wrong synthetic asset', async function () {
       // given
       await msdUSDC.deposit(parseUnits('10', await usdc.decimals()), alice.address)
-      await msUSDDebt.issue(parseEther('1'), alice.address)
-      expect(await pool.debtOf(alice.address)).eq(toUSD('1'))
-      expect(await msUSD.balanceOf(alice.address)).closeTo(parseEther('1'), dust)
+      const debtBefore = await msUSDDebt.balanceOf(alice.address)
+      const debtToIssue = parseEther('1')
+      await msUSDDebt.issue(debtToIssue, alice.address)
+      const expectedDebt = debtBefore.add(debtToIssue)
+      expect(await pool.debtOf(alice.address)).closeTo(expectedDebt, dust)
+      expect(await msUSD.balanceOf(alice.address)).closeTo(expectedDebt, dust)
       await pool.swap(msUSD.address, msETH.address, await msUSD.balanceOf(alice.address))
 
       // when
