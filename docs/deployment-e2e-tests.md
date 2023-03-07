@@ -1,7 +1,7 @@
 ## Setup (.env)
 
 - Set `NODE_URL`, `BLOCK_NUMBER`
-- If you only want to test changes bypassing multi-sig logic, set `DEPLOYER` with `GNOSIS_SAFE_ADDRESS` otherwise use real address or leave it empty
+- If you only want to test changes bypassing multi-sig logic, leave `DEPLOYER` empty otherwise use real address (i.e. deployer/delegate)
 
 ```sh
 source .env
@@ -13,6 +13,12 @@ source .env
 rm  -rf artifacts/ cache/
 
 npx hardhat node --fork $NODE_URL --fork-block-number $BLOCK_NUMBER --no-deploy
+```
+
+If you set `process.env.DEPLOYER` account, run:
+
+```sh
+npx hardhat impersonate-deployer --network localhost
 ```
 
 ## run test before (optional)
