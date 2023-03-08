@@ -173,9 +173,9 @@ describe('E2E tests', function () {
     ;[, alice, bob] = await ethers.getSigners()
     await loadFixture(fixture)
 
-    if (!isNodeHardhat) {
+    if (!isNodeHardhat && process.env.DEPLOYER) {
       // See more: https://github.com/wighawag/hardhat-deploy/issues/152#issuecomment-1402298376
-      await impersonateAccount(process.env.DEPLOYER!)
+      await impersonateAccount(process.env.DEPLOYER)
     }
   })
 

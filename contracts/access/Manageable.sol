@@ -3,7 +3,6 @@
 pragma solidity 0.8.9;
 
 import "../dependencies/openzeppelin/proxy/utils/Initializable.sol";
-import "../utils/TokenHolder.sol";
 import "../interfaces/IGovernable.sol";
 import "../interfaces/IManageable.sol";
 
@@ -16,7 +15,7 @@ error PoolAddressIsNull();
 /**
  * @title Reusable contract that handles accesses
  */
-abstract contract Manageable is IManageable, TokenHolder, Initializable {
+abstract contract Manageable is IManageable, Initializable {
     /**
      * @notice Pool contract
      */
@@ -67,9 +66,6 @@ abstract contract Manageable is IManageable, TokenHolder, Initializable {
     function governor() public view returns (address _governor) {
         _governor = IGovernable(address(pool)).governor();
     }
-
-    /// @inheritdoc TokenHolder
-    function _requireCanSweep() internal view override onlyGovernor {}
 
     uint256[49] private __gap;
 }
