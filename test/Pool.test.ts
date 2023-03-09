@@ -30,7 +30,7 @@ import {
   FeeProvider,
 } from '../typechain'
 import {getMinLiquidationAmountInUsd} from './helpers'
-import {setBalance} from '@nomicfoundation/hardhat-network-helpers'
+import {setBalance, setCode} from '@nomicfoundation/hardhat-network-helpers'
 import {FakeContract, smock} from '@defi-wonderland/smock'
 import {toUSD} from '../helpers'
 
@@ -1469,6 +1469,38 @@ describe('Pool', function () {
         // when
         await expect(tx).revertedWithCustomError(pool, 'DepositTokenAlreadyExists')
       })
+
+      it('should revert when reach max tokens', async function () {
+        // given
+        const max = (await pool.MAX_TOKENS_PER_USER()).toNumber()
+        const accountAddress = ethers.utils.hexlify(ethers.utils.randomBytes(20))
+
+        for (let i = 0; i < max / 2; ++i) {
+          const deposit = await smock.fake('DepositToken')
+          deposit.underlying.returns(ethers.utils.hexlify(ethers.utils.randomBytes(20)))
+          await setCode(deposit.address, '0x01')
+          await setBalance(deposit.address, parseEther('1'))
+
+          await pool.addDepositToken(deposit.address)
+          await pool.connect(deposit.wallet).addToDepositTokensOfAccount(accountAddress)
+        }
+
+        for (let i = 0; i < max / 2; ++i) {
+          const debt = await smock.fake('DebtToken')
+          debt.syntheticToken.returns(ethers.utils.hexlify(ethers.utils.randomBytes(20)))
+          await setCode(debt.address, '0x01')
+          await setBalance(debt.address, parseEther('1'))
+
+          await pool.addDebtToken(debt.address)
+          await pool.connect(debt.wallet).addToDebtTokensOfAccount(accountAddress)
+        }
+
+        // then
+        const tx = pool.connect(msdTOKEN.wallet).addToDepositTokensOfAccount(accountAddress)
+
+        // when
+        await expect(tx).revertedWithCustomError(pool, 'UserReachedMaxTokens')
+      })
     })
 
     describe('removeFromDepositTokensOfAccount', function () {
@@ -1540,6 +1572,38 @@ describe('Pool', function () {
 
         // when
         await expect(tx).revertedWithCustomError(pool, 'DebtTokenAlreadyExists')
+      })
+
+      it('should revert when reach max tokens', async function () {
+        // given
+        const max = (await pool.MAX_TOKENS_PER_USER()).toNumber()
+        const accountAddress = ethers.utils.hexlify(ethers.utils.randomBytes(20))
+
+        for (let i = 0; i < max / 2; ++i) {
+          const deposit = await smock.fake('DepositToken')
+          deposit.underlying.returns(ethers.utils.hexlify(ethers.utils.randomBytes(20)))
+          await setCode(deposit.address, '0x01')
+          await setBalance(deposit.address, parseEther('1'))
+
+          await pool.addDepositToken(deposit.address)
+          await pool.connect(deposit.wallet).addToDepositTokensOfAccount(accountAddress)
+        }
+
+        for (let i = 0; i < max / 2; ++i) {
+          const debt = await smock.fake('DebtToken')
+          debt.syntheticToken.returns(ethers.utils.hexlify(ethers.utils.randomBytes(20)))
+          await setCode(debt.address, '0x01')
+          await setBalance(debt.address, parseEther('1'))
+
+          await pool.addDebtToken(debt.address)
+          await pool.connect(debt.wallet).addToDebtTokensOfAccount(accountAddress)
+        }
+
+        // then
+        const tx = pool.connect(debtToken.wallet).addToDebtTokensOfAccount(accountAddress)
+
+        // when
+        await expect(tx).revertedWithCustomError(pool, 'UserReachedMaxTokens')
       })
     })
 
