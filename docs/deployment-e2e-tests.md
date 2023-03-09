@@ -10,7 +10,7 @@ source .env
 ## fork mainnet
 
 ```sh
-rm artifacts/ cache/ -rf
+rm  -rf artifacts/ cache/
 
 npx hardhat node --fork $NODE_URL --fork-block-number $BLOCK_NUMBER --no-deploy
 ```
@@ -24,7 +24,7 @@ npx hardhat test --network localhost test/E2E.test.ts
 ## run deployment
 
 ```sh
-cp deployments/mainnet/ deployments/localhost -r
+cp -r deployments/mainnet/ deployments/localhost
 ```
 
 Note: If you want to check `deployments/` files changes easier, uncomment `deployments/localhost` line from `.gitignore` and stage them.
