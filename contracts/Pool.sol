@@ -11,9 +11,10 @@ import "./interfaces/external/IVPool.sol";
 error CollateralDoesNotExist();
 error SyntheticDoesNotExist();
 error SenderIsNotDebtToken();
+error SenderIsNotDepositToken();
+error UserReachedMaxTokens();
 error PoolRegistryIsNull();
 error DebtTokenAlreadyExists();
-error SenderIsNotDepositToken();
 error DepositTokenAlreadyExists();
 error LeverageTooLow();
 error LeverageTooHigh();
@@ -50,6 +51,11 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
     using MappedEnumerableSet for MappedEnumerableSet.AddressSet;
 
     string public constant VERSION = "1.0.0";
+
+    /**
+     * @notice Maximum tokens per pool a user may have
+     */
+    uint256 public constant MAX_TOKENS_PER_USER = 30;
 
     /// @notice Emitted when protocol liquidation fee is updated
     event DebtFloorUpdated(uint256 oldDebtFloorInUsd, uint256 newDebtFloorInUsd);
@@ -108,6 +114,16 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
     event TreasuryUpdated(ITreasury indexed oldTreasury, ITreasury indexed newTreasury);
 
     /**
+     * @dev Throws if token addition will reach the `account_`'s max
+     */
+    modifier onlyIfAdditionWillNotReachMaxTokens(address account_) {
+        if (debtTokensOfAccount.length(account_) + depositTokensOfAccount.length(account_) >= MAX_TOKENS_PER_USER) {
+            revert UserReachedMaxTokens();
+        }
+        _;
+    }
+
+    /**
      * @dev Throws if deposit token doesn't exist
      */
     modifier onlyIfDepositTokenExists(IDepositToken depositToken_) {
@@ -131,6 +147,14 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
         _;
     }
 
+    /**
+     * @dev Throws if `msg.sender` isn't a deposit token
+     */
+    modifier onlyIfMsgSenderIsDepositToken() {
+        if (!doesDepositTokenExist(IDepositToken(msg.sender))) revert SenderIsNotDepositToken();
+        _;
+    }
+
     function initialize(IPoolRegistry poolRegistry_) public initializer {
         if (address(poolRegistry_) == address(0)) revert PoolRegistryIsNull();
         __ReentrancyGuard_init();
@@ -147,7 +171,9 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
      * @dev The caller should ensure to not pass `address(0)` as `_account`
      * @param account_ The account address
      */
-    function addToDebtTokensOfAccount(address account_) external onlyIfMsgSenderIsDebtToken {
+    function addToDebtTokensOfAccount(
+        address account_
+    ) external onlyIfMsgSenderIsDebtToken onlyIfAdditionWillNotReachMaxTokens(account_) {
         if (!debtTokensOfAccount.add(account_, msg.sender)) revert DebtTokenAlreadyExists();
     }
 
@@ -157,8 +183,9 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
      * @dev The caller should ensure to not pass `address(0)` as `_account`
      * @param account_ The account address
      */
-    function addToDepositTokensOfAccount(address account_) external {
-        if (!doesDepositTokenExist(IDepositToken(msg.sender))) revert SenderIsNotDepositToken();
+    function addToDepositTokensOfAccount(
+        address account_
+    ) external onlyIfMsgSenderIsDepositToken onlyIfAdditionWillNotReachMaxTokens(account_) {
         if (!depositTokensOfAccount.add(account_, msg.sender)) revert DepositTokenAlreadyExists();
     }
 
@@ -644,8 +671,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
      * @dev The caller should ensure to not pass `address(0)` as `_account`
      * @param account_ The account address
      */
-    function removeFromDepositTokensOfAccount(address account_) external {
-        if (!doesDepositTokenExist(IDepositToken(msg.sender))) revert SenderIsNotDepositToken();
+    function removeFromDepositTokensOfAccount(address account_) external onlyIfMsgSenderIsDepositToken {
         if (!depositTokensOfAccount.remove(account_, msg.sender)) revert DepositTokenDoesNotExist();
     }
 
