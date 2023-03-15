@@ -22,12 +22,13 @@ export class GnosisSafe {
 
     const safeTransactionData: MetaTransactionData[] = txs.map((tx) => ({...tx, operation: OperationType.Call}))
 
-    const safeTransaction = await safeSDK.createTransaction({safeTransactionData})
+    const nonce = await safeClient.getNextNonce(safeAddress)
+    const safeTransaction = await safeSDK.createTransaction({safeTransactionData, options: {nonce}})
     const safeTxHash = await safeSDK.getTransactionHash(safeTransaction)
     const {data: senderSignature} = await safeSDK.signTransactionHash(safeTxHash)
 
     await safeClient.proposeTransaction({
-      safeAddress: safeSDK.getAddress(),
+      safeAddress,
       safeTransactionData: safeTransaction.data,
       safeTxHash,
       senderAddress: delegateAddress,
