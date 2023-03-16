@@ -1,0 +1,61 @@
+Nothing to compile
+No need to generate any newer typings.
+reusing "PoolRegistryUpgrader" at 0x559fe5AEF2C472100D77bd7184565DDeC06d09d6
+reusing "PoolRegistry_Implementation" at 0x017Cc576e12C700660f98481affDF46dCBf78A1b
+reusing "PoolUpgrader" at 0xd4c12f84a88F5078F42e79452138920C2b542580
+reusing "Pool_Implementation" at 0x029078Cc02F74a77051bfDE8757e3b828AED9b25
+reusing "TreasuryUpgrader" at 0xd4DE85DA9f2cA8C7C63DCdB417d0b5cE65A6F1be
+reusing "Treasury_Implementation" at 0x1F39F9639b1a5A32bCD896c2b68128F7B64F72Fa
+reusing "NativeTokenGateway" at 0x945E05D2F519908c18758a905e5D31Dd94892bD5
+reusing "DepositTokenUpgrader" at 0x9f9DAcF7A44C961B747a550631A6086e71Bf696b
+reusing "DepositToken" at 0xD2a807d8bfd8a8666FA22E2d76acD38BF893F244
+reusing "DepositTokenUpgrader" at 0x9f9DAcF7A44C961B747a550631A6086e71Bf696b
+reusing "DepositToken" at 0xD2a807d8bfd8a8666FA22E2d76acD38BF893F244
+reusing "SyntheticTokenUpgrader" at 0xd7B25B33bDD66A021C8385a85C3Fce4D331A9F7F
+reusing "SyntheticToken" at 0x782f0052e5039f18e357eDcF5CF490b9C864D504
+reusing "DebtTokenUpgrader" at 0xD01681Ed053BE94dE5BA3b0A3cCAa3e74aBc5De8
+reusing "DebtToken" at 0x34c4837E4A996287D87fa446e1F3bac0d25E445A
+reusing "SyntheticTokenUpgrader" at 0xd7B25B33bDD66A021C8385a85C3Fce4D331A9F7F
+reusing "SyntheticToken" at 0x782f0052e5039f18e357eDcF5CF490b9C864D504
+reusing "DebtTokenUpgrader" at 0xD01681Ed053BE94dE5BA3b0A3cCAa3e74aBc5De8
+reusing "DebtToken" at 0x34c4837E4A996287D87fa446e1F3bac0d25E445A
+reusing "DepositTokenUpgrader" at 0x9f9DAcF7A44C961B747a550631A6086e71Bf696b
+reusing "DepositToken" at 0xD2a807d8bfd8a8666FA22E2d76acD38BF893F244
+reusing "DepositTokenUpgrader" at 0x9f9DAcF7A44C961B747a550631A6086e71Bf696b
+reusing "DepositToken" at 0xD2a807d8bfd8a8666FA22E2d76acD38BF893F244
+reusing "DepositTokenUpgrader" at 0x9f9DAcF7A44C961B747a550631A6086e71Bf696b
+reusing "DepositToken" at 0xD2a807d8bfd8a8666FA22E2d76acD38BF893F244
+reusing "RewardsDistributorUpgrader" at 0x3E117B75BD4bad788aBeD416Ff11360190A9443f
+reusing "RewardsDistributor" at 0xb975a3813AaCC7c9A8b61BFf5c3a0276154dDa2e
+reusing "DepositTokenUpgrader" at 0x9f9DAcF7A44C961B747a550631A6086e71Bf696b
+reusing "DepositToken" at 0xD2a807d8bfd8a8666FA22E2d76acD38BF893F244
+reusing "DepositTokenUpgrader" at 0x9f9DAcF7A44C961B747a550631A6086e71Bf696b
+reusing "DepositToken" at 0xD2a807d8bfd8a8666FA22E2d76acD38BF893F244
+reusing "DepositTokenUpgrader" at 0x9f9DAcF7A44C961B747a550631A6086e71Bf696b
+reusing "DepositToken" at 0xD2a807d8bfd8a8666FA22E2d76acD38BF893F244
+reusing "SyntheticTokenUpgrader" at 0xd7B25B33bDD66A021C8385a85C3Fce4D331A9F7F
+reusing "SyntheticToken" at 0x782f0052e5039f18e357eDcF5CF490b9C864D504
+reusing "DebtTokenUpgrader" at 0xD01681Ed053BE94dE5BA3b0A3cCAa3e74aBc5De8
+reusing "DebtToken" at 0x34c4837E4A996287D87fa446e1F3bac0d25E445A
+reusing "SyntheticTokenUpgrader" at 0xd7B25B33bDD66A021C8385a85C3Fce4D331A9F7F
+reusing "SyntheticToken" at 0x782f0052e5039f18e357eDcF5CF490b9C864D504
+reusing "DebtTokenUpgrader" at 0xD01681Ed053BE94dE5BA3b0A3cCAa3e74aBc5De8
+reusing "DebtToken" at 0x34c4837E4A996287D87fa446e1F3bac0d25E445A
+reusing "DepositTokenUpgrader" at 0x9f9DAcF7A44C961B747a550631A6086e71Bf696b
+reusing "DepositToken" at 0xD2a807d8bfd8a8666FA22E2d76acD38BF893F244
+reusing "DepositTokenUpgrader" at 0x9f9DAcF7A44C961B747a550631A6086e71Bf696b
+reusing "DepositToken" at 0xD2a807d8bfd8a8666FA22E2d76acD38BF893F244
+deploying "vaSTETHDepositToken_Proxy" (tx: 0x1a6f13a2ce7a7bd72a6553819d47060f51b2abd6056a4a0209b96aff3cedd03a)...: deployed at 0x47c05BCCA7d57c87083EB4e586007530eE4539e9 with 906209 gas
+---------------------------------------------------------------------------------------
+Please execute the following:
+---------------------------------------------------------------------------------------
+
+from: 0xd1DE3F9CD4AE2F23DA941a67cA4C739f8dD9Af33
+to: 0x3364f53cB866762Aef66DeEF2a6b1a17C1F17f46 (Pool)
+method: addDepositToken
+args:
+  - 0x47c05BCCA7d57c87083EB4e586007530eE4539e9
+
+(raw data: 0x79e40cba00000000000000000000000047c05bcca7d57c87083eb4e586007530ee4539e9 )
+
+---------------------------------------------------------------------------------------
