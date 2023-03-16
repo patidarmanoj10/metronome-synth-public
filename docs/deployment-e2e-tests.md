@@ -34,7 +34,7 @@ cp -r deployments/mainnet/ deployments/localhost
 ```
 
 Note: If you want to check `deployments/` files changes easier, uncomment `deployments/localhost` line from `.gitignore` and stage them.
-All modifications done by the scripts will appear on the git changes are.
+All modifications done by the scripts will appear on the git changes area.
 
 ```sh
 npx hardhat deploy --network localhost > DEPLOYMENT_OUTPUT.txt

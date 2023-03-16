@@ -100,6 +100,7 @@ const getBalancesSlot = (token: string) => {
       [Address.VAFRAX_ADDRESS]: 0,
       [Address.VAUSDC_ADDRESS]: 0,
       [Address.VAETH_ADDRESS]: 0,
+      [Address.VASTETH_ADDRESS]: 0,
       [Address.WBTC_ADDRESS]: 0,
       [Address.SFRXETH_ADDRESS]: 3,
     },
