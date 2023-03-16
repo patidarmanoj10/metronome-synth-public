@@ -433,15 +433,6 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
     }
 
     /**
-     * @notice Add this token to the debt tokens list if the recipient is receiving it for the 1st time
-     */
-    function _addToDebtTokensOfRecipientIfNeeded(address recipient_, uint256 recipientBalanceBefore_) private {
-        if (recipientBalanceBefore_ == 0) {
-            pool.addToDebtTokensOfAccount(recipient_);
-        }
-    }
-
-    /**
      * @notice Destroy `amount` tokens from `account`, reducing the
      * total supply
      */
@@ -459,7 +450,10 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
 
         emit Transfer(account_, address(0), amount_);
 
-        _removeFromDebtTokensOfSenderIfNeeded(account_, balanceOf(account_));
+        // Remove this token from the debt tokens list if the sender's balance goes to zero
+        if (amount_ > 0 && balanceOf(account_) == 0) {
+            pool.removeFromDebtTokensOfAccount(account_);
+        }
     }
 
     /**
@@ -545,15 +539,9 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
         debtIndexOf[account_] = debtIndex;
         emit Transfer(address(0), account_, amount_);
 
-        _addToDebtTokensOfRecipientIfNeeded(account_, _balanceBefore);
-    }
-
-    /**
-     * @notice Remove this token to the debt tokens list if the sender's balance goes to zero
-     */
-    function _removeFromDebtTokensOfSenderIfNeeded(address sender_, uint256 senderBalanceAfter_) private {
-        if (senderBalanceAfter_ == 0) {
-            pool.removeFromDebtTokensOfAccount(sender_);
+        //  Add this token to the debt tokens list if the recipient is receiving it for the 1st time
+        if (_balanceBefore == 0 && amount_ > 0) {
+            pool.addToDebtTokensOfAccount(account_);
         }
     }
 
