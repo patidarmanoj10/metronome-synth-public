@@ -5,6 +5,7 @@ import 'hardhat-log-remover'
 import 'hardhat-contract-sizer'
 import 'hardhat-spdx-license-identifier'
 import './tasks/create-release'
+import './tasks/impersonate-deployer'
 import dotenv from 'dotenv'
 
 dotenv.config()
