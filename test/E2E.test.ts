@@ -48,6 +48,8 @@ import {address as MSETH_SYNTHETIC_ADDRESS} from '../deployments/mainnet/MsETHSy
 import {address as NATIVE_TOKEN_GATEWAY_ADDRESS} from '../deployments/mainnet/NativeTokenGateway.json'
 import {address as SRFXETH_DEPOSIT_ADDRESS} from '../deployments/mainnet/sfrxETHDepositToken.json'
 import {address as VASTETH_DEPOSIT_ADDRESS} from '../deployments/mainnet/vaSTETHDepositToken.json'
+// WIP
+// const VARETH_DEPOSIT_ADDRESS = ''
 
 const {MaxUint256} = ethers.constants
 const dust = toUSD('20')
@@ -68,6 +70,7 @@ describe('E2E tests', function () {
   let vaETH: ERC20
   let sfrxETH: ERC20
   let vaSTETH: ERC20
+  let vaRETH: ERC20
   let masterOracle: Contract
   let poolRegistry: PoolRegistry
   let nativeGateway: NativeTokenGateway
@@ -82,6 +85,7 @@ describe('E2E tests', function () {
   let msdVaETH: DepositToken
   let msdSfrxETH: DepositToken
   let msdVaSTETH: DepositToken
+  let msdVaRETH: DepositToken
   let msUSDDebt: DebtToken
   let msBTCDebt: DebtToken
   let msDOGEDebt: DebtToken
@@ -110,6 +114,7 @@ describe('E2E tests', function () {
     vaETH = ERC20__factory.connect(Address.VAETH_ADDRESS, alice)
     sfrxETH = ERC20__factory.connect(Address.SFRXETH_ADDRESS, alice)
     vaSTETH = ERC20__factory.connect(Address.VASTETH_ADDRESS, alice)
+    vaRETH = ERC20__factory.connect(Address.VARETH_ADDRESS, alice)
 
     poolRegistry = PoolRegistry__factory.connect(POOL_REGISTRY_ADDRESS, alice)
     governor = await impersonateAccount(await poolRegistry.governor())
@@ -128,6 +133,8 @@ describe('E2E tests', function () {
     msdVaETH = DepositToken__factory.connect(VAETH_DEPOSIT_ADDRESS, alice)
     msdSfrxETH = DepositToken__factory.connect(SRFXETH_DEPOSIT_ADDRESS, alice)
     msdVaSTETH = DepositToken__factory.connect(VASTETH_DEPOSIT_ADDRESS, alice)
+    // WIP
+    // msdVaRETH = DepositToken__factory.connect(VARETH_DEPOSIT_ADDRESS, alice)
 
     msUSDDebt = DebtToken__factory.connect(MSUSD_DEBT_ADDRESS, alice)
     msBTCDebt = DebtToken__factory.connect(MSBTC_DEBT_ADDRESS, alice)
@@ -149,6 +156,7 @@ describe('E2E tests', function () {
     await setTokenBalance(vaETH.address, alice.address, parseUnits('20', 18))
     await setTokenBalance(sfrxETH.address, alice.address, parseUnits('20', 18))
     await setTokenBalance(vaSTETH.address, alice.address, parseUnits('20', 18))
+    await setTokenBalance(vaRETH.address, alice.address, parseUnits('20', 18))
 
     await usdc.connect(alice).approve(msdUSDC.address, MaxUint256)
     await dai.connect(alice).approve(msdDAI.address, MaxUint256)
@@ -160,6 +168,8 @@ describe('E2E tests', function () {
     await vaETH.connect(alice).approve(msdVaETH.address, MaxUint256)
     await sfrxETH.connect(alice).approve(msdSfrxETH.address, MaxUint256)
     await vaSTETH.connect(alice).approve(msdVaSTETH.address, MaxUint256)
+    // WIP
+    // await vaRETH.connect(alice).approve(msdVaRETH.address, MaxUint256)
 
     const masterOracleGovernor = await impersonateAccount(Address.MASTER_ORACLE_GOVERNOR_ADDRESS)
     masterOracle = new ethers.Contract(
@@ -199,6 +209,8 @@ describe('E2E tests', function () {
       expect(VAUSDC_DEPOSIT_ADDRESS).eq(await pool.depositTokenOf(vaUSDC.address))
       expect(SRFXETH_DEPOSIT_ADDRESS).eq(await pool.depositTokenOf(sfrxETH.address))
       expect(VASTETH_DEPOSIT_ADDRESS).eq(await pool.depositTokenOf(vaSTETH.address))
+      // WIP
+      // expect(VARETH_DEPOSIT_ADDRESS).eq(await pool.depositTokenOf(vaRETH.address))
       expect(MSUSD_DEBT_ADDRESS).eq(await pool.debtTokenOf(msUSD.address))
       expect(MSBTC_DEBT_ADDRESS).eq(await pool.debtTokenOf(msBTC.address))
       expect(MSDOGE_DEBT_ADDRESS).eq(await pool.debtTokenOf(msDOGE.address))
@@ -220,6 +232,7 @@ describe('E2E tests', function () {
       expect(await masterOracle.getPriceInUsd(msETH.address)).gt(0)
       expect(await masterOracle.getPriceInUsd(sfrxETH.address)).gt(0)
       expect(await masterOracle.getPriceInUsd(vaSTETH.address)).gt(0)
+      expect(await masterOracle.getPriceInUsd(vaRETH.address)).gt(0)
     })
   })
 
@@ -343,6 +356,18 @@ describe('E2E tests', function () {
 
       // then
       await expect(tx).changeTokenBalance(msdVaSTETH, alice, amount)
+    })
+
+    // WIP
+    it.skip('should deposit vaRETH', async function () {
+      // given
+      const amount = parseUnits('1', 18)
+
+      // when
+      const tx = () => msdVaRETH.deposit(amount, alice.address)
+
+      // then
+      await expect(tx).changeTokenBalance(msdVaRETH, alice, amount)
     })
 
     it('should issue msUSD', async function () {

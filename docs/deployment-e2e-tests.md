@@ -37,7 +37,7 @@ Note: If you want to check `deployments/` files changes easier, uncomment `deplo
 All modifications done by the scripts will appear on the git changes area.
 
 ```sh
-npx hardhat deploy --network localhost > DEPLOYMENT_OUTPUT.txt
+npx hardhat deploy --network localhost > DEPLOYMENT_TEST_OUTPUT.txt
 ```
 
 ## run test after
