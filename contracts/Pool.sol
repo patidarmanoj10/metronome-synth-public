@@ -514,20 +514,20 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
 
     /**
      * @notice Leverage yield position
+     * @param tokenIn_ The token to transfer
      * @param depositToken_ The collateral to deposit
      * @param syntheticToken_ The msAsset to mint
      * @param amountIn_ The amount to deposit
      * @param leverage_ The leverage X param (e.g. 1.5e18 for 1.5X)
      * @param depositAmountMin_ The min final deposit amount (slippage)
-     * @param depositTokenType_ The type of the collateral (0 = vToken)
      */
     function leverage(
+        IERC20 tokenIn_,
         IDepositToken depositToken_,
         ISyntheticToken syntheticToken_,
         uint256 amountIn_,
         uint256 leverage_,
-        uint256 depositAmountMin_,
-        uint8 depositTokenType_
+        uint256 depositAmountMin_
     )
         external
         override
@@ -538,11 +538,16 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
     {
         if (leverage_ <= 1e18) revert LeverageTooLow();
         if (leverage_ > uint256(1e18).wadDiv(1e18 - depositToken_.collateralFactor())) revert LeverageTooHigh();
+        ISwapper _swapper = swapper;
 
         // 1. transfer collateral
         IERC20 _collateral = depositToken_.underlying();
         uint256 _balanceBefore = _collateral.balanceOf(address(this));
-        _collateral.safeTransferFrom(msg.sender, address(this), amountIn_);
+        tokenIn_.safeTransferFrom(msg.sender, address(this), amountIn_);
+        if (tokenIn_ != _collateral) {
+            tokenIn_.approve(address(_swapper), amountIn_);
+            _swapper.swapExactInput(address(tokenIn_), address(_collateral), amountIn_, 0);
+        }
 
         // 2. mint synth
         uint256 _debtAmount = masterOracle().quote(
@@ -553,7 +558,8 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
         (uint256 _issued, ) = debtTokenOf[syntheticToken_].flashIssue(msg.sender, _debtAmount);
 
         // 3. swap synth for collateral
-        _leverageSwap(syntheticToken_, _collateral, _issued, depositTokenType_);
+        syntheticToken_.approve(address(_swapper), _issued);
+        _swapper.swapExactInput(address(syntheticToken_), address(_collateral), _issued, 0);
         uint256 _depositAmount = _collateral.balanceOf(address(this)) - _balanceBefore;
         if (_depositAmount < depositAmountMin_) revert LeverageSlippageTooHigh();
 
@@ -708,28 +714,6 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
         syntheticTokenOut_.mint(msg.sender, _amountOut);
 
         emit SyntheticTokenSwapped(msg.sender, syntheticTokenIn_, syntheticTokenOut_, amountIn_, _amountOut, _fee);
-    }
-
-    /**
-     * @notice Leverage swap function
-     * @param syntheticToken_ The synthetic token to swap from
-     * @param collateral_ The collateral to swap to
-     * @param amountIn_ The swap input amount
-     * @dev For now we only support vaToken as collateral, we may extend it in future
-     */
-    function _leverageSwap(
-        ISyntheticToken syntheticToken_,
-        IERC20 collateral_,
-        uint256 amountIn_,
-        uint8 /*depositTokenType_*/
-    ) private {
-        ISwapper _swapper = swapper;
-        IVPool _vToken = IVPool(address(collateral_));
-        address _token = _vToken.token();
-        syntheticToken_.approve(address(_swapper), amountIn_);
-        uint256 _amountOut = _swapper.swapExactInput(address(syntheticToken_), _token, amountIn_, 0, address(this));
-        IERC20(_token).approve(address(_vToken), _amountOut);
-        _vToken.deposit(_amountOut);
     }
 
     /**

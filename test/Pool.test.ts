@@ -214,6 +214,7 @@ describe('Pool', function () {
   describe('leverage', function () {
     beforeEach(async function () {
       await dai.mint(swapper.address, parseEther(`${1e6}`))
+      await vaDAI.mint(swapper.address, parseEther(`${1e6}`))
       await pool.connect(deployer).addDepositToken(msdVaDAI.address)
       await pool.connect(deployer).addDebtToken(msUsdDebtToken.address)
 
@@ -230,7 +231,7 @@ describe('Pool', function () {
       // when
       const amountIn = parseUnits('100', 18)
       const leverage = parseEther('1').sub('1')
-      const tx = pool.connect(alice).leverage(msdVaDAI.address, msUSD.address, amountIn, leverage, 0, 1)
+      const tx = pool.connect(alice).leverage(vaDAI.address, msdVaDAI.address, msUSD.address, amountIn, leverage, 0)
 
       // then
       await expect(tx).revertedWithCustomError(pool, 'LeverageTooLow')
@@ -242,7 +243,7 @@ describe('Pool', function () {
       const cf = await msdVaDAI.collateralFactor()
       const maxLeverage = parseEther('1').mul(parseEther('1')).div(parseEther('1').sub(cf))
       const leverage = maxLeverage.add('1')
-      const tx = pool.connect(alice).leverage(msdVaDAI.address, msUSD.address, amountIn, leverage, 0, 1)
+      const tx = pool.connect(alice).leverage(vaDAI.address, msdVaDAI.address, msUSD.address, amountIn, leverage, 0)
 
       // then
       await expect(tx).revertedWithCustomError(pool, 'LeverageTooHigh')
@@ -256,7 +257,9 @@ describe('Pool', function () {
       const amountIn = parseUnits('100', 18)
       const leverage = parseEther('1.5')
       const depositAmountMin = parseEther('147.5') // 5% slippage (100 + 50*0.95)
-      const tx = pool.connect(alice).leverage(msdVaDAI.address, msUSD.address, amountIn, leverage, depositAmountMin, 1)
+      const tx = pool
+        .connect(alice)
+        .leverage(vaDAI.address, msdVaDAI.address, msUSD.address, amountIn, leverage, depositAmountMin)
 
       // then
       await expect(tx).revertedWithCustomError(pool, 'LeverageSlippageTooHigh')
@@ -270,7 +273,7 @@ describe('Pool', function () {
       const amountIn = parseUnits('100', 18)
       const cf = await msdVaDAI.collateralFactor()
       const maxLeverage = parseEther('1').mul(parseEther('1')).div(parseEther('1').sub(cf))
-      const tx = pool.connect(alice).leverage(msdVaDAI.address, msUSD.address, amountIn, maxLeverage, 0, 1)
+      const tx = pool.connect(alice).leverage(vaDAI.address, msdVaDAI.address, msUSD.address, amountIn, maxLeverage, 0)
 
       // then
       await expect(tx).revertedWithCustomError(pool, 'PositionIsNotHealthy')
@@ -280,7 +283,7 @@ describe('Pool', function () {
       // when
       const amountIn = parseUnits('100', 18)
       const minLeverage = parseEther('1').add('1')
-      const tx = pool.connect(alice).leverage(msdVaDAI.address, msUSD.address, amountIn, minLeverage, 0, 1)
+      const tx = pool.connect(alice).leverage(vaDAI.address, msdVaDAI.address, msUSD.address, amountIn, minLeverage, 0)
 
       // then
       await expect(tx).revertedWith('amount-out-zero') // Error from DEX
@@ -290,7 +293,7 @@ describe('Pool', function () {
       // when
       const amountIn = parseUnits('100', 18)
       const leverage = parseEther('1.01')
-      await pool.connect(alice).leverage(msdVaDAI.address, msUSD.address, amountIn, leverage, 0, 1)
+      await pool.connect(alice).leverage(vaDAI.address, msdVaDAI.address, msUSD.address, amountIn, leverage, 0)
 
       // then
       const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
@@ -309,7 +312,7 @@ describe('Pool', function () {
       expect(maxLeverage).eq(parseEther('2.5'))
       const damper = parseEther('0.05')
       const leverage = maxLeverage.sub(damper) // -5% to cover fees + slippage
-      await pool.connect(alice).leverage(msdVaDAI.address, msUSD.address, amountIn, leverage, 0, 1)
+      await pool.connect(alice).leverage(vaDAI.address, msdVaDAI.address, msUSD.address, amountIn, leverage, 0)
 
       // then
       const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
@@ -321,7 +324,21 @@ describe('Pool', function () {
       // when
       const amountIn = parseUnits('100', 18)
       const leverage = parseEther('1.5')
-      await pool.connect(alice).leverage(msdVaDAI.address, msUSD.address, amountIn, leverage, 0, 1)
+      await pool.connect(alice).leverage(vaDAI.address, msdVaDAI.address, msUSD.address, amountIn, leverage, 0)
+
+      // then
+      const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
+      expect(_depositInUsd).closeTo(amountIn.mul(leverage).div(parseEther('1')), parseEther('10')) // ~$150
+      // eslint-disable-next-line max-len
+      expect(_debtInUsd).closeTo(amountIn.mul(leverage.sub(parseEther('1'))).div(parseEther('1')), parseEther('10')) // ~$50
+    })
+
+    it('should leverage vaDAI->msUSD using DAI as tokenIn', async function () {
+      // when
+      const amountIn = parseUnits('100', 18)
+      const leverage = parseEther('1.5')
+      await dai.connect(alice).approve(pool.address, MaxUint256)
+      await pool.connect(alice).leverage(dai.address, msdVaDAI.address, msUSD.address, amountIn, leverage, 0)
 
       // then
       const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
