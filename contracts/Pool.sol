@@ -546,7 +546,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
         tokenIn_.safeTransferFrom(msg.sender, address(this), amountIn_);
         if (tokenIn_ != _collateral) {
             tokenIn_.approve(address(_swapper), amountIn_);
-            _swapper.swapExactInput(address(tokenIn_), address(_collateral), amountIn_, 0);
+            _swapper.swapExactInput(address(tokenIn_), address(_collateral), amountIn_, 0, address(this));
         }
 
         // 2. mint synth
@@ -559,7 +559,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
 
         // 3. swap synth for collateral
         syntheticToken_.approve(address(_swapper), _issued);
-        _swapper.swapExactInput(address(syntheticToken_), address(_collateral), _issued, 0);
+        _swapper.swapExactInput(address(syntheticToken_), address(_collateral), _issued, 0, address(this));
         uint256 _depositAmount = _collateral.balanceOf(address(this)) - _balanceBefore;
         if (_depositAmount < depositAmountMin_) revert LeverageSlippageTooHigh();
 
