@@ -547,6 +547,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
         if (tokenIn_ != _collateral) {
             tokenIn_.approve(address(_swapper), amountIn_);
             _swapper.swapExactInput(address(tokenIn_), address(_collateral), amountIn_, 0, address(this));
+            amountIn_ = _collateral.balanceOf(address(this)) - _balanceBefore;
         }
 
         // 2. mint synth

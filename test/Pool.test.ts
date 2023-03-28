@@ -83,7 +83,7 @@ describe('Pool', function () {
     await masterOracle.deployed()
 
     const swapperMockFactory = new SwapperMock__factory(deployer)
-    swapper = await swapperMockFactory.deploy()
+    swapper = await swapperMockFactory.deploy(masterOracle.address)
     await swapper.deployed()
 
     const erc20MockFactory = new ERC20Mock__factory(deployer)
@@ -215,6 +215,7 @@ describe('Pool', function () {
     beforeEach(async function () {
       await dai.mint(swapper.address, parseEther(`${1e6}`))
       await vaDAI.mint(swapper.address, parseEther(`${1e6}`))
+      await met.mint(swapper.address, parseEther(`${1e6}`))
       await pool.connect(deployer).addDepositToken(msdVaDAI.address)
       await pool.connect(deployer).addDebtToken(msUsdDebtToken.address)
 
@@ -333,18 +334,21 @@ describe('Pool', function () {
       expect(_debtInUsd).closeTo(amountIn.mul(leverage.sub(parseEther('1'))).div(parseEther('1')), parseEther('10')) // ~$50
     })
 
-    it('should leverage vaDAI->msUSD using DAI as tokenIn', async function () {
+    it('should leverage vaDAI->msUSD using MET as tokenIn', async function () {
+      // given
+      await masterOracle.updatePrice(met.address, parseEther('0.5'))
+
       // when
       const amountIn = parseUnits('100', 18)
       const leverage = parseEther('1.5')
-      await dai.connect(alice).approve(pool.address, MaxUint256)
-      await pool.connect(alice).leverage(dai.address, msdVaDAI.address, msUSD.address, amountIn, leverage, 0)
+      await met.connect(alice).approve(pool.address, MaxUint256)
+      await pool.connect(alice).leverage(met.address, msdVaDAI.address, msUSD.address, amountIn, leverage, 0)
 
       // then
+      expect(await met.balanceOf(pool.address)).eq(0)
       const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
-      expect(_depositInUsd).closeTo(amountIn.mul(leverage).div(parseEther('1')), parseEther('10')) // ~$150
-      // eslint-disable-next-line max-len
-      expect(_debtInUsd).closeTo(amountIn.mul(leverage.sub(parseEther('1'))).div(parseEther('1')), parseEther('10')) // ~$50
+      expect(_depositInUsd).closeTo(parseEther('75'), parseEther('10'))
+      expect(_debtInUsd).closeTo(parseEther('25'), parseEther('10'))
     })
   })
 
