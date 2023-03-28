@@ -542,6 +542,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
 
         // 1. transfer collateral
         IERC20 _collateral = depositToken_.underlying();
+        if (address(tokenIn_) == address(0)) tokenIn_ = _collateral;
         uint256 _balanceBefore = _collateral.balanceOf(address(this));
         tokenIn_.safeTransferFrom(msg.sender, address(this), amountIn_);
         if (tokenIn_ != _collateral) {
