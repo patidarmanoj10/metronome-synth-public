@@ -347,7 +347,11 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
     function unlockedBalanceOf(address account_) public view override returns (uint256 _unlockedBalance) {
         IPool _pool = pool;
 
-        (, , , , uint256 _issuableInUsd) = _pool.debtPositionOf(account_);
+        (, , uint256 _debtInUsd, , uint256 _issuableInUsd) = _pool.debtPositionOf(account_);
+
+        if (_debtInUsd == 0) {
+            return balanceOf[account_];
+        }
 
         if (_issuableInUsd > 0) {
             _unlockedBalance = Math.min(

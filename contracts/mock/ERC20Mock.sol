@@ -4,35 +4,9 @@
 
 pragma solidity 0.8.9;
 
-interface IERC20 {
-    event Transfer(address indexed owner_, address indexed recipient_, uint256 amount_);
+import "../dependencies/openzeppelin/token/ERC20/extensions/IERC20Metadata.sol";
 
-    event Approval(address indexed owner_, address indexed spender_, uint256 amount_);
-
-    function name() external view returns (string memory name_);
-
-    function symbol() external view returns (string memory symbol_);
-
-    function decimals() external view returns (uint8 decimals_);
-
-    function totalSupply() external view returns (uint256 totalSupply_);
-
-    function balanceOf(address account_) external view returns (uint256 balance_);
-
-    function allowance(address owner_, address spender_) external view returns (uint256 allowance_);
-
-    function approve(address spender_, uint256 amount_) external returns (bool success_);
-
-    function transfer(address recipient_, uint256 amount_) external returns (bool success_);
-
-    function transferFrom(
-        address owner_,
-        address recipient_,
-        uint256 amount_
-    ) external returns (bool success_);
-}
-
-contract ERC20Mock is IERC20 {
+contract ERC20Mock is IERC20Metadata {
     string public override name;
     string public override symbol;
 
@@ -46,11 +20,7 @@ contract ERC20Mock is IERC20 {
 
     uint256 public fee;
 
-    constructor(
-        string memory name_,
-        string memory symbol_,
-        uint8 decimals_
-    ) {
+    constructor(string memory name_, string memory symbol_, uint8 decimals_) {
         name = name_;
         symbol = symbol_;
         decimals = decimals_;
@@ -84,6 +54,10 @@ contract ERC20Mock is IERC20 {
         _mint(_to, _amount);
     }
 
+    function burn(address _to, uint256 _amount) external {
+        _burn(_to, _amount);
+    }
+
     function updateFee(uint256 _fee) external {
         fee = _fee;
     }
@@ -92,19 +66,11 @@ contract ERC20Mock is IERC20 {
     /*** Internal Functions ***/
     /**************************/
 
-    function _approve(
-        address owner_,
-        address spender_,
-        uint256 amount_
-    ) internal {
+    function _approve(address owner_, address spender_, uint256 amount_) internal {
         emit Approval(owner_, spender_, allowance[owner_][spender_] = amount_);
     }
 
-    function _transfer(
-        address owner_,
-        address recipient_,
-        uint256 amount_
-    ) internal {
+    function _transfer(address owner_, address recipient_, uint256 amount_) internal {
         uint256 feeAmount = fee > 0 ? (amount_ * fee) / 1e18 : 0;
         balanceOf[owner_] -= amount_;
         balanceOf[recipient_] += amount_ - feeAmount;
