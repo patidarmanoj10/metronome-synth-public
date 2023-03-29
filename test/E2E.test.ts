@@ -39,16 +39,16 @@ import {address as VAUSDC_DEPOSIT_ADDRESS} from '../deployments/mainnet/vaUSDCDe
 import {address as VAETH_DEPOSIT_ADDRESS} from '../deployments/mainnet/vaETHDepositToken.json'
 import {address as MSUSD_DEBT_ADDRESS} from '../deployments/mainnet/MsUSDDebt.json'
 import {address as MSBTC_DEBT_ADDRESS} from '../deployments/mainnet/MsBTCDebt.json'
-import {address as MSDOGE_DEBT_ADDRESS} from '../deployments/mainnet/MsDOGEDebt.json'
 import {address as MSETH_DEBT_ADDRESS} from '../deployments/mainnet/MsETHDebt.json'
 import {address as MSUSD_SYNTHETIC_ADDRESS} from '../deployments/mainnet/MsUSDSynthetic.json'
 import {address as MSBTC_SYNTHETIC_ADDRESS} from '../deployments/mainnet/MsBTCSynthetic.json'
-import {address as MSDOGE_SYNTHETIC_ADDRESS} from '../deployments/mainnet/MsDOGESynthetic.json'
 import {address as MSETH_SYNTHETIC_ADDRESS} from '../deployments/mainnet/MsETHSynthetic.json'
 import {address as NATIVE_TOKEN_GATEWAY_ADDRESS} from '../deployments/mainnet/NativeTokenGateway.json'
 import {address as SRFXETH_DEPOSIT_ADDRESS} from '../deployments/mainnet/sfrxETHDepositToken.json'
 import {address as VASTETH_DEPOSIT_ADDRESS} from '../deployments/mainnet/vaSTETHDepositToken.json'
 import {address as VARETH_DEPOSIT_ADDRESS} from '../deployments/mainnet/vaRETHDepositToken.json'
+// WIP
+// import {address as VACBETH_DEPOSIT_ADDRESS} from '../deployments/mainnet/vaCBETHDepositToken.json'
 
 const {MaxUint256} = ethers.constants
 const dust = toUSD('20')
@@ -70,6 +70,7 @@ describe('E2E tests', function () {
   let sfrxETH: ERC20
   let vaSTETH: ERC20
   let vaRETH: ERC20
+  let vaCBETH: ERC20
   let masterOracle: Contract
   let poolRegistry: PoolRegistry
   let nativeGateway: NativeTokenGateway
@@ -85,13 +86,12 @@ describe('E2E tests', function () {
   let msdSfrxETH: DepositToken
   let msdVaSTETH: DepositToken
   let msdVaRETH: DepositToken
+  let msdVaCBETH: DepositToken
   let msUSDDebt: DebtToken
   let msBTCDebt: DebtToken
-  let msDOGEDebt: DebtToken
   let msETHDebt: DebtToken
   let msUSD: SyntheticToken
   let msBTC: SyntheticToken
-  let msDOGE: SyntheticToken
   let msETH: SyntheticToken
 
   if (isNodeHardhat) {
@@ -114,6 +114,7 @@ describe('E2E tests', function () {
     sfrxETH = ERC20__factory.connect(Address.SFRXETH_ADDRESS, alice)
     vaSTETH = ERC20__factory.connect(Address.VASTETH_ADDRESS, alice)
     vaRETH = ERC20__factory.connect(Address.VARETH_ADDRESS, alice)
+    vaCBETH = ERC20__factory.connect(Address.VACBETH_ADDRESS, alice)
 
     poolRegistry = PoolRegistry__factory.connect(POOL_REGISTRY_ADDRESS, alice)
     governor = await impersonateAccount(await poolRegistry.governor())
@@ -133,15 +134,15 @@ describe('E2E tests', function () {
     msdSfrxETH = DepositToken__factory.connect(SRFXETH_DEPOSIT_ADDRESS, alice)
     msdVaSTETH = DepositToken__factory.connect(VASTETH_DEPOSIT_ADDRESS, alice)
     msdVaRETH = DepositToken__factory.connect(VARETH_DEPOSIT_ADDRESS, alice)
+    // WIP
+    // msdVaCBETH = DepositToken__factory.connect(VACBETH_DEPOSIT_ADDRESS, alice)
 
     msUSDDebt = DebtToken__factory.connect(MSUSD_DEBT_ADDRESS, alice)
     msBTCDebt = DebtToken__factory.connect(MSBTC_DEBT_ADDRESS, alice)
-    msDOGEDebt = DebtToken__factory.connect(MSDOGE_DEBT_ADDRESS, alice)
     msETHDebt = DebtToken__factory.connect(MSETH_DEBT_ADDRESS, alice)
 
     msUSD = SyntheticToken__factory.connect(MSUSD_SYNTHETIC_ADDRESS, alice)
     msBTC = SyntheticToken__factory.connect(MSBTC_SYNTHETIC_ADDRESS, alice)
-    msDOGE = SyntheticToken__factory.connect(MSDOGE_SYNTHETIC_ADDRESS, alice)
     msETH = SyntheticToken__factory.connect(MSETH_SYNTHETIC_ADDRESS, alice)
 
     await setTokenBalance(usdc.address, alice.address, parseUnits('10,000', 6))
@@ -155,6 +156,7 @@ describe('E2E tests', function () {
     await setTokenBalance(sfrxETH.address, alice.address, parseUnits('20', 18))
     await setTokenBalance(vaSTETH.address, alice.address, parseUnits('20', 18))
     await setTokenBalance(vaRETH.address, alice.address, parseUnits('20', 18))
+    await setTokenBalance(vaCBETH.address, alice.address, parseUnits('20', 18))
 
     await usdc.connect(alice).approve(msdUSDC.address, MaxUint256)
     await dai.connect(alice).approve(msdDAI.address, MaxUint256)
@@ -167,6 +169,8 @@ describe('E2E tests', function () {
     await sfrxETH.connect(alice).approve(msdSfrxETH.address, MaxUint256)
     await vaSTETH.connect(alice).approve(msdVaSTETH.address, MaxUint256)
     await vaRETH.connect(alice).approve(msdVaRETH.address, MaxUint256)
+    // WIP
+    // await vaCBETH.connect(alice).approve(msdVaCBETH.address, MaxUint256)
 
     const masterOracleGovernor = await impersonateAccount(Address.MASTER_ORACLE_GOVERNOR_ADDRESS)
     masterOracle = new ethers.Contract(
@@ -207,9 +211,10 @@ describe('E2E tests', function () {
       expect(SRFXETH_DEPOSIT_ADDRESS).eq(await pool.depositTokenOf(sfrxETH.address))
       expect(VASTETH_DEPOSIT_ADDRESS).eq(await pool.depositTokenOf(vaSTETH.address))
       expect(VARETH_DEPOSIT_ADDRESS).eq(await pool.depositTokenOf(vaRETH.address))
+      // WIP
+      // expect(VACBETH_DEPOSIT_ADDRESS).eq(await pool.depositTokenOf(vaCBETH.address))
       expect(MSUSD_DEBT_ADDRESS).eq(await pool.debtTokenOf(msUSD.address))
       expect(MSBTC_DEBT_ADDRESS).eq(await pool.debtTokenOf(msBTC.address))
-      expect(MSDOGE_DEBT_ADDRESS).eq(await pool.debtTokenOf(msDOGE.address))
       expect(MSETH_DEBT_ADDRESS).eq(await pool.debtTokenOf(msETH.address))
     })
 
@@ -224,11 +229,11 @@ describe('E2E tests', function () {
       expect(await masterOracle.getPriceInUsd(vaETH.address)).gt(0)
       expect(await masterOracle.getPriceInUsd(msUSD.address)).gt(0)
       expect(await masterOracle.getPriceInUsd(msBTC.address)).gt(0)
-      expect(await masterOracle.getPriceInUsd(msDOGE.address)).gt(0)
       expect(await masterOracle.getPriceInUsd(msETH.address)).gt(0)
       expect(await masterOracle.getPriceInUsd(sfrxETH.address)).gt(0)
       expect(await masterOracle.getPriceInUsd(vaSTETH.address)).gt(0)
       expect(await masterOracle.getPriceInUsd(vaRETH.address)).gt(0)
+      expect(await masterOracle.getPriceInUsd(vaCBETH.address)).gt(0)
     })
   })
 
@@ -365,6 +370,18 @@ describe('E2E tests', function () {
       await expect(tx).changeTokenBalance(msdVaRETH, alice, amount)
     })
 
+    // WIP
+    it.skip('should deposit vaCBETH', async function () {
+      // given
+      const amount = parseUnits('1', 18)
+
+      // when
+      const tx = () => msdVaCBETH.deposit(amount, alice.address)
+
+      // then
+      await expect(tx).changeTokenBalance(msdVaCBETH, alice, amount)
+    })
+
     it('should issue msUSD', async function () {
       // given
       await msdUSDC.deposit(parseUnits('10', await usdc.decimals()), alice.address)
@@ -387,18 +404,6 @@ describe('E2E tests', function () {
 
       // then
       await expect(tx).changeTokenBalance(msBTC, alice, amount)
-    })
-
-    it('should issue msDOGE', async function () {
-      // given
-      await msdUSDC.deposit(parseUnits('10', await usdc.decimals()), alice.address)
-
-      // when
-      const amount = parseUnits('1', 18)
-      const tx = () => msDOGEDebt.issue(amount, alice.address)
-
-      // then
-      await expect(tx).changeTokenBalance(msDOGE, alice, amount)
     })
 
     it('should issue msETH', async function () {
