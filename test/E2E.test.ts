@@ -39,11 +39,9 @@ import {address as VAUSDC_DEPOSIT_ADDRESS} from '../deployments/mainnet/vaUSDCDe
 import {address as VAETH_DEPOSIT_ADDRESS} from '../deployments/mainnet/vaETHDepositToken.json'
 import {address as MSUSD_DEBT_ADDRESS} from '../deployments/mainnet/MsUSDDebt.json'
 import {address as MSBTC_DEBT_ADDRESS} from '../deployments/mainnet/MsBTCDebt.json'
-import {address as MSDOGE_DEBT_ADDRESS} from '../deployments/mainnet/MsDOGEDebt.json'
 import {address as MSETH_DEBT_ADDRESS} from '../deployments/mainnet/MsETHDebt.json'
 import {address as MSUSD_SYNTHETIC_ADDRESS} from '../deployments/mainnet/MsUSDSynthetic.json'
 import {address as MSBTC_SYNTHETIC_ADDRESS} from '../deployments/mainnet/MsBTCSynthetic.json'
-import {address as MSDOGE_SYNTHETIC_ADDRESS} from '../deployments/mainnet/MsDOGESynthetic.json'
 import {address as MSETH_SYNTHETIC_ADDRESS} from '../deployments/mainnet/MsETHSynthetic.json'
 import {address as NATIVE_TOKEN_GATEWAY_ADDRESS} from '../deployments/mainnet/NativeTokenGateway.json'
 import {address as SRFXETH_DEPOSIT_ADDRESS} from '../deployments/mainnet/sfrxETHDepositToken.json'
@@ -87,11 +85,9 @@ describe('E2E tests', function () {
   let msdVaRETH: DepositToken
   let msUSDDebt: DebtToken
   let msBTCDebt: DebtToken
-  let msDOGEDebt: DebtToken
   let msETHDebt: DebtToken
   let msUSD: SyntheticToken
   let msBTC: SyntheticToken
-  let msDOGE: SyntheticToken
   let msETH: SyntheticToken
 
   if (isNodeHardhat) {
@@ -136,12 +132,10 @@ describe('E2E tests', function () {
 
     msUSDDebt = DebtToken__factory.connect(MSUSD_DEBT_ADDRESS, alice)
     msBTCDebt = DebtToken__factory.connect(MSBTC_DEBT_ADDRESS, alice)
-    msDOGEDebt = DebtToken__factory.connect(MSDOGE_DEBT_ADDRESS, alice)
     msETHDebt = DebtToken__factory.connect(MSETH_DEBT_ADDRESS, alice)
 
     msUSD = SyntheticToken__factory.connect(MSUSD_SYNTHETIC_ADDRESS, alice)
     msBTC = SyntheticToken__factory.connect(MSBTC_SYNTHETIC_ADDRESS, alice)
-    msDOGE = SyntheticToken__factory.connect(MSDOGE_SYNTHETIC_ADDRESS, alice)
     msETH = SyntheticToken__factory.connect(MSETH_SYNTHETIC_ADDRESS, alice)
 
     await setTokenBalance(usdc.address, alice.address, parseUnits('10,000', 6))
@@ -209,7 +203,6 @@ describe('E2E tests', function () {
       expect(VARETH_DEPOSIT_ADDRESS).eq(await pool.depositTokenOf(vaRETH.address))
       expect(MSUSD_DEBT_ADDRESS).eq(await pool.debtTokenOf(msUSD.address))
       expect(MSBTC_DEBT_ADDRESS).eq(await pool.debtTokenOf(msBTC.address))
-      expect(MSDOGE_DEBT_ADDRESS).eq(await pool.debtTokenOf(msDOGE.address))
       expect(MSETH_DEBT_ADDRESS).eq(await pool.debtTokenOf(msETH.address))
     })
 
@@ -224,7 +217,6 @@ describe('E2E tests', function () {
       expect(await masterOracle.getPriceInUsd(vaETH.address)).gt(0)
       expect(await masterOracle.getPriceInUsd(msUSD.address)).gt(0)
       expect(await masterOracle.getPriceInUsd(msBTC.address)).gt(0)
-      expect(await masterOracle.getPriceInUsd(msDOGE.address)).gt(0)
       expect(await masterOracle.getPriceInUsd(msETH.address)).gt(0)
       expect(await masterOracle.getPriceInUsd(sfrxETH.address)).gt(0)
       expect(await masterOracle.getPriceInUsd(vaSTETH.address)).gt(0)
@@ -387,18 +379,6 @@ describe('E2E tests', function () {
 
       // then
       await expect(tx).changeTokenBalance(msBTC, alice, amount)
-    })
-
-    it('should issue msDOGE', async function () {
-      // given
-      await msdUSDC.deposit(parseUnits('10', await usdc.decimals()), alice.address)
-
-      // when
-      const amount = parseUnits('1', 18)
-      const tx = () => msDOGEDebt.issue(amount, alice.address)
-
-      // then
-      await expect(tx).changeTokenBalance(msDOGE, alice, amount)
     })
 
     it('should issue msETH', async function () {
