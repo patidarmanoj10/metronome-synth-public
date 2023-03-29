@@ -59,12 +59,12 @@ interface IPool is IPauseable, IGovernable {
         );
 
     function leverage(
+        IERC20 tokenIn_,
         IDepositToken depositToken_,
         ISyntheticToken syntheticToken_,
         uint256 amountIn_,
         uint256 leverage_,
-        uint256 depositAmountMin_,
-        uint8 depositTokenType_
+        uint256 depositAmountMin_
     ) external;
 
     function liquidate(

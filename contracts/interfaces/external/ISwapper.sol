@@ -8,6 +8,6 @@ interface ISwapper {
         address tokenOut_,
         uint256 amountIn_,
         uint256 amountOutMin_,
-        address _receiver
+        address receiver_
     ) external returns (uint256 _amountOut);
 }
