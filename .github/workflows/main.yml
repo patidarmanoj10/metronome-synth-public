@@ -6,6 +6,8 @@ on:
       - "contracts/**/*.sol"
       - "deploy/**/*.ts"
       - package*.json
+      - ".github/env.properties"
+      - ".github/workflows/main.yml"
 
 jobs:
   test:
