@@ -1365,6 +1365,42 @@ describe('Pool', function () {
       })
     })
 
+    describe('addDepositToken', function () {
+      it('should revert if not governor', async function () {
+        const tx = pool.connect(alice).addDebtToken(msEthDebtToken.address)
+        await expect(tx).revertedWithCustomError(pool, 'SenderIsNotGovernor')
+      })
+
+      it('should add deposit token', async function () {
+        const before = await pool.getDepositTokens()
+        await pool.addDepositToken(depositToken.address)
+        const after = await pool.getDepositTokens()
+        expect(after.length).eq(before.length + 1)
+      })
+
+      it('should revert if reach max', async function () {
+        // given
+        const current = await pool.getDepositTokens()
+        // eslint-disable-next-line new-cap
+        const max = await pool.MAX_TOKENS_PER_USER()
+        const n = max.sub(current.length).toNumber()
+
+        for (let i = 0; i < n; ++i) {
+          const deposit = await smock.fake('DepositToken')
+          deposit.underlying.returns(ethers.utils.hexlify(ethers.utils.randomBytes(20)))
+          await pool.addDepositToken(deposit.address)
+        }
+
+        // when
+        const deposit = await smock.fake('DepositToken')
+        deposit.underlying.returns(ethers.utils.hexlify(ethers.utils.randomBytes(20)))
+        const tx = pool.addDepositToken(deposit.address)
+
+        // then
+        await expect(tx).revertedWithCustomError(pool, 'ReachedMaxDepositTokens')
+      })
+    })
+
     describe('removeDepositToken', function () {
       it('should remove deposit token', async function () {
         // given

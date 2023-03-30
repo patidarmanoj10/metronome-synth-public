@@ -34,6 +34,7 @@ error AddressIsNull();
 error SyntheticIsNull();
 error SyntheticIsInUse();
 error UnderlyingAssetInUse();
+error ReachedMaxDepositTokens();
 error RewardDistributorAlreadyExists();
 error RewardDistributorDoesNotExist();
 error TotalSupplyIsNotZero();
@@ -742,6 +743,8 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
         if (depositToken_ == address(0)) revert AddressIsNull();
         IERC20 _underlying = IDepositToken(depositToken_).underlying();
         if (address(depositTokenOf[_underlying]) != address(0)) revert UnderlyingAssetInUse();
+        // Note: Fee collector collects deposit tokens as fee
+        if (depositTokens.length() >= MAX_TOKENS_PER_USER) revert ReachedMaxDepositTokens();
 
         if (!depositTokens.add(depositToken_)) revert DepositTokenAlreadyExists();
 
