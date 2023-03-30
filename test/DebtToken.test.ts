@@ -878,6 +878,54 @@ describe('DebtToken', function () {
       expect(totalCredit).eq(creditOfUser.add(creditOfFeeCollector))
     })
 
+    describe('when synthetic token is inactive', function () {
+      beforeEach(async function () {
+        // given
+        await msUSDDebt.updateInterestRate(parseEther('0.02')) // 2%
+        await time.increase(SECONDS_PER_YEAR)
+        await msUSD.connect(governor).toggleIsActive()
+        expect(await msUSD.isActive()).false
+      })
+
+      it('should accrue interest ', async function () {
+        // when
+        await msUSDDebt.accrueInterest()
+
+        // then
+        const totalDebt = await msUSDDebt.totalSupply()
+        expect(totalDebt).closeTo(parseEther('102'), parseEther('0.0001'))
+      })
+
+      it('should accumulate pending fee', async function () {
+        // given
+        expect(await msUSDDebt.pendingInterestFee()).eq(0)
+
+        // when
+        await msUSDDebt.accrueInterest()
+
+        // then
+        expect(await msUSDDebt.pendingInterestFee()).gt(0)
+      })
+
+      it('should mint after the synthetic back active', async function () {
+        // given
+        await msUSDDebt.accrueInterest()
+        const pendingInterestFee = await msUSDDebt.pendingInterestFee()
+        expect(pendingInterestFee).gt(0)
+
+        // when
+        await msUSD.connect(governor).toggleIsActive()
+        expect(await msUSD.isActive()).true
+        const before = await msUSD.balanceOf(await poolMock.feeCollector())
+        await msUSDDebt.accrueInterest()
+
+        // then
+        const after = await msUSD.balanceOf(await poolMock.feeCollector())
+        expect(after).closeTo(before.add(pendingInterestFee), parseEther('0.000001'))
+        expect(await msUSDDebt.pendingInterestFee()).eq(0)
+      })
+    })
+
     describe('should accrue correctly when issuing/repaying successively', function () {
       const dust = '1000'
 

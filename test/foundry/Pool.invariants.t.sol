@@ -38,7 +38,7 @@ contract PoolInvariant_Test is Test {
 
     function setUp() public {
         masterOracle = new MasterOracleMock();
-        swapper = new SwapperMock();
+        swapper = new SwapperMock(masterOracle);
 
         poolRegistry = new PoolRegistry();
         poolRegistry.initialize({masterOracle_: masterOracle, feeCollector_: feeCollector});
