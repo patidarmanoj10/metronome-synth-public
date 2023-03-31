@@ -141,23 +141,25 @@ contract FeeProvider is Initializable, FeeProviderStorageV1 {
 
     /**
      * @notice Update liquidator incentive
+     * @dev liquidatorIncentive + protocolFee can't surpass max
      */
     function updateLiquidatorIncentive(uint128 newLiquidatorIncentive_) external onlyGovernor {
-        if (newLiquidatorIncentive_ > MAX_FEE_VALUE) revert FeeIsGreaterThanTheMax();
-        uint256 _currentLiquidatorIncentive = liquidationFees.liquidatorIncentive;
-        if (newLiquidatorIncentive_ == _currentLiquidatorIncentive) revert NewValueIsSameAsCurrent();
-        emit LiquidatorIncentiveUpdated(_currentLiquidatorIncentive, newLiquidatorIncentive_);
+        LiquidationFees memory _current = liquidationFees;
+        if (newLiquidatorIncentive_ + _current.protocolFee > MAX_FEE_VALUE) revert FeeIsGreaterThanTheMax();
+        if (newLiquidatorIncentive_ == _current.liquidatorIncentive) revert NewValueIsSameAsCurrent();
+        emit LiquidatorIncentiveUpdated(_current.liquidatorIncentive, newLiquidatorIncentive_);
         liquidationFees.liquidatorIncentive = newLiquidatorIncentive_;
     }
 
     /**
      * @notice Update protocol liquidation fee
+     * @dev liquidatorIncentive + protocolFee can't surpass max
      */
     function updateProtocolLiquidationFee(uint128 newProtocolLiquidationFee_) external onlyGovernor {
-        if (newProtocolLiquidationFee_ > MAX_FEE_VALUE) revert FeeIsGreaterThanTheMax();
-        uint256 _currentProtocolLiquidationFee = liquidationFees.protocolFee;
-        if (newProtocolLiquidationFee_ == _currentProtocolLiquidationFee) revert NewValueIsSameAsCurrent();
-        emit ProtocolLiquidationFeeUpdated(_currentProtocolLiquidationFee, newProtocolLiquidationFee_);
+        LiquidationFees memory _current = liquidationFees;
+        if (newProtocolLiquidationFee_ + _current.liquidatorIncentive > MAX_FEE_VALUE) revert FeeIsGreaterThanTheMax();
+        if (newProtocolLiquidationFee_ == _current.protocolFee) revert NewValueIsSameAsCurrent();
+        emit ProtocolLiquidationFeeUpdated(_current.protocolFee, newProtocolLiquidationFee_);
         liquidationFees.protocolFee = newProtocolLiquidationFee_;
     }
 

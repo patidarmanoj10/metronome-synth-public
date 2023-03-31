@@ -211,7 +211,7 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
         _tokenIndex = _tokenState.index;
         uint256 _accountIndex = accountIndexOf[token_][account_];
 
-        if (_accountIndex == 0 && _tokenIndex > 0) {
+        if (_accountIndex == 0 && _tokenIndex > INITIAL_INDEX) {
             _accountIndex = INITIAL_INDEX;
         }
 
@@ -255,7 +255,8 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
         TokenState storage _supplyState = tokenStates[token_];
         (uint224 _newIndex, uint32 _newTimestamp) = _calculateTokenIndex(_supplyState, token_);
         if (_newIndex > 0 && _newTimestamp > 0) {
-            tokenStates[token_] = TokenState({index: _newIndex, timestamp: _newTimestamp});
+            _supplyState.index = _newIndex;
+            _supplyState.timestamp = _newTimestamp;
             emit TokenIndexUpdated(_newIndex, _newTimestamp);
         } else if (_newTimestamp > 0) {
             _supplyState.timestamp = _newTimestamp;

@@ -3,24 +3,30 @@
 pragma solidity 0.8.9;
 
 import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
-import "./access/Governable.sol";
+import "./utils/TokenHolder.sol";
 import "./interfaces/external/IWETH.sol";
 import "./interfaces/INativeTokenGateway.sol";
 import "./interfaces/IDepositToken.sol";
 
+error SenderIsNotGovernor();
 error SenderIsNotNativeToken();
 error UnregisteredPool();
 
 /**
  * @title Helper contract to easily support native tokens (e.g. ETH/AVAX) as collateral
  */
-contract NativeTokenGateway is ReentrancyGuard, Governable, INativeTokenGateway {
+contract NativeTokenGateway is ReentrancyGuard, TokenHolder, INativeTokenGateway {
     using SafeERC20 for IERC20;
     using SafeERC20 for IWETH;
     using SafeERC20 for IDepositToken;
 
     IPoolRegistry public immutable poolRegistry;
     IWETH public immutable nativeToken;
+
+    modifier onlyGovernor() {
+        if (poolRegistry.governor() != msg.sender) revert SenderIsNotGovernor();
+        _;
+    }
 
     constructor(IPoolRegistry poolRegistry_, IWETH nativeToken_) {
         // Note: `NativeTokenGateway` isn't upgradable but extends `ReentrancyGuard` therefore we need to initialize it
@@ -56,6 +62,9 @@ contract NativeTokenGateway is ReentrancyGuard, Governable, INativeTokenGateway 
         nativeToken.withdraw(_withdrawn);
         Address.sendValue(payable(msg.sender), _withdrawn);
     }
+
+    /// @inheritdoc TokenHolder
+    function _requireCanSweep() internal view override onlyGovernor {}
 
     /**
      * @dev Only `nativeToken` contract is allowed to transfer to here. Prevent other addresses to send coins to this contract.
