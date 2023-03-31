@@ -211,7 +211,7 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
         _tokenIndex = _tokenState.index;
         uint256 _accountIndex = accountIndexOf[token_][account_];
 
-        if (_accountIndex == 0 && _tokenIndex > 0) {
+        if (_accountIndex == 0 && _tokenIndex > INITIAL_INDEX) {
             _accountIndex = INITIAL_INDEX;
         }
 

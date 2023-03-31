@@ -197,8 +197,6 @@ describe('Deployments', function () {
   describe('NativeTokenGateway', function () {
     it('should have correct params', async function () {
       expect(await wethGateway.nativeToken()).eq(NATIVE_TOKEN_ADDRESS)
-      expect(await wethGateway.governor()).eq(deployer.address)
-      expect(await wethGateway.proposedGovernor()).eq(ethers.constants.AddressZero)
       expect(await wethGateway.poolRegistry()).eq(poolRegistry.address)
     })
   })

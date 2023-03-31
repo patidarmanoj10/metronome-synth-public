@@ -3,21 +3,27 @@
 pragma solidity 0.8.9;
 
 import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
-import "./access/Governable.sol";
+import "./utils/TokenHolder.sol";
 import "./interfaces/IVesperGateway.sol";
 import "./interfaces/IDepositToken.sol";
 
+error SenderIsNotGovernor();
 error UnregisteredPool();
 
 /**
  * @title Helper contract to easily support vTokens as collateral
  */
-contract VesperGateway is ReentrancyGuard, Governable, IVesperGateway {
+contract VesperGateway is ReentrancyGuard, TokenHolder, IVesperGateway {
     using SafeERC20 for IERC20;
     using SafeERC20 for IDepositToken;
     using SafeERC20 for IVPool;
 
     IPoolRegistry public immutable poolRegistry;
+
+    modifier onlyGovernor() {
+        if (poolRegistry.governor() != msg.sender) revert SenderIsNotGovernor();
+        _;
+    }
 
     constructor(IPoolRegistry poolRegistry_) {
         // Note: This contract isn't upgradable but extends `ReentrancyGuard` therefore we need to initialize it
@@ -75,4 +81,7 @@ contract VesperGateway is ReentrancyGuard, Governable, IVesperGateway {
         // 4. Transfer `underlying` to the `msg.sender`
         _underlying.safeTransfer(msg.sender, _underlyingAmount);
     }
+
+    /// @inheritdoc TokenHolder
+    function _requireCanSweep() internal view override onlyGovernor {}
 }
