@@ -31,7 +31,7 @@ error NewValueIsSameAsCurrent();
 /**
  * @title Non-transferable token that represents users' debts
  */
-contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorageV1 {
+contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorageV2 {
     using WadRayMath for uint256;
 
     uint256 public constant SECONDS_PER_YEAR = 365.25 days;
@@ -145,8 +145,14 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
         if (_interestAmountAccrued > 0) {
             totalSupply_ += _interestAmountAccrued;
             debtIndex = _debtIndex;
-            // Note: We could save gas by having an accumulator and a function to mint accumulated fee
-            syntheticToken.mint(pool.feeCollector(), _interestAmountAccrued);
+
+            if (syntheticToken.isActive()) {
+                // Note: We could save gas by just increase `pendingInterestFee` here
+                syntheticToken.mint(pool.feeCollector(), _interestAmountAccrued + pendingInterestFee);
+                pendingInterestFee = 0;
+            } else {
+                pendingInterestFee += _interestAmountAccrued;
+            }
         }
     }
 
@@ -189,6 +195,17 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
      */
     function burn(address from_, uint256 amount_) external override onlyIfPool {
         _burn(from_, amount_);
+    }
+
+    /**
+     * @notice Collect pending interest fee if any
+     */
+    function collectPendingInterestFee() external {
+        uint256 _pendingInterestFee = pendingInterestFee;
+        if (_pendingInterestFee > 0) {
+            syntheticToken.mint(pool.feeCollector(), _pendingInterestFee);
+            pendingInterestFee = 0;
+        }
     }
 
     /**

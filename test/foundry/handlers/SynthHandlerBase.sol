@@ -35,7 +35,7 @@ contract SynthHandlerBase is HandlerBase {
     constructor(IPool pool_) {
         pool = pool_;
         if (address(pool_) != address(0)) {
-            governor = pool_.poolRegistry().governor();
+            governor = pool_.governor();
             masterOracle = MasterOracleMock(address(pool.poolRegistry().masterOracle()));
         }
     }
