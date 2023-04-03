@@ -37,7 +37,7 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
     uint256 public constant SECONDS_PER_YEAR = 365.25 days;
     uint256 private constant HUNDRED_PERCENT = 1e18;
 
-    string public constant VERSION = "1.0.0";
+    string public constant VERSION = "1.1.0";
 
     /// @notice Emitted when synthetic's debt is repaid
     event DebtRepaid(address indexed payer, address indexed account, uint256 amount, uint256 repaid, uint256 fee);
