@@ -45,6 +45,7 @@ contract VesperGateway is ReentrancyGuard, TokenHolder, IVesperGateway {
         _underlying.safeTransferFrom(msg.sender, address(this), amount_);
 
         // 2. Deposit `underlying` to `VPool`
+        _underlying.safeApprove(address(vToken_), 0);
         _underlying.safeApprove(address(vToken_), amount_);
         uint256 _balanceBefore = vToken_.balanceOf(address(this));
         vToken_.deposit(amount_);
@@ -52,6 +53,7 @@ contract VesperGateway is ReentrancyGuard, TokenHolder, IVesperGateway {
 
         // 3. Deposit `VPool` to `Synth` and send `msdTokens` to the `msg.sender`
         IDepositToken _depositToken = pool_.depositTokenOf(vToken_);
+        vToken_.safeApprove(address(_depositToken), 0);
         vToken_.safeApprove(address(_depositToken), _vTokenAmount);
         _depositToken.deposit(_vTokenAmount, msg.sender);
     }

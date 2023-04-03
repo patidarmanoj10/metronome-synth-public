@@ -90,11 +90,11 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
      * @dev Should be called before balance changes (i.e. mint/burn)
      */
     modifier updateRewardsBeforeMintOrBurn(address account_) {
-        IRewardsDistributor[] memory _rewardsDistributors = pool.getRewardsDistributors();
+        address[] memory _rewardsDistributors = pool.getRewardsDistributors();
         ISyntheticToken _syntheticToken = syntheticToken;
         uint256 _length = _rewardsDistributors.length;
         for (uint256 i; i < _length; ++i) {
-            _rewardsDistributors[i].updateBeforeMintOrBurn(_syntheticToken, account_);
+            IRewardsDistributor(_rewardsDistributors[i]).updateBeforeMintOrBurn(_syntheticToken, account_);
         }
         _;
     }

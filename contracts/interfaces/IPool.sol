@@ -39,7 +39,7 @@ interface IPool is IPauseable, IGovernable {
 
     function getDebtTokens() external view returns (address[] memory);
 
-    function getRewardsDistributors() external view returns (IRewardsDistributor[] memory);
+    function getRewardsDistributors() external view returns (address[] memory);
 
     function debtOf(address account_) external view returns (uint256 _debtInUsd);
 

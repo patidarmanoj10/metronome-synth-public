@@ -50,10 +50,10 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
      */
     modifier onlyIfDistributorExists() {
         bool _distributorAdded = false;
-        IRewardsDistributor[] memory _rewardsDistributors = pool.getRewardsDistributors();
+        address[] memory _rewardsDistributors = pool.getRewardsDistributors();
         uint256 _length = _rewardsDistributors.length;
         for (uint256 i; i < _length; ++i) {
-            if (_rewardsDistributors[i] == this) {
+            if (_rewardsDistributors[i] == address(this)) {
                 _distributorAdded = true;
                 break;
             }

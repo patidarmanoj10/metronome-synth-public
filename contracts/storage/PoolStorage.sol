@@ -74,7 +74,7 @@ abstract contract PoolStorageV1 is IPool {
     /**
      * @notice RewardsDistributor contracts
      */
-    IRewardsDistributor[] internal rewardsDistributors;
+    IRewardsDistributor[] internal rewardsDistributors__DEPRECATED;
 
     /**
      * @notice Get the debt token's address from given synthetic asset
@@ -92,4 +92,9 @@ abstract contract PoolStorageV2 is PoolStorageV1 {
      * @notice FeeProvider contract
      */
     IFeeProvider public override feeProvider;
+
+    /**
+     * @notice RewardsDistributor contracts
+     */
+    EnumerableSet.AddressSet internal rewardsDistributors;
 }
