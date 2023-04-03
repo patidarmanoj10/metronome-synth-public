@@ -72,26 +72,13 @@ interface IPool is IPauseable, IGovernable {
         address account_,
         uint256 amountToRepay_,
         IDepositToken depositToken_
-    )
-        external
-        returns (
-            uint256 _totalSeized,
-            uint256 _toLiquidator,
-            uint256 _fee
-        );
+    ) external returns (uint256 _totalSeized, uint256 _toLiquidator, uint256 _fee);
 
     function quoteLiquidateIn(
         ISyntheticToken syntheticToken_,
         uint256 totalToSeized_,
         IDepositToken depositToken_
-    )
-        external
-        view
-        returns (
-            uint256 _amountToRepay,
-            uint256 _toLiquidator,
-            uint256 _fee
-        );
+    ) external view returns (uint256 _amountToRepay, uint256 _toLiquidator, uint256 _fee);
 
     function quoteLiquidateMax(
         ISyntheticToken syntheticToken_,
@@ -103,14 +90,7 @@ interface IPool is IPauseable, IGovernable {
         ISyntheticToken syntheticToken_,
         uint256 amountToRepay_,
         IDepositToken depositToken_
-    )
-        external
-        view
-        returns (
-            uint256 _totalSeized,
-            uint256 _toLiquidator,
-            uint256 _fee
-        );
+    ) external view returns (uint256 _totalSeized, uint256 _toLiquidator, uint256 _fee);
 
     function quoteSwapIn(
         ISyntheticToken syntheticTokenIn_,

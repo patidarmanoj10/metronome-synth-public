@@ -65,6 +65,7 @@ contract NativeTokenGateway is ReentrancyGuard, TokenHolder, INativeTokenGateway
     }
 
     /// @inheritdoc TokenHolder
+    // solhint-disable-next-line no-empty-blocks
     function _requireCanSweep() internal view override onlyGovernor {}
 
     /**

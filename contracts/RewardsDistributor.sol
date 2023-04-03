@@ -161,11 +161,7 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
      * @notice Update indexes on pre-transfer
      * @dev Called by DepositToken and DebtToken contracts
      */
-    function updateBeforeTransfer(
-        IERC20 token_,
-        address from_,
-        address to_
-    ) external override {
+    function updateBeforeTransfer(IERC20 token_, address from_, address to_) external override {
         if (tokenStates[token_].index > 0) {
             _updateTokenIndex(token_);
             _updateTokensAccruedOf(token_, from_);
@@ -176,11 +172,10 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     /**
      * @notice Calculate updated token index values
      */
-    function _calculateTokenIndex(TokenState memory _supplyState, IERC20 token_)
-        private
-        view
-        returns (uint224 _newIndex, uint32 _newTimestamp)
-    {
+    function _calculateTokenIndex(
+        TokenState memory _supplyState,
+        IERC20 token_
+    ) private view returns (uint224 _newIndex, uint32 _newTimestamp) {
         uint256 _speed = tokenSpeeds[token_];
         uint256 _deltaTimestamps = block.timestamp - uint256(_supplyState.timestamp);
         if (_deltaTimestamps > 0 && _speed > 0) {
@@ -201,15 +196,7 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
         TokenState memory _tokenState,
         IERC20 token_,
         address account_
-    )
-        private
-        view
-        returns (
-            uint256 _tokenIndex,
-            uint256 _tokensDelta,
-            uint256 _tokensAccruedOf
-        )
-    {
+    ) private view returns (uint256 _tokenIndex, uint256 _tokensDelta, uint256 _tokensAccruedOf) {
         _tokenIndex = _tokenState.index;
         uint256 _accountIndex = accountIndexOf[token_][account_];
 
@@ -269,11 +256,10 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     /**
      * @notice Update the speed for token
      */
-    function _updateTokenSpeed(IERC20 token_, uint256 newSpeed_)
-        private
-        onlyIfDistributorExists
-        onlyIfTokenExists(address(token_))
-    {
+    function _updateTokenSpeed(
+        IERC20 token_,
+        uint256 newSpeed_
+    ) private onlyIfDistributorExists onlyIfTokenExists(address(token_)) {
         uint256 _currentSpeed = tokenSpeeds[token_];
         if (_currentSpeed > 0) {
             _updateTokenIndex(token_);

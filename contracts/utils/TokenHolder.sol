@@ -33,11 +33,7 @@ abstract contract TokenHolder {
      * @param to_ The recipient of the transfer
      * @param amount_ The amount to send
      */
-    function sweep(
-        IERC20 token_,
-        address to_,
-        uint256 amount_
-    ) external {
+    function sweep(IERC20 token_, address to_, uint256 amount_) external {
         _requireCanSweep();
 
         if (address(token_) == address(0)) {

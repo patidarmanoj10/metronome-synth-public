@@ -19,11 +19,7 @@ library MappedEnumerableSet {
         mapping(address => Set) _ofAddress;
     }
 
-    function _add(
-        AddressSet storage set,
-        address _key,
-        address value
-    ) private returns (bool) {
+    function _add(AddressSet storage set, address _key, address value) private returns (bool) {
         if (!_contains(set, _key, value)) {
             set._ofAddress[_key]._values.push(value);
             // The value is stored at length-1, but we add 1 to all indexes
@@ -35,11 +31,7 @@ library MappedEnumerableSet {
         }
     }
 
-    function _remove(
-        AddressSet storage set,
-        address _key,
-        address value
-    ) private returns (bool) {
+    function _remove(AddressSet storage set, address _key, address value) private returns (bool) {
         // We read and store the value's index to prevent multiple reads from the same storage slot
         uint256 valueIndex = set._ofAddress[_key]._indexes[value];
 
@@ -73,11 +65,7 @@ library MappedEnumerableSet {
         }
     }
 
-    function _contains(
-        AddressSet storage set,
-        address _key,
-        address value
-    ) private view returns (bool) {
+    function _contains(AddressSet storage set, address _key, address value) private view returns (bool) {
         return set._ofAddress[_key]._indexes[value] != 0;
     }
 
@@ -85,11 +73,7 @@ library MappedEnumerableSet {
         return set._ofAddress[_key]._values.length;
     }
 
-    function _at(
-        AddressSet storage set,
-        address _key,
-        uint256 index
-    ) private view returns (address) {
+    function _at(AddressSet storage set, address _key, uint256 index) private view returns (address) {
         return set._ofAddress[_key]._values[index];
     }
 
@@ -97,27 +81,15 @@ library MappedEnumerableSet {
         return set._ofAddress[_key]._values;
     }
 
-    function add(
-        AddressSet storage set,
-        address key,
-        address value
-    ) internal returns (bool) {
+    function add(AddressSet storage set, address key, address value) internal returns (bool) {
         return _add(set, key, value);
     }
 
-    function remove(
-        AddressSet storage set,
-        address key,
-        address value
-    ) internal returns (bool) {
+    function remove(AddressSet storage set, address key, address value) internal returns (bool) {
         return _remove(set, key, value);
     }
 
-    function contains(
-        AddressSet storage set,
-        address key,
-        address value
-    ) internal view returns (bool) {
+    function contains(AddressSet storage set, address key, address value) internal view returns (bool) {
         return _contains(set, key, value);
     }
 
@@ -125,11 +97,7 @@ library MappedEnumerableSet {
         return _length(set, key);
     }
 
-    function at(
-        AddressSet storage set,
-        address key,
-        uint256 index
-    ) internal view returns (address) {
+    function at(AddressSet storage set, address key, uint256 index) internal view returns (address) {
         return _at(set, key, index);
     }
 

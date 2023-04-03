@@ -156,11 +156,7 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
      * @param to_ The beneficiary account
      * @param amount_ The amount to seize
      */
-    function seize(
-        address from_,
-        address to_,
-        uint256 amount_
-    ) external override onlyIfCanSeize {
+    function seize(address from_, address to_, uint256 amount_) external override onlyIfCanSeize {
         _transfer(from_, to_, amount_);
     }
 
@@ -171,11 +167,7 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
     }
 
     /// @inheritdoc IERC20
-    function transferFrom(
-        address sender_,
-        address recipient_,
-        uint256 amount_
-    ) external override returns (bool) {
+    function transferFrom(address sender_, address recipient_, uint256 amount_) external override returns (bool) {
         uint256 _currentAllowance = allowance[sender_][msg.sender];
         if (_currentAllowance != type(uint256).max) {
             if (_currentAllowance < amount_) revert AmountExceedsAllowance();
@@ -192,11 +184,7 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
     /**
      * @notice Set `amount` as the allowance of `spender` over the `owner` s tokens
      */
-    function _approve(
-        address owner_,
-        address spender_,
-        uint256 amount_
-    ) private {
+    function _approve(address owner_, address spender_, uint256 amount_) private {
         if (owner_ == address(0)) revert ApproveFromTheZeroAddress();
         if (spender_ == address(0)) revert ApproveToTheZeroAddress();
 
@@ -256,11 +244,7 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
     /**
      * @notice Move `amount` of tokens from `sender` to `recipient`
      */
-    function _transfer(
-        address sender_,
-        address recipient_,
-        uint256 amount_
-    ) private {
+    function _transfer(address sender_, address recipient_, uint256 amount_) private {
         if (sender_ == address(0)) revert TransferFromTheZeroAddress();
         if (recipient_ == address(0)) revert TransferToTheZeroAddress();
 

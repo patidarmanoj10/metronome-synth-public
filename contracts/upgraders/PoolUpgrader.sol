@@ -28,6 +28,7 @@ contract PoolUpgrader is UpgraderBase {
 }
 
 contract PoolUpgraderV2 is PoolUpgrader {
+    // solhint-disable-next-line no-empty-blocks
     constructor(address _owner) PoolUpgrader(_owner) {}
 
     /// @inheritdoc UpgraderBase

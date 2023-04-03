@@ -217,7 +217,9 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
      * @return _issuableLimitInUsd The max amount of debt (is USD) that can be created (considering collateral factors)
      * @return _issuableInUsd The amount of debt (is USD) that is free (i.e. can be used to issue synthetic tokens)
      */
-    function debtPositionOf(address account_)
+    function debtPositionOf(
+        address account_
+    )
         public
         view
         override
@@ -241,12 +243,9 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
      * @return _depositInUsd The total deposit value in USD among all collaterals
      * @return _issuableLimitInUsd The max value in USD that can be used to issue synthetic tokens
      */
-    function depositOf(address account_)
-        public
-        view
-        override
-        returns (uint256 _depositInUsd, uint256 _issuableLimitInUsd)
-    {
+    function depositOf(
+        address account_
+    ) public view override returns (uint256 _depositInUsd, uint256 _issuableLimitInUsd) {
         IMasterOracle _masterOracle = masterOracle();
         uint256 _length = depositTokensOfAccount.length(account_);
         for (uint256 i; i < _length; ++i) {
@@ -357,16 +356,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
         ISyntheticToken syntheticToken_,
         uint256 totalToSeize_,
         IDepositToken depositToken_
-    )
-        public
-        view
-        override
-        returns (
-            uint256 _amountToRepay,
-            uint256 _toLiquidator,
-            uint256 _fee
-        )
-    {
+    ) public view override returns (uint256 _amountToRepay, uint256 _toLiquidator, uint256 _fee) {
         (uint128 _liquidatorIncentive, uint128 _protocolFee) = feeProvider.liquidationFees();
         uint256 _totalFees = _protocolFee + _liquidatorIncentive;
         uint256 _repayAmountInCollateral = totalToSeize_;
@@ -434,16 +424,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
         ISyntheticToken syntheticToken_,
         uint256 amountToRepay_,
         IDepositToken depositToken_
-    )
-        public
-        view
-        override
-        returns (
-            uint256 _totalToSeize,
-            uint256 _toLiquidator,
-            uint256 _fee
-        )
-    {
+    ) public view override returns (uint256 _totalToSeize, uint256 _toLiquidator, uint256 _fee) {
         _toLiquidator = masterOracle().quote(
             address(syntheticToken_),
             address(depositToken_.underlying()),
@@ -601,11 +582,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
         nonReentrant
         onlyIfSyntheticTokenExists(syntheticToken_)
         onlyIfDepositTokenExists(depositToken_)
-        returns (
-            uint256 _totalSeized,
-            uint256 _toLiquidator,
-            uint256 _fee
-        )
+        returns (uint256 _totalSeized, uint256 _toLiquidator, uint256 _fee)
     {
         if (amountToRepay_ == 0) revert AmountIsZero();
         if (msg.sender == account_) revert CanNotLiquidateOwnPosition();

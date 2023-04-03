@@ -85,5 +85,6 @@ contract VesperGateway is ReentrancyGuard, TokenHolder, IVesperGateway {
     }
 
     /// @inheritdoc TokenHolder
+    // solhint-disable-next-line no-empty-blocks
     function _requireCanSweep() internal view override onlyGovernor {}
 }

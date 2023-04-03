@@ -4,4 +4,7 @@ pragma solidity 0.8.9;
 
 import "../interfaces/ITreasury.sol";
 
-abstract contract TreasuryStorageV1 is ITreasury {}
+// solhint-disable-next-line no-empty-blocks
+abstract contract TreasuryStorageV1 is ITreasury {
+
+}

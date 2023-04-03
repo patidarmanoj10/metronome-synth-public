@@ -10,6 +10,7 @@ error StorageValueIsNotEqual();
 
 abstract contract UpgraderBase is ProxyAdmin {
     // Note: `Multicall3` contract has same address for all chains
+    // solhint-disable-next-line const-name-snakecase
     address public constant multicall = 0xcA11bde05977b3631167028862bE2a173976CA11;
 
     /// @inheritdoc ProxyAdmin
@@ -44,10 +45,10 @@ abstract contract UpgraderBase is ProxyAdmin {
      * @param callDatas_ The array of storage calls to check
      * @return _results The storage values
      */
-    function _aggregate(TransparentUpgradeableProxy proxy_, bytes[] memory callDatas_)
-        private
-        returns (bytes[] memory _results)
-    {
+    function _aggregate(
+        TransparentUpgradeableProxy proxy_,
+        bytes[] memory callDatas_
+    ) private returns (bytes[] memory _results) {
         uint256 _length = callDatas_.length;
         IMulticall.Call[] memory _callsList = new IMulticall.Call[](_length);
         for (uint256 i; i < _length; ++i) {
