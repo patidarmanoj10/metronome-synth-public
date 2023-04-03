@@ -44,6 +44,7 @@ contract NativeTokenGateway is ReentrancyGuard, TokenHolder, INativeTokenGateway
 
         nativeToken.deposit{value: msg.value}();
         IDepositToken _depositToken = pool_.depositTokenOf(nativeToken);
+        nativeToken.safeApprove(address(_depositToken), 0);
         nativeToken.safeApprove(address(_depositToken), msg.value);
         _depositToken.deposit(msg.value, msg.sender);
     }

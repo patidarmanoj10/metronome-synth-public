@@ -47,6 +47,7 @@ error MaxLiquidableTooHigh();
  */
 contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
     using SafeERC20 for IERC20;
+    using SafeERC20 for ISyntheticToken;
     using WadRayMath for uint256;
     using EnumerableSet for EnumerableSet.AddressSet;
     using MappedEnumerableSet for MappedEnumerableSet.AddressSet;
@@ -312,8 +313,8 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
     /**
      * @notice Get all rewards distributors
      */
-    function getRewardsDistributors() external view override returns (IRewardsDistributor[] memory) {
-        return rewardsDistributors;
+    function getRewardsDistributors() external view override returns (address[] memory) {
+        return rewardsDistributors.values();
     }
 
     /**
@@ -547,7 +548,8 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
         uint256 _balanceBefore = _collateral.balanceOf(address(this));
         tokenIn_.safeTransferFrom(msg.sender, address(this), amountIn_);
         if (tokenIn_ != _collateral) {
-            tokenIn_.approve(address(_swapper), amountIn_);
+            tokenIn_.safeApprove(address(_swapper), 0);
+            tokenIn_.safeApprove(address(_swapper), amountIn_);
             _swapper.swapExactInput(address(tokenIn_), address(_collateral), amountIn_, 0, address(this));
             amountIn_ = _collateral.balanceOf(address(this)) - _balanceBefore;
         }
@@ -561,13 +563,15 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
         (uint256 _issued, ) = debtTokenOf[syntheticToken_].flashIssue(msg.sender, _debtAmount);
 
         // 3. swap synth for collateral
-        syntheticToken_.approve(address(_swapper), _issued);
+        syntheticToken_.safeApprove(address(_swapper), 0);
+        syntheticToken_.safeApprove(address(_swapper), _issued);
         _swapper.swapExactInput(address(syntheticToken_), address(_collateral), _issued, 0, address(this));
         uint256 _depositAmount = _collateral.balanceOf(address(this)) - _balanceBefore;
         if (_depositAmount < depositAmountMin_) revert LeverageSlippageTooHigh();
 
         // 4. deposit collateral
-        _collateral.approve(address(depositToken_), _depositAmount);
+        _collateral.safeApprove(address(depositToken_), 0);
+        _collateral.safeApprove(address(depositToken_), _depositAmount);
         depositToken_.deposit(_depositAmount, msg.sender);
 
         // 5. check the health of the outcome position
@@ -758,15 +762,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
      */
     function addRewardsDistributor(IRewardsDistributor distributor_) external onlyGovernor {
         if (address(distributor_) == address(0)) revert AddressIsNull();
-
-        uint256 _length = rewardsDistributors.length;
-        for (uint256 i; i < _length; ++i) {
-            if (distributor_ == rewardsDistributors[i]) {
-                revert RewardDistributorAlreadyExists();
-            }
-        }
-
-        rewardsDistributors.push(distributor_);
+        if (!rewardsDistributors.add(address(distributor_))) revert RewardDistributorAlreadyExists();
         emit RewardsDistributorAdded(distributor_);
     }
 
@@ -800,20 +796,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
      */
     function removeRewardsDistributor(IRewardsDistributor distributor_) external onlyGovernor {
         if (address(distributor_) == address(0)) revert AddressIsNull();
-
-        uint256 _length = rewardsDistributors.length;
-        uint256 _index = _length;
-        for (uint256 i; i < _length; ++i) {
-            if (rewardsDistributors[i] == distributor_) {
-                _index = i;
-                break;
-            }
-        }
-        if (_index == _length) revert RewardDistributorDoesNotExist();
-        if (_index != _length - 1) {
-            rewardsDistributors[_index] = rewardsDistributors[_length - 1];
-        }
-        rewardsDistributors.pop();
+        if (!rewardsDistributors.remove(address(distributor_))) revert RewardDistributorDoesNotExist();
 
         emit RewardsDistributorRemoved(distributor_);
     }

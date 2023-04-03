@@ -182,6 +182,6 @@ contract PoolMock is IPool, Governable, Pauseable {
         external
         pure
         override
-        returns (IRewardsDistributor[] memory _rewardsDistributors)
+        returns (address[] memory _rewardsDistributors)
     {}
 }

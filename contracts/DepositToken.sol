@@ -107,10 +107,10 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
      * @dev Should be called before balance changes (i.e. mint/burn)
      */
     modifier updateRewardsBeforeMintOrBurn(address account_) {
-        IRewardsDistributor[] memory _rewardsDistributors = pool.getRewardsDistributors();
+        address[] memory _rewardsDistributors = pool.getRewardsDistributors();
         uint256 _length = _rewardsDistributors.length;
         for (uint256 i; i < _length; ++i) {
-            _rewardsDistributors[i].updateBeforeMintOrBurn(this, account_);
+            IRewardsDistributor(_rewardsDistributors[i]).updateBeforeMintOrBurn(this, account_);
         }
         _;
     }
@@ -120,10 +120,10 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
      * @dev Should be called before balance changes (i.e. transfer)
      */
     modifier updateRewardsBeforeTransfer(address sender_, address recipient_) {
-        IRewardsDistributor[] memory _rewardsDistributors = pool.getRewardsDistributors();
+        address[] memory _rewardsDistributors = pool.getRewardsDistributors();
         uint256 _length = _rewardsDistributors.length;
         for (uint256 i; i < _length; ++i) {
-            _rewardsDistributors[i].updateBeforeTransfer(this, sender_, recipient_);
+            IRewardsDistributor(_rewardsDistributors[i]).updateBeforeTransfer(this, sender_, recipient_);
         }
         _;
     }
