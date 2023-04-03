@@ -41,7 +41,7 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
     using SafeERC20 for IERC20;
     using WadRayMath for uint256;
 
-    string public constant VERSION = "1.0.0";
+    string public constant VERSION = "1.1.0";
 
     /// @notice Emitted when collateral is deposited
     event CollateralDeposited(

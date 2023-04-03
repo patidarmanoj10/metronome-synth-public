@@ -20,7 +20,7 @@ error TiersNotOrderedByMin();
 contract FeeProvider is Initializable, FeeProviderStorageV1 {
     using WadRayMath for uint256;
 
-    string public constant VERSION = "1.0.0";
+    string public constant VERSION = "1.1.0";
 
     uint256 internal constant MAX_FEE_VALUE = 0.25e18; // 25%
     uint256 internal constant MAX_FEE_DISCOUNT = 1e18; // 100%

@@ -25,6 +25,8 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     using SafeCast for uint256;
     using WadRayMath for uint256;
 
+    string public constant VERSION = "1.1.0";
+
     /// @notice The initial index
     uint224 public constant INITIAL_INDEX = 1e18;
 
