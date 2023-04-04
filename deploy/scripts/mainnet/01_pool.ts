@@ -1,7 +1,7 @@
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
 import {UpgradableContracts, deployUpgradable} from '../../helpers'
-import {executeUsingMultiSig} from '../../helpers/multisig-helpers'
+import {executeUsingMultiSig, saveForMultiSigBatchExecution} from '../../helpers/multisig-helpers'
 import Address from '../../../helpers/address'
 
 const {
@@ -52,7 +52,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     )
 
     if (multiSigTx) {
-      await executeUsingMultiSig(hre, multiSigTx)
+      await saveForMultiSigBatchExecution(multiSigTx)
     }
   }
 }

@@ -27,8 +27,6 @@ import {
   NativeTokenGateway,
   PoolRegistry,
   NativeTokenGateway__factory,
-  TransparentUpgradeableProxy__factory,
-  FeeProvider__factory,
   VesperGateway__factory,
 } from '../typechain'
 import {address as POOL_REGISTRY_ADDRESS} from '../deployments/mainnet/PoolRegistry.json'
@@ -47,9 +45,6 @@ import {address as MSUSD_SYNTHETIC_ADDRESS} from '../deployments/mainnet/MsUSDSy
 import {address as MSBTC_SYNTHETIC_ADDRESS} from '../deployments/mainnet/MsBTCSynthetic.json'
 import {address as MSETH_SYNTHETIC_ADDRESS} from '../deployments/mainnet/MsETHSynthetic.json'
 import {address as NATIVE_TOKEN_GATEWAY_ADDRESS} from '../deployments/mainnet/NativeTokenGateway.json'
-import {address as POOL_UPGRADER_ADDRESS} from '../deployments/mainnet/PoolUpgrader.json'
-import {address as DEBT_TOKEN_UPGRADER_ADDRESS} from '../deployments/mainnet/DebtTokenUpgrader.json'
-import {address as DEPOSIT_TOKEN_UPGRADER_ADDRESS} from '../deployments/mainnet/DepositTokenUpgrader.json'
 import {address as SRFXETH_DEPOSIT_ADDRESS} from '../deployments/mainnet/sfrxETHDepositToken.json'
 import {address as VASTETH_DEPOSIT_ADDRESS} from '../deployments/mainnet/vaSTETHDepositToken.json'
 import {address as VARETH_DEPOSIT_ADDRESS} from '../deployments/mainnet/vaRETHDepositToken.json'
@@ -154,9 +149,9 @@ describe('E2E tests', function () {
     await setTokenBalance(wbtc.address, alice.address, parseUnits('10', 8))
     await setTokenBalance(frax.address, alice.address, parseUnits('10,000', 18))
     await setTokenBalance(weth.address, alice.address, parseUnits('20', 18))
-    await setTokenBalance(vaFRAX.address, alice.address, parseUnits('10', 18))
-    await setTokenBalance(vaUSDC.address, alice.address, parseUnits('10', 18))
-    await setTokenBalance(vaETH.address, alice.address, parseUnits('20', 18))
+    await setTokenBalance(vaFRAX.address, alice.address, parseUnits('1000', 18))
+    await setTokenBalance(vaUSDC.address, alice.address, parseUnits('1000', 18))
+    await setTokenBalance(vaETH.address, alice.address, parseUnits('1000', 18))
     await setTokenBalance(sfrxETH.address, alice.address, parseUnits('20', 18))
     await setTokenBalance(vaSTETH.address, alice.address, parseUnits('20', 18))
     await setTokenBalance(vaRETH.address, alice.address, parseUnits('20', 18))
@@ -551,66 +546,10 @@ describe('E2E tests', function () {
     })
 
     describe('leverage', function () {
-      if (!isNodeHardhat) {
-        // Note: Skipping for now since leverage feature isn't available on mainnet yet
-        return
-      }
-
       beforeEach(async function () {
-        //
-        // Deploy `FeeProvider` implementation
-        // Note: It won't be necessary when fee provider contract get online
-        //
-        const feeProviderFactory = new FeeProvider__factory(governor)
-        const feeProvider = await feeProviderFactory.deploy()
-        await feeProvider.deployed()
-        await feeProvider.initialize(poolRegistry.address, Address.ESMET)
-
-        //
-        // Update `Pool` implementation
-        // Note: It won't be necessary when leverage feature get online
-        //
-        const poolProxyOwner = await impersonateAccount(POOL_UPGRADER_ADDRESS)
-        const poolProxy = TransparentUpgradeableProxy__factory.connect(pool.address, poolProxyOwner)
-        const wipPoolImplFactory = new Pool__factory(poolProxyOwner)
-        const wipPoolImpl = await wipPoolImplFactory.deploy()
-        await poolProxy.upgradeTo(wipPoolImpl.address)
-
-        //
-        // Update `DebtToken` implementation
-        // Note: It won't be necessary when leverage feature get online
-        //
-        const debtTokenProxyOwner = await impersonateAccount(DEBT_TOKEN_UPGRADER_ADDRESS)
-        const wipDebtTokenImplFactory = new DebtToken__factory(debtTokenProxyOwner)
-        const wipDebtTokenImpl = await wipDebtTokenImplFactory.deploy()
-        const msUsdDebtTokenProxy = TransparentUpgradeableProxy__factory.connect(msUSDDebt.address, debtTokenProxyOwner)
-        await msUsdDebtTokenProxy.upgradeTo(wipDebtTokenImpl.address)
-        const msEthDebtTokenProxy = TransparentUpgradeableProxy__factory.connect(msETHDebt.address, debtTokenProxyOwner)
-        await msEthDebtTokenProxy.upgradeTo(wipDebtTokenImpl.address)
-
-        //
-        // Update `DepositToken` implementation
-        // Note: It won't be necessary when fee provider contract get online
-        //
-        const depositTokenProxyOwner = await impersonateAccount(DEPOSIT_TOKEN_UPGRADER_ADDRESS)
-        const wipDepositTokenImplFactory = new DepositToken__factory(depositTokenProxyOwner)
-        const wipDepositTokenImpl = await wipDepositTokenImplFactory.deploy()
-        const msdVaUSDCProxy = TransparentUpgradeableProxy__factory.connect(msdVaUSDC.address, depositTokenProxyOwner)
-        await msdVaUSDCProxy.upgradeTo(wipDepositTokenImpl.address)
-        const msdVaFRAXProxy = TransparentUpgradeableProxy__factory.connect(msdVaFRAX.address, depositTokenProxyOwner)
-        await msdVaFRAXProxy.upgradeTo(wipDepositTokenImpl.address)
-        const msdVaETHProxy = TransparentUpgradeableProxy__factory.connect(msdVaETH.address, depositTokenProxyOwner)
-        await msdVaETHProxy.upgradeTo(wipDepositTokenImpl.address)
-
-        // given
-        await pool.connect(governor).updateSwapper(Address.SWAPPER)
-        await pool.connect(governor).updateFeeProvider(feeProvider.address)
         const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
         expect(_debtInUsd).eq(0)
         expect(_depositInUsd).eq(0)
-        await setTokenBalance(vaUSDC.address, alice.address, parseUnits('1000', 18))
-        await setTokenBalance(vaFRAX.address, alice.address, parseUnits('1000', 18))
-        await setTokenBalance(vaETH.address, alice.address, parseUnits('1000', 18))
       })
 
       it('should leverage vaUSDC->msUSD', async function () {
@@ -646,7 +585,7 @@ describe('E2E tests', function () {
       it('should leverage vaETH->msETH', async function () {
         // when
         const amountIn = parseUnits('1', 18)
-        const amountInUsd = parseUnits('1,800', 18) // approx.
+        const amountInUsd = parseUnits('1,900', 18) // approx.
         const leverage = parseEther('1.5')
         await vaETH.connect(alice).approve(pool.address, MaxUint256)
         const tx = await pool.leverage(vaETH.address, msdVaETH.address, msETH.address, amountIn, leverage, 0)
@@ -655,17 +594,17 @@ describe('E2E tests', function () {
         const {gasUsed} = await tx.wait()
         expect(gasUsed.lt(1.4e6))
         const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
-        expect(_depositInUsd).closeTo(amountInUsd.mul(leverage).div(parseEther('1')), parseEther('100')) // ~$2,700
+        expect(_depositInUsd).closeTo(amountInUsd.mul(leverage).div(parseEther('1')), parseEther('100')) // ~$2,850
         expect(_debtInUsd).closeTo(
           amountInUsd.mul(leverage.sub(parseEther('1'))).div(parseEther('1')),
           parseEther('100')
-        ) // ~$900
+        ) // ~$950
       })
 
       it('should leverage varETH->msETH', async function () {
         // when
         const amountIn = parseUnits('1', 18)
-        const amountInUsd = parseUnits('1,800', 18) // approx.
+        const amountInUsd = parseUnits('1,950', 18) // approx.
         const leverage = parseEther('1.5')
         await vaRETH.connect(alice).approve(pool.address, MaxUint256)
         const tx = await pool.leverage(vaRETH.address, msdVaRETH.address, msETH.address, amountIn, leverage, 0)
@@ -674,17 +613,17 @@ describe('E2E tests', function () {
         const {gasUsed} = await tx.wait()
         expect(gasUsed.lt(1.4e6))
         const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
-        expect(_depositInUsd).closeTo(amountInUsd.mul(leverage).div(parseEther('1')), parseEther('100')) // ~$2,700
+        expect(_depositInUsd).closeTo(amountInUsd.mul(leverage).div(parseEther('1')), parseEther('100')) // ~$2,925
         expect(_debtInUsd).closeTo(
           amountInUsd.mul(leverage.sub(parseEther('1'))).div(parseEther('1')),
           parseEther('100')
-        ) // ~$900
+        ) // ~$975
       })
 
       it('should leverage vastETH->msETH', async function () {
         // when
         const amountIn = parseUnits('1', 18)
-        const amountInUsd = parseUnits('1,800', 18) // approx.
+        const amountInUsd = parseUnits('1,950', 18) // approx.
         const leverage = parseEther('1.5')
         await vaSTETH.connect(alice).approve(pool.address, MaxUint256)
         const tx = await pool.leverage(vaSTETH.address, msdVaSTETH.address, msETH.address, amountIn, leverage, 0)
@@ -693,17 +632,17 @@ describe('E2E tests', function () {
         const {gasUsed} = await tx.wait()
         expect(gasUsed.lt(1.4e6))
         const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
-        expect(_depositInUsd).closeTo(amountInUsd.mul(leverage).div(parseEther('1')), parseEther('100')) // ~$2,700
+        expect(_depositInUsd).closeTo(amountInUsd.mul(leverage).div(parseEther('1')), parseEther('100')) // ~$2,925
         expect(_debtInUsd).closeTo(
           amountInUsd.mul(leverage.sub(parseEther('1'))).div(parseEther('1')),
           parseEther('100')
-        ) // ~$900
+        ) // ~$975
       })
 
       it('should leverage vacbETH->msETH', async function () {
         // when
         const amountIn = parseUnits('1', 18)
-        const amountInUsd = parseUnits('1,800', 18) // approx.
+        const amountInUsd = parseUnits('1,900', 18) // approx.
         const leverage = parseEther('1.5')
         await vaCBETH.connect(alice).approve(pool.address, MaxUint256)
         const tx = await pool.leverage(vaCBETH.address, msdVaCBETH.address, msETH.address, amountIn, leverage, 0)
@@ -712,11 +651,11 @@ describe('E2E tests', function () {
         const {gasUsed} = await tx.wait()
         expect(gasUsed.lt(1.4e6))
         const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
-        expect(_depositInUsd).closeTo(amountInUsd.mul(leverage).div(parseEther('1')), parseEther('100')) // ~$2,700
+        expect(_depositInUsd).closeTo(amountInUsd.mul(leverage).div(parseEther('1')), parseEther('100')) // ~$2,850
         expect(_debtInUsd).closeTo(
           amountInUsd.mul(leverage.sub(parseEther('1'))).div(parseEther('1')),
           parseEther('100')
-        ) // ~$900
+        ) // ~$950
       })
     })
   })
