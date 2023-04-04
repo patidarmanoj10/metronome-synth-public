@@ -2,14 +2,14 @@ import {buildDepositDeployFunction} from '../../helpers'
 import Address from '../../../helpers/address'
 import {parseEther} from 'ethers/lib/utils'
 
-const {VAWBTC_ADDRESS} = Address
+const {VACBETH_ADDRESS} = Address
 
 const func = buildDepositDeployFunction({
-  underlyingAddress: VAWBTC_ADDRESS,
-  underlyingSymbol: 'vaWBTC',
+  underlyingAddress: VACBETH_ADDRESS,
+  underlyingSymbol: 'vaCBETH',
   underlyingDecimals: 18,
-  collateralFactor: parseEther('0.6'), // 60%
-  maxTotalSupply: parseEther('6'),
+  collateralFactor: parseEther('0.75'), // 75%
+  maxTotalSupply: parseEther('60'),
 })
 
 export default func

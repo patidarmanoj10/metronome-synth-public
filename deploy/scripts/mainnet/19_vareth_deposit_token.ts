@@ -2,14 +2,14 @@ import {buildDepositDeployFunction} from '../../helpers'
 import Address from '../../../helpers/address'
 import {parseEther} from 'ethers/lib/utils'
 
-const {VALINK_ADDRESS} = Address
+const {VARETH_ADDRESS} = Address
 
 const func = buildDepositDeployFunction({
-  underlyingAddress: VALINK_ADDRESS,
-  underlyingSymbol: 'vaLINK',
+  underlyingAddress: VARETH_ADDRESS,
+  underlyingSymbol: 'vaRETH',
   underlyingDecimals: 18,
-  collateralFactor: parseEther('0.6'), // 60%
-  maxTotalSupply: parseEther('14000'),
+  collateralFactor: parseEther('0.75'), // 75%
+  maxTotalSupply: parseEther('60'),
 })
 
 export default func

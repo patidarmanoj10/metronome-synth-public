@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "networks": {    
+  "networks": {
     "mainnet": {
       "DAIDepositToken": "0x1f9732B84e22E936cFc2FF6F2d4994097DCCC93e",
       "DAIDepositToken_Implementation": "0xD2a807d8bfd8a8666FA22E2d76acD38BF893F244",
@@ -68,18 +68,27 @@
       "WETHDepositToken": "0xA77B145c7Fa5B412eb8aD41D587bE892b9c1EfC3",
       "WETHDepositToken_Implementation": "0xD2a807d8bfd8a8666FA22E2d76acD38BF893F244",
       "WETHDepositToken_Proxy": "0xA77B145c7Fa5B412eb8aD41D587bE892b9c1EfC3",
+      "sfrxETHDepositToken": "0x24F2d1aC81eCFD8A808001a97349185EF1bCF4ad",
+      "sfrxETHDepositToken_Implementation": "0xD2a807d8bfd8a8666FA22E2d76acD38BF893F244",
+      "sfrxETHDepositToken_Proxy": "0x24F2d1aC81eCFD8A808001a97349185EF1bCF4ad",
+      "vaCBETHDepositToken": "0x1887e76914699B839B97A0B69FF6F8B865745321",
+      "vaCBETHDepositToken_Implementation": "0xD2a807d8bfd8a8666FA22E2d76acD38BF893F244",
+      "vaCBETHDepositToken_Proxy": "0x1887e76914699B839B97A0B69FF6F8B865745321",
       "vaETHDepositToken": "0x45AC59746Ea5Eb74cF782855eca460A8Adc8925a",
       "vaETHDepositToken_Implementation": "0xD2a807d8bfd8a8666FA22E2d76acD38BF893F244",
       "vaETHDepositToken_Proxy": "0x45AC59746Ea5Eb74cF782855eca460A8Adc8925a",
       "vaFRAXDepositToken": "0x63EC45313149b1fa677b2b91CB93880232EF63AC",
       "vaFRAXDepositToken_Implementation": "0xD2a807d8bfd8a8666FA22E2d76acD38BF893F244",
       "vaFRAXDepositToken_Proxy": "0x63EC45313149b1fa677b2b91CB93880232EF63AC",
+      "vaRETHDepositToken": "0x9e5bDf244a2Fcc44f1bcBd3aE108bE2a6dE5E379",
+      "vaRETHDepositToken_Implementation": "0xD2a807d8bfd8a8666FA22E2d76acD38BF893F244",
+      "vaRETHDepositToken_Proxy": "0x9e5bDf244a2Fcc44f1bcBd3aE108bE2a6dE5E379",
+      "vaSTETHDepositToken": "0x691Af94cC63B99bd36173eD6Fb1eF5508b2774ec",
+      "vaSTETHDepositToken_Implementation": "0xD2a807d8bfd8a8666FA22E2d76acD38BF893F244",
+      "vaSTETHDepositToken_Proxy": "0x691Af94cC63B99bd36173eD6Fb1eF5508b2774ec",
       "vaUSDCDepositToken": "0xdAec887E37e86ea9B78852EB7470D70bbF266258",
       "vaUSDCDepositToken_Implementation": "0xD2a807d8bfd8a8666FA22E2d76acD38BF893F244",
-      "vaUSDCDepositToken_Proxy": "0xdAec887E37e86ea9B78852EB7470D70bbF266258",
-      "vaWBTCDepositToken": "0xa29839b1F8B7aC6659dC79AE05183c62A01f5a4A",
-      "vaWBTCDepositToken_Implementation": "0xD2a807d8bfd8a8666FA22E2d76acD38BF893F244",
-      "vaWBTCDepositToken_Proxy": "0xa29839b1F8B7aC6659dC79AE05183c62A01f5a4A"
+      "vaUSDCDepositToken_Proxy": "0xdAec887E37e86ea9B78852EB7470D70bbF266258"
     }
   }
 }
