@@ -6,6 +6,7 @@ import "../dependencies/openzeppelin/utils/structs/EnumerableSet.sol";
 import "../lib/MappedEnumerableSet.sol";
 import "../interfaces/IPool.sol";
 
+// solhint-disable var-name-mixedcase, max-states-count
 abstract contract PoolStorageV1 is IPool {
     /**
      * @notice The debt floor (in USD) for each synthetic token

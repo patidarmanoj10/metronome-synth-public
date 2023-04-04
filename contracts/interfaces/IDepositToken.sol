@@ -25,11 +25,7 @@ interface IDepositToken is IERC20Metadata {
 
     function withdraw(uint256 amount_, address to_) external returns (uint256 _withdrawn, uint256 _fee);
 
-    function seize(
-        address from_,
-        address to_,
-        uint256 amount_
-    ) external;
+    function seize(address from_, address to_, uint256 amount_) external;
 
     function updateCollateralFactor(uint128 newCollateralFactor_) external;
 

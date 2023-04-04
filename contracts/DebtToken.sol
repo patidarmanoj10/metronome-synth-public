@@ -157,19 +157,13 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
     }
 
     /// @inheritdoc IERC20
-    function allowance(
-        address, /*owner_*/
-        address /*spender_*/
-    ) external pure override returns (uint256) {
+    function allowance(address /*owner_*/, address /*spender_*/) external pure override returns (uint256) {
         revert AllowanceNotSupported();
     }
 
     /// @inheritdoc IERC20
     // solhint-disable-next-line
-    function approve(
-        address, /*spender_*/
-        uint256 /*amount_*/
-    ) external override returns (bool) {
+    function approve(address /*spender_*/, uint256 /*amount_*/) external override returns (bool) {
         revert ApprovalNotSupported();
     }
 
@@ -215,7 +209,10 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
      * @return _issued The amount issued after fees
      * @return _fee The fee amount collected
      */
-    function issue(uint256 amount_, address to_)
+    function issue(
+        uint256 amount_,
+        address to_
+    )
         external
         override
         whenNotShutdown
@@ -350,7 +347,10 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
      * @param amount_ The amount of synthetic token to burn (this is the gross amount, the repay fee will be subtracted from it)
      * @return _repaid The amount repaid after fees
      */
-    function repay(address onBehalfOf_, uint256 amount_)
+    function repay(
+        address onBehalfOf_,
+        uint256 amount_
+    )
         external
         override
         whenNotShutdown
@@ -394,7 +394,9 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
      * @return _repaid The amount repaid after fees
      * @return _fee The fee amount collected
      */
-    function repayAll(address onBehalfOf_)
+    function repayAll(
+        address onBehalfOf_
+    )
         external
         override
         whenNotShutdown
@@ -432,18 +434,15 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
 
     /// @inheritdoc IERC20
     // solhint-disable-next-line
-    function transfer(
-        address, /*recipient_*/
-        uint256 /*amount_*/
-    ) external override returns (bool) {
+    function transfer(address /*recipient_*/, uint256 /*amount_*/) external override returns (bool) {
         revert TransferNotSupported();
     }
 
     /// @inheritdoc IERC20
     // solhint-disable-next-line
     function transferFrom(
-        address, /*sender_*/
-        address, /*recipient_*/
+        address /*sender_*/,
+        address /*recipient_*/,
         uint256 /*amount_*/
     ) external override returns (bool) {
         revert TransferNotSupported();
@@ -482,11 +481,7 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
     function _calculateInterestAccrual()
         private
         view
-        returns (
-            uint256 _interestAmountAccrued,
-            uint256 _debtIndex,
-            uint256 _lastTimestampAccrued
-        )
+        returns (uint256 _interestAmountAccrued, uint256 _debtIndex, uint256 _lastTimestampAccrued)
     {
         _lastTimestampAccrued = lastTimestampAccrued;
         _debtIndex = debtIndex;
@@ -563,6 +558,7 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
     }
 
     /// @inheritdoc TokenHolder
+    // solhint-disable-next-line no-empty-blocks
     function _requireCanSweep() internal view override onlyGovernor {}
 
     /**

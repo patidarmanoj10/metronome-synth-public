@@ -181,14 +181,10 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
      * @param onBehalfOf_ The account to deposit to
      * @return _deposited The amount deposited after fees
      */
-    function deposit(uint256 amount_, address onBehalfOf_)
-        external
-        override
-        whenNotPaused
-        nonReentrant
-        onlyIfDepositTokenExists
-        returns (uint256 _deposited, uint256 _fee)
-    {
+    function deposit(
+        uint256 amount_,
+        address onBehalfOf_
+    ) external override whenNotPaused nonReentrant onlyIfDepositTokenExists returns (uint256 _deposited, uint256 _fee) {
         if (amount_ == 0) revert AmountIsZero();
         if (onBehalfOf_ == address(0)) revert BeneficiaryIsNull();
 
@@ -301,21 +297,15 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
      * @param to_ The beneficiary account
      * @param amount_ The amount to seize
      */
-    function seize(
-        address from_,
-        address to_,
-        uint256 amount_
-    ) external override onlyIfCanSeize {
+    function seize(address from_, address to_, uint256 amount_) external override onlyIfCanSeize {
         _transfer(from_, to_, amount_);
     }
 
     /// @inheritdoc IERC20
-    function transfer(address to_, uint256 amount_)
-        external
-        override
-        onlyIfUnlocked(msg.sender, amount_)
-        returns (bool)
-    {
+    function transfer(
+        address to_,
+        uint256 amount_
+    ) external override onlyIfUnlocked(msg.sender, amount_) returns (bool) {
         _transfer(msg.sender, to_, amount_);
         return true;
     }
@@ -367,7 +357,10 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
      * @param to_ The account that will receive withdrawn collateral
      * @return _withdrawn The amount withdrawn after fees
      */
-    function withdraw(uint256 amount_, address to_)
+    function withdraw(
+        uint256 amount_,
+        address to_
+    )
         external
         override
         whenNotShutdown
@@ -395,11 +388,7 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
     /**
      * @notice Set `amount` as the allowance of `spender` over the caller's tokens
      */
-    function _approve(
-        address owner_,
-        address spender_,
-        uint256 amount_
-    ) private {
+    function _approve(address owner_, address spender_, uint256 amount_) private {
         if (owner_ == address(0)) revert ApproveFromTheZeroAddress();
         if (spender_ == address(0)) revert ApproveToTheZeroAddress();
 
@@ -436,11 +425,10 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
      * @notice Create `amount` tokens and assigns them to `account`, increasing
      * the total supply
      */
-    function _mint(address account_, uint256 amount_)
-        private
-        onlyIfDepositTokenIsActive
-        updateRewardsBeforeMintOrBurn(account_)
-    {
+    function _mint(
+        address account_,
+        uint256 amount_
+    ) private onlyIfDepositTokenIsActive updateRewardsBeforeMintOrBurn(account_) {
         if (account_ == address(0)) revert MintToTheZeroAddress();
 
         totalSupply += amount_;
@@ -460,6 +448,7 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
     }
 
     /// @inheritdoc TokenHolder
+    // solhint-disable-next-line no-empty-blocks
     function _requireCanSweep() internal view override onlyGovernor {}
 
     /**
