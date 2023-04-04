@@ -25,7 +25,7 @@ function resolveChainId() {
   if (NODE_URL.includes('avax')) {
     return 43114
   }
-  if (NODE_URL!.includes('bsc')) {
+  if (NODE_URL.includes('bsc')) {
     return 56
   }
   return 31337
