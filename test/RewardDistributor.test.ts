@@ -1,9 +1,8 @@
-/* eslint-disable camelcase */
 import {parseEther} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import chai, {expect} from 'chai'
 import {ethers} from 'hardhat'
-import {RewardsDistributor__factory, RewardsDistributor, ERC20Mock__factory, ERC20Mock} from '../typechain'
+import {RewardsDistributor, ERC20Mock} from '../typechain'
 import {FakeContract, smock} from '@defi-wonderland/smock'
 import {mine} from '@nomicfoundation/hardhat-network-helpers'
 import {increaseTimeOfNextBlock} from './helpers'
@@ -29,7 +28,7 @@ describe('RewardDistributor', function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[deployer, alice, bob] = await ethers.getSigners()
 
-    const erc20MockFactory = new ERC20Mock__factory(deployer)
+    const erc20MockFactory = await ethers.getContractFactory('ERC20Mock', deployer)
     vsp = await erc20MockFactory.deploy('VesperToken', 'VSP', 18)
     await vsp.deployed()
 
@@ -39,7 +38,7 @@ describe('RewardDistributor', function () {
     debtToken2 = await smock.fake('DebtToken')
     msdTOKEN2 = await smock.fake('DepositToken')
 
-    const rewardDistributorFactory = new RewardsDistributor__factory(deployer)
+    const rewardDistributorFactory = await ethers.getContractFactory('RewardsDistributor', deployer)
     rewardDistributor = await rewardDistributorFactory.deploy()
     rewardDistributor.deployed()
 

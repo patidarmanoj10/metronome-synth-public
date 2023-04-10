@@ -1,10 +1,9 @@
-/* eslint-disable camelcase */
 import {FakeContract, smock} from '@defi-wonderland/smock'
 import {parseEther} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
-import {ERC20Mock, ERC20Mock__factory, Treasury, Treasury__factory} from '../typechain'
+import {ERC20Mock, Treasury} from '../typechain'
 import {setBalance} from '@nomicfoundation/hardhat-network-helpers'
 
 describe('Treasury', function () {
@@ -19,7 +18,7 @@ describe('Treasury', function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[deployer, user] = await ethers.getSigners()
 
-    const metFactory = new ERC20Mock__factory(deployer)
+    const metFactory = await ethers.getContractFactory('ERC20Mock', deployer)
     met = await metFactory.deploy('Metronome', 'MET', 18)
     await met.deployed()
 
@@ -30,7 +29,7 @@ describe('Treasury', function () {
     depositTokenMock.underlying.returns(met.address)
     await setBalance(depositTokenMock.address, parseEther('10'))
 
-    const treasuryFactory = new Treasury__factory(deployer)
+    const treasuryFactory = await ethers.getContractFactory('Treasury', deployer)
     treasury = await treasuryFactory.deploy()
     await treasury.deployed()
     await treasury.initialize(poolMock.address)

@@ -1,9 +1,8 @@
-/* eslint-disable camelcase */
 import {FakeContract, smock} from '@defi-wonderland/smock'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
-import {MasterOracleMock, MasterOracleMock__factory, PoolRegistry, PoolRegistry__factory} from '../typechain'
+import {MasterOracleMock, PoolRegistry} from '../typechain'
 
 describe('PoolRegistry', function () {
   let deployer: SignerWithAddress
@@ -18,13 +17,13 @@ describe('PoolRegistry', function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[deployer, alice, bob, feeCollector] = await ethers.getSigners()
 
-    const masterOracleMockFactory = new MasterOracleMock__factory(deployer)
+    const masterOracleMockFactory = await ethers.getContractFactory('MasterOracleMock', deployer)
     masterOracleMock = await masterOracleMockFactory.deploy()
     await masterOracleMock.deployed()
 
     pool = await smock.fake('Pool')
 
-    const poolRegistryFactory = new PoolRegistry__factory(deployer)
+    const poolRegistryFactory = await ethers.getContractFactory('PoolRegistry', deployer)
     poolRegistry = await poolRegistryFactory.deploy()
     await poolRegistry.deployed()
     await poolRegistry.initialize(masterOracleMock.address, feeCollector.address)
