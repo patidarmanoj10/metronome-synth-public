@@ -3,7 +3,9 @@ import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
 import {loadFixture} from '@nomicfoundation/hardhat-network-helpers'
-import {toUSD, parseEther} from '../helpers'
+import {toUSD, parseEther, parseUnits} from '../helpers'
+import {disableForking, enableForking, setTokenBalance} from './helpers'
+import Address from '../helpers/address'
 import {
   DepositToken,
   DepositToken__factory,
@@ -14,12 +16,15 @@ import {
   IERC20,
   DebtToken__factory,
   DebtToken,
-  ERC20Mock__factory,
   MasterOracleMock__factory,
   Treasury__factory,
   PoolRegistry__factory,
   MasterOracleMock,
   PoolRegistry,
+  FeeProvider__factory,
+  FeeProvider,
+  IERC20__factory,
+  IESMET__factory,
 } from '../typechain'
 
 const {MaxUint256} = ethers.constants
@@ -32,23 +37,31 @@ async function fixture() {
   const poolRegistryFactory = new PoolRegistry__factory(deployer)
   const poolFactory = new Pool__factory(deployer)
   const masterOracleFactory = new MasterOracleMock__factory(deployer)
-  const erc20MockFactory = new ERC20Mock__factory(deployer)
   const treasuryFactory = new Treasury__factory(deployer)
   const depositTokenFactory = new DepositToken__factory(deployer)
   const debtTokenFactory = new DebtToken__factory(deployer)
   const syntheticTokenFactory = new SyntheticToken__factory(deployer)
+  const feeProviderFactory = new FeeProvider__factory(deployer)
 
-  const dai = await erc20MockFactory.deploy('Dai Stablecoin', 'DAI', 18)
-  await dai.deployed()
-
-  const met = await erc20MockFactory.deploy('Metronome', 'MET', 18)
-  await met.deployed()
+  const dai = IERC20__factory.connect(Address.DAI_ADDRESS, alice)
+  const met = IERC20__factory.connect(Address.MET_ADDRESS, alice)
 
   const masterOracle = await masterOracleFactory.deploy()
   await masterOracle.deployed()
 
   const poolRegistry = await poolRegistryFactory.deploy()
   await poolRegistry.deployed()
+
+  const feeProvider = await feeProviderFactory.deploy()
+  await feeProvider.deployed()
+  await feeProvider.initialize(poolRegistry.address, Address.ESMET)
+
+  // Set fee discount tiers
+  const newTiers = [
+    {min: parseEther('10'), discount: parseEther('0.1')},
+    {min: parseEther('20'), discount: parseEther('0.2')},
+  ]
+  await feeProvider.updateTiers(newTiers)
 
   const msETH = await syntheticTokenFactory.deploy()
   await msETH.deployed()
@@ -100,6 +113,7 @@ async function fixture() {
   await msDOGE.initialize('Metronome Synth DOGE', 'msDOGE', 18, poolRegistry.address)
 
   await poolA.initialize(poolRegistry.address)
+  await poolA.updateFeeProvider(feeProvider.address)
   await treasuryA.initialize(poolA.address)
   await msdMET_A.initialize(
     met.address,
@@ -138,6 +152,7 @@ async function fixture() {
   await poolA.addDebtToken(msUSD_Debt_A.address)
 
   await poolB.initialize(poolRegistry.address)
+  await poolB.updateFeeProvider(feeProvider.address)
   await treasuryB.initialize(poolB.address)
   await msdDAI_B.initialize(
     dai.address,
@@ -164,16 +179,17 @@ async function fixture() {
   await masterOracle.updatePrice(msUSD.address, toUSD('1'))
 
   // mint some collaterals to users
-  await dai.mint(alice.address, parseEther('1,000,000'))
-  await met.mint(alice.address, parseEther('1,000,000'))
-  await dai.mint(bob.address, parseEther('1,000,000'))
-  await met.mint(bob.address, parseEther('1,000,000'))
+  await setTokenBalance(dai.address, alice.address, parseUnits('10,000', 18))
+  await setTokenBalance(met.address, alice.address, parseUnits('10,000', 18))
+  await setTokenBalance(dai.address, bob.address, parseUnits('10,000', 18))
+  await setTokenBalance(met.address, bob.address, parseUnits('10,000', 18))
 
   return {
     dai,
     met,
     masterOracle,
     poolRegistry,
+    feeProvider,
     msETH,
     msDOGE,
     msUSD,
@@ -199,6 +215,7 @@ describe('Integration tests', function () {
   let met: IERC20
   let masterOracle: MasterOracleMock
   let poolRegistry: PoolRegistry
+  let feeProvider: FeeProvider
   let msETH: SyntheticToken
   let msDOGE: SyntheticToken
   let msUSD: SyntheticToken
@@ -212,6 +229,10 @@ describe('Integration tests', function () {
   let msdDAI_B: DepositToken
   let msUSD_Debt_B: DebtToken
 
+  before(enableForking)
+
+  after(disableForking)
+
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[, feeCollector, alice, bob] = await ethers.getSigners()
@@ -220,6 +241,7 @@ describe('Integration tests', function () {
       met,
       masterOracle,
       poolRegistry,
+      feeProvider,
       msETH,
       msDOGE,
       msUSD,
@@ -301,6 +323,17 @@ describe('Integration tests', function () {
           expect(debtsAfter).deep.eq(debtsBefore)
         })
 
+        it('should verify swap fee', async function () {
+          const defaultSwapFee = await feeProvider.defaultSwapFee()
+          expect(await feeProvider.swapFeeFor(alice.address)).eq(defaultSwapFee)
+
+          const esMET = IESMET__factory.connect(Address.ESMET, alice)
+          await met.connect(alice).approve(esMET.address, parseEther('100'))
+          await esMET.connect(alice).lock(parseEther('10'), 8 * 24 * 60 * 60)
+          await expect(await esMET.balanceOf(alice.address)).gt(0)
+          expect(await feeProvider.swapFeeFor(alice.address)).lt(defaultSwapFee)
+        })
+
         describe('repay', function () {
           beforeEach('should repay', async function () {
             // given
@@ -310,17 +343,16 @@ describe('Integration tests', function () {
             expect(await poolB.debtOf(bob.address)).eq(toUSD('2,000'))
             expect(await msUSD_Debt_A.balanceOf(alice.address)).eq(toUSD('500'))
             expect(await msUSD_Debt_B.balanceOf(bob.address)).eq(toUSD('2,000'))
-            const repayFeeA = await poolA.repayFee()
-            const repayFeeB = await poolB.repayFee()
+            const repayFee = await feeProvider.repayFee()
 
             // when
             // alice pays part of bob's msUSD debt
             const bobDebtToRepay = parseEther('500')
-            const bobDebtPlusRepayFee = bobDebtToRepay.mul(parseEther('1').add(repayFeeB)).div(parseEther('1'))
+            const bobDebtPlusRepayFee = bobDebtToRepay.mul(parseEther('1').add(repayFee)).div(parseEther('1'))
             await msUSD_Debt_B.connect(alice).repay(bob.address, bobDebtPlusRepayFee)
             // bob pays all alice's msETH debt
             const aliceDebtToRepay = parseEther('1')
-            const aliceDebtPlusRepayFee = aliceDebtToRepay.mul(parseEther('1').add(repayFeeA)).div(parseEther('1'))
+            const aliceDebtPlusRepayFee = aliceDebtToRepay.mul(parseEther('1').add(repayFee)).div(parseEther('1'))
             await msETH_Debt_A.connect(bob).repay(alice.address, aliceDebtPlusRepayFee)
 
             // then

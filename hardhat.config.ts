@@ -38,7 +38,6 @@ const config: HardhatUserConfig = {
     localhost: {
       saveDeployments: true,
       autoImpersonate: true,
-      accounts,
       chainId,
       deploy: ['deploy/scripts/mainnet'],
     },

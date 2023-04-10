@@ -58,6 +58,7 @@ abstract contract Governable is IGovernable, TokenHolder, Initializable {
     }
 
     /// @inheritdoc TokenHolder
+    // solhint-disable-next-line no-empty-blocks
     function _requireCanSweep() internal view override onlyGovernor {}
 
     /**

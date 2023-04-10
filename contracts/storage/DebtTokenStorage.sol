@@ -67,3 +67,10 @@ abstract contract DebtTokenStorageV1 is IDebtToken {
      */
     uint8 public override decimals;
 }
+
+abstract contract DebtTokenStorageV2 is DebtTokenStorageV1 {
+    /**
+     * @notice Pending interest fee to collect
+     */
+    uint256 public pendingInterestFee;
+}

@@ -6,14 +6,20 @@ import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./storage/PoolStorage.sol";
 import "./lib/WadRayMath.sol";
 import "./utils/Pauseable.sol";
+import "./interfaces/external/IVPool.sol";
 
 error CollateralDoesNotExist();
 error SyntheticDoesNotExist();
 error SenderIsNotDebtToken();
+error SenderIsNotDepositToken();
+error UserReachedMaxTokens();
 error PoolRegistryIsNull();
 error DebtTokenAlreadyExists();
-error SenderIsNotDepositToken();
 error DepositTokenAlreadyExists();
+error LeverageTooLow();
+error LeverageTooHigh();
+error LeverageSlippageTooHigh();
+error PositionIsNotHealthy();
 error AmountIsZero();
 error CanNotLiquidateOwnPosition();
 error PositionIsHealthy();
@@ -28,6 +34,7 @@ error AddressIsNull();
 error SyntheticIsNull();
 error SyntheticIsInUse();
 error UnderlyingAssetInUse();
+error ReachedMaxDepositTokens();
 error RewardDistributorAlreadyExists();
 error RewardDistributorDoesNotExist();
 error TotalSupplyIsNotZero();
@@ -38,14 +45,19 @@ error MaxLiquidableTooHigh();
 /**
  * @title Pool contract
  */
-contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
+contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
     using SafeERC20 for IERC20;
+    using SafeERC20 for ISyntheticToken;
     using WadRayMath for uint256;
     using EnumerableSet for EnumerableSet.AddressSet;
     using MappedEnumerableSet for MappedEnumerableSet.AddressSet;
 
-    string public constant VERSION = "1.0.0";
-    uint256 internal constant MAX_FEE_VALUE = 0.25e18; // 25%
+    string public constant VERSION = "1.1.0";
+
+    /**
+     * @notice Maximum tokens per pool a user may have
+     */
+    uint256 public constant MAX_TOKENS_PER_USER = 30;
 
     /// @notice Emitted when protocol liquidation fee is updated
     event DebtFloorUpdated(uint256 oldDebtFloorInUsd, uint256 newDebtFloorInUsd);
@@ -56,20 +68,14 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
     /// @notice Emitted when debt token is disabled
     event DebtTokenRemoved(IDebtToken indexed debtToken);
 
-    /// @notice Emitted when deposit fee is updated
-    event DepositFeeUpdated(uint256 oldDepositFee, uint256 newDepositFee);
-
     /// @notice Emitted when deposit token is enabled
     event DepositTokenAdded(address indexed depositToken);
 
     /// @notice Emitted when deposit token is disabled
     event DepositTokenRemoved(IDepositToken indexed depositToken);
 
-    /// @notice Emitted when issue fee is updated
-    event IssueFeeUpdated(uint256 oldIssueFee, uint256 newIssueFee);
-
-    /// @notice Emitted when liquidator incentive is updated
-    event LiquidatorIncentiveUpdated(uint256 oldLiquidatorIncentive, uint256 newLiquidatorIncentive);
+    /// @notice Emitted when fee provider contract is updated
+    event FeeProviderUpdated(IFeeProvider indexed oldFeeProvider, IFeeProvider indexed newFeeProvider);
 
     /// @notice Emitted when maxLiquidable (liquidation cap) is updated
     event MaxLiquidableUpdated(uint256 oldMaxLiquidable, uint256 newMaxLiquidable);
@@ -84,23 +90,17 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
         uint256 fee
     );
 
-    /// @notice Emitted when protocol liquidation fee is updated
-    event ProtocolLiquidationFeeUpdated(uint256 oldProtocolLiquidationFee, uint256 newProtocolLiquidationFee);
-
-    /// @notice Emitted when repay fee is updated
-    event RepayFeeUpdated(uint256 oldRepayFee, uint256 newRepayFee);
-
     /// @notice Emitted when rewards distributor contract is added
     event RewardsDistributorAdded(IRewardsDistributor indexed _distributor);
 
     /// @notice Emitted when rewards distributor contract is removed
     event RewardsDistributorRemoved(IRewardsDistributor _distributor);
 
-    /// @notice Emitted when swap fee is updated
-    event SwapFeeUpdated(uint256 oldSwapFee, uint256 newSwapFee);
-
     /// @notice Emitted when the swap active flag is updated
     event SwapActiveUpdated(bool newActive);
+
+    /// @notice Emitted when swapper contract is updated
+    event SwapperUpdated(ISwapper oldSwapFee, ISwapper newSwapFee);
 
     /// @notice Emitted when synthetic token is swapped
     event SyntheticTokenSwapped(
@@ -115,8 +115,15 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
     /// @notice Emitted when treasury contract is updated
     event TreasuryUpdated(ITreasury indexed oldTreasury, ITreasury indexed newTreasury);
 
-    /// @notice Emitted when withdraw fee is updated
-    event WithdrawFeeUpdated(uint256 oldWithdrawFee, uint256 newWithdrawFee);
+    /**
+     * @dev Throws if token addition will reach the `account_`'s max
+     */
+    modifier onlyIfAdditionWillNotReachMaxTokens(address account_) {
+        if (debtTokensOfAccount.length(account_) + depositTokensOfAccount.length(account_) >= MAX_TOKENS_PER_USER) {
+            revert UserReachedMaxTokens();
+        }
+        _;
+    }
 
     /**
      * @dev Throws if deposit token doesn't exist
@@ -142,6 +149,14 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
         _;
     }
 
+    /**
+     * @dev Throws if `msg.sender` isn't a deposit token
+     */
+    modifier onlyIfMsgSenderIsDepositToken() {
+        if (!doesDepositTokenExist(IDepositToken(msg.sender))) revert SenderIsNotDepositToken();
+        _;
+    }
+
     function initialize(IPoolRegistry poolRegistry_) public initializer {
         if (address(poolRegistry_) == address(0)) revert PoolRegistryIsNull();
         __ReentrancyGuard_init();
@@ -149,14 +164,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
 
         poolRegistry = poolRegistry_;
         isSwapActive = true;
-
-        repayFee = 3e15; // 0.3%
-        liquidationFees = LiquidationFees({
-            liquidatorIncentive: 1e17, // 10%
-            protocolFee: 8e16 // 8%
-        });
         maxLiquidable = 0.5e18; // 50%
-        swapFee = 6e15; // 0.6%
     }
 
     /**
@@ -165,7 +173,9 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @dev The caller should ensure to not pass `address(0)` as `_account`
      * @param account_ The account address
      */
-    function addToDebtTokensOfAccount(address account_) external onlyIfMsgSenderIsDebtToken {
+    function addToDebtTokensOfAccount(
+        address account_
+    ) external onlyIfMsgSenderIsDebtToken onlyIfAdditionWillNotReachMaxTokens(account_) {
         if (!debtTokensOfAccount.add(account_, msg.sender)) revert DebtTokenAlreadyExists();
     }
 
@@ -175,8 +185,9 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @dev The caller should ensure to not pass `address(0)` as `_account`
      * @param account_ The account address
      */
-    function addToDepositTokensOfAccount(address account_) external {
-        if (!depositTokens.contains(msg.sender)) revert SenderIsNotDepositToken();
+    function addToDepositTokensOfAccount(
+        address account_
+    ) external onlyIfMsgSenderIsDepositToken onlyIfAdditionWillNotReachMaxTokens(account_) {
         if (!depositTokensOfAccount.add(account_, msg.sender)) revert DepositTokenAlreadyExists();
     }
 
@@ -206,7 +217,9 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @return _issuableLimitInUsd The max amount of debt (is USD) that can be created (considering collateral factors)
      * @return _issuableInUsd The amount of debt (is USD) that is free (i.e. can be used to issue synthetic tokens)
      */
-    function debtPositionOf(address account_)
+    function debtPositionOf(
+        address account_
+    )
         public
         view
         override
@@ -230,12 +243,9 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @return _depositInUsd The total deposit value in USD among all collaterals
      * @return _issuableLimitInUsd The max value in USD that can be used to issue synthetic tokens
      */
-    function depositOf(address account_)
-        public
-        view
-        override
-        returns (uint256 _depositInUsd, uint256 _issuableLimitInUsd)
-    {
+    function depositOf(
+        address account_
+    ) public view override returns (uint256 _depositInUsd, uint256 _issuableLimitInUsd) {
         IMasterOracle _masterOracle = masterOracle();
         uint256 _length = depositTokensOfAccount.length(account_);
         for (uint256 i; i < _length; ++i) {
@@ -302,8 +312,8 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
     /**
      * @notice Get all rewards distributors
      */
-    function getRewardsDistributors() external view override returns (IRewardsDistributor[] memory) {
-        return rewardsDistributors;
+    function getRewardsDistributors() external view override returns (address[] memory) {
+        return rewardsDistributors.values();
     }
 
     /**
@@ -346,18 +356,9 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
         ISyntheticToken syntheticToken_,
         uint256 totalToSeize_,
         IDepositToken depositToken_
-    )
-        public
-        view
-        override
-        returns (
-            uint256 _amountToRepay,
-            uint256 _toLiquidator,
-            uint256 _fee
-        )
-    {
-        LiquidationFees memory _fees = liquidationFees;
-        uint256 _totalFees = _fees.protocolFee + _fees.liquidatorIncentive;
+    ) public view override returns (uint256 _amountToRepay, uint256 _toLiquidator, uint256 _fee) {
+        (uint128 _liquidatorIncentive, uint128 _protocolFee) = feeProvider.liquidationFees();
+        uint256 _totalFees = _protocolFee + _liquidatorIncentive;
         uint256 _repayAmountInCollateral = totalToSeize_;
 
         if (_totalFees > 0) {
@@ -370,12 +371,12 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
             _repayAmountInCollateral
         );
 
-        if (_fees.protocolFee > 0) {
-            _fee = _repayAmountInCollateral.wadMul(_fees.protocolFee);
+        if (_protocolFee > 0) {
+            _fee = _repayAmountInCollateral.wadMul(_protocolFee);
         }
 
-        if (_fees.liquidatorIncentive > 0) {
-            _toLiquidator = _repayAmountInCollateral.wadMul(1e18 + _fees.liquidatorIncentive);
+        if (_liquidatorIncentive > 0) {
+            _toLiquidator = _repayAmountInCollateral.wadMul(1e18 + _liquidatorIncentive);
         }
     }
 
@@ -423,29 +424,20 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
         ISyntheticToken syntheticToken_,
         uint256 amountToRepay_,
         IDepositToken depositToken_
-    )
-        public
-        view
-        override
-        returns (
-            uint256 _totalToSeize,
-            uint256 _toLiquidator,
-            uint256 _fee
-        )
-    {
+    ) public view override returns (uint256 _totalToSeize, uint256 _toLiquidator, uint256 _fee) {
         _toLiquidator = masterOracle().quote(
             address(syntheticToken_),
             address(depositToken_.underlying()),
             amountToRepay_
         );
 
-        LiquidationFees memory _fees = liquidationFees;
+        (uint128 _liquidatorIncentive, uint128 _protocolFee) = feeProvider.liquidationFees();
 
-        if (_fees.protocolFee > 0) {
-            _fee = _toLiquidator.wadMul(_fees.protocolFee);
+        if (_protocolFee > 0) {
+            _fee = _toLiquidator.wadMul(_protocolFee);
         }
-        if (_fees.liquidatorIncentive > 0) {
-            _toLiquidator += _toLiquidator.wadMul(_fees.liquidatorIncentive);
+        if (_liquidatorIncentive > 0) {
+            _toLiquidator += _toLiquidator.wadMul(_liquidatorIncentive);
         }
 
         _totalToSeize = _fee + _toLiquidator;
@@ -464,7 +456,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
         ISyntheticToken syntheticTokenOut_,
         uint256 amountOut_
     ) external view override returns (uint256 _amountIn, uint256 _fee) {
-        uint256 _swapFee = swapFee;
+        uint256 _swapFee = feeProvider.swapFeeFor(msg.sender);
         if (_swapFee > 0) {
             amountOut_ = amountOut_.wadDiv(1e18 - _swapFee);
             _fee = amountOut_.wadMul(_swapFee);
@@ -496,11 +488,76 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
             amountIn_
         );
 
-        uint256 _swapFee = swapFee;
+        uint256 _swapFee = feeProvider.swapFeeFor(msg.sender);
         if (_swapFee > 0) {
             _fee = _amountOut.wadMul(_swapFee);
             _amountOut -= _fee;
         }
+    }
+
+    /**
+     * @notice Leverage yield position
+     * @param tokenIn_ The token to transfer
+     * @param depositToken_ The collateral to deposit
+     * @param syntheticToken_ The msAsset to mint
+     * @param amountIn_ The amount to deposit
+     * @param leverage_ The leverage X param (e.g. 1.5e18 for 1.5X)
+     * @param depositAmountMin_ The min final deposit amount (slippage)
+     */
+    function leverage(
+        IERC20 tokenIn_,
+        IDepositToken depositToken_,
+        ISyntheticToken syntheticToken_,
+        uint256 amountIn_,
+        uint256 leverage_,
+        uint256 depositAmountMin_
+    )
+        external
+        override
+        whenNotShutdown
+        nonReentrant
+        onlyIfDepositTokenExists(depositToken_)
+        onlyIfSyntheticTokenExists(syntheticToken_)
+    {
+        if (leverage_ <= 1e18) revert LeverageTooLow();
+        if (leverage_ > uint256(1e18).wadDiv(1e18 - depositToken_.collateralFactor())) revert LeverageTooHigh();
+        ISwapper _swapper = swapper;
+
+        // 1. transfer collateral
+        IERC20 _collateral = depositToken_.underlying();
+        if (address(tokenIn_) == address(0)) tokenIn_ = _collateral;
+        uint256 _balanceBefore = _collateral.balanceOf(address(this));
+        tokenIn_.safeTransferFrom(msg.sender, address(this), amountIn_);
+        if (tokenIn_ != _collateral) {
+            tokenIn_.safeApprove(address(_swapper), 0);
+            tokenIn_.safeApprove(address(_swapper), amountIn_);
+            _swapper.swapExactInput(address(tokenIn_), address(_collateral), amountIn_, 0, address(this));
+            amountIn_ = _collateral.balanceOf(address(this)) - _balanceBefore;
+        }
+
+        // 2. mint synth
+        uint256 _debtAmount = masterOracle().quote(
+            address(_collateral),
+            address(syntheticToken_),
+            (leverage_ - 1e18).wadMul(amountIn_)
+        );
+        (uint256 _issued, ) = debtTokenOf[syntheticToken_].flashIssue(msg.sender, _debtAmount);
+
+        // 3. swap synth for collateral
+        syntheticToken_.safeApprove(address(_swapper), 0);
+        syntheticToken_.safeApprove(address(_swapper), _issued);
+        _swapper.swapExactInput(address(syntheticToken_), address(_collateral), _issued, 0, address(this));
+        uint256 _depositAmount = _collateral.balanceOf(address(this)) - _balanceBefore;
+        if (_depositAmount < depositAmountMin_) revert LeverageSlippageTooHigh();
+
+        // 4. deposit collateral
+        _collateral.safeApprove(address(depositToken_), 0);
+        _collateral.safeApprove(address(depositToken_), _depositAmount);
+        depositToken_.deposit(_depositAmount, msg.sender);
+
+        // 5. check the health of the outcome position
+        (bool _isHealthy, , , , ) = debtPositionOf(msg.sender);
+        if (!_isHealthy) revert PositionIsNotHealthy();
     }
 
     /**
@@ -523,12 +580,9 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
         override
         whenNotShutdown
         nonReentrant
+        onlyIfSyntheticTokenExists(syntheticToken_)
         onlyIfDepositTokenExists(depositToken_)
-        returns (
-            uint256 _totalSeized,
-            uint256 _toLiquidator,
-            uint256 _fee
-        )
+        returns (uint256 _totalSeized, uint256 _toLiquidator, uint256 _fee)
     {
         if (amountToRepay_ == 0) revert AmountIsZero();
         if (msg.sender == account_) revert CanNotLiquidateOwnPosition();
@@ -607,8 +661,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @dev The caller should ensure to not pass `address(0)` as `_account`
      * @param account_ The account address
      */
-    function removeFromDepositTokensOfAccount(address account_) external {
-        if (!depositTokens.contains(msg.sender)) revert SenderIsNotDepositToken();
+    function removeFromDepositTokensOfAccount(address account_) external onlyIfMsgSenderIsDepositToken {
         if (!depositTokensOfAccount.remove(account_, msg.sender)) revert DepositTokenDoesNotExist();
     }
 
@@ -651,7 +704,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @notice Add debt token to offerings
      * @dev Must keep `debtTokenOf` mapping updated
      */
-    function addDebtToken(IDebtToken debtToken_) external override onlyGovernor {
+    function addDebtToken(IDebtToken debtToken_) external onlyGovernor {
         if (address(debtToken_) == address(0)) revert AddressIsNull();
         ISyntheticToken _syntheticToken = debtToken_.syntheticToken();
         if (address(_syntheticToken) == address(0)) revert SyntheticIsNull();
@@ -667,10 +720,12 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
     /**
      * @notice Add deposit token (i.e. collateral) to Synth
      */
-    function addDepositToken(address depositToken_) external override onlyGovernor {
+    function addDepositToken(address depositToken_) external onlyGovernor {
         if (depositToken_ == address(0)) revert AddressIsNull();
         IERC20 _underlying = IDepositToken(depositToken_).underlying();
         if (address(depositTokenOf[_underlying]) != address(0)) revert UnderlyingAssetInUse();
+        // Note: Fee collector collects deposit tokens as fee
+        if (depositTokens.length() >= MAX_TOKENS_PER_USER) revert ReachedMaxDepositTokens();
 
         if (!depositTokens.add(depositToken_)) revert DepositTokenAlreadyExists();
 
@@ -682,17 +737,9 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
     /**
      * @notice Add a RewardsDistributor contract
      */
-    function addRewardsDistributor(IRewardsDistributor distributor_) external override onlyGovernor {
+    function addRewardsDistributor(IRewardsDistributor distributor_) external onlyGovernor {
         if (address(distributor_) == address(0)) revert AddressIsNull();
-
-        uint256 _length = rewardsDistributors.length;
-        for (uint256 i; i < _length; ++i) {
-            if (distributor_ == rewardsDistributors[i]) {
-                revert RewardDistributorAlreadyExists();
-            }
-        }
-
-        rewardsDistributors.push(distributor_);
+        if (!rewardsDistributors.add(address(distributor_))) revert RewardDistributorAlreadyExists();
         emit RewardsDistributorAdded(distributor_);
     }
 
@@ -700,7 +747,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
      * @notice Remove debt token from offerings
      * @dev Must keep `debtTokenOf` mapping updated
      */
-    function removeDebtToken(IDebtToken debtToken_) external override onlyGovernor {
+    function removeDebtToken(IDebtToken debtToken_) external onlyGovernor {
         if (debtToken_.totalSupply() > 0) revert TotalSupplyIsNotZero();
         if (!debtTokens.remove(address(debtToken_))) revert DebtTokenDoesNotExist();
 
@@ -712,7 +759,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
     /**
      * @notice Remove deposit token (i.e. collateral) from Synth
      */
-    function removeDepositToken(IDepositToken depositToken_) external override onlyGovernor {
+    function removeDepositToken(IDepositToken depositToken_) external onlyGovernor {
         if (depositToken_.totalSupply() > 0) revert TotalSupplyIsNotZero();
 
         if (!depositTokens.remove(address(depositToken_))) revert DepositTokenDoesNotExist();
@@ -724,22 +771,9 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
     /**
      * @notice Remove a RewardsDistributor contract
      */
-    function removeRewardsDistributor(IRewardsDistributor distributor_) external override onlyGovernor {
+    function removeRewardsDistributor(IRewardsDistributor distributor_) external onlyGovernor {
         if (address(distributor_) == address(0)) revert AddressIsNull();
-
-        uint256 _length = rewardsDistributors.length;
-        uint256 _index = _length;
-        for (uint256 i; i < _length; ++i) {
-            if (rewardsDistributors[i] == distributor_) {
-                _index = i;
-                break;
-            }
-        }
-        if (_index == _length) revert RewardDistributorDoesNotExist();
-        if (_index != _length - 1) {
-            rewardsDistributors[_index] = rewardsDistributors[_length - 1];
-        }
-        rewardsDistributors.pop();
+        if (!rewardsDistributors.remove(address(distributor_))) revert RewardDistributorDoesNotExist();
 
         emit RewardsDistributorRemoved(distributor_);
     }
@@ -747,7 +781,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
     /**
      * @notice Turn swap on/off
      */
-    function toggleIsSwapActive() external override onlyGovernor {
+    function toggleIsSwapActive() external onlyGovernor {
         bool _newIsSwapActive = !isSwapActive;
         emit SwapActiveUpdated(_newIsSwapActive);
         isSwapActive = _newIsSwapActive;
@@ -756,7 +790,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
     /**
      * @notice Update debt floor
      */
-    function updateDebtFloor(uint256 newDebtFloorInUsd_) external override onlyGovernor {
+    function updateDebtFloor(uint256 newDebtFloorInUsd_) external onlyGovernor {
         uint256 _currentDebtFloorInUsd = debtFloorInUsd;
         if (newDebtFloorInUsd_ == _currentDebtFloorInUsd) revert NewValueIsSameAsCurrent();
         emit DebtFloorUpdated(_currentDebtFloorInUsd, newDebtFloorInUsd_);
@@ -764,42 +798,9 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
     }
 
     /**
-     * @notice Update deposit fee
-     */
-    function updateDepositFee(uint256 newDepositFee_) external override onlyGovernor {
-        if (newDepositFee_ > MAX_FEE_VALUE) revert FeeIsGreaterThanTheMax();
-        uint256 _currentDepositFee = depositFee;
-        if (newDepositFee_ == _currentDepositFee) revert NewValueIsSameAsCurrent();
-        emit DepositFeeUpdated(_currentDepositFee, newDepositFee_);
-        depositFee = newDepositFee_;
-    }
-
-    /**
-     * @notice Update issue fee
-     */
-    function updateIssueFee(uint256 newIssueFee_) external override onlyGovernor {
-        if (newIssueFee_ > MAX_FEE_VALUE) revert FeeIsGreaterThanTheMax();
-        uint256 _currentIssueFee = issueFee;
-        if (newIssueFee_ == _currentIssueFee) revert NewValueIsSameAsCurrent();
-        emit IssueFeeUpdated(_currentIssueFee, newIssueFee_);
-        issueFee = newIssueFee_;
-    }
-
-    /**
-     * @notice Update liquidator incentive
-     */
-    function updateLiquidatorIncentive(uint128 newLiquidatorIncentive_) external override onlyGovernor {
-        if (newLiquidatorIncentive_ > MAX_FEE_VALUE) revert FeeIsGreaterThanTheMax();
-        uint256 _currentLiquidatorIncentive = liquidationFees.liquidatorIncentive;
-        if (newLiquidatorIncentive_ == _currentLiquidatorIncentive) revert NewValueIsSameAsCurrent();
-        emit LiquidatorIncentiveUpdated(_currentLiquidatorIncentive, newLiquidatorIncentive_);
-        liquidationFees.liquidatorIncentive = newLiquidatorIncentive_;
-    }
-
-    /**
      * @notice Update maxLiquidable (liquidation cap)
      */
-    function updateMaxLiquidable(uint256 newMaxLiquidable_) external override onlyGovernor {
+    function updateMaxLiquidable(uint256 newMaxLiquidable_) external onlyGovernor {
         if (newMaxLiquidable_ > 1e18) revert MaxLiquidableTooHigh();
         uint256 _currentMaxLiquidable = maxLiquidable;
         if (newMaxLiquidable_ == _currentMaxLiquidable) revert NewValueIsSameAsCurrent();
@@ -808,31 +809,9 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
     }
 
     /**
-     * @notice Update protocol liquidation fee
-     */
-    function updateProtocolLiquidationFee(uint128 newProtocolLiquidationFee_) external override onlyGovernor {
-        if (newProtocolLiquidationFee_ > MAX_FEE_VALUE) revert FeeIsGreaterThanTheMax();
-        uint256 _currentProtocolLiquidationFee = liquidationFees.protocolFee;
-        if (newProtocolLiquidationFee_ == _currentProtocolLiquidationFee) revert NewValueIsSameAsCurrent();
-        emit ProtocolLiquidationFeeUpdated(_currentProtocolLiquidationFee, newProtocolLiquidationFee_);
-        liquidationFees.protocolFee = newProtocolLiquidationFee_;
-    }
-
-    /**
-     * @notice Update repay fee
-     */
-    function updateRepayFee(uint256 newRepayFee_) external override onlyGovernor {
-        if (newRepayFee_ > MAX_FEE_VALUE) revert FeeIsGreaterThanTheMax();
-        uint256 _currentRepayFee = repayFee;
-        if (newRepayFee_ == _currentRepayFee) revert NewValueIsSameAsCurrent();
-        emit RepayFeeUpdated(_currentRepayFee, newRepayFee_);
-        repayFee = newRepayFee_;
-    }
-
-    /**
      * @notice Update treasury contract - will migrate funds to the new contract
      */
-    function updateTreasury(ITreasury newTreasury_) external override onlyGovernor {
+    function updateTreasury(ITreasury newTreasury_) external onlyGovernor {
         if (address(newTreasury_) == address(0)) revert AddressIsNull();
         ITreasury _currentTreasury = treasury;
         if (newTreasury_ == _currentTreasury) revert NewValueIsSameAsCurrent();
@@ -846,24 +825,25 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV1 {
     }
 
     /**
-     * @notice Update swap fee
+     * @notice Update FeeProvider contract
      */
-    function updateSwapFee(uint256 newSwapFee_) external override onlyGovernor {
-        if (newSwapFee_ > MAX_FEE_VALUE) revert FeeIsGreaterThanTheMax();
-        uint256 _currentSwapFee = swapFee;
-        if (newSwapFee_ == _currentSwapFee) revert NewValueIsSameAsCurrent();
-        emit SwapFeeUpdated(_currentSwapFee, newSwapFee_);
-        swapFee = newSwapFee_;
+    function updateFeeProvider(IFeeProvider feeProvider_) external onlyGovernor {
+        if (address(feeProvider_) == address(0)) revert AddressIsNull();
+        IFeeProvider _current = feeProvider;
+        if (feeProvider_ == _current) revert NewValueIsSameAsCurrent();
+        emit FeeProviderUpdated(_current, feeProvider_);
+        feeProvider = feeProvider_;
     }
 
     /**
-     * @notice Update withdraw fee
+     * @notice Update swapper contract
      */
-    function updateWithdrawFee(uint256 newWithdrawFee_) external override onlyGovernor {
-        if (newWithdrawFee_ > MAX_FEE_VALUE) revert FeeIsGreaterThanTheMax();
-        uint256 _currentWithdrawFee = withdrawFee;
-        if (newWithdrawFee_ == _currentWithdrawFee) revert NewValueIsSameAsCurrent();
-        emit WithdrawFeeUpdated(_currentWithdrawFee, newWithdrawFee_);
-        withdrawFee = newWithdrawFee_;
+    function updateSwapper(ISwapper newSwapper_) external onlyGovernor {
+        if (address(newSwapper_) == address(0)) revert AddressIsNull();
+        ISwapper _currentSwapper = swapper;
+        if (newSwapper_ == _currentSwapper) revert NewValueIsSameAsCurrent();
+
+        emit SwapperUpdated(_currentSwapper, newSwapper_);
+        swapper = newSwapper_;
     }
 }

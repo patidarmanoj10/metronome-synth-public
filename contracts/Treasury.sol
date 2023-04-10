@@ -3,6 +3,7 @@
 pragma solidity 0.8.9;
 
 import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
+import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import "./access/Manageable.sol";
 import "./storage/TreasuryStorage.sol";
 
@@ -18,7 +19,7 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
     using SafeERC20 for IERC20;
     using SafeERC20 for IDepositToken;
 
-    string public constant VERSION = "1.0.0";
+    string public constant VERSION = "1.1.0";
 
     /**
      * @dev Throws if caller isn't a deposit token

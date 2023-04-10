@@ -20,6 +20,7 @@ interface UpgradableContractsConfig {
   SyntheticToken: ContractConfig
   DebtToken: ContractConfig
   MetRewardsDistributor: ContractConfig
+  FeeProvider: ContractConfig
 }
 
 interface SyntheticDeployFunctionProps {
@@ -49,7 +50,7 @@ interface DeployUpgradableFunctionProps {
 
 export const UpgradableContracts: UpgradableContractsConfig = {
   PoolRegistry: {alias: 'PoolRegistry', contract: 'PoolRegistry', adminContract: 'PoolRegistryUpgrader'},
-  Pool: {alias: 'Pool', contract: 'Pool', adminContract: 'PoolUpgrader'},
+  Pool: {alias: 'Pool', contract: 'Pool', adminContract: 'PoolUpgraderV2'},
   Treasury: {alias: 'Treasury', contract: 'Treasury', adminContract: 'TreasuryUpgrader'},
   DepositToken: {alias: '', contract: 'DepositToken', adminContract: 'DepositTokenUpgrader'},
   SyntheticToken: {alias: '', contract: 'SyntheticToken', adminContract: 'SyntheticTokenUpgrader'},
@@ -59,6 +60,7 @@ export const UpgradableContracts: UpgradableContractsConfig = {
     contract: 'RewardsDistributor',
     adminContract: 'RewardsDistributorUpgrader',
   },
+  FeeProvider: {alias: 'FeeProvider', contract: 'FeeProvider', adminContract: 'FeeProviderUpgrader'},
 }
 
 const {

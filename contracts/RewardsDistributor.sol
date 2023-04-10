@@ -3,6 +3,7 @@
 pragma solidity 0.8.9;
 
 import "./dependencies/openzeppelin/utils/math/SafeCast.sol";
+import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./interfaces/IDebtToken.sol";
 import "./interfaces/IDepositToken.sol";
@@ -23,6 +24,8 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     using SafeERC20 for IERC20;
     using SafeCast for uint256;
     using WadRayMath for uint256;
+
+    string public constant VERSION = "1.1.0";
 
     /// @notice The initial index
     uint224 public constant INITIAL_INDEX = 1e18;
@@ -47,10 +50,10 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
      */
     modifier onlyIfDistributorExists() {
         bool _distributorAdded = false;
-        IRewardsDistributor[] memory _rewardsDistributors = pool.getRewardsDistributors();
+        address[] memory _rewardsDistributors = pool.getRewardsDistributors();
         uint256 _length = _rewardsDistributors.length;
         for (uint256 i; i < _length; ++i) {
-            if (_rewardsDistributors[i] == this) {
+            if (_rewardsDistributors[i] == address(this)) {
                 _distributorAdded = true;
                 break;
             }
@@ -158,11 +161,7 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
      * @notice Update indexes on pre-transfer
      * @dev Called by DepositToken and DebtToken contracts
      */
-    function updateBeforeTransfer(
-        IERC20 token_,
-        address from_,
-        address to_
-    ) external override {
+    function updateBeforeTransfer(IERC20 token_, address from_, address to_) external override {
         if (tokenStates[token_].index > 0) {
             _updateTokenIndex(token_);
             _updateTokensAccruedOf(token_, from_);
@@ -173,11 +172,10 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     /**
      * @notice Calculate updated token index values
      */
-    function _calculateTokenIndex(TokenState memory _supplyState, IERC20 token_)
-        private
-        view
-        returns (uint224 _newIndex, uint32 _newTimestamp)
-    {
+    function _calculateTokenIndex(
+        TokenState memory _supplyState,
+        IERC20 token_
+    ) private view returns (uint224 _newIndex, uint32 _newTimestamp) {
         uint256 _speed = tokenSpeeds[token_];
         uint256 _deltaTimestamps = block.timestamp - uint256(_supplyState.timestamp);
         if (_deltaTimestamps > 0 && _speed > 0) {
@@ -198,19 +196,11 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
         TokenState memory _tokenState,
         IERC20 token_,
         address account_
-    )
-        private
-        view
-        returns (
-            uint256 _tokenIndex,
-            uint256 _tokensDelta,
-            uint256 _tokensAccruedOf
-        )
-    {
+    ) private view returns (uint256 _tokenIndex, uint256 _tokensDelta, uint256 _tokensAccruedOf) {
         _tokenIndex = _tokenState.index;
         uint256 _accountIndex = accountIndexOf[token_][account_];
 
-        if (_accountIndex == 0 && _tokenIndex > 0) {
+        if (_accountIndex == 0 && _tokenIndex > INITIAL_INDEX) {
             _accountIndex = INITIAL_INDEX;
         }
 
@@ -254,7 +244,8 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
         TokenState storage _supplyState = tokenStates[token_];
         (uint224 _newIndex, uint32 _newTimestamp) = _calculateTokenIndex(_supplyState, token_);
         if (_newIndex > 0 && _newTimestamp > 0) {
-            tokenStates[token_] = TokenState({index: _newIndex, timestamp: _newTimestamp});
+            _supplyState.index = _newIndex;
+            _supplyState.timestamp = _newTimestamp;
             emit TokenIndexUpdated(_newIndex, _newTimestamp);
         } else if (_newTimestamp > 0) {
             _supplyState.timestamp = _newTimestamp;
@@ -265,11 +256,10 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     /**
      * @notice Update the speed for token
      */
-    function _updateTokenSpeed(IERC20 token_, uint256 newSpeed_)
-        private
-        onlyIfDistributorExists
-        onlyIfTokenExists(address(token_))
-    {
+    function _updateTokenSpeed(
+        IERC20 token_,
+        uint256 newSpeed_
+    ) private onlyIfDistributorExists onlyIfTokenExists(address(token_)) {
         uint256 _currentSpeed = tokenSpeeds[token_];
         if (_currentSpeed > 0) {
             _updateTokenIndex(token_);

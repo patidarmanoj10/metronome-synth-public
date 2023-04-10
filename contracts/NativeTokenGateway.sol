@@ -3,24 +3,30 @@
 pragma solidity 0.8.9;
 
 import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
-import "./access/Governable.sol";
+import "./utils/TokenHolder.sol";
 import "./interfaces/external/IWETH.sol";
 import "./interfaces/INativeTokenGateway.sol";
 import "./interfaces/IDepositToken.sol";
 
+error SenderIsNotGovernor();
 error SenderIsNotNativeToken();
 error UnregisteredPool();
 
 /**
  * @title Helper contract to easily support native tokens (e.g. ETH/AVAX) as collateral
  */
-contract NativeTokenGateway is ReentrancyGuard, Governable, INativeTokenGateway {
+contract NativeTokenGateway is ReentrancyGuard, TokenHolder, INativeTokenGateway {
     using SafeERC20 for IERC20;
     using SafeERC20 for IWETH;
     using SafeERC20 for IDepositToken;
 
     IPoolRegistry public immutable poolRegistry;
     IWETH public immutable nativeToken;
+
+    modifier onlyGovernor() {
+        if (poolRegistry.governor() != msg.sender) revert SenderIsNotGovernor();
+        _;
+    }
 
     constructor(IPoolRegistry poolRegistry_, IWETH nativeToken_) {
         // Note: `NativeTokenGateway` isn't upgradable but extends `ReentrancyGuard` therefore we need to initialize it
@@ -38,6 +44,7 @@ contract NativeTokenGateway is ReentrancyGuard, Governable, INativeTokenGateway 
 
         nativeToken.deposit{value: msg.value}();
         IDepositToken _depositToken = pool_.depositTokenOf(nativeToken);
+        nativeToken.safeApprove(address(_depositToken), 0);
         nativeToken.safeApprove(address(_depositToken), msg.value);
         _depositToken.deposit(msg.value, msg.sender);
     }
@@ -52,10 +59,14 @@ contract NativeTokenGateway is ReentrancyGuard, Governable, INativeTokenGateway 
 
         IDepositToken _depositToken = pool_.depositTokenOf(nativeToken);
         _depositToken.safeTransferFrom(msg.sender, address(this), amount_);
-        _depositToken.withdraw(amount_, address(this));
-        nativeToken.withdraw(amount_);
-        Address.sendValue(payable(msg.sender), amount_);
+        (uint256 _withdrawn, ) = _depositToken.withdraw(amount_, address(this));
+        nativeToken.withdraw(_withdrawn);
+        Address.sendValue(payable(msg.sender), _withdrawn);
     }
+
+    /// @inheritdoc TokenHolder
+    // solhint-disable-next-line no-empty-blocks
+    function _requireCanSweep() internal view override onlyGovernor {}
 
     /**
      * @dev Only `nativeToken` contract is allowed to transfer to here. Prevent other addresses to send coins to this contract.

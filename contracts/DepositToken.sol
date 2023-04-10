@@ -5,6 +5,7 @@ pragma solidity 0.8.9;
 import "./dependencies/openzeppelin/utils/math/Math.sol";
 import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./lib/WadRayMath.sol";
+import "./utils/TokenHolder.sol";
 import "./access/Manageable.sol";
 import "./storage/DepositTokenStorage.sol";
 
@@ -36,11 +37,11 @@ error NewValueIsSameAsCurrent();
 /**
  * @title Represents the users' deposits
  */
-contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
+contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenStorageV1 {
     using SafeERC20 for IERC20;
     using WadRayMath for uint256;
 
-    string public constant VERSION = "1.0.0";
+    string public constant VERSION = "1.1.0";
 
     /// @notice Emitted when collateral is deposited
     event CollateralDeposited(
@@ -106,10 +107,10 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @dev Should be called before balance changes (i.e. mint/burn)
      */
     modifier updateRewardsBeforeMintOrBurn(address account_) {
-        IRewardsDistributor[] memory _rewardsDistributors = pool.getRewardsDistributors();
+        address[] memory _rewardsDistributors = pool.getRewardsDistributors();
         uint256 _length = _rewardsDistributors.length;
         for (uint256 i; i < _length; ++i) {
-            _rewardsDistributors[i].updateBeforeMintOrBurn(this, account_);
+            IRewardsDistributor(_rewardsDistributors[i]).updateBeforeMintOrBurn(this, account_);
         }
         _;
     }
@@ -119,10 +120,10 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @dev Should be called before balance changes (i.e. transfer)
      */
     modifier updateRewardsBeforeTransfer(address sender_, address recipient_) {
-        IRewardsDistributor[] memory _rewardsDistributors = pool.getRewardsDistributors();
+        address[] memory _rewardsDistributors = pool.getRewardsDistributors();
         uint256 _length = _rewardsDistributors.length;
         for (uint256 i; i < _length; ++i) {
-            _rewardsDistributors[i].updateBeforeTransfer(this, sender_, recipient_);
+            IRewardsDistributor(_rewardsDistributors[i]).updateBeforeTransfer(this, sender_, recipient_);
         }
         _;
     }
@@ -180,15 +181,10 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @param onBehalfOf_ The account to deposit to
      * @return _deposited The amount deposited after fees
      */
-    function deposit(uint256 amount_, address onBehalfOf_)
-        external
-        override
-        whenNotPaused
-        nonReentrant
-        onlyIfDepositTokenIsActive
-        onlyIfDepositTokenExists
-        returns (uint256 _deposited, uint256 _fee)
-    {
+    function deposit(
+        uint256 amount_,
+        address onBehalfOf_
+    ) external override whenNotPaused nonReentrant onlyIfDepositTokenExists returns (uint256 _deposited, uint256 _fee) {
         if (amount_ == 0) revert AmountIsZero();
         if (onBehalfOf_ == address(0)) revert BeneficiaryIsNull();
 
@@ -237,7 +233,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @return _fee Fee amount to collect
      */
     function quoteDepositIn(uint256 amountToDeposit_) external view override returns (uint256 _amount, uint256 _fee) {
-        uint256 _depositFee = pool.depositFee();
+        uint256 _depositFee = pool.feeProvider().depositFee();
         if (_depositFee == 0) {
             return (amountToDeposit_, _fee);
         }
@@ -253,7 +249,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @return _fee Fee amount to collect
      */
     function quoteDepositOut(uint256 amount_) public view override returns (uint256 _amountToDeposit, uint256 _fee) {
-        uint256 _depositFee = pool.depositFee();
+        uint256 _depositFee = pool.feeProvider().depositFee();
         if (_depositFee == 0) {
             return (amount_, _fee);
         }
@@ -269,7 +265,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @return _fee Fee amount to collect
      */
     function quoteWithdrawIn(uint256 amountToWithdraw_) external view override returns (uint256 _amount, uint256 _fee) {
-        uint256 _withdrawFee = pool.withdrawFee();
+        uint256 _withdrawFee = pool.feeProvider().withdrawFee();
         if (_withdrawFee == 0) {
             return (amountToWithdraw_, _fee);
         }
@@ -285,7 +281,7 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @return _fee Fee amount to collect
      */
     function quoteWithdrawOut(uint256 amount_) public view override returns (uint256 _amountToWithdraw, uint256 _fee) {
-        uint256 _withdrawFee = pool.withdrawFee();
+        uint256 _withdrawFee = pool.feeProvider().withdrawFee();
         if (_withdrawFee == 0) {
             return (amount_, _fee);
         }
@@ -301,21 +297,15 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @param to_ The beneficiary account
      * @param amount_ The amount to seize
      */
-    function seize(
-        address from_,
-        address to_,
-        uint256 amount_
-    ) external override onlyIfCanSeize {
+    function seize(address from_, address to_, uint256 amount_) external override onlyIfCanSeize {
         _transfer(from_, to_, amount_);
     }
 
     /// @inheritdoc IERC20
-    function transfer(address to_, uint256 amount_)
-        external
-        override
-        onlyIfUnlocked(msg.sender, amount_)
-        returns (bool)
-    {
+    function transfer(
+        address to_,
+        uint256 amount_
+    ) external override onlyIfUnlocked(msg.sender, amount_) returns (bool) {
         _transfer(msg.sender, to_, amount_);
         return true;
     }
@@ -326,8 +316,6 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         address recipient_,
         uint256 amount_
     ) external override nonReentrant onlyIfUnlocked(sender_, amount_) returns (bool) {
-        _transfer(sender_, recipient_, amount_);
-
         uint256 _currentAllowance = allowance[sender_][msg.sender];
         if (_currentAllowance != type(uint256).max) {
             if (_currentAllowance < amount_) revert AmountExceedsAllowance();
@@ -335,6 +323,8 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
                 _approve(sender_, msg.sender, _currentAllowance - amount_);
             }
         }
+
+        _transfer(sender_, recipient_, amount_);
 
         return true;
     }
@@ -347,7 +337,11 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     function unlockedBalanceOf(address account_) public view override returns (uint256 _unlockedBalance) {
         IPool _pool = pool;
 
-        (, , , , uint256 _issuableInUsd) = _pool.debtPositionOf(account_);
+        (, , uint256 _debtInUsd, , uint256 _issuableInUsd) = _pool.debtPositionOf(account_);
+
+        if (_debtInUsd == 0) {
+            return balanceOf[account_];
+        }
 
         if (_issuableInUsd > 0) {
             _unlockedBalance = Math.min(
@@ -363,16 +357,20 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
      * @param to_ The account that will receive withdrawn collateral
      * @return _withdrawn The amount withdrawn after fees
      */
-    function withdraw(uint256 amount_, address to_)
+    function withdraw(
+        uint256 amount_,
+        address to_
+    )
         external
         override
         whenNotShutdown
         nonReentrant
         onlyIfDepositTokenExists
+        onlyIfUnlocked(msg.sender, amount_)
         returns (uint256 _withdrawn, uint256 _fee)
     {
         if (to_ == address(0)) revert RecipientIsNull();
-        if (amount_ == 0 || amount_ > unlockedBalanceOf(msg.sender)) revert AmountIsInvalid();
+        if (amount_ == 0) revert AmountIsZero();
 
         IPool _pool = pool;
 
@@ -388,22 +386,9 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
     }
 
     /**
-     * @notice Add this token to the deposit tokens list if the recipient is receiving it for the 1st time
-     */
-    function _addToDepositTokensOfRecipientIfNeeded(address recipient_, uint256 recipientBalanceBefore_) private {
-        if (recipientBalanceBefore_ == 0) {
-            pool.addToDepositTokensOfAccount(recipient_);
-        }
-    }
-
-    /**
      * @notice Set `amount` as the allowance of `spender` over the caller's tokens
      */
-    function _approve(
-        address owner_,
-        address spender_,
-        uint256 amount_
-    ) private {
+    function _approve(address owner_, address spender_, uint256 amount_) private {
         if (owner_ == address(0)) revert ApproveFromTheZeroAddress();
         if (spender_ == address(0)) revert ApproveToTheZeroAddress();
 
@@ -430,18 +415,20 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
 
         emit Transfer(_account, address(0), _amount);
 
-        _removeFromDepositTokensOfSenderIfNeeded(_account, _balanceAfter);
+        // Remove this token from the deposit tokens list if the sender's balance goes to zero
+        if (_amount > 0 && _balanceAfter == 0) {
+            pool.removeFromDepositTokensOfAccount(_account);
+        }
     }
 
     /**
      * @notice Create `amount` tokens and assigns them to `account`, increasing
      * the total supply
      */
-    function _mint(address account_, uint256 amount_)
-        private
-        onlyIfDepositTokenIsActive
-        updateRewardsBeforeMintOrBurn(account_)
-    {
+    function _mint(
+        address account_,
+        uint256 amount_
+    ) private onlyIfDepositTokenIsActive updateRewardsBeforeMintOrBurn(account_) {
         if (account_ == address(0)) revert MintToTheZeroAddress();
 
         totalSupply += amount_;
@@ -454,17 +441,15 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
 
         emit Transfer(address(0), account_, amount_);
 
-        _addToDepositTokensOfRecipientIfNeeded(account_, _balanceBefore);
-    }
-
-    /**
-     * @notice Remove this token to the deposit tokens list if the sender's balance goes to zero
-     */
-    function _removeFromDepositTokensOfSenderIfNeeded(address sender_, uint256 senderBalanceAfter_) private {
-        if (senderBalanceAfter_ == 0) {
-            pool.removeFromDepositTokensOfAccount(sender_);
+        // Add this token to the deposit tokens list if the recipient is receiving it for the 1st time
+        if (_balanceBefore == 0 && amount_ > 0) {
+            pool.addToDepositTokensOfAccount(account_);
         }
     }
+
+    /// @inheritdoc TokenHolder
+    // solhint-disable-next-line no-empty-blocks
+    function _requireCanSweep() internal view override onlyGovernor {}
 
     /**
      * @notice Move `amount` of tokens from `sender` to `recipient`
@@ -480,19 +465,23 @@ contract DepositToken is ReentrancyGuard, Manageable, DepositTokenStorageV1 {
         uint256 _senderBalanceBefore = balanceOf[sender_];
         if (_senderBalanceBefore < amount_) revert TransferAmountExceedsBalance();
         uint256 _recipientBalanceBefore = balanceOf[recipient_];
-        uint256 _senderBalanceAfter;
 
         unchecked {
-            _senderBalanceAfter = _senderBalanceBefore - amount_;
-            balanceOf[recipient_] = _recipientBalanceBefore + amount_;
+            balanceOf[sender_] = _senderBalanceBefore - amount_;
+            balanceOf[recipient_] += amount_;
         }
-
-        balanceOf[sender_] = _senderBalanceAfter;
 
         emit Transfer(sender_, recipient_, amount_);
 
-        _addToDepositTokensOfRecipientIfNeeded(recipient_, _recipientBalanceBefore);
-        _removeFromDepositTokensOfSenderIfNeeded(sender_, _senderBalanceAfter);
+        // Add this token to the deposit tokens list if the recipient is receiving it for the 1st time
+        if (_recipientBalanceBefore == 0 && amount_ > 0) {
+            pool.addToDepositTokensOfAccount(recipient_);
+        }
+
+        // Remove this token from the deposit tokens list if the sender's balance goes to zero
+        if (amount_ > 0 && balanceOf[sender_] == 0) {
+            pool.removeFromDepositTokensOfAccount(sender_);
+        }
     }
 
     /**

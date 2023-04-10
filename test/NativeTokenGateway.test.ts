@@ -18,11 +18,12 @@ import {
   NativeTokenGateway__factory,
   Treasury__factory,
   Treasury,
+  FeeProvider__factory,
 } from '../typechain'
 import {disableForking, enableForking} from './helpers'
 import Address from '../helpers/address'
 import {toUSD} from '../helpers'
-import {FakeContract, MockContract, smock} from '@defi-wonderland/smock'
+import {FakeContract, smock} from '@defi-wonderland/smock'
 
 chai.use(smock.matchers)
 
@@ -67,13 +68,21 @@ describe('NativeTokenGateway', function () {
     poolRegistryMock = await smock.fake('PoolRegistry')
     poolRegistryMock.isPoolRegistered.returns(true)
 
+    const esMET = await smock.fake('IESMET')
+
+    const feeProviderFactory = new FeeProvider__factory(deployer)
+    const feeProvider = await feeProviderFactory.deploy()
+    await feeProvider.deployed()
+    await feeProvider.initialize(poolRegistryMock.address, esMET.address)
+
     const poolMockFactory = new PoolMock__factory(deployer)
     poolMock = await poolMockFactory.deploy(
       msdNativeToken.address,
       masterOracleMock.address,
       ethers.constants.AddressZero,
       ethers.constants.AddressZero,
-      ethers.constants.AddressZero
+      ethers.constants.AddressZero,
+      feeProvider.address
     )
     await poolMock.deployed()
 

@@ -16,11 +16,7 @@ interface IRewardsDistributor {
 
     function updateBeforeMintOrBurn(IERC20 token_, address account_) external;
 
-    function updateBeforeTransfer(
-        IERC20 token_,
-        address from_,
-        address to_
-    ) external;
+    function updateBeforeTransfer(IERC20 token_, address from_, address to_) external;
 
     function claimable(address account_) external view returns (uint256 _claimable);
 

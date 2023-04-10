@@ -17,11 +17,7 @@ interface ISyntheticToken is IERC20Metadata {
 
     function toggleIsActive() external;
 
-    function seize(
-        address from_,
-        address to_,
-        uint256 amount_
-    ) external;
+    function seize(address from_, address to_, uint256 amount_) external;
 
     function updateMaxTotalSupply(uint256 newMaxTotalSupply_) external;
 
