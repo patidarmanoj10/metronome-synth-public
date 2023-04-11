@@ -1,4 +1,3 @@
-/* eslint-disable camelcase */
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
@@ -8,23 +7,13 @@ import {disableForking, enableForking, setTokenBalance} from './helpers'
 import Address from '../helpers/address'
 import {
   DepositToken,
-  DepositToken__factory,
   SyntheticToken,
-  SyntheticToken__factory,
   Pool,
-  Pool__factory,
   IERC20,
-  DebtToken__factory,
   DebtToken,
-  MasterOracleMock__factory,
-  Treasury__factory,
-  PoolRegistry__factory,
   MasterOracleMock,
   PoolRegistry,
-  FeeProvider__factory,
   FeeProvider,
-  IERC20__factory,
-  IESMET__factory,
 } from '../typechain'
 
 const {MaxUint256} = ethers.constants
@@ -34,17 +23,17 @@ const INTEREST_RATE = parseEther('0')
 async function fixture() {
   const [deployer, feeCollector, alice, bob] = await ethers.getSigners()
 
-  const poolRegistryFactory = new PoolRegistry__factory(deployer)
-  const poolFactory = new Pool__factory(deployer)
-  const masterOracleFactory = new MasterOracleMock__factory(deployer)
-  const treasuryFactory = new Treasury__factory(deployer)
-  const depositTokenFactory = new DepositToken__factory(deployer)
-  const debtTokenFactory = new DebtToken__factory(deployer)
-  const syntheticTokenFactory = new SyntheticToken__factory(deployer)
-  const feeProviderFactory = new FeeProvider__factory(deployer)
+  const poolRegistryFactory = await ethers.getContractFactory('PoolRegistry', deployer)
+  const poolFactory = await ethers.getContractFactory('Pool', deployer)
+  const masterOracleFactory = await ethers.getContractFactory('MasterOracleMock', deployer)
+  const treasuryFactory = await ethers.getContractFactory('Treasury', deployer)
+  const depositTokenFactory = await ethers.getContractFactory('DepositToken', deployer)
+  const debtTokenFactory = await ethers.getContractFactory('DebtToken', deployer)
+  const syntheticTokenFactory = await ethers.getContractFactory('SyntheticToken', deployer)
+  const feeProviderFactory = await ethers.getContractFactory('FeeProvider', deployer)
 
-  const dai = IERC20__factory.connect(Address.DAI_ADDRESS, alice)
-  const met = IERC20__factory.connect(Address.MET_ADDRESS, alice)
+  const dai = await ethers.getContractAt('IERC20', Address.DAI_ADDRESS, alice)
+  const met = await ethers.getContractAt('IERC20', Address.MET_ADDRESS, alice)
 
   const masterOracle = await masterOracleFactory.deploy()
   await masterOracle.deployed()
@@ -327,7 +316,7 @@ describe('Integration tests', function () {
           const defaultSwapFee = await feeProvider.defaultSwapFee()
           expect(await feeProvider.swapFeeFor(alice.address)).eq(defaultSwapFee)
 
-          const esMET = IESMET__factory.connect(Address.ESMET, alice)
+          const esMET = await ethers.getContractAt('IESMET', Address.ESMET, alice)
           await met.connect(alice).approve(esMET.address, parseEther('100'))
           await esMET.connect(alice).lock(parseEther('10'), 8 * 24 * 60 * 60)
           await expect(await esMET.balanceOf(alice.address)).gt(0)

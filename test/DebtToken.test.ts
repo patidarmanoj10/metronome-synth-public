@@ -6,18 +6,12 @@ import chai, {expect} from 'chai'
 import {ethers} from 'hardhat'
 import {
   DebtToken,
-  DebtToken__factory,
   DepositToken,
-  DepositToken__factory,
   ERC20Mock,
-  ERC20Mock__factory,
   MasterOracleMock,
-  MasterOracleMock__factory,
   SyntheticToken,
-  SyntheticToken__factory,
   PoolMock__factory,
   FeeProvider,
-  FeeProvider__factory,
   PoolMock,
 } from '../typechain'
 import {FakeContract, MockContract, smock} from '@defi-wonderland/smock'
@@ -59,29 +53,29 @@ describe('DebtToken', function () {
 
     poolRegistryMock = await smock.fake('PoolRegistry')
 
-    const syntheticTokenFactory = new SyntheticToken__factory(deployer)
+    const syntheticTokenFactory = await ethers.getContractFactory('SyntheticToken', deployer)
     msUSD = await syntheticTokenFactory.deploy()
     await msUSD.deployed()
 
-    const masterOracleMockFactory = new MasterOracleMock__factory(deployer)
+    const masterOracleMockFactory = await ethers.getContractFactory('MasterOracleMock', deployer)
     masterOracleMock = await masterOracleMockFactory.deploy()
     await masterOracleMock.deployed()
 
-    const erc20MockFactory = new ERC20Mock__factory(deployer)
+    const erc20MockFactory = await ethers.getContractFactory('ERC20Mock', deployer)
     met = await erc20MockFactory.deploy('Metronome', 'MET', 18)
     await met.deployed()
 
-    const depositTokenFactory = new DepositToken__factory(deployer)
+    const depositTokenFactory = await ethers.getContractFactory('DepositToken', deployer)
     msdMET = await depositTokenFactory.deploy()
     await msdMET.deployed()
 
-    const debtTokenFactory = new DebtToken__factory(deployer)
+    const debtTokenFactory = await ethers.getContractFactory('DebtToken', deployer)
     msUSDDebt = await debtTokenFactory.deploy()
     await msUSDDebt.deployed()
 
     const esMET = await smock.fake('IESMET')
 
-    const feeProviderFactory = new FeeProvider__factory(deployer)
+    const feeProviderFactory = await ethers.getContractFactory('FeeProvider', deployer)
     feeProvider = await feeProviderFactory.deploy()
     await feeProvider.deployed()
     await feeProvider.initialize(poolRegistryMock.address, esMET.address)
@@ -181,12 +175,12 @@ describe('DebtToken', function () {
 
     it('should revert if synthetic does not exist', async function () {
       // given
-      const syntheticTokenFactory = new SyntheticToken__factory(deployer)
+      const syntheticTokenFactory = await ethers.getContractFactory('SyntheticToken', deployer)
       const notListedSynthetic = await syntheticTokenFactory.deploy()
       await notListedSynthetic.deployed()
       await notListedSynthetic.initialize(name, symbol, 18, poolMock.address)
 
-      const debtTokenFactory = new DebtToken__factory(deployer)
+      const debtTokenFactory = await ethers.getContractFactory('DebtToken', deployer)
       const notListedDebtToken = await debtTokenFactory.deploy()
       await notListedDebtToken.deployed()
       await notListedDebtToken.initialize(

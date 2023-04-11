@@ -1,22 +1,8 @@
-/* eslint-disable camelcase */
 import {parseEther} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import chai, {expect} from 'chai'
 import {ethers} from 'hardhat'
-import {
-  DepositToken__factory,
-  DepositToken,
-  ERC20Mock__factory,
-  ERC20Mock,
-  MasterOracleMock__factory,
-  MasterOracleMock,
-  Treasury,
-  Treasury__factory,
-  Pool,
-  FeeProvider,
-  FeeProvider__factory,
-  PoolRegistry,
-} from '../typechain'
+import {DepositToken, ERC20Mock, MasterOracleMock, Treasury, Pool, FeeProvider, PoolRegistry} from '../typechain'
 import {setBalance} from '@nomicfoundation/hardhat-network-helpers'
 import {FakeContract, MockContract, smock} from '@defi-wonderland/smock'
 import {BigNumber} from 'ethers'
@@ -47,16 +33,16 @@ describe('DepositToken', function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[deployer, governor, alice, bob, feeCollector] = await ethers.getSigners()
 
-    const masterOracleMock = new MasterOracleMock__factory(deployer)
+    const masterOracleMock = await ethers.getContractFactory('MasterOracleMock', deployer)
     masterOracle = <MasterOracleMock>await masterOracleMock.deploy()
     await masterOracle.deployed()
 
-    const metMockFactory = new ERC20Mock__factory(deployer)
+    const metMockFactory = await ethers.getContractFactory('ERC20Mock', deployer)
     met = await metMockFactory.deploy('Metronome', 'MET', 18)
     await met.deployed()
     await met.mint(alice.address, parseEther('1000'))
 
-    const treasuryFactory = new Treasury__factory(deployer)
+    const treasuryFactory = await ethers.getContractFactory('Treasury', deployer)
     treasury = await treasuryFactory.deploy()
     await treasury.deployed()
 
@@ -65,12 +51,12 @@ describe('DepositToken', function () {
     const poolMockRegistry = await smock.fake<PoolRegistry>('PoolRegistry')
     poolMockRegistry.governor.returns(governor.address)
 
-    const feeProviderFactory = new FeeProvider__factory(deployer)
+    const feeProviderFactory = await ethers.getContractFactory('FeeProvider', deployer)
     feeProvider = await feeProviderFactory.deploy()
     await feeProvider.deployed()
     await feeProvider.initialize(poolMockRegistry.address, esMET.address)
 
-    const depositTokenFactory = new DepositToken__factory(deployer)
+    const depositTokenFactory = await ethers.getContractFactory('DepositToken', deployer)
     metDepositToken = await depositTokenFactory.deploy()
     await metDepositToken.deployed()
 

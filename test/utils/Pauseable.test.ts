@@ -1,9 +1,7 @@
-/* eslint-disable camelcase */
-import {parseEther} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
-import {PauseableMock, PauseableMock__factory} from '../../typechain'
+import {PauseableMock} from '../../typechain'
 
 describe('Pauseable', function () {
   let governor: SignerWithAddress
@@ -13,7 +11,7 @@ describe('Pauseable', function () {
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[governor, user] = await ethers.getSigners()
-    const pauseableFactory = new PauseableMock__factory(governor)
+    const pauseableFactory = await ethers.getContractFactory('PauseableMock', governor)
     pauseable = await pauseableFactory.deploy()
   })
 

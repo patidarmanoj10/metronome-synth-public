@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "ES2017",
+    "target": "es2018",
     "module": "commonjs",
     "declaration": true,
     "declarationMap": true,
@@ -11,6 +11,6 @@
     "esModuleInterop": true,
     "resolveJsonModule": true
   },
-  "include": ["./hardhat.config.ts", "./scripts", "./deploy", "./test"],
+  "include": ["./hardhat.config.ts", "./scripts", "./deploy", "./test", "./typechain"],
   "files": ["./hardhat.config.ts"]
 }

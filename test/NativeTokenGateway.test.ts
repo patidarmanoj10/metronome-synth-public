@@ -1,25 +1,8 @@
-/* eslint-disable camelcase */
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import chai, {expect} from 'chai'
 import {parseEther} from 'ethers/lib/utils'
 import {ethers} from 'hardhat'
-import {
-  DepositToken,
-  DepositToken__factory,
-  ERC20Mock,
-  ERC20Mock__factory,
-  PoolMock,
-  PoolMock__factory,
-  IWETH,
-  IWETH__factory,
-  MasterOracleMock,
-  MasterOracleMock__factory,
-  NativeTokenGateway,
-  NativeTokenGateway__factory,
-  Treasury__factory,
-  Treasury,
-  FeeProvider__factory,
-} from '../typechain'
+import {DepositToken, ERC20Mock, PoolMock, IWETH, MasterOracleMock, NativeTokenGateway, Treasury} from '../typechain'
 import {disableForking, enableForking} from './helpers'
 import Address from '../helpers/address'
 import {toUSD} from '../helpers'
@@ -51,17 +34,17 @@ describe('NativeTokenGateway', function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[deployer, user] = await ethers.getSigners()
 
-    nativeToken = IWETH__factory.connect(NATIVE_TOKEN_ADDRESS, deployer)
+    nativeToken = await ethers.getContractAt('IWETH', NATIVE_TOKEN_ADDRESS, deployer)
 
-    const masterOracleMockFactory = new MasterOracleMock__factory(deployer)
+    const masterOracleMockFactory = await ethers.getContractFactory('MasterOracleMock', deployer)
     masterOracleMock = await masterOracleMockFactory.deploy()
     await masterOracleMock.deployed()
 
-    const depositTokenFactory = new DepositToken__factory(deployer)
+    const depositTokenFactory = await ethers.getContractFactory('DepositToken', deployer)
     msdNativeToken = await depositTokenFactory.deploy()
     await msdNativeToken.deployed()
 
-    const treasuryFactory = new Treasury__factory(deployer)
+    const treasuryFactory = await ethers.getContractFactory('Treasury', deployer)
     treasury = await treasuryFactory.deploy()
     await treasury.deployed()
 
@@ -70,12 +53,12 @@ describe('NativeTokenGateway', function () {
 
     const esMET = await smock.fake('IESMET')
 
-    const feeProviderFactory = new FeeProvider__factory(deployer)
+    const feeProviderFactory = await ethers.getContractFactory('FeeProvider', deployer)
     const feeProvider = await feeProviderFactory.deploy()
     await feeProvider.deployed()
     await feeProvider.initialize(poolRegistryMock.address, esMET.address)
 
-    const poolMockFactory = new PoolMock__factory(deployer)
+    const poolMockFactory = await ethers.getContractFactory('PoolMock', deployer)
     poolMock = await poolMockFactory.deploy(
       msdNativeToken.address,
       masterOracleMock.address,
@@ -86,7 +69,7 @@ describe('NativeTokenGateway', function () {
     )
     await poolMock.deployed()
 
-    const nativeTokenGatewayFactory = new NativeTokenGateway__factory(deployer)
+    const nativeTokenGatewayFactory = await ethers.getContractFactory('NativeTokenGateway', deployer)
     nativeTokenGateway = await nativeTokenGatewayFactory.deploy(poolRegistryMock.address, NATIVE_TOKEN_ADDRESS)
     await nativeTokenGateway.deployed()
 
@@ -100,7 +83,7 @@ describe('NativeTokenGateway', function () {
       MaxUint256
     )
 
-    const erc20MockFactory = new ERC20Mock__factory(deployer)
+    const erc20MockFactory = await ethers.getContractFactory('ERC20Mock', deployer)
     tokenMock = await erc20MockFactory.deploy('Name', 'SYMBOL', 18)
     await tokenMock.deployed()
 

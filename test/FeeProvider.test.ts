@@ -1,10 +1,9 @@
-/* eslint-disable camelcase */
 import {FakeContract, smock} from '@defi-wonderland/smock'
 import {parseEther} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
-import {FeeProvider__factory, FeeProvider, PoolRegistry} from '../typechain'
+import {FeeProvider, PoolRegistry} from '../typechain'
 
 describe('FeeProvider', function () {
   let deployer: SignerWithAddress
@@ -21,7 +20,7 @@ describe('FeeProvider', function () {
     const poolMockRegistry = await smock.fake<PoolRegistry>('PoolRegistry')
     poolMockRegistry.governor.returns(deployer.address)
 
-    const feeProviderFactory = new FeeProvider__factory(deployer)
+    const feeProviderFactory = await ethers.getContractFactory('FeeProvider', deployer)
     feeProvider = await feeProviderFactory.deploy()
     await feeProvider.deployed()
     await feeProvider.initialize(poolMockRegistry.address, esMET.address)

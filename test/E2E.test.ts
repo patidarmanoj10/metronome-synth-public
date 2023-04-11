@@ -1,6 +1,4 @@
-/* eslint-disable new-cap */
 /* eslint-disable max-len */
-/* eslint-disable camelcase */
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {Contract} from 'ethers'
@@ -16,18 +14,9 @@ import {
   Pool,
   ERC20,
   DebtToken,
-  DepositToken__factory,
-  SyntheticToken__factory,
-  DebtToken__factory,
-  Pool__factory,
-  PoolRegistry__factory,
-  ERC20__factory,
   IWETH,
-  IWETH__factory,
   NativeTokenGateway,
   PoolRegistry,
-  NativeTokenGateway__factory,
-  VesperGateway__factory,
 } from '../typechain'
 import {address as POOL_REGISTRY_ADDRESS} from '../deployments/mainnet/PoolRegistry.json'
 import {address as USDC_DEPOSIT_ADDRESS} from '../deployments/mainnet/USDCDepositToken.json'
@@ -103,46 +92,46 @@ describe('E2E tests', function () {
   async function fixture() {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[, alice, bob] = await ethers.getSigners()
-    usdc = ERC20__factory.connect(Address.USDC_ADDRESS, alice)
-    dai = ERC20__factory.connect(Address.DAI_ADDRESS, alice)
-    wbtc = ERC20__factory.connect(Address.WBTC_ADDRESS, alice)
-    frax = ERC20__factory.connect(Address.FRAX_ADDRESS, alice)
-    weth = IWETH__factory.connect(Address.WETH_ADDRESS, alice)
-    vaFRAX = ERC20__factory.connect(Address.VAFRAX_ADDRESS, alice)
-    vaUSDC = ERC20__factory.connect(Address.VAUSDC_ADDRESS, alice)
-    vaETH = ERC20__factory.connect(Address.VAETH_ADDRESS, alice)
-    sfrxETH = ERC20__factory.connect(Address.SFRXETH_ADDRESS, alice)
-    vaSTETH = ERC20__factory.connect(Address.VASTETH_ADDRESS, alice)
-    vaRETH = ERC20__factory.connect(Address.VARETH_ADDRESS, alice)
-    vaCBETH = ERC20__factory.connect(Address.VACBETH_ADDRESS, alice)
+    usdc = await ethers.getContractAt('ERC20', Address.USDC_ADDRESS, alice)
+    dai = await ethers.getContractAt('ERC20', Address.DAI_ADDRESS, alice)
+    wbtc = await ethers.getContractAt('ERC20', Address.WBTC_ADDRESS, alice)
+    frax = await ethers.getContractAt('ERC20', Address.FRAX_ADDRESS, alice)
+    weth = await ethers.getContractAt('IWETH', Address.WETH_ADDRESS, alice)
+    vaFRAX = await ethers.getContractAt('ERC20', Address.VAFRAX_ADDRESS, alice)
+    vaUSDC = await ethers.getContractAt('ERC20', Address.VAUSDC_ADDRESS, alice)
+    vaETH = await ethers.getContractAt('ERC20', Address.VAETH_ADDRESS, alice)
+    sfrxETH = await ethers.getContractAt('ERC20', Address.SFRXETH_ADDRESS, alice)
+    vaSTETH = await ethers.getContractAt('ERC20', Address.VASTETH_ADDRESS, alice)
+    vaRETH = await ethers.getContractAt('ERC20', Address.VARETH_ADDRESS, alice)
+    vaCBETH = await ethers.getContractAt('ERC20', Address.VACBETH_ADDRESS, alice)
 
-    poolRegistry = PoolRegistry__factory.connect(POOL_REGISTRY_ADDRESS, alice)
+    poolRegistry = await ethers.getContractAt('PoolRegistry', POOL_REGISTRY_ADDRESS, alice)
     governor = await impersonateAccount(await poolRegistry.governor())
-    nativeGateway = NativeTokenGateway__factory.connect(NATIVE_TOKEN_GATEWAY_ADDRESS, alice)
+    nativeGateway = await ethers.getContractAt('NativeTokenGateway', NATIVE_TOKEN_GATEWAY_ADDRESS, alice)
 
     const [pool1Address] = await poolRegistry.getPools()
-    pool = Pool__factory.connect(pool1Address, alice)
+    pool = await ethers.getContractAt('Pool', pool1Address, alice)
 
-    msdUSDC = DepositToken__factory.connect(USDC_DEPOSIT_ADDRESS, alice) // 6 decimals.
-    msdDAI = DepositToken__factory.connect(DAI_DEPOSIT_ADDRESS, alice) // 8 decimals
-    msdWBTC = DepositToken__factory.connect(WBTC_DEPOSIT_ADDRESS, alice)
-    msdFRAX = DepositToken__factory.connect(FRAX_DEPOSIT_ADDRESS, alice)
-    msdWETH = DepositToken__factory.connect(WETH_DEPOSIT_ADDRESS, alice)
-    msdVaFRAX = DepositToken__factory.connect(VAFRAX_DEPOSIT_ADDRESS, alice)
-    msdVaUSDC = DepositToken__factory.connect(VAUSDC_DEPOSIT_ADDRESS, alice)
-    msdVaETH = DepositToken__factory.connect(VAETH_DEPOSIT_ADDRESS, alice)
-    msdSfrxETH = DepositToken__factory.connect(SRFXETH_DEPOSIT_ADDRESS, alice)
-    msdVaSTETH = DepositToken__factory.connect(VASTETH_DEPOSIT_ADDRESS, alice)
-    msdVaRETH = DepositToken__factory.connect(VARETH_DEPOSIT_ADDRESS, alice)
-    msdVaCBETH = DepositToken__factory.connect(VACBETH_DEPOSIT_ADDRESS, alice)
+    msdUSDC = await ethers.getContractAt('DepositToken', USDC_DEPOSIT_ADDRESS, alice) // 6 decimals.
+    msdDAI = await ethers.getContractAt('DepositToken', DAI_DEPOSIT_ADDRESS, alice) // 18 decimals
+    msdWBTC = await ethers.getContractAt('DepositToken', WBTC_DEPOSIT_ADDRESS, alice)
+    msdFRAX = await ethers.getContractAt('DepositToken', FRAX_DEPOSIT_ADDRESS, alice)
+    msdWETH = await ethers.getContractAt('DepositToken', WETH_DEPOSIT_ADDRESS, alice)
+    msdVaFRAX = await ethers.getContractAt('DepositToken', VAFRAX_DEPOSIT_ADDRESS, alice)
+    msdVaUSDC = await ethers.getContractAt('DepositToken', VAUSDC_DEPOSIT_ADDRESS, alice)
+    msdVaETH = await ethers.getContractAt('DepositToken', VAETH_DEPOSIT_ADDRESS, alice)
+    msdSfrxETH = await ethers.getContractAt('DepositToken', SRFXETH_DEPOSIT_ADDRESS, alice)
+    msdVaSTETH = await ethers.getContractAt('DepositToken', VASTETH_DEPOSIT_ADDRESS, alice)
+    msdVaRETH = await ethers.getContractAt('DepositToken', VARETH_DEPOSIT_ADDRESS, alice)
+    msdVaCBETH = await ethers.getContractAt('DepositToken', VACBETH_DEPOSIT_ADDRESS, alice)
 
-    msUSDDebt = DebtToken__factory.connect(MSUSD_DEBT_ADDRESS, alice)
-    msBTCDebt = DebtToken__factory.connect(MSBTC_DEBT_ADDRESS, alice)
-    msETHDebt = DebtToken__factory.connect(MSETH_DEBT_ADDRESS, alice)
+    msUSDDebt = await ethers.getContractAt('DebtToken', MSUSD_DEBT_ADDRESS, alice)
+    msBTCDebt = await ethers.getContractAt('DebtToken', MSBTC_DEBT_ADDRESS, alice)
+    msETHDebt = await ethers.getContractAt('DebtToken', MSETH_DEBT_ADDRESS, alice)
 
-    msUSD = SyntheticToken__factory.connect(MSUSD_SYNTHETIC_ADDRESS, alice)
-    msBTC = SyntheticToken__factory.connect(MSBTC_SYNTHETIC_ADDRESS, alice)
-    msETH = SyntheticToken__factory.connect(MSETH_SYNTHETIC_ADDRESS, alice)
+    msUSD = await ethers.getContractAt('SyntheticToken', MSUSD_SYNTHETIC_ADDRESS, alice)
+    msBTC = await ethers.getContractAt('SyntheticToken', MSBTC_SYNTHETIC_ADDRESS, alice)
+    msETH = await ethers.getContractAt('SyntheticToken', MSETH_SYNTHETIC_ADDRESS, alice)
 
     await setTokenBalance(usdc.address, alice.address, parseUnits('10,000', 6))
     await setTokenBalance(dai.address, alice.address, parseUnits('10,000', 18))
@@ -328,7 +317,7 @@ describe('E2E tests', function () {
       // Deploy `VesperGateway` implementation
       // Note: It won't be necessary when this contract get online
       //
-      const vesperGatewayFactory = new VesperGateway__factory(alice)
+      const vesperGatewayFactory = await ethers.getContractFactory('VesperGateway', alice)
       const vesperGateway = await vesperGatewayFactory.deploy(poolRegistry.address)
 
       // given

@@ -9,7 +9,7 @@
   "scripts": {
     "solhint": "solhint './contracts/**/*.sol'",
     "solhint:fix": "prettier --write 'contracts/**/*.sol'",
-    "lint": "eslint --cache ./test/*",
+    "lint": "eslint --cache ./test/**/*.ts",
     "lint:fix": "eslint --cache --fix ./test --ext .ts",
     "clean": "hardhat clean",
     "compile": "hardhat compile",
