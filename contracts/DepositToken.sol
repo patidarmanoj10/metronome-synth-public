@@ -208,6 +208,19 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
     }
 
     /**
+     * @notice Burn msdTOKEN, withdraw collateral and transfer to `msg.sender` (i.e. Pool)
+     * @param account_ The account where deposit token will be burnt from
+     * @param amount_ The amount of collateral to withdraw
+     * @return _withdrawn The amount withdrawn after fees
+     */
+    function flashWithdraw(
+        address account_,
+        uint256 amount_
+    ) external override onlyPool returns (uint256 _withdrawn, uint256 _fee) {
+        return _withdraw({account_: account_, amount_: amount_, to_: msg.sender});
+    }
+
+    /**
      * @notice Atomically increase the allowance granted to `spender` by the caller
      */
     function increaseAllowance(address spender_, uint256 addedValue_) external returns (bool) {
@@ -360,29 +373,9 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
     function withdraw(
         uint256 amount_,
         address to_
-    )
-        external
-        override
-        whenNotShutdown
-        nonReentrant
-        onlyIfDepositTokenExists
-        onlyIfUnlocked(msg.sender, amount_)
-        returns (uint256 _withdrawn, uint256 _fee)
-    {
+    ) external override onlyIfUnlocked(msg.sender, amount_) returns (uint256 _withdrawn, uint256 _fee) {
         if (to_ == address(0)) revert RecipientIsNull();
-        if (amount_ == 0) revert AmountIsZero();
-
-        IPool _pool = pool;
-
-        (_withdrawn, _fee) = quoteWithdrawOut(amount_);
-        if (_fee > 0) {
-            _transfer(msg.sender, _pool.feeCollector(), _fee);
-        }
-
-        _burn(msg.sender, _withdrawn);
-        _pool.treasury().pull(to_, _withdrawn);
-
-        emit CollateralWithdrawn(msg.sender, to_, amount_, _withdrawn, _fee);
+        return _withdraw({account_: msg.sender, amount_: amount_, to_: to_});
     }
 
     /**
@@ -482,6 +475,34 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
         if (amount_ > 0 && balanceOf[sender_] == 0) {
             pool.removeFromDepositTokensOfAccount(sender_);
         }
+    }
+
+    /**
+     * @notice Burn msdTOKEN, withdraw collateral and transfer to `msg.sender` (i.e. Pool)
+     * @dev This function doesn't check if the amount is unlocked!
+     * @param account_ The account where deposit token will be burnt from
+     * @param amount_ The amount of collateral to withdraw
+     * @param to_ The account that will receive withdrawn collateral
+     * @return _withdrawn The amount withdrawn after fees
+     */
+    function _withdraw(
+        address account_,
+        uint256 amount_,
+        address to_
+    ) private whenNotShutdown nonReentrant onlyIfDepositTokenExists returns (uint256 _withdrawn, uint256 _fee) {
+        if (amount_ == 0) revert AmountIsZero();
+
+        IPool _pool = pool;
+
+        (_withdrawn, _fee) = quoteWithdrawOut(amount_);
+        if (_fee > 0) {
+            _transfer(account_, _pool.feeCollector(), _fee);
+        }
+
+        _burn(account_, _withdrawn);
+        _pool.treasury().pull(to_, _withdrawn);
+
+        emit CollateralWithdrawn(account_, to_, amount_, _withdrawn, _fee);
     }
 
     /**

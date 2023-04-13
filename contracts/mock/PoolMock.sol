@@ -89,7 +89,23 @@ contract PoolMock is IPool, Governable, Pauseable {
         _issuableInUsd = _debtInUsd < _issuableLimitInUsd ? _issuableLimitInUsd - _debtInUsd : 0;
     }
 
-    function leverage(IERC20, IDepositToken, ISyntheticToken, uint256, uint256, uint256) external pure override {
+    function deleverage(
+        ISyntheticToken,
+        IDepositToken,
+        uint256,
+        uint256
+    ) external pure override returns (uint256, uint256) {
+        revert("mock-does-not-implement");
+    }
+
+    function leverage(
+        IERC20,
+        IDepositToken,
+        ISyntheticToken,
+        uint256,
+        uint256,
+        uint256
+    ) external pure override returns (uint256, uint256) {
         revert("mock-does-not-implement");
     }
 

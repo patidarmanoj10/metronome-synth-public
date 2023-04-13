@@ -25,6 +25,13 @@ interface IPool is IPauseable, IGovernable {
 
     function maxLiquidable() external view returns (uint256);
 
+    function deleverage(
+        ISyntheticToken syntheticToken_,
+        IDepositToken depositToken_,
+        uint256 withdrawAmount_,
+        uint256 repayAmountMin_
+    ) external returns (uint256 _withdrawn, uint256 _repaid);
+
     function doesSyntheticTokenExist(ISyntheticToken syntheticToken_) external view returns (bool);
 
     function doesDebtTokenExist(IDebtToken debtToken_) external view returns (bool);
@@ -65,7 +72,7 @@ interface IPool is IPauseable, IGovernable {
         uint256 amountIn_,
         uint256 leverage_,
         uint256 depositAmountMin_
-    ) external;
+    ) external returns (uint256 _deposited, uint256 _issued);
 
     function liquidate(
         ISyntheticToken syntheticToken_,
