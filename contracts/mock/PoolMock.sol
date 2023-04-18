@@ -89,7 +89,7 @@ contract PoolMock is IPool, Governable, Pauseable {
         _issuableInUsd = _debtInUsd < _issuableLimitInUsd ? _issuableLimitInUsd - _debtInUsd : 0;
     }
 
-    function deleverage(
+    function flashRepay(
         ISyntheticToken,
         IDepositToken,
         uint256,

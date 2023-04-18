@@ -16,7 +16,7 @@ error UserReachedMaxTokens();
 error PoolRegistryIsNull();
 error DebtTokenAlreadyExists();
 error DepositTokenAlreadyExists();
-error DeleverageSlippageTooHigh();
+error FlashRepaySlippageTooHigh();
 error LeverageTooLow();
 error LeverageTooHigh();
 error LeverageSlippageTooHigh();
@@ -210,13 +210,13 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
     }
 
     /**
-     * @notice Deleverage yield position
+     * @notice Flash debt repayment
      * @param syntheticToken_ The debt token to repay
      * @param depositToken_ The collateral to withdraw
      * @param withdrawAmount_ The amount to withdraw
      * @param repayAmountMin_ The minimum amount to repay (slippage check)
      */
-    function deleverage(
+    function flashRepay(
         ISyntheticToken syntheticToken_,
         IDepositToken depositToken_,
         uint256 withdrawAmount_,
@@ -242,7 +242,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
 
         // 3. repay debt
         (_repaid, ) = _debtToken.repay(msg.sender, _amountToRepay);
-        if (_repaid < repayAmountMin_) revert DeleverageSlippageTooHigh();
+        if (_repaid < repayAmountMin_) revert FlashRepaySlippageTooHigh();
 
         // 4. check the health of the outcome position
         (bool _isHealthy, , , , ) = debtPositionOf(msg.sender);

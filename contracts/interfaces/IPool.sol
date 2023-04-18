@@ -25,7 +25,7 @@ interface IPool is IPauseable, IGovernable {
 
     function maxLiquidable() external view returns (uint256);
 
-    function deleverage(
+    function flashRepay(
         ISyntheticToken syntheticToken_,
         IDepositToken depositToken_,
         uint256 withdrawAmount_,
