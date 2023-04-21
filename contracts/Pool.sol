@@ -16,6 +16,7 @@ error UserReachedMaxTokens();
 error PoolRegistryIsNull();
 error DebtTokenAlreadyExists();
 error DepositTokenAlreadyExists();
+error FlashRepaySlippageTooHigh();
 error LeverageTooLow();
 error LeverageTooHigh();
 error LeverageSlippageTooHigh();
@@ -25,7 +26,7 @@ error CanNotLiquidateOwnPosition();
 error PositionIsHealthy();
 error AmountGreaterThanMaxLiquidable();
 error RemainingDebtIsLowerThanTheFloor();
-error AmountIsTooHight();
+error AmountIsTooHigh();
 error DebtTokenDoesNotExist();
 error DepositTokenDoesNotExist();
 error SwapFeatureIsInactive();
@@ -206,6 +207,46 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
                 _debtToken.balanceOf(account_)
             );
         }
+    }
+
+    /**
+     * @notice Flash debt repayment
+     * @param syntheticToken_ The debt token to repay
+     * @param depositToken_ The collateral to withdraw
+     * @param withdrawAmount_ The amount to withdraw
+     * @param repayAmountMin_ The minimum amount to repay (slippage check)
+     */
+    function flashRepay(
+        ISyntheticToken syntheticToken_,
+        IDepositToken depositToken_,
+        uint256 withdrawAmount_,
+        uint256 repayAmountMin_
+    )
+        external
+        override
+        whenNotShutdown
+        nonReentrant
+        onlyIfDepositTokenExists(depositToken_)
+        onlyIfSyntheticTokenExists(syntheticToken_)
+        returns (uint256 _withdrawn, uint256 _repaid)
+    {
+        if (withdrawAmount_ > depositToken_.balanceOf(msg.sender)) revert AmountIsTooHigh();
+        IDebtToken _debtToken = debtTokenOf[syntheticToken_];
+        if (repayAmountMin_ > _debtToken.balanceOf(msg.sender)) revert AmountIsTooHigh();
+
+        // 1. withdraw collateral
+        (_withdrawn, ) = depositToken_.flashWithdraw(msg.sender, withdrawAmount_);
+
+        // 2. swap for synth
+        uint256 _amountToRepay = _swap(swapper, depositToken_.underlying(), syntheticToken_, _withdrawn, 0);
+
+        // 3. repay debt
+        (_repaid, ) = _debtToken.repay(msg.sender, _amountToRepay);
+        if (_repaid < repayAmountMin_) revert FlashRepaySlippageTooHigh();
+
+        // 4. check the health of the outcome position
+        (bool _isHealthy, , , , ) = debtPositionOf(msg.sender);
+        if (!_isHealthy) revert PositionIsNotHealthy();
     }
 
     /**
@@ -518,6 +559,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
         nonReentrant
         onlyIfDepositTokenExists(depositToken_)
         onlyIfSyntheticTokenExists(syntheticToken_)
+        returns (uint256 _deposited, uint256 _issued)
     {
         if (leverage_ <= 1e18) revert LeverageTooLow();
         if (leverage_ > uint256(1e18).wadDiv(1e18 - depositToken_.collateralFactor())) revert LeverageTooHigh();
@@ -526,13 +568,9 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
         // 1. transfer collateral
         IERC20 _collateral = depositToken_.underlying();
         if (address(tokenIn_) == address(0)) tokenIn_ = _collateral;
-        uint256 _balanceBefore = _collateral.balanceOf(address(this));
         tokenIn_.safeTransferFrom(msg.sender, address(this), amountIn_);
         if (tokenIn_ != _collateral) {
-            tokenIn_.safeApprove(address(_swapper), 0);
-            tokenIn_.safeApprove(address(_swapper), amountIn_);
-            _swapper.swapExactInput(address(tokenIn_), address(_collateral), amountIn_, 0, address(this));
-            amountIn_ = _collateral.balanceOf(address(this)) - _balanceBefore;
+            amountIn_ = _swap(_swapper, tokenIn_, _collateral, amountIn_, 0);
         }
 
         // 2. mint synth
@@ -541,19 +579,16 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
             address(syntheticToken_),
             (leverage_ - 1e18).wadMul(amountIn_)
         );
-        (uint256 _issued, ) = debtTokenOf[syntheticToken_].flashIssue(msg.sender, _debtAmount);
+        (_issued, ) = debtTokenOf[syntheticToken_].flashIssue(msg.sender, _debtAmount);
 
         // 3. swap synth for collateral
-        syntheticToken_.safeApprove(address(_swapper), 0);
-        syntheticToken_.safeApprove(address(_swapper), _issued);
-        _swapper.swapExactInput(address(syntheticToken_), address(_collateral), _issued, 0, address(this));
-        uint256 _depositAmount = _collateral.balanceOf(address(this)) - _balanceBefore;
+        uint256 _depositAmount = amountIn_ + _swap(_swapper, syntheticToken_, _collateral, _issued, 0);
         if (_depositAmount < depositAmountMin_) revert LeverageSlippageTooHigh();
 
         // 4. deposit collateral
         _collateral.safeApprove(address(depositToken_), 0);
         _collateral.safeApprove(address(depositToken_), _depositAmount);
-        depositToken_.deposit(_depositAmount, msg.sender);
+        (_deposited, ) = depositToken_.deposit(_depositAmount, msg.sender);
 
         // 5. check the health of the outcome position
         (bool _isHealthy, , , , ) = debtPositionOf(msg.sender);
@@ -617,7 +652,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
         (_totalSeized, _toLiquidator, _fee) = quoteLiquidateOut(syntheticToken_, amountToRepay_, depositToken_);
 
         if (_totalSeized > depositToken_.balanceOf(account_)) {
-            revert AmountIsTooHight();
+            revert AmountIsTooHigh();
         }
 
         syntheticToken_.burn(msg.sender, amountToRepay_);
@@ -698,6 +733,29 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
         syntheticTokenOut_.mint(msg.sender, _amountOut);
 
         emit SyntheticTokenSwapped(msg.sender, syntheticTokenIn_, syntheticTokenOut_, amountIn_, _amountOut, _fee);
+    }
+
+    /**
+     * @notice Swap assets using Swapper contract
+     * @param swapper_ The Swapper contract
+     * @param tokenIn_ The token to swap from
+     * @param tokenOut_ The token to swap to
+     * @param amountIn_ The amount in
+     * @param amountOutMin_ The minimum amount out (slippage check)
+     * @return _amountOut The actual amount out
+     */
+    function _swap(
+        ISwapper swapper_,
+        IERC20 tokenIn_,
+        IERC20 tokenOut_,
+        uint256 amountIn_,
+        uint256 amountOutMin_
+    ) private returns (uint256 _amountOut) {
+        tokenIn_.safeApprove(address(swapper_), 0);
+        tokenIn_.safeApprove(address(swapper_), amountIn_);
+        uint256 _tokenOutBefore = tokenOut_.balanceOf(address(this));
+        swapper_.swapExactInput(address(tokenIn_), address(tokenOut_), amountIn_, amountOutMin_, address(this));
+        return tokenOut_.balanceOf(address(this)) - _tokenOutBefore;
     }
 
     /**

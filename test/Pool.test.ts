@@ -339,6 +339,78 @@ describe('Pool', function () {
       expect(_depositInUsd).closeTo(parseEther('75'), parseEther('10'))
       expect(_debtInUsd).closeTo(parseEther('25'), parseEther('10'))
     })
+
+    describe('flashRepay', function () {
+      beforeEach('leverage vaDAI->msUSD', async function () {
+        const amountIn = parseUnits('100', 18)
+        const leverage = parseEther('1.5')
+        await pool.connect(alice).leverage(vaDAI.address, msdVaDAI.address, msUSD.address, amountIn, leverage, 0)
+      })
+
+      it('should revert if withdraw amount is too high', async function () {
+        // when
+        const withdrawAmount = (await msdVaDAI.balanceOf(alice.address)).add('1')
+        const tx = pool.connect(alice).flashRepay(msUSD.address, msdVaDAI.address, withdrawAmount, 0)
+
+        // then
+        await expect(tx).revertedWithCustomError(pool, 'AmountIsTooHigh')
+      })
+
+      it('should revert if repay amount is too high', async function () {
+        // when
+        const withdrawAmount = await msdVaDAI.balanceOf(alice.address)
+        const repayAmountMin = (await msUsdDebtToken.balanceOf(alice.address)).add('1')
+        const tx = pool.connect(alice).flashRepay(msUSD.address, msdVaDAI.address, withdrawAmount, repayAmountMin)
+
+        // then
+        await expect(tx).revertedWithCustomError(pool, 'AmountIsTooHigh')
+      })
+
+      it('should revert if slippage is too high', async function () {
+        // given
+        await swapper.updateRate(parseEther('0.9')) // 10% slippage
+
+        // when
+        const withdrawAmount = parseEther('50')
+        const repayAmountMin = parseEther('49.5') // 1% slippage
+        const tx = pool.connect(alice).flashRepay(msUSD.address, msdVaDAI.address, withdrawAmount, repayAmountMin)
+
+        // then
+        await expect(tx).revertedWithCustomError(pool, 'FlashRepaySlippageTooHigh')
+      })
+
+      it('should revert if the outcome position is unhealthy', async function () {
+        // given
+        const {_debtInUsd: debtBefore, _depositInUsd: depositBefore} = await pool.debtPositionOf(alice.address)
+        expect(depositBefore).eq(parseEther('150'))
+        expect(debtBefore).eq(parseEther('50'))
+        // Simulates huge slippage (90%), that makes user withdraw large collateral but repay small amount
+        await swapper.updateRate(parseEther('0.1'))
+
+        // when
+        const withdrawAmount = parseEther('100')
+        const tx = pool.connect(alice).flashRepay(msUSD.address, msdVaDAI.address, withdrawAmount, 0)
+
+        // then
+        await expect(tx).revertedWithCustomError(pool, 'PositionIsNotHealthy')
+      })
+
+      it('should flashRepay vaDAI->msUSD', async function () {
+        // given
+        const {_debtInUsd: debtBefore, _depositInUsd: depositBefore} = await pool.debtPositionOf(alice.address)
+        expect(depositBefore).eq(parseEther('150'))
+        expect(debtBefore).eq(parseEther('50'))
+
+        // when
+        const withdrawAmount = parseEther('50')
+        await pool.connect(alice).flashRepay(msUSD.address, msdVaDAI.address, withdrawAmount, 0)
+
+        // then
+        const {_debtInUsd: debtAfter, _depositInUsd: depositAfter} = await pool.debtPositionOf(alice.address)
+        expect(depositAfter).eq(parseEther('100'))
+        expect(debtAfter).eq(0)
+      })
+    })
   })
 
   describe('when user deposited multi-collateral', function () {
@@ -918,7 +990,7 @@ describe('Pool', function () {
             const tx = pool.connect(liquidator).liquidate(msEth.address, alice.address, amountToRepay, msdMET.address)
 
             // then
-            await expect(tx).revertedWithCustomError(pool, 'AmountIsTooHight')
+            await expect(tx).revertedWithCustomError(pool, 'AmountIsTooHigh')
           })
 
           it('should liquidate by repaying max possible amount (liquidateFee == 0)', async function () {
