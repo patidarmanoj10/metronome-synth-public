@@ -146,11 +146,10 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
             totalSupply_ += _interestAmountAccrued;
             debtIndex = _debtIndex;
 
-            if (syntheticToken.isActive()) {
-                // Note: We could save gas by just increase `pendingInterestFee` here
-                syntheticToken.mint(pool.feeCollector(), _interestAmountAccrued + pendingInterestFee);
+            // Note: Address states where minting will fail (e.g. the token is inactive, it reached max supply, etc)
+            try syntheticToken.mint(pool.feeCollector(), _interestAmountAccrued + pendingInterestFee) {
                 pendingInterestFee = 0;
-            } else {
+            } catch {
                 pendingInterestFee += _interestAmountAccrued;
             }
         }
