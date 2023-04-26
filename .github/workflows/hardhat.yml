@@ -1,4 +1,4 @@
-name: Tests
+name: hardhat tests
 on:
   pull_request:
     paths:
@@ -7,7 +7,7 @@ on:
       - "deploy/**/*.ts"
       - package*.json
       - ".github/env.properties"
-      - ".github/workflows/main.yml"
+      - ".github/workflows/hardhat.yml"
 
 jobs:
   test:

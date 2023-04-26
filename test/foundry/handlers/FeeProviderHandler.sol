@@ -83,9 +83,9 @@ contract FeeProviderHandler is SynthHandlerBase {
     }
 
     function updateLiquidatorIncentive(uint128 fee) public useGovernor countCall("updateLiquidatorIncentive") {
-        fee = uint128(bound(fee, 0.001e18, MAX_FEE));
+        (uint128 liquidatorIncentive, uint128 protocolFee) = feeProvider.liquidationFees();
+        fee = uint128(bound(fee, 0.001e18, MAX_FEE - protocolFee));
 
-        (uint128 liquidatorIncentive, ) = feeProvider.liquidationFees();
         if (fee == liquidatorIncentive) {
             vm.expectRevert();
         }
@@ -94,9 +94,9 @@ contract FeeProviderHandler is SynthHandlerBase {
     }
 
     function updateProtocolLiquidationFee(uint128 fee) public useGovernor countCall("updateProtocolLiquidationFee") {
-        fee = uint128(bound(fee, 0.001e18, MAX_FEE));
+        (uint128 liquidatorIncentive, uint128 protocolFee) = feeProvider.liquidationFees();
+        fee = uint128(bound(fee, 0.001e18, MAX_FEE - liquidatorIncentive));
 
-        (, uint128 protocolFee) = feeProvider.liquidationFees();
         if (fee == protocolFee) {
             vm.expectRevert();
         }
