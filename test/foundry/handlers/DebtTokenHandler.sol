@@ -16,18 +16,6 @@ contract DebtTokenHandler is SynthHandlerBase {
 
     uint256 public debtBurnt;
 
-    modifier useActor(uint256 actorIndexSeed) override {
-        vm.stopPrank();
-        if (actors.length == 0) {
-            actors.push(msg.sender);
-        }
-        currentActor = _getRandActor(actorIndexSeed);
-
-        vm.startPrank(currentActor);
-        _;
-        vm.stopPrank();
-    }
-
     constructor(DebtToken debtToken_) SynthHandlerBase(debtToken_.pool()) {
         debtToken = debtToken_;
         poolRegistry = pool.poolRegistry();

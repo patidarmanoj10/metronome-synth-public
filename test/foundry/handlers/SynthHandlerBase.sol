@@ -19,7 +19,6 @@ contract SynthHandlerBase is HandlerBase {
     MasterOracleMock internal masterOracle;
 
     modifier useGovernor() {
-        vm.stopPrank();
         vm.startPrank(governor);
         _;
         vm.stopPrank();
