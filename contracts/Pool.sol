@@ -53,7 +53,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
     using EnumerableSet for EnumerableSet.AddressSet;
     using MappedEnumerableSet for MappedEnumerableSet.AddressSet;
 
-    string public constant VERSION = "1.1.0";
+    string public constant VERSION = "1.2.0";
 
     /**
      * @notice Maximum tokens per pool a user may have
