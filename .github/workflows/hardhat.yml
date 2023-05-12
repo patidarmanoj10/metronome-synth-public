@@ -26,5 +26,8 @@ jobs:
       - name: Run npm install
         run: npm i
 
+      - name: Run npm run lint
+        run: npm run lint
+
       - name: Running tests
         run: npm t
