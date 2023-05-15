@@ -19,7 +19,6 @@ contract SynthHandlerBase is HandlerBase {
     MasterOracleMock internal masterOracle;
 
     modifier useGovernor() {
-        vm.stopPrank();
         vm.startPrank(governor);
         _;
         vm.stopPrank();
@@ -29,7 +28,8 @@ contract SynthHandlerBase is HandlerBase {
         vm.stopPrank();
         vm.startPrank(address(pool));
         _;
-        vm.stopPrank();
+        // Note: Not stopping here because `usePool` is always used combined with `useActor`
+        // vm.stopPrank();
     }
 
     constructor(IPool pool_) {
