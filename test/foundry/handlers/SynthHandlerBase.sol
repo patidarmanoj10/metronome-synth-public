@@ -28,7 +28,8 @@ contract SynthHandlerBase is HandlerBase {
         vm.stopPrank();
         vm.startPrank(address(pool));
         _;
-        vm.stopPrank();
+        // Note: Not stopping here because `usePool` is always used combined with `useActor`
+        // vm.stopPrank();
     }
 
     constructor(IPool pool_) {

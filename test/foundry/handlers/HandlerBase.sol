@@ -16,7 +16,6 @@ contract HandlerBase is StdCheats, StdUtils, StdAssertions {
     address[] public actors;
 
     modifier useActor(uint256 actorIndexSeed) virtual {
-        vm.stopPrank();
         if (actors.length == 0) {
             actors.push(msg.sender);
         }

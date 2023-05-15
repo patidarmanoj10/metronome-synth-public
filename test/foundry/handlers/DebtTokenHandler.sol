@@ -105,7 +105,7 @@ contract DebtTokenHandler is SynthHandlerBase {
             (uint256 issued, ) = debtToken.flashIssue(address(pool), amountIn);
             syntheticToken.transfer(currentActor, issued);
             vm.stopPrank();
-            vm.prank(currentActor);
+            vm.startPrank(currentActor);
         }
 
         debtToken.repayAll(currentActor);

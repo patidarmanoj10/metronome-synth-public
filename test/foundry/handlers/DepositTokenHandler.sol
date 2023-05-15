@@ -134,7 +134,7 @@ contract DepositTokenHandler is SynthHandlerBase {
         amount = bound(amount, 0, depositToken.balanceOf(from));
 
         vm.stopPrank();
-        vm.prank(address(depositToken.pool()));
+        vm.startPrank(address(depositToken.pool()));
         depositToken.seize(from, to, amount);
     }
 
