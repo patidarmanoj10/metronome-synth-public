@@ -20,6 +20,7 @@ interface UpgradableContractsConfig {
   SyntheticToken: ContractConfig
   DebtToken: ContractConfig
   MetRewardsDistributor: ContractConfig
+  OpRewardsDistributor: ContractConfig
   FeeProvider: ContractConfig
 }
 
@@ -57,6 +58,11 @@ export const UpgradableContracts: UpgradableContractsConfig = {
   DebtToken: {alias: '', contract: 'DebtToken', adminContract: 'DebtTokenUpgrader'},
   MetRewardsDistributor: {
     alias: 'MetRewardsDistributor',
+    contract: 'RewardsDistributor',
+    adminContract: 'RewardsDistributorUpgrader',
+  },
+  OpRewardsDistributor: {
+    alias: 'OpRewardsDistributor',
     contract: 'RewardsDistributor',
     adminContract: 'RewardsDistributorUpgrader',
   },

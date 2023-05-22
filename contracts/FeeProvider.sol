@@ -8,7 +8,6 @@ import "./lib/WadRayMath.sol";
 
 error SenderIsNotGovernor();
 error PoolRegistryIsNull();
-error EscrowMETIsNull();
 error NewValueIsSameAsCurrent();
 error FeeIsGreaterThanTheMax();
 error TierDiscountTooHigh();
@@ -59,7 +58,6 @@ contract FeeProvider is Initializable, FeeProviderStorageV1 {
 
     function initialize(IPoolRegistry poolRegistry_, IESMET esMET_) public initializer {
         if (address(poolRegistry_) == address(0)) revert PoolRegistryIsNull();
-        if (address(esMET_) == address(0)) revert EscrowMETIsNull();
 
         poolRegistry = poolRegistry_;
         esMET = esMET_;
