@@ -20,17 +20,20 @@ function resolveChainId() {
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   const NODE_URL = process.env.NODE_URL!
   if (NODE_URL.includes('eth.connect') || NODE_URL.includes('eth-mainnet')) {
-    return 1
+    return {chainId: 1, deploy: ['deploy/scripts/mainnet']}
   }
   if (NODE_URL.includes('avax')) {
-    return 43114
+    return {chainId: 43114, deploy: ['deploy/scripts/avalanche']}
   }
   if (NODE_URL.includes('bsc')) {
-    return 56
+    return {chainId: 56, deploy: ['deploy/scripts/bsc']}
   }
-  return 31337
+  if (NODE_URL.includes('optimism')) {
+    return {chainId: 10, deploy: ['deploy/scripts/optimism']}
+  }
+  return {chainId: 31337, deploy: ['deploy/scripts/mainnet']}
 }
-const chainId = resolveChainId()
+const {chainId, deploy} = resolveChainId()
 
 const config: HardhatUserConfig = {
   defaultNetwork: 'hardhat',
@@ -39,7 +42,7 @@ const config: HardhatUserConfig = {
       saveDeployments: true,
       autoImpersonate: true,
       chainId,
-      deploy: ['deploy/scripts/mainnet'],
+      deploy,
     },
     hardhat: {
       // Note: Forking is being made from those test suites that need it
@@ -69,6 +72,13 @@ const config: HardhatUserConfig = {
       chainId: 56,
       gas: 8000000,
       deploy: ['deploy/scripts/bsc'],
+      accounts,
+    },
+    optimism: {
+      url: process.env.NODE_URL || '',
+      chainId: 10,
+      gas: 8000000,
+      deploy: ['deploy/scripts/optimism'],
       accounts,
     },
   },

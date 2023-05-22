@@ -47,6 +47,7 @@
     "max-len": ["error", {"code": 120}],
     "semi": ["error", "never"],
     "quotes": ["error", "single"],
-    "arrow-body-style": "off"
+    "arrow-body-style": "off",
+    "sort-keys": "off"
   }
 }
