@@ -6,6 +6,8 @@ import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import "./access/Manageable.sol";
 import "./storage/TreasuryStorage.sol";
+import "./interfaces/external/IVPool.sol";
+import "./interfaces/external/IPoolRewards.sol";
 
 error SenderIsNotDepositToken();
 error AddressIsNull();
@@ -65,5 +67,33 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
         if (to_ == address(0)) revert RecipientIsNull();
         if (amount_ == 0) revert AmountIsZero();
         IDepositToken(msg.sender).underlying().safeTransfer(to_, amount_);
+    }
+
+    /**
+     * @notice Claim and withdraw rewards from Vesper
+     * @param vPool_ The Vesper pool to collect rewards from
+     * @param to_ The transfer recipient
+     */
+    function claimFromVesper(IVPool vPool_, address to_) external onlyGovernor {
+        IPoolRewards _rewards = IPoolRewards(vPool_.poolRewards());
+        _rewards.updateReward(address(this));
+        _rewards.claimReward(address(this));
+
+        address[] memory _rewardTokens = _rewards.getRewardTokens();
+        uint256 _len = _rewardTokens.length;
+        for (uint256 i; i < _len; ++i) {
+            IERC20 _token = IERC20(_rewardTokens[i]);
+            uint256 _amount = _token.balanceOf(address(this));
+
+            // Note: If the reward token is a collateral, transfer the surpass balance only
+            IDepositToken _depositToken = pool.depositTokenOf(_token);
+            if (address(_depositToken) != address(0)) {
+                _amount -= _depositToken.totalSupply();
+            }
+
+            if (_amount > 0) {
+                _token.safeTransfer(to_, _amount);
+            }
+        }
     }
 }

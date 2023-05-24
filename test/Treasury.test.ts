@@ -3,7 +3,7 @@ import {parseEther} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
-import {ERC20Mock, Treasury} from '../typechain'
+import {ERC20Mock, PoolRewardsMock, Treasury} from '../typechain'
 import {setBalance} from '@nomicfoundation/hardhat-network-helpers'
 
 describe('Treasury', function () {
@@ -24,6 +24,7 @@ describe('Treasury', function () {
 
     poolMock = await smock.fake('Pool')
     poolMock.doesDepositTokenExist.returns(true)
+    poolMock.governor.returns(deployer.address)
 
     depositTokenMock = await smock.fake('DepositToken')
     depositTokenMock.underlying.returns(met.address)
@@ -62,6 +63,64 @@ describe('Treasury', function () {
 
       // then
       await expect(tx).changeTokenBalances(met, [treasury, user], [amount.mul('-1'), amount])
+    })
+  })
+
+  describe('claimFromVesper', function () {
+    let vPoolMock: FakeContract
+    let rewardsMock: PoolRewardsMock
+    let token: ERC20Mock
+
+    beforeEach(async function () {
+      const erc20Factory = await ethers.getContractFactory('ERC20Mock', deployer)
+
+      token = await erc20Factory.deploy('Token', 'TKN', 18)
+      await token.deployed()
+
+      depositTokenMock.underlying.returns(token.address)
+
+      const rewardsMockFactory = await ethers.getContractFactory('PoolRewardsMock', deployer)
+      rewardsMock = await rewardsMockFactory.deploy()
+      await rewardsMock.deployed()
+
+      vPoolMock = await smock.fake('IVPool')
+      vPoolMock.poolRewards.returns(rewardsMock.address)
+
+      await rewardsMock.setRewardTokens([token.address])
+
+      await token.mint(rewardsMock.address, parseEther('10'))
+    })
+
+    it('should revert if not governor', async function () {
+      const tx = treasury.connect(user).claimFromVesper(vPoolMock.address, user.address)
+      await expect(tx).revertedWithCustomError(treasury, 'SenderIsNotGovernor')
+    })
+
+    it('should claim and withdraw if non collateral token', async function () {
+      // given
+      expect(await poolMock.depositTokenOf(token.address)).eq(ethers.constants.AddressZero)
+      expect(await token.balanceOf(deployer.address)).eq(0)
+      expect(await token.balanceOf(treasury.address)).eq(0)
+
+      // when
+      await treasury.claimFromVesper(vPoolMock.address, deployer.address)
+
+      // then
+      expect(await token.balanceOf(deployer.address)).eq(parseEther('10'))
+    })
+
+    it('should claim and withdraw if collateral token', async function () {
+      // given
+      poolMock.depositTokenOf.returns(depositTokenMock.address)
+      depositTokenMock.totalSupply.returns(parseEther('100'))
+      await token.mint(treasury.address, parseEther('100'))
+      expect(await token.balanceOf(deployer.address)).eq(0)
+
+      // when
+      await treasury.claimFromVesper(vPoolMock.address, deployer.address)
+
+      // then
+      expect(await token.balanceOf(deployer.address)).eq(parseEther('10'))
     })
   })
 })
