@@ -6,7 +6,6 @@ import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
 import "./storage/PoolStorage.sol";
 import "./lib/WadRayMath.sol";
 import "./utils/Pauseable.sol";
-import "./interfaces/external/IVPool.sol";
 
 error CollateralDoesNotExist();
 error SyntheticDoesNotExist();
