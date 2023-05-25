@@ -18,50 +18,30 @@ import {
   NativeTokenGateway,
   PoolRegistry,
 } from '../typechain'
-// TODO: After the OP deployment, uncomment
-// import {address as POOL_REGISTRY_ADDRESS} from '../deployments/optimism/PoolRegistry.json'
-// import {address as USDC_DEPOSIT_ADDRESS} from '../deployments/optimism/USDCDepositToken.json'
-// import {address as OP_DEPOSIT_ADDRESS} from '../deployments/optimism/OPDepositToken.json'
-// import {address as WETH_DEPOSIT_ADDRESS} from '../deployments/optimism/WETHDepositToken.json'
-// import {address as VAUSDC_DEPOSIT_ADDRESS} from '../deployments/optimism/vaUSDCDepositToken.json'
-// import {address as VAOP_DEPOSIT_ADDRESS} from '../deployments/optimism/vaOPDepositToken.json'
-// import {address as VAETH_DEPOSIT_ADDRESS} from '../deployments/optimism/vaETHDepositToken.json'
-// import {address as VAWSTETH_DEPOSIT_ADDRESS} from '../deployments/optimism/vaWSTETHDepositToken.json'
-// import {address as MSUSD_DEBT_ADDRESS} from '../deployments/optimism/MsUSDDebt.json'
-// import {address as MSOP_DEBT_ADDRESS} from '../deployments/optimism/MsOPDebt.json'
-// import {address as MSETH_DEBT_ADDRESS} from '../deployments/optimism/MsETHDebt.json'
-// import {address as MSUSD_SYNTHETIC_ADDRESS} from '../deployments/optimism/MsUSDSynthetic.json'
-// import {address as MSOP_SYNTHETIC_ADDRESS} from '../deployments/optimism/MsOPSynthetic.json'
-// import {address as MSETH_SYNTHETIC_ADDRESS} from '../deployments/optimism/MsETHSynthetic.json'
-// import {address as NATIVE_TOKEN_GATEWAY_ADDRESS} from '../deployments/optimism/NativeTokenGateway.json'
-// import {address as REWARD_DISTRIBUTOR_ADDRESS} from '../deployments/optimism/RewardsDistributor.json'
+import {address as POOL_REGISTRY_ADDRESS} from '../deployments/optimism/PoolRegistry.json'
+import {address as USDC_DEPOSIT_ADDRESS} from '../deployments/optimism/USDCDepositToken.json'
+import {address as OP_DEPOSIT_ADDRESS} from '../deployments/optimism/OPDepositToken.json'
+import {address as WETH_DEPOSIT_ADDRESS} from '../deployments/optimism/WETHDepositToken.json'
+import {address as VAUSDC_DEPOSIT_ADDRESS} from '../deployments/optimism/vaUSDCDepositToken.json'
+import {address as VAOP_DEPOSIT_ADDRESS} from '../deployments/optimism/vaOPDepositToken.json'
+import {address as VAETH_DEPOSIT_ADDRESS} from '../deployments/optimism/vaETHDepositToken.json'
+import {address as VAWSTETH_DEPOSIT_ADDRESS} from '../deployments/optimism/vaWSTETHDepositToken.json'
+import {address as MSUSD_DEBT_ADDRESS} from '../deployments/optimism/MsUSDDebt.json'
+import {address as MSOP_DEBT_ADDRESS} from '../deployments/optimism/MsOPDebt.json'
+import {address as MSETH_DEBT_ADDRESS} from '../deployments/optimism/MsETHDebt.json'
+import {address as MSUSD_SYNTHETIC_ADDRESS} from '../deployments/optimism/MsUSDSynthetic.json'
+import {address as MSOP_SYNTHETIC_ADDRESS} from '../deployments/optimism/MsOPSynthetic.json'
+import {address as MSETH_SYNTHETIC_ADDRESS} from '../deployments/optimism/MsETHSynthetic.json'
+import {address as NATIVE_TOKEN_GATEWAY_ADDRESS} from '../deployments/optimism/NativeTokenGateway.json'
+import {address as REWARD_DISTRIBUTOR_ADDRESS} from '../deployments/optimism/OpRewardsDistributor.json'
 
 const {MaxUint256} = ethers.constants
 const dust = toUSD('5')
 
 const isNodeHardhat = hre.network.name === 'hardhat'
 
-// Notes:
-// - Since OP isn't deployed yet, this test suite requires local deployment (See `docs/`)
-// - Skipping for now because the tests use mainnet by default
+// Note: Skipping for now because the tests use mainnet by default
 describe.skip('E2E tests - OP', function () {
-  let POOL_REGISTRY_ADDRESS: string
-  let USDC_DEPOSIT_ADDRESS: string
-  let OP_DEPOSIT_ADDRESS: string
-  let WETH_DEPOSIT_ADDRESS: string
-  let VAUSDC_DEPOSIT_ADDRESS: string
-  let VAOP_DEPOSIT_ADDRESS: string
-  let VAETH_DEPOSIT_ADDRESS: string
-  let VAWSTETH_DEPOSIT_ADDRESS: string
-  let MSUSD_DEBT_ADDRESS: string
-  let MSOP_DEBT_ADDRESS: string
-  let MSETH_DEBT_ADDRESS: string
-  let MSUSD_SYNTHETIC_ADDRESS: string
-  let MSOP_SYNTHETIC_ADDRESS: string
-  let MSETH_SYNTHETIC_ADDRESS: string
-  let NATIVE_TOKEN_GATEWAY_ADDRESS: string
-  let REWARD_DISTRIBUTOR_ADDRESS: string
-
   let governor: SignerWithAddress
   let alice: SignerWithAddress
   let bob: SignerWithAddress
@@ -97,24 +77,6 @@ describe.skip('E2E tests - OP', function () {
   }
 
   async function fixture() {
-    // TODO: After the OP deployment, use imports from above
-    POOL_REGISTRY_ADDRESS = (await import('../deployments/localhost/PoolRegistry.json')).address
-    USDC_DEPOSIT_ADDRESS = (await import('../deployments/localhost/USDCDepositToken.json')).address
-    OP_DEPOSIT_ADDRESS = (await import('../deployments/localhost/OPDepositToken.json')).address
-    WETH_DEPOSIT_ADDRESS = (await import('../deployments/localhost/WETHDepositToken.json')).address
-    VAUSDC_DEPOSIT_ADDRESS = (await import('../deployments/localhost/vaUSDCDepositToken.json')).address
-    VAOP_DEPOSIT_ADDRESS = (await import('../deployments/localhost/vaOPDepositToken.json')).address
-    VAETH_DEPOSIT_ADDRESS = (await import('../deployments/localhost/vaETHDepositToken.json')).address
-    VAWSTETH_DEPOSIT_ADDRESS = (await import('../deployments/localhost/vaWSTETHDepositToken.json')).address
-    MSUSD_DEBT_ADDRESS = (await import('../deployments/localhost/MsUSDDebt.json')).address
-    MSOP_DEBT_ADDRESS = (await import('../deployments/localhost/MsOPDebt.json')).address
-    MSETH_DEBT_ADDRESS = (await import('../deployments/localhost/MsETHDebt.json')).address
-    MSUSD_SYNTHETIC_ADDRESS = (await import('../deployments/localhost/MsUSDSynthetic.json')).address
-    MSOP_SYNTHETIC_ADDRESS = (await import('../deployments/localhost/MsOPSynthetic.json')).address
-    MSETH_SYNTHETIC_ADDRESS = (await import('../deployments/localhost/MsETHSynthetic.json')).address
-    NATIVE_TOKEN_GATEWAY_ADDRESS = (await import('../deployments/localhost/NativeTokenGateway.json')).address
-    REWARD_DISTRIBUTOR_ADDRESS = (await import('../deployments/localhost/RewardsDistributor.json')).address
-
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[, alice, bob] = await ethers.getSigners()
 
@@ -194,19 +156,9 @@ describe.skip('E2E tests - OP', function () {
     //
     const tokenOracleMockFactory = await ethers.getContractFactory('TokenOracleMock', masterOracleGovernor)
     const tokenOracleMock = await tokenOracleMockFactory.deploy()
-    await tokenOracleMock.updatePrice(op.address, toUSD('1.80'))
-    await tokenOracleMock.updatePrice(vaUSDC.address, toUSD('1'))
-    await tokenOracleMock.updatePrice(vaETH.address, toUSD('1,800'))
-    await tokenOracleMock.updatePrice(vaOP.address, toUSD('1.90'))
-    await tokenOracleMock.updatePrice(vawstETH.address, toUSD('1,900'))
     await tokenOracleMock.updatePrice(msUSD.address, toUSD('1'))
     await tokenOracleMock.updatePrice(msETH.address, toUSD('1,800'))
     await tokenOracleMock.updatePrice(msOP.address, toUSD('1.80'))
-    await masterOracle.updateTokenOracle(op.address, tokenOracleMock.address)
-    await masterOracle.updateTokenOracle(vaUSDC.address, tokenOracleMock.address)
-    await masterOracle.updateTokenOracle(vaETH.address, tokenOracleMock.address)
-    await masterOracle.updateTokenOracle(vaOP.address, tokenOracleMock.address)
-    await masterOracle.updateTokenOracle(vawstETH.address, tokenOracleMock.address)
     await masterOracle.updateTokenOracle(msUSD.address, tokenOracleMock.address)
     await masterOracle.updateTokenOracle(msETH.address, tokenOracleMock.address)
     await masterOracle.updateTokenOracle(msOP.address, tokenOracleMock.address)
