@@ -150,18 +150,6 @@ describe.skip('E2E tests - OP', function () {
       masterOracleGovernor
     )
     await defaultOracle.updateDefaultStalePeriod(ethers.constants.MaxUint256)
-
-    //
-    // TODO: Remove following lines after Oracle setup completed
-    //
-    const tokenOracleMockFactory = await ethers.getContractFactory('TokenOracleMock', masterOracleGovernor)
-    const tokenOracleMock = await tokenOracleMockFactory.deploy()
-    await tokenOracleMock.updatePrice(msUSD.address, toUSD('1'))
-    await tokenOracleMock.updatePrice(msETH.address, toUSD('1,800'))
-    await tokenOracleMock.updatePrice(msOP.address, toUSD('1.80'))
-    await masterOracle.updateTokenOracle(msUSD.address, tokenOracleMock.address)
-    await masterOracle.updateTokenOracle(msETH.address, tokenOracleMock.address)
-    await masterOracle.updateTokenOracle(msOP.address, tokenOracleMock.address)
   }
 
   beforeEach(async function () {
