@@ -593,7 +593,7 @@ describe('E2E tests', function () {
       it('should leverage varETH->msETH', async function () {
         // when
         const amountIn = parseUnits('1', 18)
-        const amountInUsd = parseUnits('1,950', 18) // approx.
+        const amountInUsd = parseUnits('2,040', 18) // approx.
         const leverage = parseEther('1.5')
         await vaRETH.connect(alice).approve(pool.address, MaxUint256)
         const tx = await pool.leverage(vaRETH.address, msdVaRETH.address, msETH.address, amountIn, leverage, 0)
@@ -631,7 +631,7 @@ describe('E2E tests', function () {
       it('should leverage vacbETH->msETH', async function () {
         // when
         const amountIn = parseUnits('1', 18)
-        const amountInUsd = parseUnits('1,900', 18) // approx.
+        const amountInUsd = parseUnits('1,975', 18) // approx.
         const leverage = parseEther('1.5')
         await vaCBETH.connect(alice).approve(pool.address, MaxUint256)
         const tx = await pool.leverage(vaCBETH.address, msdVaCBETH.address, msETH.address, amountIn, leverage, 0)
