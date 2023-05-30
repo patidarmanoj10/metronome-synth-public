@@ -647,5 +647,29 @@ describe('E2E tests', function () {
         ) // ~$950
       })
     })
+
+    describe('flashRepay', function () {
+      beforeEach(async function () {
+        const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
+        expect(_debtInUsd).eq(0)
+        expect(_depositInUsd).eq(0)
+        const amountIn = parseUnits('100', 18)
+        const leverage = parseEther('1.5')
+        await vaUSDC.connect(alice).approve(pool.address, MaxUint256)
+        await pool.leverage(vaUSDC.address, msdVaUSDC.address, msUSD.address, amountIn, leverage, 0)
+      })
+
+      it('should flash repay msUSD debt using vaUSDC', async function () {
+        // when
+        const withdrawAmount = parseEther('49')
+        const tx = await pool.flashRepay(msUSD.address, msdVaUSDC.address, withdrawAmount, 0)
+
+        // then
+        const {gasUsed} = await tx.wait()
+        expect(gasUsed.lt(1e6))
+        const {_debtInUsd} = await pool.debtPositionOf(alice.address)
+        expect(_debtInUsd).closeTo(0, parseEther('5'))
+      })
+    })
   })
 })
