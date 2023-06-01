@@ -44,7 +44,7 @@ const dust = toUSD('5')
 
 const isNodeHardhat = hre.network.name === 'hardhat'
 
-describe('E2E tests', function () {
+describe('E2E tests (mainnet)', function () {
   let governor: SignerWithAddress
   let alice: SignerWithAddress
   let bob: SignerWithAddress
@@ -110,7 +110,7 @@ describe('E2E tests', function () {
     nativeGateway = await ethers.getContractAt('NativeTokenGateway', NATIVE_TOKEN_GATEWAY_ADDRESS, alice)
 
     const [pool1Address] = await poolRegistry.getPools()
-    pool = await ethers.getContractAt('Pool', pool1Address, alice)
+    pool = await ethers.getContractAt('contracts/Pool.sol:Pool', pool1Address, alice)
 
     msdUSDC = await ethers.getContractAt('DepositToken', USDC_DEPOSIT_ADDRESS, alice) // 6 decimals.
     msdDAI = await ethers.getContractAt('DepositToken', DAI_DEPOSIT_ADDRESS, alice) // 18 decimals

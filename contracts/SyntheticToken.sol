@@ -24,6 +24,7 @@ error ApproveToTheZeroAddress();
 error BurnFromTheZeroAddress();
 error BurnAmountExceedsBalance();
 error MintToTheZeroAddress();
+error SurpassMaxBridgingBalance();
 error SurpassMaxSynthSupply();
 error TransferFromTheZeroAddress();
 error TransferToTheZeroAddress();
@@ -56,7 +57,7 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
      * @dev Throws if sender can't burn
      */
     modifier onlyIfCanBurn() {
-        if (!_isMsgSenderPool() && !_isMsgSenderDebtToken()) revert SenderCanNotBurn();
+        if (!_isMsgSenderProxyOFT() && !_isMsgSenderPool() && !_isMsgSenderDebtToken()) revert SenderCanNotBurn();
         _;
     }
 
@@ -64,7 +65,7 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
      * @dev Throws if sender can't mint
      */
     modifier onlyIfCanMint() {
-        if (!_isMsgSenderPool() && !_isMsgSenderDebtToken()) revert SenderCanNotMint();
+        if (!_isMsgSenderProxyOFT() && !_isMsgSenderPool() && !_isMsgSenderDebtToken()) revert SenderCanNotMint();
         _;
     }
 
@@ -199,6 +200,10 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
     function _burn(address account_, uint256 amount_) private {
         if (account_ == address(0)) revert BurnFromTheZeroAddress();
 
+        if (_isMsgSenderProxyOFT()) {
+            totalBridgedOut += amount_;
+        }
+
         uint256 _currentBalance = balanceOf[account_];
         if (_currentBalance < amount_) revert BurnAmountExceedsBalance();
         unchecked {
@@ -207,6 +212,11 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
         }
 
         emit Transfer(account_, address(0), amount_);
+    }
+
+    // TODO: Comment
+    function _isMsgSenderProxyOFT() private view returns (bool) {
+        return msg.sender == address(proxyOFT);
     }
 
     /**
@@ -234,6 +244,18 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
      */
     function _mint(address account_, uint256 amount_) private onlyIfSyntheticTokenIsActive {
         if (account_ == address(0)) revert MintToTheZeroAddress();
+
+        if (_isMsgSenderProxyOFT()) {
+            totalBridgedIn += amount_;
+
+            uint256 _totalBridgedIn = totalBridgedIn;
+            uint256 _totalBridgedOut = totalBridgedOut;
+            uint256 _bridgingBalance = _totalBridgedIn > _totalBridgedOut
+                ? _totalBridgedIn - _totalBridgedOut
+                : _totalBridgedOut - _totalBridgedIn;
+
+            if (_bridgingBalance > maxBridgingBalance) revert SurpassMaxBridgingBalance();
+        }
 
         totalSupply += amount_;
         if (totalSupply > maxTotalSupply) revert SurpassMaxSynthSupply();
@@ -276,5 +298,17 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
         if (newMaxTotalSupply_ == _currentMaxTotalSupply) revert NewValueIsSameAsCurrent();
         emit MaxTotalSupplyUpdated(_currentMaxTotalSupply, newMaxTotalSupply_);
         maxTotalSupply = newMaxTotalSupply_;
+    }
+
+    // TODO: Comment and emit event
+    function updateMaxBridgingBalance(uint256 newMaxBridgingBalance_) external /*override*/ onlyGovernor {
+        // emit MaxBridgingBalanceUpdated(maxBridgingBalance, newMaxBridgingBalance_);
+        maxBridgingBalance = newMaxBridgingBalance_;
+    }
+
+    // TODO: Comment and emit event
+    function updateProxyOFT(IProxyOFT newProxyOFT_) external /*override*/ onlyGovernor {
+        // emit ProxyOFTUpdated(_currentProxyOFT, newProxyOFT_);
+        proxyOFT = newProxyOFT_;
     }
 }

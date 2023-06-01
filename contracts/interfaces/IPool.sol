@@ -65,6 +65,17 @@ interface IPool is IPauseable, IGovernable {
             uint256 _issuableInUsd
         );
 
+    function layer2Leverage(
+        IERC20 tokenIn_,
+        IDepositToken depositToken_,
+        ISyntheticToken syntheticToken_,
+        uint256 amountIn_,
+        uint256 leverage_,
+        uint256 depositAmountMin_
+    ) external payable returns (uint256 _issued);
+
+    function layer2LeverageCallback(uint256 id_, uint256 swapAmountOut_) external returns (uint256 _deposited);
+
     function leverage(
         IERC20 tokenIn_,
         IDepositToken depositToken_,

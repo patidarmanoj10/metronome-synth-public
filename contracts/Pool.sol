@@ -41,11 +41,15 @@ error TotalSupplyIsNotZero();
 error NewValueIsSameAsCurrent();
 error FeeIsGreaterThanTheMax();
 error MaxLiquidableTooHigh();
+error Layer2LeverageInvalidKey();
+error SenderIsNotProxyOFT();
+error NotAvailableOnThisChain();
+error Layer2LeverageCompletedAlready();
 
 /**
  * @title Pool contract
  */
-contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
+contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
     using SafeERC20 for IERC20;
     using SafeERC20 for ISyntheticToken;
     using WadRayMath for uint256;
@@ -76,6 +80,11 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
 
     /// @notice Emitted when fee provider contract is updated
     event FeeProviderUpdated(IFeeProvider indexed oldFeeProvider, IFeeProvider indexed newFeeProvider);
+
+    // TODO: Comment
+    event Layer2LeverageStarted(uint256 indexed id);
+    event Layer2LeverageFinished(uint256 indexed id);
+    //event Layer2LeverageFailed(uint256 indexed id); (?)
 
     /// @notice Emitted when maxLiquidable (liquidation cap) is updated
     event MaxLiquidableUpdated(uint256 oldMaxLiquidable, uint256 newMaxLiquidable);
@@ -154,6 +163,15 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
      */
     modifier onlyIfMsgSenderIsDepositToken() {
         if (!doesDepositTokenExist(IDepositToken(msg.sender))) revert SenderIsNotDepositToken();
+        _;
+    }
+
+    // TODO: Comment
+    modifier onlyIfProxyOFT() {
+        ISyntheticToken _syntheticToken = ISyntheticToken(IProxyOFT(msg.sender).token());
+        if (!doesSyntheticTokenExist(_syntheticToken) || address(_syntheticToken.proxyOFT()) != msg.sender) {
+            revert SenderIsNotProxyOFT();
+        }
         _;
     }
 
@@ -246,6 +264,14 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
         // 4. check the health of the outcome position
         (bool _isHealthy, , , , ) = debtPositionOf(msg.sender);
         if (!_isHealthy) revert PositionIsNotHealthy();
+    }
+
+    function layer2FlashRepay() external {
+        // TODO
+    }
+
+    function layer2FlashRepayCallback() external {
+        // TODO
     }
 
     /**
@@ -535,6 +561,35 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
         }
     }
 
+    // TODO: Comment
+    function _collateralTransferFrom(
+        address from_,
+        ISwapper swapper_,
+        IERC20 tokenIn_,
+        IERC20 _collateral,
+        uint256 amountIn_
+    ) private returns (uint256 _transferredAmount) {
+        if (address(tokenIn_) == address(0)) tokenIn_ = _collateral;
+        tokenIn_.safeTransferFrom(from_, address(this), amountIn_);
+        if (tokenIn_ != _collateral) {
+            // Note: `amountOutMin_` is `0` because slippage will be checked later on
+            return _swap(swapper_, tokenIn_, _collateral, amountIn_, 0);
+        }
+        return amountIn_;
+    }
+
+    // TODO: Comment
+    // TODO: See if fits https://github.com/autonomoussoftware/metronome-synth/issues/798
+    function _calculateLeverageDebtAmount(
+        IERC20 _collateral,
+        ISyntheticToken syntheticToken_,
+        uint256 amountIn_,
+        uint256 leverage_
+    ) private view returns (uint256 _debtAmount) {
+        return
+            masterOracle().quote(address(_collateral), address(syntheticToken_), (leverage_ - 1e18).wadMul(amountIn_));
+    }
+
     /**
      * @notice Leverage yield position
      * @param tokenIn_ The token to transfer
@@ -560,25 +615,21 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
         onlyIfSyntheticTokenExists(syntheticToken_)
         returns (uint256 _deposited, uint256 _issued)
     {
+        if (block.chainid != 1) revert NotAvailableOnThisChain();
         if (leverage_ <= 1e18) revert LeverageTooLow();
         if (leverage_ > uint256(1e18).wadDiv(1e18 - depositToken_.collateralFactor())) revert LeverageTooHigh();
+
         ISwapper _swapper = swapper;
 
         // 1. transfer collateral
         IERC20 _collateral = depositToken_.underlying();
-        if (address(tokenIn_) == address(0)) tokenIn_ = _collateral;
-        tokenIn_.safeTransferFrom(msg.sender, address(this), amountIn_);
-        if (tokenIn_ != _collateral) {
-            amountIn_ = _swap(_swapper, tokenIn_, _collateral, amountIn_, 0);
-        }
+        amountIn_ = _collateralTransferFrom(msg.sender, _swapper, tokenIn_, _collateral, amountIn_);
 
-        // 2. mint synth
-        uint256 _debtAmount = masterOracle().quote(
-            address(_collateral),
-            address(syntheticToken_),
-            (leverage_ - 1e18).wadMul(amountIn_)
-        );
-        (_issued, ) = debtTokenOf[syntheticToken_].flashIssue(msg.sender, _debtAmount);
+        // 2. mint synth + debt
+        uint256 _debtAmount = _calculateLeverageDebtAmount(_collateral, syntheticToken_, amountIn_, leverage_);
+        IDebtToken _debtToken = debtTokenOf[syntheticToken_];
+        (_issued, ) = _debtToken.flashIssue(address(this), _debtAmount);
+        _debtToken.mint(msg.sender, _debtAmount);
 
         // 3. swap synth for collateral
         uint256 _depositAmount = amountIn_ + _swap(_swapper, syntheticToken_, _collateral, _issued, 0);
@@ -592,6 +643,120 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
         // 5. check the health of the outcome position
         (bool _isHealthy, , , , ) = debtPositionOf(msg.sender);
         if (!_isHealthy) revert PositionIsNotHealthy();
+    }
+
+    // Note: The quotation may change from a block to block, and, since user will call this before
+    // broadcasting the actual leverage tx, the tx may fail if fee rises in the meanwhile
+    // to avoid that, user may send a bit more (e.g. _nativeFee * 110%) and get refund.
+    // TODO: Which is better? Make quote function to return slightly more or let the UI handle this?
+    function quoteLayer2LeverageNativeFee(
+        IDepositToken depositToken_,
+        ISyntheticToken syntheticToken_,
+        uint256 amountIn_,
+        uint256 depositAmountMin_
+    ) external view returns (uint256 _nativeFee) {
+        return
+            syntheticToken_.proxyOFT().quoteSwapAndCallbackNativeFee({
+                l2Pool_: address(this),
+                tokenIn_: address(syntheticToken_),
+                tokenOut_: address(depositToken_.underlying()),
+                amountIn_: amountIn_,
+                amountOutMin_: depositAmountMin_ > amountIn_ ? depositAmountMin_ - amountIn_ : 0
+            });
+    }
+
+    function layer2Leverage(
+        IERC20 tokenIn_,
+        IDepositToken depositToken_,
+        ISyntheticToken syntheticToken_,
+        uint256 amountIn_,
+        uint256 leverage_,
+        uint256 depositAmountMin_
+    )
+        external
+        payable
+        override
+        whenNotShutdown
+        nonReentrant
+        onlyIfDepositTokenExists(depositToken_)
+        onlyIfSyntheticTokenExists(syntheticToken_)
+        returns (uint256 _issued)
+    {
+        if (block.chainid == 1) revert NotAvailableOnThisChain();
+        if (leverage_ <= 1e18) revert LeverageTooLow();
+        if (leverage_ > uint256(1e18).wadDiv(1e18 - depositToken_.collateralFactor())) revert LeverageTooHigh();
+
+        // 1. transfer collateral
+        IERC20 _collateral = depositToken_.underlying();
+        amountIn_ = _collateralTransferFrom(msg.sender, swapper, tokenIn_, _collateral, amountIn_);
+
+        // 2. mint synth
+        (_issued, ) = debtTokenOf[syntheticToken_].flashIssue(
+            address(syntheticToken_.proxyOFT()), // Note: Issue to `proxyOFT` to save transfer gas
+            _calculateLeverageDebtAmount(_collateral, syntheticToken_, amountIn_, leverage_)
+        );
+
+        // 3. store request
+        uint256 _id = layer2LeverageId++;
+
+        layer2Leverages[_id] = Layer2Leverage({
+            depositToken: depositToken_,
+            syntheticToken: syntheticToken_,
+            collateralAmountIn: amountIn_,
+            depositAmountMin: depositAmountMin_,
+            syntheticTokenIssued: _issued,
+            collateralDeposited: 0,
+            account: msg.sender,
+            finished: false
+        });
+
+        // 4. trigger swap
+        syntheticToken_.proxyOFT().swapAndCallback{value: msg.value}({
+            id_: _id,
+            refundAddress_: payable(msg.sender),
+            tokenIn_: address(syntheticToken_),
+            tokenOut_: address(_collateral),
+            amountIn_: _issued,
+            amountOutMin: depositAmountMin_ > amountIn_ ? depositAmountMin_ - amountIn_ : 0
+        });
+
+        emit Layer2LeverageStarted(_id);
+    }
+
+    // TODO
+    //  - Comment
+    //  - Reuse code from `leverage()`?
+    //  - Should we have some kind of timeout?
+    function layer2LeverageCallback(
+        uint256 id_,
+        uint256 swapAmountOut_
+    ) external override whenNotShutdown nonReentrant onlyIfProxyOFT returns (uint256 _deposited) {
+        Layer2Leverage memory _leverage = layer2Leverages[id_];
+
+        if (_leverage.account == address(0)) revert Layer2LeverageInvalidKey();
+        if (msg.sender != address(_leverage.syntheticToken.proxyOFT())) revert SenderIsNotProxyOFT();
+        if (_leverage.finished) revert Layer2LeverageCompletedAlready();
+        uint256 _depositAmount = _leverage.collateralAmountIn + swapAmountOut_;
+        if (_depositAmount < _leverage.depositAmountMin) revert LeverageSlippageTooHigh();
+
+        layer2Leverages[id_].collateralDeposited = _depositAmount;
+        layer2Leverages[id_].finished = true;
+
+        // 1. deposit collateral
+        IERC20 _collateral = _leverage.depositToken.underlying();
+        _collateral.transferFrom(msg.sender, address(this), swapAmountOut_);
+        _collateral.safeApprove(address(_leverage.depositToken), 0);
+        _collateral.safeApprove(address(_leverage.depositToken), _depositAmount);
+        (_deposited, ) = _leverage.depositToken.deposit(_depositAmount, _leverage.account);
+
+        // 2. mint debt
+        debtTokenOf[_leverage.syntheticToken].mint(_leverage.account, _leverage.syntheticTokenIssued);
+
+        // 3. check the health of the outcome position
+        (bool _isHealthy, , , , ) = debtPositionOf(_leverage.account);
+        if (!_isHealthy) revert PositionIsNotHealthy();
+
+        emit Layer2LeverageFinished(id_);
     }
 
     /**

@@ -98,6 +98,21 @@ contract PoolMock is IPool, Governable, Pauseable {
         revert("mock-does-not-implement");
     }
 
+    function layer2Leverage(
+        IERC20,
+        IDepositToken,
+        ISyntheticToken,
+        uint256,
+        uint256,
+        uint256
+    ) external payable override returns (uint256) {
+        revert("mock-does-not-implement");
+    }
+
+    function layer2LeverageCallback(uint256, uint256) external pure returns (uint256) {
+        revert("mock-does-not-implement");
+    }
+
     function leverage(
         IERC20,
         IDepositToken,

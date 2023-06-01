@@ -22,7 +22,7 @@ describe('Treasury', function () {
     met = await metFactory.deploy('Metronome', 'MET', 18)
     await met.deployed()
 
-    poolMock = await smock.fake('Pool')
+    poolMock = await smock.fake('contracts/Pool.sol:Pool')
     poolMock.doesDepositTokenExist.returns(true)
     poolMock.governor.returns(deployer.address)
 

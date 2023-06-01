@@ -235,19 +235,27 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
             revert NotEnoughCollateral();
         }
 
-        return _issue(_pool, _masterOracle, _syntheticToken, msg.sender, amount_, to_);
+        _mint(_pool, _masterOracle, msg.sender, amount_);
+
+        (_issued, _fee) = quoteIssueOut(amount_);
+        if (_fee > 0) {
+            _syntheticToken.mint(_pool.feeCollector(), _fee);
+        }
+        _syntheticToken.mint(to_, _issued);
+
+        emit SyntheticTokenIssued(msg.sender, to_, amount_, _issued, _fee);
     }
 
     /**
      * @notice Issue synth without checking collateral
      * @dev The healthy of outcome position must be done afterhand
-     * @param borrower_ The debtor account
+     * @param to_ The beneficiary account
      * @param amount_ The amount to mint
      * @return _issued The amount issued after fees
      * @return _fee The fee amount collected
      */
     function flashIssue(
-        address borrower_,
+        address to_,
         uint256 amount_
     )
         external
@@ -261,11 +269,19 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
     {
         if (amount_ == 0) revert AmountIsZero();
 
-        accrueInterest();
+        accrueInterest(); // TODO: Review to see if it's needed here
 
-        IPool _pool = pool;
+        ISyntheticToken _syntheticToken = syntheticToken;
 
-        return _issue(_pool, _pool.masterOracle(), syntheticToken, borrower_, amount_, msg.sender);
+        (_issued, _fee) = quoteIssueOut(amount_);
+        if (_fee > 0) {
+            _syntheticToken.mint(pool.feeCollector(), _fee);
+        }
+        _syntheticToken.mint(to_, _issued);
+
+        // TODO: Which event to emit?
+        // `SyntheticTokenIssued` is emitted when end-user calls `issue()`, assuming 1:1 feature:event relation,
+        // The better is to not any emit here but from `Pool.leverage()`
     }
 
     /**
@@ -273,6 +289,26 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
      */
     function interestRatePerSecond() public view override returns (uint256) {
         return interestRate / SECONDS_PER_YEAR;
+    }
+
+    // TODO: Comment
+    function mint(
+        address to_,
+        uint256 amount_
+    )
+        external
+        override
+        onlyIfPool
+        whenNotShutdown
+        nonReentrant
+        onlyIfSyntheticTokenExists
+        onlyIfSyntheticTokenIsActive
+    {
+        accrueInterest(); // TODO: Review to see if it's needed here
+
+        IPool _pool = pool;
+
+        _mint(_pool, _pool.masterOracle(), to_, amount_);
     }
 
     /**
@@ -495,53 +531,27 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
     }
 
     /**
-     * @notice Internal function for mint synthetic token
-     * @dev Not getting contracts from storage in order to save gas
-     * @param pool_ The pool
-     * @param masterOracle_  The oracle
-     * @param syntheticToken_ The synthetic token
-     * @param borrower_ The debtor account
-     * @param amount_ The amount to mint
-     * @param to_ The beneficiary account
-     * @return _issued The amount issued after fees
-     * @return _fee The fee amount collected
-     */
-    function _issue(
-        IPool pool_,
-        IMasterOracle masterOracle_,
-        ISyntheticToken syntheticToken_,
-        address borrower_,
-        uint256 amount_,
-        address to_
-    ) private returns (uint256 _issued, uint256 _fee) {
-        uint256 _debtFloorInUsd = pool_.debtFloorInUsd();
-
-        if (
-            _debtFloorInUsd > 0 &&
-            masterOracle_.quoteTokenToUsd(address(syntheticToken), balanceOf(borrower_) + amount_) < _debtFloorInUsd
-        ) {
-            revert DebtLowerThanTheFloor();
-        }
-
-        (_issued, _fee) = quoteIssueOut(amount_);
-        if (_fee > 0) {
-            syntheticToken_.mint(pool_.feeCollector(), _fee);
-        }
-
-        syntheticToken_.mint(to_, _issued);
-        _mint(borrower_, amount_);
-
-        emit SyntheticTokenIssued(borrower_, to_, amount_, _issued, _fee);
-    }
-
-    /**
      * @notice Create `amount` tokens and assigns them to `account`, increasing
      * the total supply
      */
-    function _mint(address account_, uint256 amount_) private updateRewardsBeforeMintOrBurn(account_) {
+    // TODO: Update comment
+    function _mint(
+        IPool pool_,
+        IMasterOracle masterOracle_,
+        address account_,
+        uint256 amount_
+    ) private updateRewardsBeforeMintOrBurn(account_) {
         if (account_ == address(0)) revert MintToNullAddress();
 
+        uint256 _debtFloorInUsd = pool_.debtFloorInUsd();
         uint256 _balanceBefore = balanceOf(account_);
+
+        if (
+            _debtFloorInUsd > 0 &&
+            masterOracle_.quoteTokenToUsd(address(syntheticToken), _balanceBefore + amount_) < _debtFloorInUsd
+        ) {
+            revert DebtLowerThanTheFloor();
+        }
 
         totalSupply_ += amount_;
         if (totalSupply_ > maxTotalSupply) revert SurpassMaxDebtSupply();

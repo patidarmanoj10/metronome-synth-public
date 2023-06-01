@@ -34,7 +34,7 @@ describe('RewardDistributor', function () {
     vsp = await erc20MockFactory.deploy('VesperToken', 'VSP', 18)
     await vsp.deployed()
 
-    pool = await smock.fake('Pool')
+    pool = await smock.fake('contracts/Pool.sol:Pool')
     debtToken1 = await smock.fake('DebtToken')
     msdTOKEN1 = await smock.fake('DepositToken')
     debtToken2 = await smock.fake('DebtToken')

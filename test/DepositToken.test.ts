@@ -61,7 +61,7 @@ describe('DepositToken', function () {
     metDepositToken = await depositTokenFactory.deploy()
     await metDepositToken.deployed()
 
-    poolMock = await smock.fake<Pool>('Pool')
+    poolMock = await smock.fake<Pool>('contracts/Pool.sol:Pool')
     await setBalance(poolMock.address, parseEther('10'))
     poolMock.masterOracle.returns(masterOracle.address)
     poolMock.governor.returns(governor.address)

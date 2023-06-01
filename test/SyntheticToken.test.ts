@@ -19,6 +19,7 @@ import {setBalance} from '@nomicfoundation/hardhat-network-helpers'
 
 const {MaxUint256} = ethers.constants
 
+// TODO: Add test cases covering bridge-related logic
 describe('SyntheticToken', function () {
   let deployer: SignerWithAddress
   let governor: SignerWithAddress

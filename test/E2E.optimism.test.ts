@@ -41,7 +41,7 @@ const dust = toUSD('5')
 const isNodeHardhat = hre.network.name === 'hardhat'
 
 // Note: Skipping for now because the tests use mainnet by default
-describe.skip('E2E tests - OP', function () {
+describe.skip('E2E tests (optimism)', function () {
   let governor: SignerWithAddress
   let alice: SignerWithAddress
   let bob: SignerWithAddress

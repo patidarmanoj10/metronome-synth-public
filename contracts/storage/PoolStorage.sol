@@ -99,3 +99,24 @@ abstract contract PoolStorageV2 is PoolStorageV1 {
      */
     EnumerableSet.AddressSet internal rewardsDistributors;
 }
+
+abstract contract PoolStorageV3 is PoolStorageV2 {
+    // TODO: Comment
+    // TODO: Move to `IPool` ?
+    struct Layer2Leverage {
+        IDepositToken depositToken;
+        ISyntheticToken syntheticToken;
+        uint256 collateralAmountIn;
+        uint256 depositAmountMin;
+        uint256 syntheticTokenIssued;
+        uint256 collateralDeposited;
+        address account;
+        bool finished; // Use status instead? STARTED|FINISHED|FAILED
+    }
+
+    // TODO: Comment
+    mapping(uint256 => Layer2Leverage) public layer2Leverages;
+
+    // TODO: Comment
+    uint256 public layer2LeverageId;
+}

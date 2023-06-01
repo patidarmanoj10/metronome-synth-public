@@ -21,7 +21,7 @@ describe('PoolRegistry', function () {
     masterOracleMock = await masterOracleMockFactory.deploy()
     await masterOracleMock.deployed()
 
-    pool = await smock.fake('Pool')
+    pool = await smock.fake('contracts/Pool.sol:Pool')
 
     const poolRegistryFactory = await ethers.getContractFactory('PoolRegistry', deployer)
     poolRegistry = await poolRegistryFactory.deploy()

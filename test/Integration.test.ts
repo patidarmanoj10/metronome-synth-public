@@ -24,7 +24,7 @@ async function fixture() {
   const [deployer, feeCollector, alice, bob] = await ethers.getSigners()
 
   const poolRegistryFactory = await ethers.getContractFactory('PoolRegistry', deployer)
-  const poolFactory = await ethers.getContractFactory('Pool', deployer)
+  const poolFactory = await ethers.getContractFactory('contracts/Pool.sol:Pool', deployer)
   const masterOracleFactory = await ethers.getContractFactory('MasterOracleMock', deployer)
   const treasuryFactory = await ethers.getContractFactory('Treasury', deployer)
   const depositTokenFactory = await ethers.getContractFactory('DepositToken', deployer)

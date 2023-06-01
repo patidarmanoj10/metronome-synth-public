@@ -5,6 +5,7 @@ pragma solidity 0.8.9;
 import "../dependencies/openzeppelin/token/ERC20/extensions/IERC20Metadata.sol";
 import "./IDebtToken.sol";
 import "./IPoolRegistry.sol";
+import "../interfaces/IProxyOFT.sol";
 
 interface ISyntheticToken is IERC20Metadata {
     function isActive() external view returns (bool);
@@ -22,4 +23,6 @@ interface ISyntheticToken is IERC20Metadata {
     function updateMaxTotalSupply(uint256 newMaxTotalSupply_) external;
 
     function maxTotalSupply() external view returns (uint256);
+
+    function proxyOFT() external view returns (IProxyOFT);
 }

@@ -127,7 +127,7 @@ describe('Pool', function () {
     feeProvider = await feeProviderFactory.deploy()
     await feeProvider.deployed()
 
-    const poolFactory = await ethers.getContractFactory('Pool', deployer)
+    const poolFactory = await ethers.getContractFactory('contracts/Pool.sol:Pool', deployer)
     pool = await poolFactory.deploy()
     await pool.deployed()
 

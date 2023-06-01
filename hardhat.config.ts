@@ -53,6 +53,7 @@ const config: HardhatUserConfig = {
       saveDeployments: true,
       accounts,
       chainId,
+      allowUnlimitedContractSize: true,
     },
     mainnet: {
       url: process.env.NODE_URL,
@@ -118,7 +119,7 @@ const config: HardhatUserConfig = {
     apiKey: process.env.ETHERSCAN_API_KEY,
   },
   spdxLicenseIdentifier: {
-    overwrite: true,
+    overwrite: false,
     runOnCompile: true,
   },
   typechain: {
