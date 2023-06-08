@@ -40,3 +40,7 @@ abstract contract RewardsDistributorStorageV1 is IRewardsDistributor {
      */
     mapping(address => uint256) public override tokensAccruedOf;
 }
+
+abstract contract RewardsDistributorStorageV2 is RewardsDistributorStorageV1 {
+    address public tokenSpeedKeeper;
+}

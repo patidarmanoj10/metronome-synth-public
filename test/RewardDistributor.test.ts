@@ -23,6 +23,8 @@ describe('RewardDistributor', function () {
   let debtToken2: FakeContract
   let msdTOKEN2: FakeContract
   let rewardDistributor: RewardsDistributor
+  let vPool: FakeContract
+  let poolRewards: FakeContract
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
@@ -55,6 +57,48 @@ describe('RewardDistributor', function () {
     pool.doesSyntheticTokenExist.returns(true)
     pool.governor.returns(deployer.address)
     pool.getRewardsDistributors.returns([rewardDistributor.address])
+  })
+
+  describe('syncTokenSpeed', function () {
+    const rewardRates = parseEther('3')
+    const treasuryBalance = parseEther('100')
+    const totalSupply = parseEther('200')
+    beforeEach(async function () {
+      vPool = await smock.fake('IVPool')
+      poolRewards = await smock.fake('IPoolRewardsExt')
+
+      msdTOKEN1.underlying.returns(vPool.address)
+      vPool.poolRewards.returns(poolRewards.address)
+      vPool.balanceOf.returns(treasuryBalance)
+      vPool.totalSupply.returns(totalSupply)
+      poolRewards.rewardRates.returns(rewardRates)
+    })
+
+    it('should revert if not keeper', async function () {
+      // given
+      await rewardDistributor.updateTokenSpeedKeeper(alice.address)
+
+      // when
+      const tx = rewardDistributor.connect(bob).syncTokenSpeed(msdTOKEN1.address)
+
+      // then
+      await expect(tx).revertedWithCustomError(rewardDistributor, 'NotTokenSpeedKeeper')
+    })
+
+    it('should sync speed', async function () {
+      // given
+      await rewardDistributor.updateTokenSpeedKeeper(alice.address)
+      const before = parseEther('1')
+      await rewardDistributor.updateTokenSpeed(msdTOKEN1.address, before)
+
+      // when
+      await rewardDistributor.connect(alice).syncTokenSpeed(msdTOKEN1.address)
+
+      // then
+      const newSpeed = rewardRates.mul(treasuryBalance).div(totalSupply)
+      const after = await rewardDistributor.tokenSpeeds(msdTOKEN1.address)
+      expect(after).eq(newSpeed)
+    })
   })
 
   describe('updateTokenSpeed', function () {
