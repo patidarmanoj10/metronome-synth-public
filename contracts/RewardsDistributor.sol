@@ -10,6 +10,17 @@ import "./interfaces/IDepositToken.sol";
 import "./access/Manageable.sol";
 import "./storage/RewardsDistributorStorage.sol";
 import "./lib/WadRayMath.sol";
+import "./interfaces/external/IVPool.sol";
+import "./interfaces/external/IPoolRewards.sol";
+
+/// @notice Updated to IPoolRewards will trigger treasury upgrade and we want to avoid it.
+/// Hence defining new interface here.
+interface IPoolRewardsExt is IPoolRewards {
+    function rewardRates(address rewardToken_) external returns (uint256);
+}
+
+error AddressIsNull();
+error NotTokenSpeedKeeper();
 
 error DistributorDoesNotExist();
 error InvalidToken();
@@ -20,7 +31,7 @@ error ArraysLengthDoNotMatch();
 /**
  * @title RewardsDistributor contract
  */
-contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorStorageV1 {
+contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorStorageV2 {
     using SafeERC20 for IERC20;
     using SafeCast for uint256;
     using WadRayMath for uint256;
@@ -298,5 +309,23 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
         for (uint256 i; i < _tokensLength; ++i) {
             _updateTokenSpeed(tokens_[i], speeds_[i]);
         }
+    }
+
+    //********************************  TokenSpeed and RewardRate sync fix ***********************************/
+    /// @notice This is temporary fix to keep tokenSpeed and rewardRate from Vesper in sync.
+    function syncTokenSpeed(IDepositToken depositToken_) external {
+        if (msg.sender != tokenSpeedKeeper) revert NotTokenSpeedKeeper();
+
+        IVPool _vPool = IVPool(address(depositToken_.underlying()));
+        IPoolRewardsExt _rewards = IPoolRewardsExt(_vPool.poolRewards());
+        uint256 _speed = (_rewards.rewardRates(address(rewardToken)) * _vPool.balanceOf(address(pool.treasury()))) /
+            _vPool.totalSupply();
+        _updateTokenSpeed(IERC20(address(depositToken_)), _speed);
+    }
+
+    /// @notice This function is part of temporary fix to keep tokenSpeed and rewardRate in sync.
+    function updateTokenSpeedKeeper(address keeper_) external onlyGovernor {
+        if (keeper_ == address(0)) revert AddressIsNull();
+        tokenSpeedKeeper = keeper_;
     }
 }
