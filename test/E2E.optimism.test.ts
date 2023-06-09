@@ -192,7 +192,7 @@ describe.skip('E2E tests - OP', function () {
     })
   })
 
-  describe('synth mainnet end to end sanity tests', function () {
+  describe('synth optimism end to end sanity tests', function () {
     it('should deposit USDC', async function () {
       // given
       const amount = parseUnits('1', 6)
@@ -425,15 +425,15 @@ describe.skip('E2E tests - OP', function () {
       expect(depositAfter).closeTo(0, dust)
     })
 
-    // TODO: Waiting for Swapper routings setup
-    describe.skip('leverage', function () {
+    // TODO some tests are skipped as there is no liquidity
+    describe('leverage', function () {
       beforeEach(async function () {
         const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
         expect(_debtInUsd).eq(0)
         expect(_depositInUsd).eq(0)
       })
 
-      it('should leverage vaUSDC->msUSD', async function () {
+      it.skip('should leverage vaUSDC->msUSD', async function () {
         // when
         const amountIn = parseUnits('100', 18)
         const leverage = parseEther('1.5')
@@ -448,7 +448,7 @@ describe.skip('E2E tests - OP', function () {
         expect(_debtInUsd).closeTo(amountIn.mul(leverage.sub(parseEther('1'))).div(parseEther('1')), parseEther('10')) // ~$50
       })
 
-      it('should leverage vaOP->msOP', async function () {
+      it.skip('should leverage vaOP->msOP', async function () {
         // when
         const amountIn = parseUnits('1000', 18)
         const amountInUsd = parseUnits('1.81', 18) // approx.
@@ -489,7 +489,7 @@ describe.skip('E2E tests - OP', function () {
       it('should leverage vawstETH->msETH', async function () {
         // when
         const amountIn = parseUnits('1', 18)
-        const amountInUsd = parseUnits('1,950', 18) // approx.
+        const amountInUsd = parseUnits('2,080', 18) // approx.
         const leverage = parseEther('1.5')
         await vawstETH.connect(alice).approve(pool.address, MaxUint256)
         const tx = await pool.leverage(vawstETH.address, msdVaWSTETH.address, msETH.address, amountIn, leverage, 0)
@@ -498,7 +498,7 @@ describe.skip('E2E tests - OP', function () {
         const {gasUsed} = await tx.wait()
         expect(gasUsed.lt(1.4e6))
         const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
-        expect(_depositInUsd).closeTo(amountInUsd.mul(leverage).div(parseEther('1')), parseEther('100')) // ~$2,925
+        expect(_depositInUsd).closeTo(amountInUsd.mul(leverage).div(parseEther('1')), parseEther('100')) // ~$3,120
         expect(_debtInUsd).closeTo(
           amountInUsd.mul(leverage.sub(parseEther('1'))).div(parseEther('1')),
           parseEther('100')
