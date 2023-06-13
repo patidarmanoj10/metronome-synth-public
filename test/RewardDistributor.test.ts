@@ -588,5 +588,28 @@ describe('RewardDistributor', function () {
         expect(await vsp.balanceOf(alice.address)).eq(expectedReward)
       })
     })
+
+    describe('claimable', function () {
+      it('claimable should be correct', async function () {
+        // Update stored reward by calling update
+        await rewardDistributor.updateBeforeMintOrBurn(msdTOKEN1.address, alice.address)
+        await rewardDistributor.updateBeforeMintOrBurn(msdTOKEN2.address, alice.address)
+        await rewardDistributor.updateBeforeMintOrBurn(debtToken1.address, alice.address)
+        await rewardDistributor.updateBeforeMintOrBurn(debtToken2.address, alice.address)
+        await mine()
+        const rewards = await rewardDistributor['claimable(address)'](alice.address)
+        await mine()
+        const rewards2 = await rewardDistributor['claimable(address)'](alice.address)
+        expect(rewards2).eq(rewards.add(parseEther('2'))) // Each block will increase claimable by 2
+
+        const before = await vsp.balanceOf(alice.address)
+        expect(before).eq(BigNumber.from(0))
+        await rewardDistributor['claimRewards(address)'](alice.address)
+        await mine()
+
+        const after = await vsp.balanceOf(alice.address)
+        expect(after).eq(rewards2.add(parseEther('2')))
+      })
+    })
   })
 })

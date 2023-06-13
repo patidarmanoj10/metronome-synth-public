@@ -98,23 +98,19 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
      * @notice Returns claimable amount consider all tokens
      */
     function claimable(address account_) external view override returns (uint256 _claimable) {
+        _claimable = tokensAccruedOf[account_];
         for (uint256 i; i < tokens.length; ++i) {
-            _claimable += claimable(account_, tokens[i]);
+            _claimable += _claimableRewards(account_, tokens[i]);
         }
     }
 
     /**
      * @notice Returns updated claimable amount for given token
+     * @dev Removing this function will change interface and will result
+     * updating other contracts using interface.
      */
-    function claimable(address account_, IERC20 token_) public view override returns (uint256 _claimable) {
-        TokenState memory _tokenState = tokenStates[token_];
-        (uint224 _newIndex, uint32 _newTimestamp) = _calculateTokenIndex(_tokenState, token_);
-        if (_newIndex > 0 && _newTimestamp > 0) {
-            _tokenState = TokenState({index: _newIndex, timestamp: _newTimestamp});
-        } else if (_newTimestamp > 0) {
-            _tokenState.timestamp = _newTimestamp;
-        }
-        (, , _claimable) = _calculateTokensAccruedOf(_tokenState, token_, account_);
+    function claimable(address, IERC20) public view override returns (uint256) {
+        revert("Unsupported");
     }
 
     /**
@@ -203,11 +199,11 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     /**
      * @notice Calculate updated account index and claimable values
      */
-    function _calculateTokensAccruedOf(
+    function _calculateTokenDelta(
         TokenState memory _tokenState,
         IERC20 token_,
         address account_
-    ) private view returns (uint256 _tokenIndex, uint256 _tokensDelta, uint256 _tokensAccruedOf) {
+    ) private view returns (uint256 _tokenIndex, uint256 _tokensDelta) {
         _tokenIndex = _tokenState.index;
         uint256 _accountIndex = accountIndexOf[token_][account_];
 
@@ -217,7 +213,17 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
 
         uint256 _deltaIndex = _tokenIndex - _accountIndex;
         _tokensDelta = token_.balanceOf(account_).wadMul(_deltaIndex);
-        _tokensAccruedOf = tokensAccruedOf[account_] + _tokensDelta;
+    }
+
+    function _claimableRewards(address account_, IERC20 token_) internal view returns (uint256 _claimableDelta) {
+        TokenState memory _tokenState = tokenStates[token_];
+        (uint224 _newIndex, uint32 _newTimestamp) = _calculateTokenIndex(_tokenState, token_);
+        if (_newIndex > 0 && _newTimestamp > 0) {
+            _tokenState = TokenState({index: _newIndex, timestamp: _newTimestamp});
+        } else if (_newTimestamp > 0) {
+            _tokenState.timestamp = _newTimestamp;
+        }
+        (, _claimableDelta) = _calculateTokenDelta(_tokenState, token_, account_);
     }
 
     /**
@@ -238,13 +244,9 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
      * @notice Calculate tokens accrued by an account
      */
     function _updateTokensAccruedOf(IERC20 token_, address account_) private {
-        (uint256 _tokenIndex, uint256 _tokensDelta, uint256 _tokensAccruedOf) = _calculateTokensAccruedOf(
-            tokenStates[token_],
-            token_,
-            account_
-        );
+        (uint256 _tokenIndex, uint256 _tokensDelta) = _calculateTokenDelta(tokenStates[token_], token_, account_);
         accountIndexOf[token_][account_] = _tokenIndex;
-        tokensAccruedOf[account_] = _tokensAccruedOf;
+        tokensAccruedOf[account_] = tokensAccruedOf[account_] + _tokensDelta;
         emit TokensAccruedUpdated(token_, account_, _tokensDelta, _tokenIndex);
     }
 
