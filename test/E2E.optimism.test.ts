@@ -117,7 +117,7 @@ describe.skip('E2E tests - OP', function () {
     expect(await op.balanceOf(alice.address)).gt(0)
     await setTokenBalance(weth.address, alice.address, parseUnits('20', 18))
     expect(await weth.balanceOf(alice.address)).gt(0)
-    await setTokenBalance(vaUSDC.address, alice.address, parseUnits('1,000', 18))
+    await setTokenBalance(vaUSDC.address, alice.address, parseUnits('10,000', 18))
     expect(await vaUSDC.balanceOf(alice.address)).gt(0)
     await setTokenBalance(vaETH.address, alice.address, parseUnits('1,000', 18))
     expect(await vaETH.balanceOf(alice.address)).gt(0)
@@ -470,7 +470,7 @@ describe.skip('E2E tests - OP', function () {
       it('should leverage vaETH->msETH', async function () {
         // when
         const amountIn = parseUnits('1', 18)
-        const amountInUsd = parseUnits('1,900', 18) // approx.
+        const amountInUsd = parseUnits('1,750', 18) // approx.
         const leverage = parseEther('1.5')
         await vaETH.connect(alice).approve(pool.address, MaxUint256)
         const tx = await pool.leverage(vaETH.address, msdVaETH.address, msETH.address, amountIn, leverage, 0)
@@ -489,7 +489,7 @@ describe.skip('E2E tests - OP', function () {
       it('should leverage vawstETH->msETH', async function () {
         // when
         const amountIn = parseUnits('1', 18)
-        const amountInUsd = parseUnits('2,080', 18) // approx.
+        const amountInUsd = parseUnits('1,950', 18) // approx.
         const leverage = parseEther('1.5')
         await vawstETH.connect(alice).approve(pool.address, MaxUint256)
         const tx = await pool.leverage(vawstETH.address, msdVaWSTETH.address, msETH.address, amountIn, leverage, 0)
@@ -506,6 +506,29 @@ describe.skip('E2E tests - OP', function () {
       })
     })
 
+    describe('flashRepay', function () {
+      beforeEach(async function () {
+        const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
+        expect(_debtInUsd).eq(0)
+        expect(_depositInUsd).eq(0)
+        const amountIn = parseEther('1')
+        const leverage = parseEther('2')
+        await vawstETH.connect(alice).approve(pool.address, MaxUint256)
+        await pool.connect(alice).leverage(vawstETH.address, msdVaWSTETH.address, msETH.address, amountIn, leverage, 0)
+      })
+
+      it('should flash repay msETH debt using vawstETH', async function () {
+        // when
+        const withdrawAmount = parseEther('0.9')
+        const tx = await pool.connect(alice).flashRepay(msETH.address, msdVaWSTETH.address, withdrawAmount, 0)
+
+        // then
+        const {gasUsed} = await tx.wait()
+        expect(gasUsed).lt(2e6)
+        const {_debtInUsd} = await pool.debtPositionOf(alice.address)
+        expect(_debtInUsd).closeTo(parseEther('110'), parseEther('5'))
+      })
+    })
     describe('rewards', function () {
       // TODO
     })
