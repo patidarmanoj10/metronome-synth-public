@@ -653,7 +653,8 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
         IDepositToken depositToken_,
         ISyntheticToken syntheticToken_,
         uint256 amountIn_,
-        uint256 depositAmountMin_
+        uint256 depositAmountMin_,
+        uint256 callbackTxNativeFee_
     ) external view returns (uint256 _nativeFee) {
         return
             syntheticToken_.proxyOFT().quoteSwapAndCallbackNativeFee({
@@ -661,7 +662,8 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
                 tokenIn_: address(syntheticToken_),
                 tokenOut_: address(depositToken_.underlying()),
                 amountIn_: amountIn_,
-                amountOutMin_: depositAmountMin_ > amountIn_ ? depositAmountMin_ - amountIn_ : 0
+                amountOutMin_: depositAmountMin_ > amountIn_ ? depositAmountMin_ - amountIn_ : 0,
+                callbackTxNativeFee_: callbackTxNativeFee_
             });
     }
 
@@ -671,7 +673,8 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
         ISyntheticToken syntheticToken_,
         uint256 amountIn_,
         uint256 leverage_,
-        uint256 depositAmountMin_
+        uint256 depositAmountMin_,
+        uint256 callbackTxNativeFee_
     )
         external
         payable
@@ -717,7 +720,11 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
             tokenIn_: address(syntheticToken_),
             tokenOut_: address(_collateral),
             amountIn_: _issued,
-            amountOutMin: depositAmountMin_ > amountIn_ ? depositAmountMin_ - amountIn_ : 0
+            // Slippage check will be done in callback function anyway
+            // The line below will make flow revert earlier (swap tx) but it's resulting in `Stack too deep` error
+            // amountOutMin: depositAmountMin_ > amountIn_ ? depositAmountMin_ - amountIn_ : 0,
+            amountOutMin: 0,
+            callbackTxNativeFee_: callbackTxNativeFee_
         });
 
         emit Layer2LeverageStarted(_id);

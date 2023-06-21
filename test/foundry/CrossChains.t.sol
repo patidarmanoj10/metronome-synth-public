@@ -23,7 +23,7 @@ interface ILayerZeroEndpointExtended is ILayerZeroEndpoint {
     function defaultReceiveLibraryAddress() external view returns (address);
 }
 
-interface IStargateRouterExtender is IStargateRouter {
+interface IStargateRouterExtended is IStargateRouter {
     function bridge() external view returns (address);
 
     function swapRemote(
@@ -61,7 +61,7 @@ contract CrossChains_Test is Test {
     IERC20 dai_optimism = IERC20(0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1);
     ILayerZeroEndpointExtended lzEndpoint_optimism =
         ILayerZeroEndpointExtended(0x3c2269811836af69497E5F486A85D7316753cf62);
-    IStargateRouterExtender sgRouter_optimism = IStargateRouterExtender(0xB0D502E938ed5f4df2E681fE6E419ff29631d62b);
+    IStargateRouterExtended sgRouter_optimism = IStargateRouterExtended(0xB0D502E938ed5f4df2E681fE6E419ff29631d62b);
     MasterOracleMock masterOracle_optimism;
     SwapperMock swapper_optimism;
     PoolRegistry poolRegistry_optimism;
@@ -77,7 +77,7 @@ contract CrossChains_Test is Test {
     IERC20 dai_mainnet = IERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F);
     ILayerZeroEndpointExtended lzEndpoint_mainnet =
         ILayerZeroEndpointExtended(0x66A71Dcef29A0fFBDBE3c6a460a3B5BC225Cd675);
-    IStargateRouterExtender sgRouter_mainnet = IStargateRouterExtender(0x8731d54E9D02c286767d56ac03e8037C07e01e98);
+    IStargateRouterExtended sgRouter_mainnet = IStargateRouterExtended(0x8731d54E9D02c286767d56ac03e8037C07e01e98);
     MasterOracleMock masterOracle_mainnet;
     SwapperMock swapper_mainnet;
     PoolRegistry poolRegistry_mainnet;
@@ -247,6 +247,13 @@ contract CrossChains_Test is Test {
         private
         returns (Vm.Log memory sendToChainEventTx1, Vm.Log memory packetEventTx1, Vm.Log memory relayerParamsEventTx1)
     {
+        vm.selectFork(mainnetFork);
+
+        uint256 _callbackTxNativeFee = proxyOFT_msUSD_mainnet.quoteCallbackTxNativeFee(
+            address(pool_optimism),
+            LZ_OP_CHAIN_ID
+        );
+
         vm.selectFork(optimismFork);
 
         uint256 amountIn = 1000e18;
@@ -256,7 +263,8 @@ contract CrossChains_Test is Test {
             depositToken_: msdDAI_optimism,
             syntheticToken_: msUSD_optimism,
             amountIn_: amountIn,
-            depositAmountMin_: depositAmountMin
+            depositAmountMin_: depositAmountMin,
+            callbackTxNativeFee_: _callbackTxNativeFee
         });
 
         vm.startPrank(alice);
@@ -272,7 +280,8 @@ contract CrossChains_Test is Test {
             syntheticToken_: msUSD_optimism,
             amountIn_: amountIn,
             leverage_: 1.5e18,
-            depositAmountMin_: depositAmountMin
+            depositAmountMin_: depositAmountMin,
+            callbackTxNativeFee_: _callbackTxNativeFee
         });
 
         assertEq(alice.balance, toRefund, "fee-estimation-is-not-accurate");

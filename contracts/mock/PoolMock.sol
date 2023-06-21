@@ -104,6 +104,7 @@ contract PoolMock is IPool, Governable, Pauseable {
         ISyntheticToken,
         uint256,
         uint256,
+        uint256,
         uint256
     ) external payable override returns (uint256) {
         revert("mock-does-not-implement");

@@ -71,7 +71,8 @@ interface IPool is IPauseable, IGovernable {
         ISyntheticToken syntheticToken_,
         uint256 amountIn_,
         uint256 leverage_,
-        uint256 depositAmountMin_
+        uint256 depositAmountMin_,
+        uint256 callbackTxNativeFee_
     ) external payable returns (uint256 _issued);
 
     function layer2LeverageCallback(uint256 id_, uint256 swapAmountOut_) external returns (uint256 _deposited);

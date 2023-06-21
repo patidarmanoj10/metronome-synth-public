@@ -108,11 +108,10 @@ contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCore {
         address tokenIn_,
         address tokenOut_,
         uint256 amountIn_,
-        uint256 amountOutMin_
-    ) public view returns (uint256 _nativeFee) {
+        uint256 amountOutMin_,
+        uint256 callbackTxNativeFee_
+    ) public view override returns (uint256 _nativeFee) {
         if (block.chainid == 1) revert NotAvailableOnThisChain();
-
-        uint256 _callbackTxNativeFee = quoteCallbackTxNativeFee(l2Pool_, LZ_THIS_CHAIN_ID);
 
         address _mainnetOFT = proxyOftOf[LZ_MAINNET_CHAIN_ID];
         uint64 _callbackTxGasLimit = callbackTxGasLimit;
@@ -130,7 +129,7 @@ contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCore {
             _adapterParams = abi.encodePacked(
                 LZ_ADAPTER_PARAMS_VERSION,
                 uint256(swapTxGasLimit + _callbackTxGasLimit),
-                _callbackTxNativeFee,
+                callbackTxNativeFee_,
                 _mainnetOFT
             );
         }
@@ -155,7 +154,8 @@ contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCore {
         address tokenIn_,
         address tokenOut_,
         uint256 amountIn_,
-        uint256 amountOutMin_
+        uint256 amountOutMin_,
+        uint256 callbackTxNativeFee_
     ) public payable override {
         if (block.chainid == 1) revert NotAvailableOnThisChain();
         if (!syntheticToken.poolRegistry().isPoolRegistered(msg.sender)) revert InvalidMsgSender();
@@ -175,12 +175,10 @@ contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCore {
                 amountOutMin_
             );
 
-            uint256 _callbackTxNativeFee = quoteCallbackTxNativeFee(msg.sender, LZ_THIS_CHAIN_ID);
-
             _adapterParams = abi.encodePacked(
                 LZ_ADAPTER_PARAMS_VERSION,
                 uint256(swapTxGasLimit + _callbackTxGasLimit),
-                _callbackTxNativeFee,
+                callbackTxNativeFee_,
                 _mainnetOFT
             );
         }
@@ -227,15 +225,7 @@ contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCore {
         address l2Pool_,
         uint16 dstChainId_
     ) public view returns (uint256 _callbackTxNativeFee) {
-        if (block.chainid != 1) {
-            // Note: The sg.quoteLayerZeroFee() and lz.estimateFees() assume current chain as the source chain
-            // but in this case, we need to get the fee for a mainnet->L2 call from the L2
-            // TODO: Figure out the best way to return a close to accurate value in this case
-            // Refs: Stargate <> Vesper Telegram group
-            // If we can't find a good way to address this, a possible solution could be having user quoting it from the mainnet
-            // and passing the `_callbackTxNativeFee` value as part of the `layer2Leverage()` params
-            return 1467690746963037;
-        }
+        if (block.chainid != 1) revert NotAvailableOnThisChain();
 
         (_callbackTxNativeFee, ) = stargateRouter.quoteLayerZeroFee({
             _dstChainId: dstChainId_,

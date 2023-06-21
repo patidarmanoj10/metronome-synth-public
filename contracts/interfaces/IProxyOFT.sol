@@ -11,7 +11,8 @@ interface IProxyOFT is IOFTCore, IOFTReceiver {
         address tokenIn_,
         address tokenOut_,
         uint256 amountIn_,
-        uint256 amountOutMin_
+        uint256 amountOutMin_,
+        uint256 callbackTxNativeFee_
     ) external view returns (uint256 _nativeFee);
 
     function swapAndCallback(
@@ -20,6 +21,7 @@ interface IProxyOFT is IOFTCore, IOFTReceiver {
         address tokenIn_,
         address tokenOut_,
         uint256 amountIn_,
-        uint256 amountOutMin
+        uint256 amountOutMin,
+        uint256 callbackTxNativeFee_
     ) external payable;
 }
