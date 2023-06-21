@@ -45,6 +45,7 @@ error Layer2LeverageInvalidKey();
 error SenderIsNotProxyOFT();
 error NotAvailableOnThisChain();
 error Layer2LeverageCompletedAlready();
+error TokenInIsNull();
 
 /**
  * @title Pool contract
@@ -685,27 +686,31 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
         onlyIfSyntheticTokenExists(syntheticToken_)
         returns (uint256 _issued)
     {
+        IERC20 _tokenIn = tokenIn_; // stack too deep
+
         if (block.chainid == 1) revert NotAvailableOnThisChain();
         if (leverage_ <= 1e18) revert LeverageTooLow();
         if (leverage_ > uint256(1e18).wadDiv(1e18 - depositToken_.collateralFactor())) revert LeverageTooHigh();
+        if (address(_tokenIn) == address(0)) revert TokenInIsNull();
 
         // 1. transfer collateral
-        IERC20 _collateral = depositToken_.underlying();
-        amountIn_ = _collateralTransferFrom(msg.sender, swapper, tokenIn_, _collateral, amountIn_);
+        // Note: Not performing tokenIn->depositToken swap here because is preferable to do cross-chain operations using naked tokens
+        _tokenIn.safeTransferFrom(msg.sender, address(this), amountIn_);
 
         // 2. mint synth
         (_issued, ) = debtTokenOf[syntheticToken_].flashIssue(
             address(syntheticToken_.proxyOFT()), // Note: Issue to `proxyOFT` to save transfer gas
-            _calculateLeverageDebtAmount(_collateral, syntheticToken_, amountIn_, leverage_)
+            _calculateLeverageDebtAmount(_tokenIn, syntheticToken_, amountIn_, leverage_)
         );
 
         // 3. store request
         uint256 _id = layer2LeverageId++;
 
         layer2Leverages[_id] = Layer2Leverage({
+            tokenIn: _tokenIn,
             depositToken: depositToken_,
             syntheticToken: syntheticToken_,
-            collateralAmountIn: amountIn_,
+            tokenInAmountIn: amountIn_,
             depositAmountMin: depositAmountMin_,
             syntheticTokenIssued: _issued,
             collateralDeposited: 0,
@@ -718,7 +723,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
             id_: _id,
             refundAddress_: payable(msg.sender),
             tokenIn_: address(syntheticToken_),
-            tokenOut_: address(_collateral),
+            tokenOut_: address(_tokenIn),
             amountIn_: _issued,
             // Slippage check will be done in callback function anyway
             // The line below will make flow revert earlier (swap tx) but it's resulting in `Stack too deep` error
@@ -743,23 +748,31 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
         if (_leverage.account == address(0)) revert Layer2LeverageInvalidKey();
         if (msg.sender != address(_leverage.syntheticToken.proxyOFT())) revert SenderIsNotProxyOFT();
         if (_leverage.finished) revert Layer2LeverageCompletedAlready();
-        uint256 _depositAmount = _leverage.collateralAmountIn + swapAmountOut_;
+        IERC20 _collateral = _leverage.depositToken.underlying();
+
+        // 1. transfer tokenIn (swapAmountOut)
+        _leverage.tokenIn.transferFrom(msg.sender, address(this), swapAmountOut_);
+
+        // 2. swap tokenIn for collateral if they aren't the same
+        uint256 _tokenInAmount = _leverage.tokenInAmountIn + swapAmountOut_;
+        uint256 _depositAmount = _leverage.tokenIn == _collateral
+            ? _tokenInAmount
+            : _swap(swapper, _leverage.tokenIn, _collateral, _tokenInAmount, 0);
         if (_depositAmount < _leverage.depositAmountMin) revert LeverageSlippageTooHigh();
 
+        // 3. update state
         layer2Leverages[id_].collateralDeposited = _depositAmount;
         layer2Leverages[id_].finished = true;
 
-        // 1. deposit collateral
-        IERC20 _collateral = _leverage.depositToken.underlying();
-        _collateral.transferFrom(msg.sender, address(this), swapAmountOut_);
+        // 4. deposit collateral
         _collateral.safeApprove(address(_leverage.depositToken), 0);
         _collateral.safeApprove(address(_leverage.depositToken), _depositAmount);
         (_deposited, ) = _leverage.depositToken.deposit(_depositAmount, _leverage.account);
 
-        // 2. mint debt
+        // 5. mint debt
         debtTokenOf[_leverage.syntheticToken].mint(_leverage.account, _leverage.syntheticTokenIssued);
 
-        // 3. check the health of the outcome position
+        // 6. check the health of the outcome position
         (bool _isHealthy, , , , ) = debtPositionOf(_leverage.account);
         if (!_isHealthy) revert PositionIsNotHealthy();
 

@@ -104,9 +104,10 @@ abstract contract PoolStorageV3 is PoolStorageV2 {
     // TODO: Comment
     // TODO: Move to `IPool` ?
     struct Layer2Leverage {
+        IERC20 tokenIn;
         IDepositToken depositToken;
         ISyntheticToken syntheticToken;
-        uint256 collateralAmountIn;
+        uint256 tokenInAmountIn;
         uint256 depositAmountMin;
         uint256 syntheticTokenIssued;
         uint256 collateralDeposited;

@@ -47,8 +47,8 @@ contract CrossChains_Test is Test {
     uint16 public constant LZ_MAINNET_CHAIN_ID = 101;
     uint16 public constant LZ_OP_CHAIN_ID = 111;
 
-    uint256 public constant SG_MAINNET_DAI_POOL_ID = 3;
-    uint256 public constant SG_OP_DAI_POOL_ID = 3;
+    uint256 public constant SG_MAINNET_USDC_POOL_ID = 1;
+    uint256 public constant SG_OP_USDC_POOL_ID = 1;
 
     address feeCollector = address(999);
     address alice = address(10);
@@ -58,7 +58,8 @@ contract CrossChains_Test is Test {
     uint256 optimismFork;
 
     // Layer 2
-    IERC20 dai_optimism = IERC20(0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1);
+    IERC20 vaUSDC_optimism = IERC20(0x539505Dde2B9771dEBE0898a84441c5E7fDF6BC0);
+    IERC20 usdc_optimism = IERC20(0x7F5c764cBc14f9669B88837ca1490cCa17c31607);
     ILayerZeroEndpointExtended lzEndpoint_optimism =
         ILayerZeroEndpointExtended(0x3c2269811836af69497E5F486A85D7316753cf62);
     IStargateRouterExtended sgRouter_optimism = IStargateRouterExtended(0xB0D502E938ed5f4df2E681fE6E419ff29631d62b);
@@ -70,11 +71,12 @@ contract CrossChains_Test is Test {
     Treasury treasury_optimism;
     SyntheticToken msUSD_optimism;
     DebtToken msUSDDebt_optimism;
-    DepositToken msdDAI_optimism;
+    DepositToken msdUSDC_optimism;
+    DepositToken msdVaUSDC_optimism;
     ProxyOFT proxyOFT_msUSD_optimism;
 
     // Mainnet
-    IERC20 dai_mainnet = IERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F);
+    IERC20 usdc_mainnet = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
     ILayerZeroEndpointExtended lzEndpoint_mainnet =
         ILayerZeroEndpointExtended(0x66A71Dcef29A0fFBDBE3c6a460a3B5BC225Cd675);
     IStargateRouterExtended sgRouter_mainnet = IStargateRouterExtended(0x8731d54E9D02c286767d56ac03e8037C07e01e98);
@@ -85,7 +87,7 @@ contract CrossChains_Test is Test {
     Pool pool_mainnet;
     SyntheticToken msUSD_mainnet;
     DebtToken msUSDDebt_mainnet;
-    DepositToken msdDAI_mainnet;
+    DepositToken msdUSDC_mainnet;
     ProxyOFT proxyOFT_msUSD_mainnet;
 
     function setUp() public {
@@ -109,18 +111,29 @@ contract CrossChains_Test is Test {
         pool_optimism = new Pool();
         msUSD_optimism = new SyntheticToken();
         msUSDDebt_optimism = new DebtToken();
-        msdDAI_optimism = new DepositToken();
+        msdUSDC_optimism = new DepositToken();
+        msdVaUSDC_optimism = new DepositToken();
         proxyOFT_msUSD_optimism = new ProxyOFT(address(lzEndpoint_optimism), msUSD_optimism, LZ_OP_CHAIN_ID);
         poolRegistry_optimism.initialize({masterOracle_: masterOracle_optimism, feeCollector_: feeCollector});
         feeProvider_optimism.initialize({poolRegistry_: poolRegistry_optimism, esMET_: IESMET(address(0))});
         pool_optimism.initialize(poolRegistry_optimism);
         treasury_optimism.initialize(pool_optimism);
 
-        msdDAI_optimism.initialize({
-            underlying_: dai_optimism,
+        msdUSDC_optimism.initialize({
+            underlying_: usdc_optimism,
             pool_: pool_optimism,
-            name_: "msdDAI",
-            symbol_: "msdDAI",
+            name_: "msdUSDC",
+            symbol_: "msdUSDC",
+            decimals_: 6,
+            collateralFactor_: 0.5e18,
+            maxTotalSupply_: type(uint256).max
+        });
+
+        msdVaUSDC_optimism.initialize({
+            underlying_: vaUSDC_optimism,
+            pool_: pool_optimism,
+            name_: "msdVaUSDC",
+            symbol_: "msdVaUSDC",
             decimals_: 18,
             collateralFactor_: 0.5e18,
             maxTotalSupply_: type(uint256).max
@@ -133,8 +146,8 @@ contract CrossChains_Test is Test {
             poolRegistry_: pool_optimism.poolRegistry()
         });
         msUSDDebt_optimism.initialize({
-            name_: "msDAI-Debt",
-            symbol_: "msDAI-Debt",
+            name_: "msUSD-Debt",
+            symbol_: "msUSD-Debt",
             pool_: pool_optimism,
             syntheticToken_: msUSD_optimism,
             interestRate_: 0,
@@ -144,9 +157,12 @@ contract CrossChains_Test is Test {
         poolRegistry_optimism.registerPool(address(pool_optimism));
         pool_optimism.updateFeeProvider(feeProvider_optimism);
         pool_optimism.updateTreasury(treasury_optimism);
-        pool_optimism.addDepositToken(address(msdDAI_optimism));
+        pool_optimism.updateSwapper(swapper_optimism);
+        pool_optimism.addDepositToken(address(msdUSDC_optimism));
+        pool_optimism.addDepositToken(address(msdVaUSDC_optimism));
         pool_optimism.addDebtToken(msUSDDebt_optimism);
-        masterOracle_optimism.updatePrice(address(dai_optimism), 1e18);
+        masterOracle_optimism.updatePrice(address(usdc_optimism), 1e18);
+        masterOracle_optimism.updatePrice(address(vaUSDC_optimism), 1e18);
         masterOracle_optimism.updatePrice(address(msUSD_optimism), 1e18);
         proxyOFT_msUSD_optimism.updateSwapper(swapper_optimism);
         proxyOFT_msUSD_optimism.updateStargateRouter(IStargateRouter(sgRouter_optimism));
@@ -167,18 +183,18 @@ contract CrossChains_Test is Test {
         pool_mainnet = new Pool();
         msUSD_mainnet = new SyntheticToken();
         msUSDDebt_mainnet = new DebtToken();
-        msdDAI_mainnet = new DepositToken();
+        msdUSDC_mainnet = new DepositToken();
         proxyOFT_msUSD_mainnet = new ProxyOFT(address(lzEndpoint_mainnet), msUSD_mainnet, LZ_MAINNET_CHAIN_ID);
         poolRegistry_mainnet.initialize({masterOracle_: masterOracle_mainnet, feeCollector_: feeCollector});
         feeProvider_mainnet.initialize({poolRegistry_: poolRegistry_mainnet, esMET_: IESMET(address(0))});
         pool_mainnet.initialize(poolRegistry_mainnet);
 
-        msdDAI_mainnet.initialize({
-            underlying_: dai_mainnet,
+        msdUSDC_mainnet.initialize({
+            underlying_: usdc_mainnet,
             pool_: pool_mainnet,
-            name_: "msdDAI",
-            symbol_: "msdDAI",
-            decimals_: 18,
+            name_: "msdUSDC",
+            symbol_: "msdUSDC",
+            decimals_: 6,
             collateralFactor_: 0.5e18,
             maxTotalSupply_: type(uint256).max
         });
@@ -190,8 +206,8 @@ contract CrossChains_Test is Test {
             poolRegistry_: pool_mainnet.poolRegistry()
         });
         msUSDDebt_mainnet.initialize({
-            name_: "msDAI-Debt",
-            symbol_: "msDAI-Debt",
+            name_: "msUSD-Debt",
+            symbol_: "msUSD-Debt",
             pool_: pool_mainnet,
             syntheticToken_: msUSD_mainnet,
             interestRate_: 0,
@@ -200,10 +216,11 @@ contract CrossChains_Test is Test {
 
         poolRegistry_mainnet.registerPool(address(pool_mainnet));
         pool_mainnet.updateFeeProvider(feeProvider_mainnet);
-        pool_mainnet.addDepositToken(address(msdDAI_mainnet));
+        pool_mainnet.updateSwapper(swapper_mainnet);
+        pool_mainnet.addDepositToken(address(msdUSDC_mainnet));
         pool_mainnet.addDebtToken(msUSDDebt_mainnet);
-        masterOracle_mainnet.updatePrice(address(dai_mainnet), 1e18);
-        masterOracle_mainnet.updatePrice(address(dai_optimism), 1e18);
+        masterOracle_mainnet.updatePrice(address(usdc_mainnet), 1e18);
+        // masterOracle_mainnet.updatePrice(address(usdc_optimism), 1e18);
         masterOracle_mainnet.updatePrice(address(msUSD_mainnet), 1e18);
         proxyOFT_msUSD_mainnet.updateSwapper(swapper_mainnet);
         proxyOFT_msUSD_mainnet.updateStargateRouter(sgRouter_mainnet);
@@ -226,8 +243,13 @@ contract CrossChains_Test is Test {
             LZ_MAINNET_CHAIN_ID,
             address(msUSD_mainnet)
         );
-        proxyOFT_msUSD_optimism.updateCounterTokenOf(address(dai_optimism), LZ_MAINNET_CHAIN_ID, address(dai_mainnet));
-        deal(address(dai_optimism), address(swapper_mainnet), 1000000e18);
+        proxyOFT_msUSD_optimism.updateCounterTokenOf(
+            address(usdc_optimism),
+            LZ_MAINNET_CHAIN_ID,
+            address(usdc_mainnet)
+        );
+        deal(address(usdc_optimism), address(swapper_optimism), 1000000e6);
+        deal(address(vaUSDC_optimism), address(swapper_optimism), 1000000e18);
 
         vm.selectFork(mainnetFork);
 
@@ -235,12 +257,12 @@ contract CrossChains_Test is Test {
         proxyOFT_msUSD_mainnet.updateProxyOftOf(LZ_OP_CHAIN_ID, address(proxyOFT_msUSD_optimism));
 
         proxyOFT_msUSD_mainnet.updateCounterTokenOf(address(msUSD_mainnet), LZ_OP_CHAIN_ID, address(msUSD_optimism));
-        proxyOFT_msUSD_mainnet.updateCounterTokenOf(address(dai_mainnet), LZ_OP_CHAIN_ID, address(dai_optimism));
+        proxyOFT_msUSD_mainnet.updateCounterTokenOf(address(usdc_mainnet), LZ_OP_CHAIN_ID, address(usdc_optimism));
 
-        proxyOFT_msUSD_mainnet.updatePoolIdOf(address(dai_mainnet), LZ_MAINNET_CHAIN_ID, SG_MAINNET_DAI_POOL_ID);
-        proxyOFT_msUSD_mainnet.updatePoolIdOf(address(dai_optimism), LZ_OP_CHAIN_ID, SG_OP_DAI_POOL_ID);
+        proxyOFT_msUSD_mainnet.updatePoolIdOf(address(usdc_mainnet), LZ_MAINNET_CHAIN_ID, SG_MAINNET_USDC_POOL_ID);
+        proxyOFT_msUSD_mainnet.updatePoolIdOf(address(usdc_optimism), LZ_OP_CHAIN_ID, SG_OP_USDC_POOL_ID);
 
-        deal(address(dai_mainnet), address(swapper_mainnet), 1000000e18);
+        deal(address(usdc_mainnet), address(swapper_mainnet), 1000000e6);
     }
 
     function _layer2Leverage()
@@ -256,11 +278,11 @@ contract CrossChains_Test is Test {
 
         vm.selectFork(optimismFork);
 
-        uint256 amountIn = 1000e18;
+        uint256 amountIn = 1000e6;
         uint256 depositAmountMin = 1450e18;
 
         uint256 swapAndCallbackTxNativeFee = pool_optimism.quoteLayer2LeverageNativeFee({
-            depositToken_: msdDAI_optimism,
+            depositToken_: msdUSDC_optimism,
             syntheticToken_: msUSD_optimism,
             amountIn_: amountIn,
             depositAmountMin_: depositAmountMin,
@@ -273,10 +295,10 @@ contract CrossChains_Test is Test {
         uint256 fee = swapAndCallbackTxNativeFee + toRefund;
         deal(alice, fee);
 
-        dai_optimism.approve(address(pool_optimism), type(uint256).max);
+        usdc_optimism.approve(address(pool_optimism), type(uint256).max);
         pool_optimism.layer2Leverage{value: fee}({
-            tokenIn_: dai_optimism,
-            depositToken_: msdDAI_optimism,
+            tokenIn_: usdc_optimism,
+            depositToken_: msdVaUSDC_optimism,
             syntheticToken_: msUSD_optimism,
             amountIn_: amountIn,
             leverage_: 1.5e18,
@@ -406,7 +428,7 @@ contract CrossChains_Test is Test {
         // given
         //
         vm.selectFork(optimismFork);
-        deal(address(dai_optimism), alice, 1000000e18);
+        deal(address(usdc_optimism), alice, 1000000e18);
         (, uint256 _depositInUsdBefore, uint256 _debtInUsdBefore, , ) = pool_optimism.debtPositionOf(alice);
         assertEq(_depositInUsdBefore, 0);
         assertEq(_debtInUsdBefore, 0);
