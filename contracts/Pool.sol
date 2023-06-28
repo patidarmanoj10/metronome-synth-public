@@ -46,6 +46,7 @@ error SenderIsNotProxyOFT();
 error NotAvailableOnThisChain();
 error Layer2LeverageCompletedAlready();
 error TokenInIsNull();
+error SenderIsNotAccount();
 
 /**
  * @title Pool contract
@@ -654,16 +655,15 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
         IDepositToken depositToken_,
         ISyntheticToken syntheticToken_,
         uint256 amountIn_,
-        uint256 depositAmountMin_,
+        uint256 layer1SwapAmountOutMin_, // Set slippage for L1 synth->tokenIn swap
         uint256 callbackTxNativeFee_
     ) external view returns (uint256 _nativeFee) {
         return
             syntheticToken_.proxyOFT().quoteSwapAndCallbackNativeFee({
                 l2Pool_: address(this),
-                tokenIn_: address(syntheticToken_),
                 tokenOut_: address(depositToken_.underlying()),
                 amountIn_: amountIn_,
-                amountOutMin_: depositAmountMin_ > amountIn_ ? depositAmountMin_ - amountIn_ : 0,
+                amountOutMin_: layer1SwapAmountOutMin_,
                 callbackTxNativeFee_: callbackTxNativeFee_
             });
     }
@@ -675,6 +675,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
         uint256 amountIn_,
         uint256 leverage_,
         uint256 depositAmountMin_,
+        uint256 layer1SwapAmountOutMin_, // Set slippage for L1 synth->tokenIn swap
         uint256 callbackTxNativeFee_
     )
         external
@@ -687,6 +688,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
         returns (uint256 _issued)
     {
         IERC20 _tokenIn = tokenIn_; // stack too deep
+        uint256 _depositAmountMin = depositAmountMin_; // stack too deep
 
         if (block.chainid == 1) revert NotAvailableOnThisChain();
         if (leverage_ <= 1e18) revert LeverageTooLow();
@@ -710,8 +712,8 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
             tokenIn: _tokenIn,
             depositToken: depositToken_,
             syntheticToken: syntheticToken_,
-            tokenInAmountIn: amountIn_,
             depositAmountMin: depositAmountMin_,
+            tokenInAmountIn: amountIn_,
             syntheticTokenIssued: _issued,
             collateralDeposited: 0,
             account: msg.sender,
@@ -722,23 +724,36 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
         syntheticToken_.proxyOFT().swapAndCallback{value: msg.value}({
             id_: _id,
             refundAddress_: payable(msg.sender),
-            tokenIn_: address(syntheticToken_),
             tokenOut_: address(_tokenIn),
             amountIn_: _issued,
-            // Slippage check will be done in callback function anyway
-            // The line below will make flow revert earlier (swap tx) but it's resulting in `Stack too deep` error
-            // amountOutMin: depositAmountMin_ > amountIn_ ? depositAmountMin_ - amountIn_ : 0,
-            amountOutMin: 0,
+            amountOutMin: layer1SwapAmountOutMin_,
             callbackTxNativeFee_: callbackTxNativeFee_
         });
 
         emit Layer2LeverageStarted(_id);
     }
 
+    // TODO: Comment
+    function retryLayer2LeverageCallback(
+        uint256 id_,
+        uint256 newDepositAmountMin_,
+        uint16 _srcChainId,
+        bytes calldata _srcAddress,
+        uint256 _nonce
+    ) external {
+        Layer2Leverage memory _leverage = layer2Leverages[id_];
+
+        if (msg.sender != _leverage.account) revert SenderIsNotAccount();
+        if (_leverage.finished) revert Layer2LeverageCompletedAlready();
+
+        layer2Leverages[id_].depositAmountMin = newDepositAmountMin_;
+
+        _leverage.syntheticToken.proxyOFT().stargateRouter().clearCachedSwap(_srcChainId, _srcAddress, _nonce);
+    }
+
     // TODO
     //  - Comment
     //  - Reuse code from `leverage()`?
-    //  - Should we have some kind of timeout?
     function layer2LeverageCallback(
         uint256 id_,
         uint256 swapAmountOut_

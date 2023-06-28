@@ -72,6 +72,7 @@ interface IPool is IPauseable, IGovernable {
         uint256 amountIn_,
         uint256 leverage_,
         uint256 depositAmountMin_,
+        uint256 layer1SwapAmountOutMin_,
         uint256 callbackTxNativeFee_
     ) external payable returns (uint256 _issued);
 

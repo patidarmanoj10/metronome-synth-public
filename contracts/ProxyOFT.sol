@@ -5,7 +5,6 @@ pragma solidity 0.8.9;
 import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import "./dependencies/@layerzerolabs/solidity-examples/token/oft/composable/ComposableOFTCore.sol";
 import "./dependencies/stargate-protocol/interfaces/IStargateReceiver.sol";
-import "./dependencies/stargate-protocol/interfaces/IStargateRouter.sol";
 import "./interfaces/external/ISwapper.sol";
 import "./interfaces/ISyntheticToken.sol";
 import "./interfaces/IPool.sol";
@@ -105,7 +104,6 @@ contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCore {
 
     function quoteSwapAndCallbackNativeFee(
         address l2Pool_,
-        address tokenIn_,
         address tokenOut_,
         uint256 amountIn_,
         uint256 amountOutMin_,
@@ -121,7 +119,7 @@ contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCore {
             _payload = abi.encode(
                 l2Pool_,
                 bytes32(type(uint256).max), // The leverageKey. Using most expensive scenario
-                counterTokenOf[tokenIn_][LZ_MAINNET_CHAIN_ID],
+                counterTokenOf[address(syntheticToken)][LZ_MAINNET_CHAIN_ID],
                 counterTokenOf[tokenOut_][LZ_MAINNET_CHAIN_ID],
                 amountOutMin_
             );
@@ -151,7 +149,6 @@ contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCore {
     function swapAndCallback(
         uint256 layer2LeverageId_,
         address payable refundAddress_,
-        address tokenIn_,
         address tokenOut_,
         uint256 amountIn_,
         uint256 amountOutMin_,
@@ -170,7 +167,7 @@ contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCore {
             _payload = abi.encode(
                 msg.sender,
                 layer2LeverageId_,
-                counterTokenOf[tokenIn_][LZ_MAINNET_CHAIN_ID],
+                counterTokenOf[address(syntheticToken)][LZ_MAINNET_CHAIN_ID],
                 counterTokenOf[tokenOut_][LZ_MAINNET_CHAIN_ID],
                 amountOutMin_
             );
@@ -305,6 +302,42 @@ contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCore {
             _to: abi.encodePacked(proxyOftOf[_dstChainId]),
             _payload: _payload
         });
+    }
+
+    // TODO: Only the user can call this function
+    // TODO: Should we have timeout param also like uniswap has?
+    // TODO: Slippage should be increased only
+    // Note: This function has the same implementation as `ComposableOFTCore.retryOFTReceived()` but with the ability to update param
+    function retryOFTReceived(
+        uint16 srcChainId_,
+        bytes calldata srcAddress_,
+        uint64 nonce_,
+        bytes calldata from_,
+        address to_,
+        uint amount_,
+        bytes calldata payload_,
+        uint256 newAmountOutMin_
+    ) public {
+        bytes32 msgHash = failedOFTReceivedMessages[srcChainId_][srcAddress_][nonce_];
+        require(msgHash != bytes32(0), "ComposableOFTCore: no failed message to retry");
+
+        bytes32 hash = keccak256(abi.encode(from_, to_, amount_, payload_));
+        require(hash == msgHash, "ComposableOFTCore: failed message hash mismatch");
+
+        delete failedOFTReceivedMessages[srcChainId_][srcAddress_][nonce_];
+
+        // replace slippage param and retry
+        bytes memory _newPayload;
+        {
+            (address _pool, bytes32 _key, address _syntheticToken, address _collateral, ) = abi.decode(
+                payload_,
+                (address, bytes32, address, address, uint256)
+            );
+            _newPayload = abi.encode(_pool, _key, _syntheticToken, _collateral, newAmountOutMin_);
+        }
+
+        IOFTReceiver(to_).onOFTReceived(srcChainId_, srcAddress_, nonce_, from_, amount_, _newPayload);
+        emit RetryOFTReceivedSuccess(hash);
     }
 
     receive() external payable {}

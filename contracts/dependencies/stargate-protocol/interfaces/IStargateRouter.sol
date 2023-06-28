@@ -60,4 +60,6 @@ interface IStargateRouter {
         bytes calldata _transferAndCallPayload,
         lzTxObj memory _lzTxParams
     ) external view returns (uint256, uint256);
+
+    function clearCachedSwap(uint16 _srcChainId, bytes calldata _srcAddress, uint256 _nonce) external;
 }

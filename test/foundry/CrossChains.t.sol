@@ -15,7 +15,7 @@ import {FeeProvider, FeeProviderStorageV1, TiersNotOrderedByMin} from "../../con
 import {ERC20Mock} from "../../contracts/mock/ERC20Mock.sol";
 import {MasterOracleMock} from "../../contracts/mock/MasterOracleMock.sol";
 import {LZEndpointMock, ILayerZeroEndpoint, ILayerZeroReceiver} from "../../contracts/mock/LZEndpointMock.sol";
-import {SwapperMock} from "../../contracts/mock/SwapperMock.sol";
+import {SwapperMock, ISwapper} from "../../contracts/mock/SwapperMock.sol";
 import {IESMET} from "../../contracts/interfaces/external/IESMET.sol";
 import {WadRayMath} from "../../contracts/lib/WadRayMath.sol";
 
@@ -37,6 +37,8 @@ interface IStargateRouterExtended is IStargateRouter {
         StargatePool.SwapObj memory _s,
         bytes memory _payload
     ) external;
+
+    function retryRevert(uint16 _srcChainId, bytes calldata _srcAddress, uint256 _nonce) external payable;
 }
 
 contract CrossChains_Test is Test {
@@ -49,6 +51,9 @@ contract CrossChains_Test is Test {
 
     uint256 public constant SG_MAINNET_USDC_POOL_ID = 1;
     uint256 public constant SG_OP_USDC_POOL_ID = 1;
+
+    address public constant SG_OP_USDC_POOL = 0xDecC0c09c3B5f6e92EF4184125D5648a66E35298;
+    address public constant SG_MAINNET_POLL = 0xdf0770dF86a8034b3EFEf0A1Bb3c889B8332FF56;
 
     address feeCollector = address(999);
     address alice = address(10);
@@ -220,7 +225,6 @@ contract CrossChains_Test is Test {
         pool_mainnet.addDepositToken(address(msdUSDC_mainnet));
         pool_mainnet.addDebtToken(msUSDDebt_mainnet);
         masterOracle_mainnet.updatePrice(address(usdc_mainnet), 1e18);
-        // masterOracle_mainnet.updatePrice(address(usdc_optimism), 1e18);
         masterOracle_mainnet.updatePrice(address(msUSD_mainnet), 1e18);
         proxyOFT_msUSD_mainnet.updateSwapper(swapper_mainnet);
         proxyOFT_msUSD_mainnet.updateStargateRouter(sgRouter_mainnet);
@@ -248,8 +252,8 @@ contract CrossChains_Test is Test {
             LZ_MAINNET_CHAIN_ID,
             address(usdc_mainnet)
         );
-        deal(address(usdc_optimism), address(swapper_optimism), 1000000e6);
-        deal(address(vaUSDC_optimism), address(swapper_optimism), 1000000e18);
+        deal(address(usdc_optimism), address(swapper_optimism), 1000000000000000e6);
+        deal(address(vaUSDC_optimism), address(swapper_optimism), 1000000000000000e18);
 
         vm.selectFork(mainnetFork);
 
@@ -262,13 +266,34 @@ contract CrossChains_Test is Test {
         proxyOFT_msUSD_mainnet.updatePoolIdOf(address(usdc_mainnet), LZ_MAINNET_CHAIN_ID, SG_MAINNET_USDC_POOL_ID);
         proxyOFT_msUSD_mainnet.updatePoolIdOf(address(usdc_optimism), LZ_OP_CHAIN_ID, SG_OP_USDC_POOL_ID);
 
-        deal(address(usdc_mainnet), address(swapper_mainnet), 1000000e6);
+        deal(address(usdc_mainnet), address(swapper_mainnet), 1000000000e6);
     }
 
-    function _layer2Leverage()
+    function _getTx1Events()
         private
-        returns (Vm.Log memory sendToChainEventTx1, Vm.Log memory packetEventTx1, Vm.Log memory relayerParamsEventTx1)
+        returns (Vm.Log memory SendToChain, Vm.Log memory Packet, Vm.Log memory RelayerParams)
     {
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+        for (uint256 i; i < entries.length; ++i) {
+            Vm.Log memory entry = entries[i];
+            if (entry.topics[0] == keccak256("SendToChain(uint16,address,bytes,uint256)")) {
+                SendToChain = entry;
+            } else if (entry.topics[0] == keccak256("Packet(bytes)")) {
+                Packet = entry;
+            } else if (entry.topics[0] == keccak256("RelayerParams(bytes,uint16)")) {
+                RelayerParams = entry;
+            }
+        }
+    }
+
+    function _tx1_layer2Leverage(
+        uint256 amountIn_,
+        uint256 layer1SwapAmountOutMin_,
+        uint256 leverage_,
+        uint256 depositAmountMin_
+    ) private {
+        vm.recordLogs();
+
         vm.selectFork(mainnetFork);
 
         uint256 _callbackTxNativeFee = proxyOFT_msUSD_mainnet.quoteCallbackTxNativeFee(
@@ -278,68 +303,83 @@ contract CrossChains_Test is Test {
 
         vm.selectFork(optimismFork);
 
-        uint256 amountIn = 1000e6;
-        uint256 depositAmountMin = 1450e18;
-
         uint256 swapAndCallbackTxNativeFee = pool_optimism.quoteLayer2LeverageNativeFee({
             depositToken_: msdUSDC_optimism,
             syntheticToken_: msUSD_optimism,
-            amountIn_: amountIn,
-            depositAmountMin_: depositAmountMin,
+            amountIn_: amountIn_,
+            layer1SwapAmountOutMin_: layer1SwapAmountOutMin_,
             callbackTxNativeFee_: _callbackTxNativeFee
         });
 
-        vm.startPrank(alice);
-
-        uint256 toRefund = 1e18;
-        uint256 fee = swapAndCallbackTxNativeFee + toRefund;
+        uint256 fee = swapAndCallbackTxNativeFee;
         deal(alice, fee);
+        deal(address(usdc_optimism), alice, amountIn_);
 
+        vm.startPrank(alice);
         usdc_optimism.approve(address(pool_optimism), type(uint256).max);
         pool_optimism.layer2Leverage{value: fee}({
             tokenIn_: usdc_optimism,
             depositToken_: msdVaUSDC_optimism,
             syntheticToken_: msUSD_optimism,
-            amountIn_: amountIn,
-            leverage_: 1.5e18,
-            depositAmountMin_: depositAmountMin,
+            amountIn_: amountIn_,
+            leverage_: leverage_,
+            depositAmountMin_: depositAmountMin_,
+            layer1SwapAmountOutMin_: layer1SwapAmountOutMin_,
             callbackTxNativeFee_: _callbackTxNativeFee
         });
-
-        assertEq(alice.balance, toRefund, "fee-estimation-is-not-accurate");
-
         vm.stopPrank();
 
+        assertEq(alice.balance, 0, "fee-estimation-is-not-accurate");
+    }
+
+    function _getTx2Events()
+        private
+        returns (
+            Vm.Log memory Swap,
+            Vm.Log memory Packet,
+            Vm.Log memory MessageFailed,
+            Vm.Log memory CallOFTReceivedFailure
+        )
+    {
         Vm.Log[] memory entries = vm.getRecordedLogs();
         for (uint256 i; i < entries.length; ++i) {
             Vm.Log memory entry = entries[i];
-            if (entry.topics[0] == keccak256("SendToChain(uint16,address,bytes,uint256)")) {
-                sendToChainEventTx1 = entry;
+            if (entry.topics[0] == keccak256("Swap(uint16,uint256,address,uint256,uint256,uint256,uint256,uint256)")) {
+                Swap = entry;
             } else if (entry.topics[0] == keccak256("Packet(bytes)")) {
-                packetEventTx1 = entry;
-            } else if (entry.topics[0] == keccak256("RelayerParams(bytes,uint16)")) {
-                relayerParamsEventTx1 = entry;
+                Packet = entry;
+            } else if (entry.topics[0] == keccak256("MessageFailed(uint16,bytes,uint64,bytes,bytes)")) {
+                // Note: This event will be thrown if the bridging transfer fails
+                // event MessageFailed(uint16 _srcChainId, bytes _srcAddress, uint64 _nonce, bytes _payload, bytes _reason);
+                MessageFailed = entry;
+            } else if (
+                entry.topics[0] ==
+                keccak256("CallOFTReceivedFailure(uint16,bytes,uint64,bytes,address,uint256,bytes,bytes)")
+            ) {
+                // Note: This event will be thrown if the `onOFTReceived` call fails
+                // event CallOFTReceivedFailure(uint16 indexed _srcChainId, bytes _srcAddress, uint64 _nonce, bytes _from, address indexed _to, uint _amount, bytes _payload, bytes _reason);
+                CallOFTReceivedFailure = entry;
             }
         }
     }
 
-    function _layer1Swap(
-        Vm.Log memory sendToChainEventTx1,
-        Vm.Log memory packetEventTx1,
-        Vm.Log memory relayerParamsEventTx1
-    ) private returns (Vm.Log memory swapEventTx2, Vm.Log memory packetEventTx2) {
+    function _tx2_layer1Swap(
+        Vm.Log memory SendToChainTx1,
+        Vm.Log memory PacketTx1,
+        Vm.Log memory RelayerParamsTx1
+    ) private {
         vm.selectFork(mainnetFork);
 
         // Airdrop ETH
         // Note: Adapter params uses (uint16 version, uint256 gasAmount, uint256 nativeForDst, address addressOnDst)
         // See more: https://layerzero.gitbook.io/docs/evm-guides/advanced/relayer-adapter-parameters
-        (bytes memory adapterParams, ) = abi.decode(relayerParamsEventTx1.data, (bytes, uint16));
+        (bytes memory adapterParams, ) = abi.decode(RelayerParamsTx1.data, (bytes, uint16));
         uint256 nativeForDst = adapterParams.toUint256(34);
         assertEq(address(proxyOFT_msUSD_mainnet).balance, 0);
         deal(address(proxyOFT_msUSD_mainnet), nativeForDst);
 
-        (bytes memory toAddress, ) = abi.decode(sendToChainEventTx1.data, (bytes, uint256));
-        bytes memory from = abi.encodePacked(sendToChainEventTx1.topics[2]);
+        (bytes memory toAddress, ) = abi.decode(SendToChainTx1.data, (bytes, uint256));
+        bytes memory from = abi.encodePacked(SendToChainTx1.topics[2]);
         assertEq(abi.decode(from, (address)), address(proxyOFT_msUSD_optimism));
         assertEq(toAddress.toAddress(0), address(proxyOFT_msUSD_mainnet));
         uint64 nonce = lzEndpoint_mainnet.getInboundNonce(LZ_OP_CHAIN_ID, from) + 1;
@@ -348,7 +388,7 @@ contract CrossChains_Test is Test {
         // uint64 nonce, uint16 localChainId, address ua, uint16 dstChainId, bytes dstAddress, bytes payload
         // bytes memory encodedPayload = abi.encodePacked(nonce, localChainId, ua, dstChainId, dstAddress, payload);
         // emit Packet(encodedPayload);
-        bytes memory encodedPayload = abi.decode(packetEventTx1.data, (bytes));
+        bytes memory encodedPayload = abi.decode(PacketTx1.data, (bytes));
         bytes memory payload = encodedPayload.slice(52, encodedPayload.length - 52);
         (, , , , , uint64 _dstGasForCall) = abi.decode(payload, (uint16, bytes, bytes, uint256, bytes, uint64));
 
@@ -361,26 +401,34 @@ contract CrossChains_Test is Test {
             _gasLimit: _dstGasForCall,
             _payload: payload
         });
-        assertEq(address(proxyOFT_msUSD_mainnet).balance, 0, "fee-estimation-is-not-accurate");
+    }
 
+    function _getLayer2CallbackEvents() private returns (Vm.Log memory CachedSwapSaved, Vm.Log memory Revert) {
         Vm.Log[] memory entries = vm.getRecordedLogs();
         for (uint256 i; i < entries.length; ++i) {
             Vm.Log memory entry = entries[i];
-            if (entry.topics[0] == keccak256("Swap(uint16,uint256,address,uint256,uint256,uint256,uint256,uint256)")) {
-                swapEventTx2 = entry;
-            } else if (entry.topics[0] == keccak256("Packet(bytes)")) {
-                packetEventTx2 = entry;
+            if (
+                entry.topics[0] ==
+                keccak256("CachedSwapSaved(uint16,bytes,uint256,address,uint256,address,bytes,bytes)")
+            ) {
+                // Note: Emitted when `sgReceive()` fails
+                // event CachedSwapSaved(uint16 chainId, bytes srcAddress, uint256 nonce, address token, uint256 amountLD, address to, bytes payload, bytes reason);
+                CachedSwapSaved = entry;
+            } else if (entry.topics[0] == keccak256("Revert(uint8,uint16,bytes,uint256)")) {
+                // Note: Emitted when bridging fails
+                // event Revert(uint8 bridgeFunctionType, uint16 chainId, bytes srcAddress, uint256 nonce);
+                Revert = entry;
             }
         }
     }
 
-    function _layer2Callback(Vm.Log memory swapEventTx2, Vm.Log memory packetEventTx2) private {
+    function _tx3_layer2Callback(Vm.Log memory SwapTx2, Vm.Log memory PacketTx2) private {
         vm.selectFork(optimismFork);
 
         address from;
         {
             (, , from, , , , , ) = abi.decode(
-                swapEventTx2.data,
+                SwapTx2.data,
                 (uint16, uint256, address, uint256, uint256, uint256, uint256, uint256)
             );
         }
@@ -391,7 +439,7 @@ contract CrossChains_Test is Test {
         StargatePool.SwapObj memory swapObj;
         bytes memory payload;
         {
-            bytes memory encodedPayload = abi.decode(packetEventTx2.data, (bytes));
+            bytes memory encodedPayload = abi.decode(PacketTx2.data, (bytes));
             // Note: Remove prefix added for `Packet` event
             // uint64 nonce, uint16 localChainId, address ua, uint16 dstChainId, bytes dstAddress, bytes payload
             // bytes memory encodedPayload = abi.encodePacked(nonce, localChainId, ua, dstChainId, dstAddress, payload);
@@ -422,13 +470,10 @@ contract CrossChains_Test is Test {
     }
 
     function test_layer2Leverage() external {
-        vm.recordLogs();
-
         //
         // given
         //
         vm.selectFork(optimismFork);
-        deal(address(usdc_optimism), alice, 1000000e18);
         (, uint256 _depositInUsdBefore, uint256 _debtInUsdBefore, , ) = pool_optimism.debtPositionOf(alice);
         assertEq(_depositInUsdBefore, 0);
         assertEq(_debtInUsdBefore, 0);
@@ -436,20 +481,20 @@ contract CrossChains_Test is Test {
         //
         // when
         //
-        // tx1
-        (
-            Vm.Log memory sendToChainEventTx1,
-            Vm.Log memory packetEventTx1,
-            Vm.Log memory relayerParamsEventTx1
-        ) = _layer2Leverage();
-        // tx2
-        (Vm.Log memory swapEventTx2, Vm.Log memory packetEventTx2) = _layer1Swap(
-            sendToChainEventTx1,
-            packetEventTx1,
-            relayerParamsEventTx1
-        );
-        // tx3
-        _layer2Callback(swapEventTx2, packetEventTx2);
+        _tx1_layer2Leverage({
+            amountIn_: 1000e6,
+            layer1SwapAmountOutMin_: 0,
+            leverage_: 1.5e18,
+            depositAmountMin_: 1450e18
+        });
+        (Vm.Log memory SendToChain, Vm.Log memory Packet, Vm.Log memory RelayerParams) = _getTx1Events();
+
+        _tx2_layer1Swap(SendToChain, Packet, RelayerParams);
+        (Vm.Log memory Swap, Vm.Log memory Packet_Tx2, , ) = _getTx2Events();
+
+        assertEq(address(proxyOFT_msUSD_mainnet).balance, 0, "fee-estimation-is-not-accurate");
+
+        _tx3_layer2Callback(Swap, Packet_Tx2);
 
         //
         // then
@@ -459,11 +504,230 @@ contract CrossChains_Test is Test {
         assertEq(_debtInUsdAfter, 500e18);
     }
 
-    function test_TODO() external {
-        // TODO: Write tests for the scenarios below
-        // - swap (tx2) fails and work after retrying (e.g. after synth `maxBridgingBalance` amend)
-        // - swap (tx2) fails and retry won't work (e.g. amountOutMin too way high)
-        // - callback (tx3) fails and work after retrying (e.g. after synth `totalSupply` amend)
-        // - callback (tx3) fails and retry won't work (e.g. position end up underwater)
+    function test_failedTx2_whenSynthTransferReverted() external {
+        //
+        // given
+        //
+        vm.selectFork(mainnetFork);
+        msUSD_mainnet.updateMaxBridgingBalance(100e18); // It will make mainnet's bridge minting to fail
+
+        //
+        // when
+        //
+        _tx1_layer2Leverage({
+            amountIn_: 1000e6,
+            layer1SwapAmountOutMin_: 0,
+            leverage_: 1.5e18,
+            depositAmountMin_: 1450e18
+        });
+        (Vm.Log memory SendToChain, Vm.Log memory Packet, Vm.Log memory RelayerParams) = _getTx1Events();
+
+        // Failed tx
+        _tx2_layer1Swap(SendToChain, Packet, RelayerParams);
+        (, , Vm.Log memory MessageFailed, ) = _getTx2Events();
+        (uint16 _srcChainId, bytes memory _srcAddress, uint64 _nonce, bytes memory _payload, bytes memory reason) = abi
+            .decode(MessageFailed.data, (uint16, bytes, uint64, bytes, bytes));
+        assertEq(reason, abi.encodeWithSignature("SurpassMaxBridgingBalance()"));
+
+        // Same state, retry will fail too
+        vm.expectRevert();
+        proxyOFT_msUSD_mainnet.retryMessage(_srcChainId, _srcAddress, _nonce, _payload);
+
+        // Retry will work after amending state
+        msUSD_mainnet.updateMaxBridgingBalance(type(uint256).max);
+        proxyOFT_msUSD_mainnet.retryMessage(_srcChainId, _srcAddress, _nonce, _payload);
+        (Vm.Log memory Swap, Vm.Log memory PacketEventTx2, , ) = _getTx2Events();
+
+        _tx3_layer2Callback(Swap, PacketEventTx2);
+
+        //
+        // then
+        //
+        (, uint256 _depositInUsdAfter, uint256 _debtInUsdAfter, , ) = pool_optimism.debtPositionOf(alice);
+        assertApproxEqAbs(_depositInUsdAfter, 1500e18, 1e18);
+        assertEq(_debtInUsdAfter, 500e18);
+    }
+
+    function test_failedTx2_whenOnOFTReceivedReverted() external {
+        //
+        // when
+        //
+        _tx1_layer2Leverage({
+            amountIn_: 1000e6,
+            layer1SwapAmountOutMin_: 501e6, // Wrong slippage
+            leverage_: 1.5e18,
+            depositAmountMin_: 1450e18
+        });
+        (Vm.Log memory SendToChain, Vm.Log memory Packet, Vm.Log memory RelayerParams) = _getTx1Events();
+
+        // Failed tx
+        _tx2_layer1Swap(SendToChain, Packet, RelayerParams);
+        (, , , Vm.Log memory CallOFTReceivedFailure) = _getTx2Events();
+        (
+            bytes memory srcAddress,
+            uint64 nonce,
+            bytes memory from,
+            uint amount,
+            bytes memory payload,
+            bytes memory reason
+        ) = abi.decode(CallOFTReceivedFailure.data, (bytes, uint64, bytes, uint, bytes, bytes));
+        uint16 srcChainId = uint16(uint256(CallOFTReceivedFailure.topics[1])); // uint16 indexed srcChainId
+        address to = address(uint160(uint256(CallOFTReceivedFailure.topics[2]))); // address indexed to
+        assertEq(reason.slice(4, reason.length - 4), abi.encode("swapper-mock-slippage"));
+
+        // Same state, retry will fail too
+        vm.expectRevert();
+        proxyOFT_msUSD_mainnet.retryOFTReceived(srcChainId, srcAddress, nonce, from, to, amount, payload);
+
+        // Retry will work with right slippage
+        proxyOFT_msUSD_mainnet.retryOFTReceived(
+            srcChainId,
+            srcAddress,
+            nonce,
+            from,
+            to,
+            amount,
+            payload,
+            500e6 // Correct slippage
+        );
+        (Vm.Log memory SwapTx2, Vm.Log memory PacketTx2, , ) = _getTx2Events();
+
+        _tx3_layer2Callback(SwapTx2, PacketTx2);
+
+        //
+        // then
+        //
+        (, uint256 _depositInUsdAfter, uint256 _debtInUsdAfter, , ) = pool_optimism.debtPositionOf(alice);
+        assertApproxEqAbs(_depositInUsdAfter, 1500e18, 1e18);
+        assertEq(_debtInUsdAfter, 500e18);
+    }
+
+    function test_failedTx3_whenCollateralTransferReverted() external {
+        //
+        // given
+        //
+
+        // Making amount to bridge from mainnet to L2 be higher than the SG Pool liquidity
+        vm.selectFork(optimismFork);
+        uint256 sgUsdcLiquidity = usdc_optimism.balanceOf(SG_OP_USDC_POOL);
+        uint256 amountIn = sgUsdcLiquidity * 3;
+
+        // Adding enough liquidity to mainnet SG Pool
+        vm.selectFork(mainnetFork);
+        address whale = address(123);
+        deal(address(usdc_mainnet), whale, amountIn);
+        vm.startPrank(whale);
+        usdc_mainnet.approve(address(sgRouter_mainnet), type(uint256).max);
+        sgRouter_mainnet.addLiquidity(SG_MAINNET_USDC_POOL_ID, amountIn, whale);
+        vm.stopPrank();
+        vm.prank(address(sgRouter_mainnet));
+        StargatePool(SG_MAINNET_POLL).creditChainPath(
+            LZ_OP_CHAIN_ID,
+            SG_OP_USDC_POOL_ID,
+            StargatePool.CreditObj({credits: 1000000000e6, idealBalance: 1000000000e6})
+        );
+
+        //
+        // when
+        //
+        _tx1_layer2Leverage({amountIn_: amountIn, layer1SwapAmountOutMin_: 0, leverage_: 1.5e18, depositAmountMin_: 0});
+        (Vm.Log memory SendToChain, Vm.Log memory Packet, Vm.Log memory RelayerParams) = _getTx1Events();
+
+        _tx2_layer1Swap(SendToChain, Packet, RelayerParams);
+        (Vm.Log memory Swap, Vm.Log memory PacketTx2, , ) = _getTx2Events();
+
+        // Failed tx
+        _tx3_layer2Callback(Swap, PacketTx2);
+        (, Vm.Log memory Revert) = _getLayer2CallbackEvents();
+        assertGt(Revert.data.length, 0); // Emitted `Revert` event
+        (, uint16 chainId, bytes memory srcAddress, uint256 nonce) = abi.decode(
+            Revert.data,
+            (uint8, uint16, bytes, uint256)
+        );
+
+        // Same state, retry will fail too
+        sgRouter_optimism.retryRevert(chainId, srcAddress, nonce);
+        (, Revert) = _getLayer2CallbackEvents();
+        assertGt(Revert.data.length, 0); // Emitted `Revert` event
+
+        // Retry will work after adding liquidity to the SG Pool
+        vm.selectFork(optimismFork);
+        deal(address(usdc_optimism), whale, amountIn);
+        vm.startPrank(whale);
+        usdc_optimism.approve(address(sgRouter_optimism), type(uint256).max);
+        sgRouter_optimism.addLiquidity(SG_OP_USDC_POOL_ID, amountIn, whale);
+        vm.stopPrank();
+        // Note: Increase chainPath[chainPathIndex].lkb to avoid underflow
+        stdstore
+            .target(SG_OP_USDC_POOL)
+            .sig("chainPaths(uint256)")
+            .with_key(StargatePool(SG_OP_USDC_POOL).chainPathIndexLookup(LZ_MAINNET_CHAIN_ID, SG_MAINNET_USDC_POOL_ID))
+            .depth(5)
+            .checked_write(100000000000e6);
+
+        sgRouter_optimism.retryRevert(chainId, srcAddress, nonce);
+
+        //
+        // then
+        //
+        (, uint256 _depositInUsdAfter, uint256 _debtInUsdAfter, , ) = pool_optimism.debtPositionOf(alice);
+        assertGt(_depositInUsdAfter, 0);
+        assertGt(_debtInUsdAfter, 0);
+    }
+
+    function test_failedTx3_whenSgReceiveReverted() external {
+        //
+        // given
+        //
+        vm.selectFork(optimismFork);
+        assertEq(usdc_optimism.balanceOf(address(proxyOFT_msUSD_optimism)), 0);
+
+        uint256 wrongDepositAmountMin = 9999e18;
+        uint256 correctDepositAmountMin = 1450e18;
+
+        //
+        // when
+        //
+        _tx1_layer2Leverage({
+            amountIn_: 1000e6,
+            layer1SwapAmountOutMin_: 500e6,
+            leverage_: 1.5e18,
+            depositAmountMin_: wrongDepositAmountMin
+        });
+        (Vm.Log memory SendToChain, Vm.Log memory Packet, Vm.Log memory RelayerParams) = _getTx1Events();
+
+        _tx2_layer1Swap(SendToChain, Packet, RelayerParams);
+        (Vm.Log memory Swap, Vm.Log memory PacketTx2, , ) = _getTx2Events();
+
+        // Failed tx
+        _tx3_layer2Callback(Swap, PacketTx2);
+        (Vm.Log memory CachedSwapSaved, ) = _getLayer2CallbackEvents();
+        (uint16 chainId, bytes memory srcAddress, uint256 nonce, , , , bytes memory payload, bytes memory reason) = abi
+            .decode(CachedSwapSaved.data, (uint16, bytes, uint256, address, uint256, address, bytes, bytes));
+        assertEq(reason, abi.encodeWithSignature("LeverageSlippageTooHigh()"));
+        // Note: Even if `sgReceive` fails, the collateral amount is sent
+        assertGt(usdc_optimism.balanceOf(address(proxyOFT_msUSD_optimism)), 0);
+
+        // Same state, retry will fail too
+        vm.expectRevert();
+        sgRouter_optimism.clearCachedSwap(chainId, srcAddress, nonce);
+
+        // Retry will work with right slippage
+        (, uint256 _layer2LeverageId) = abi.decode(payload, (address, uint256));
+        vm.prank(alice);
+        pool_optimism.retryLayer2LeverageCallback(
+            _layer2LeverageId,
+            correctDepositAmountMin,
+            chainId,
+            srcAddress,
+            nonce
+        );
+
+        //
+        // then
+        //
+        (, uint256 _depositInUsdAfter, uint256 _debtInUsdAfter, , ) = pool_optimism.debtPositionOf(alice);
+        assertApproxEqAbs(_depositInUsdAfter, 1500e18, 1e18);
+        assertEq(_debtInUsdAfter, 500e18);
     }
 }
