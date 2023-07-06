@@ -62,4 +62,12 @@ interface IStargateRouter {
     ) external view returns (uint256, uint256);
 
     function clearCachedSwap(uint16 _srcChainId, bytes calldata _srcAddress, uint256 _nonce) external;
+
+    function factory() external view returns (address);
+
+    function cachedSwapLookup(
+        uint16 _chainId_,
+        bytes calldata _srcAddress,
+        uint256 _nonce
+    ) external view returns (address token, uint256 amountLD, address to, bytes memory payload);
 }

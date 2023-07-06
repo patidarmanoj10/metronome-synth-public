@@ -6,6 +6,8 @@ import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import "./dependencies/@layerzerolabs/solidity-examples/token/oft/composable/ComposableOFTCore.sol";
 import "./dependencies/stargate-protocol/interfaces/IStargateReceiver.sol";
 import "./interfaces/external/ISwapper.sol";
+import "./interfaces/external/IStargateFactory.sol";
+import "./interfaces/external/IStargatePool.sol";
 import "./interfaces/ISyntheticToken.sol";
 import "./interfaces/IPool.sol";
 import "./interfaces/IProxyOFT.sol";
@@ -21,9 +23,9 @@ error InvalidSourceChain();
 // TODO: Create all missing update function
 // TODO: Make it upgradable
 // TODO: Having the same implementation for all chains or have `Layer1ProxyOFT` and `Layer2ProxyOFT` implementations?
-// TODO: Cover revert scenarios
 contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCore {
     using SafeERC20 for IERC20;
+    using SafeERC20 for ISyntheticToken;
     using WadRayMath for uint256;
     using BytesLib for bytes;
 
@@ -35,8 +37,10 @@ contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCore {
     // See more: https://stargateprotocol.gitbook.io/stargate/developers/function-types
     uint8 internal constant SG_TYPE_SWAP_REMOTE = 1;
 
+    // TODO: Create setter for this
     uint16 public constant LZ_MAINNET_CHAIN_ID = 101;
 
+    // TODO: Create setter for this
     uint16 public immutable LZ_THIS_CHAIN_ID;
 
     ISyntheticToken internal immutable syntheticToken;
@@ -45,20 +49,20 @@ contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCore {
 
     ISwapper public swapper;
 
-    uint64 public swapTxGasLimit = 500_000;
+    uint64 public leverageSwapTxGasLimit = 500_000;
+
+    uint64 public flashRepaySwapTxGasLimit = 500_000;
 
     IStargateRouter public stargateRouter;
 
-    uint64 public callbackTxGasLimit = 750_000;
+    uint64 public leverageCallbackTxGasLimit = 750_000;
+
+    uint64 public flashRepayCallbackTxGasLimit = 750_000;
 
     // token => chainId => poolId
-    mapping(address => mapping(uint16 => uint256)) public poolIdOf;
+    mapping(address => uint256) public poolIdOf;
 
-    // tokenHere => chainId => tokenThere
-    mapping(address => mapping(uint16 => address)) public counterTokenOf;
-
-    // Note: Stores other chains' ProxyOFT contracts
-    mapping(uint16 => address) public proxyOftOf;
+    mapping(uint256 => uint256) swapAmountOutMin;
 
     constructor(
         address _lzEndpoint,
@@ -98,11 +102,70 @@ contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCore {
         return _amount;
     }
 
+    function onOFTReceived(
+        uint16 srcChainId_,
+        bytes calldata /*srcAddress_*/,
+        uint64 /*nonce_*/,
+        bytes calldata from_,
+        uint amount_,
+        bytes calldata payload_
+    ) external override {
+        if (block.chainid == 1) {
+            swapSynthAndTriggerCallback(srcChainId_, from_, amount_, payload_);
+        } else {
+            executeFlashRepayCallback(srcChainId_, from_, amount_, payload_);
+        }
+    }
+
+    function sgReceive(
+        uint16 srcChainId_,
+        bytes memory srcAddress_,
+        uint256 /*nonce_*/,
+        address token_,
+        uint256 amountLD_,
+        bytes memory payload_
+    ) external override {
+        if (block.chainid != 1) {
+            executeLeverageCallback(srcChainId_, srcAddress_, token_, amountLD_, payload_);
+        } else {
+            swapUnderlyingAndTriggerCallback(srcChainId_, srcAddress_, token_, amountLD_, payload_);
+        }
+    }
+
     /*//////////////////////////////////////////////////////////////
                               LAYER 2 OFT
     //////////////////////////////////////////////////////////////*/
 
-    function quoteSwapAndCallbackNativeFee(
+    function quoteFlashRepaySwapNativeFee(
+        address l2Pool_,
+        address /*tokenIn_*/, // TODO: Keep it here?
+        uint256 /*amountIn_*/, // TODO: Keep it here?
+        uint256 amountOutMin_,
+        uint256 callbackTxNativeFee_
+    ) external view returns (uint256 _nativeFee) {
+        if (block.chainid == 1) revert NotAvailableOnThisChain();
+
+        bytes memory _mainnetOFT = abi.encodePacked(_getProxyOftOf(LZ_MAINNET_CHAIN_ID));
+
+        (_nativeFee, ) = stargateRouter.quoteLayerZeroFee({
+            _dstChainId: LZ_MAINNET_CHAIN_ID,
+            _functionType: SG_TYPE_SWAP_REMOTE,
+            _toAddress: _mainnetOFT,
+            _transferAndCallPayload: abi.encodePacked(
+                l2Pool_,
+                bytes32(type(uint256).max), // requestId
+                address(type(uint160).max), // account
+                amountOutMin_
+            ),
+            _lzTxParams: IStargateRouter.lzTxObj({
+                dstGasForCall: flashRepaySwapTxGasLimit + flashRepayCallbackTxGasLimit,
+                dstNativeAmount: callbackTxNativeFee_,
+                dstNativeAddr: _mainnetOFT
+            })
+        });
+    }
+
+    function quoteLeverageSwapNativeFee(
         address l2Pool_,
         address tokenOut_,
         uint256 amountIn_,
@@ -111,22 +174,22 @@ contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCore {
     ) public view override returns (uint256 _nativeFee) {
         if (block.chainid == 1) revert NotAvailableOnThisChain();
 
-        address _mainnetOFT = proxyOftOf[LZ_MAINNET_CHAIN_ID];
-        uint64 _callbackTxGasLimit = callbackTxGasLimit;
+        address _mainnetOFT = _getProxyOftOf(LZ_MAINNET_CHAIN_ID);
+        uint64 _callbackTxGasLimit = leverageCallbackTxGasLimit;
         bytes memory _payload;
         bytes memory _adapterParams;
         {
             _payload = abi.encode(
                 l2Pool_,
-                bytes32(type(uint256).max), // The leverageKey. Using most expensive scenario
-                counterTokenOf[address(syntheticToken)][LZ_MAINNET_CHAIN_ID],
-                counterTokenOf[tokenOut_][LZ_MAINNET_CHAIN_ID],
+                bytes32(type(uint256).max), // requestId
+                poolIdOf[tokenOut_],
+                address(type(uint160).max), // account
                 amountOutMin_
             );
 
             _adapterParams = abi.encodePacked(
                 LZ_ADAPTER_PARAMS_VERSION,
-                uint256(swapTxGasLimit + _callbackTxGasLimit),
+                uint256(leverageSwapTxGasLimit + _callbackTxGasLimit),
                 callbackTxNativeFee_,
                 _mainnetOFT
             );
@@ -146,35 +209,69 @@ contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCore {
         return _swapTxNativeFee;
     }
 
-    function swapAndCallback(
-        uint256 layer2LeverageId_,
-        address payable refundAddress_,
+    function triggerFlashRepaySwap(
+        uint256 requestId_,
+        address payable account_,
+        address tokenIn_,
+        uint256 amountIn_,
+        uint256 amountOutMin_,
+        uint256 callbackTxNativeFee_
+    ) external payable override {
+        if (block.chainid == 1) revert NotAvailableOnThisChain();
+        if (!syntheticToken.poolRegistry().isPoolRegistered(msg.sender)) revert InvalidMsgSender();
+
+        bytes memory _payload;
+        bytes memory _mainnetOFT;
+        {
+            // Note: `amountIn` isn't needed here because it's part of the message
+            _payload = abi.encode(msg.sender, requestId_, account_, amountOutMin_);
+            _mainnetOFT = abi.encodePacked(_getProxyOftOf(LZ_MAINNET_CHAIN_ID));
+        }
+
+        IStargateRouter _stargateRouter = stargateRouter;
+        IERC20(tokenIn_).safeApprove(address(_stargateRouter), 0);
+        IERC20(tokenIn_).safeApprove(address(_stargateRouter), amountIn_);
+        _stargateRouter.swap{value: msg.value}({
+            _dstChainId: LZ_MAINNET_CHAIN_ID,
+            _srcPoolId: poolIdOf[tokenIn_],
+            _dstPoolId: poolIdOf[tokenIn_],
+            _refundAddress: account_,
+            _amountLD: amountIn_,
+            _minAmountLD: (amountIn_ * (MAX_BPS - stargateSlippage)) / MAX_BPS,
+            _lzTxParams: IStargateRouter.lzTxObj({
+                dstGasForCall: flashRepaySwapTxGasLimit + flashRepayCallbackTxGasLimit,
+                dstNativeAmount: callbackTxNativeFee_,
+                dstNativeAddr: _mainnetOFT
+            }),
+            _to: _mainnetOFT,
+            _payload: _payload
+        });
+    }
+
+    function triggerLeverageSwap(
+        uint256 requestId_,
+        address payable account_,
         address tokenOut_,
         uint256 amountIn_,
         uint256 amountOutMin_,
         uint256 callbackTxNativeFee_
-    ) public payable override {
+    ) external payable override {
         if (block.chainid == 1) revert NotAvailableOnThisChain();
         if (!syntheticToken.poolRegistry().isPoolRegistered(msg.sender)) revert InvalidMsgSender();
 
-        address payable _refundAddress = refundAddress_;
-        address _mainnetOFT = proxyOftOf[LZ_MAINNET_CHAIN_ID];
-        uint64 _callbackTxGasLimit = callbackTxGasLimit;
+        address payable _refundAddress = account_; // Stack too deep
+
+        address _mainnetOFT = _getProxyOftOf(LZ_MAINNET_CHAIN_ID);
+        uint64 _leverageCallbackTxGasLimit = leverageCallbackTxGasLimit;
         bytes memory _payload;
         bytes memory _adapterParams;
         {
             // Note: `amountIn` isn't needed here because it's part of the message
-            _payload = abi.encode(
-                msg.sender,
-                layer2LeverageId_,
-                counterTokenOf[address(syntheticToken)][LZ_MAINNET_CHAIN_ID],
-                counterTokenOf[tokenOut_][LZ_MAINNET_CHAIN_ID],
-                amountOutMin_
-            );
+            _payload = abi.encode(msg.sender, requestId_, poolIdOf[tokenOut_], account_, amountOutMin_);
 
             _adapterParams = abi.encodePacked(
                 LZ_ADAPTER_PARAMS_VERSION,
-                uint256(swapTxGasLimit + _callbackTxGasLimit),
+                uint256(leverageSwapTxGasLimit + _leverageCallbackTxGasLimit),
                 callbackTxNativeFee_,
                 _mainnetOFT
             );
@@ -187,23 +284,41 @@ contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCore {
             _amount: amountIn_,
             _payload: _payload,
             // Note: `_dstGasForCall` is the extra gas for the further call triggered from the destination
-            _dstGasForCall: _callbackTxGasLimit,
+            _dstGasForCall: _leverageCallbackTxGasLimit,
             _refundAddress: _refundAddress,
             _zroPaymentAddress: address(0),
             _adapterParams: _adapterParams
         });
     }
 
-    function sgReceive(
+    function executeFlashRepayCallback(
+        uint16 srcChainId_,
+        bytes memory from_,
+        uint256 amountLD_,
+        bytes memory payload_
+    ) private {
+        if (block.chainid == 1) revert NotAvailableOnThisChain();
+        if (from_.toAddress(0) != _getProxyOftOf(srcChainId_)) revert InvalidFromAddress();
+        if (srcChainId_ != LZ_MAINNET_CHAIN_ID) revert InvalidSourceChain();
+
+        (address _poolAddress, uint256 _layer2FlashRepayId) = abi.decode(payload_, (address, uint256));
+
+        IERC20 _syntheticToken = syntheticToken;
+
+        _syntheticToken.safeApprove(_poolAddress, 0);
+        _syntheticToken.safeApprove(_poolAddress, amountLD_);
+        IPool(_poolAddress).layer2FlashRepayCallback(_layer2FlashRepayId, amountLD_);
+    }
+
+    function executeLeverageCallback(
         uint16 srcChainId_,
         bytes memory srcAddress_,
-        uint256 /*nonce_*/,
         address token_,
         uint256 amountLD_,
         bytes memory payload_
-    ) external {
+    ) private {
         if (block.chainid == 1) revert NotAvailableOnThisChain();
-        if (abi.decode(srcAddress_, (address)) != proxyOftOf[srcChainId_]) revert InvalidFromAddress();
+        if (abi.decode(srcAddress_, (address)) != _getProxyOftOf(srcChainId_)) revert InvalidFromAddress();
         if (srcChainId_ != LZ_MAINNET_CHAIN_ID) revert InvalidSourceChain();
         if (msg.sender != address(stargateRouter)) revert InvalidMsgSender();
 
@@ -218,7 +333,7 @@ contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCore {
                               MAINNET OFT
     //////////////////////////////////////////////////////////////*/
 
-    function quoteCallbackTxNativeFee(
+    function quoteLeverageCallbackNativeFee(
         address l2Pool_,
         uint16 dstChainId_
     ) public view returns (uint256 _callbackTxNativeFee) {
@@ -227,88 +342,200 @@ contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCore {
         (_callbackTxNativeFee, ) = stargateRouter.quoteLayerZeroFee({
             _dstChainId: dstChainId_,
             _functionType: SG_TYPE_SWAP_REMOTE,
-            _toAddress: abi.encodePacked(proxyOftOf[dstChainId_]),
+            _toAddress: abi.encodePacked(_getProxyOftOf(dstChainId_)),
             _transferAndCallPayload: abi.encodePacked(
                 l2Pool_,
                 bytes32(type(uint256).max) // The leverageKey. Using most expensive scenario
             ),
             _lzTxParams: IStargateRouter.lzTxObj({
-                dstGasForCall: callbackTxGasLimit,
+                dstGasForCall: leverageCallbackTxGasLimit,
                 dstNativeAmount: 0,
                 dstNativeAddr: "0x"
             })
         });
     }
 
-    function onOFTReceived(
+    function quoteFlashRepayCallbackNativeFee(
+        address l2Pool_,
+        uint16 dstChainId_
+    ) public view returns (uint256 _callbackTxNativeFee) {
+        if (block.chainid != 1) revert NotAvailableOnThisChain();
+
+        (_callbackTxNativeFee, ) = this.estimateSendAndCallFee({
+            _dstChainId: dstChainId_,
+            _toAddress: abi.encodePacked(_getProxyOftOf(dstChainId_)),
+            _amount: type(uint256).max, // TODO: Review
+            _payload: abi.encode(
+                l2Pool_,
+                bytes32(type(uint256).max) // requestId
+            ),
+            // Note: `_dstGasForCall` is the extra gas for the further call triggered from the destination
+            _dstGasForCall: flashRepayCallbackTxGasLimit,
+            _useZro: false,
+            _adapterParams: abi.encodePacked(
+                LZ_ADAPTER_PARAMS_VERSION,
+                uint256(flashRepayCallbackTxGasLimit),
+                uint256(0),
+                address(0)
+            )
+        });
+    }
+
+    function swapSynthAndTriggerCallback(
         uint16 srcChainId_,
-        bytes calldata srcAddress_,
-        uint64 /*nonce_*/,
         bytes calldata from_,
         uint amount_,
         bytes calldata payload_
-    ) external override {
+    ) private {
         if (block.chainid != 1) revert NotAvailableOnThisChain();
         if (srcChainId_ == LZ_MAINNET_CHAIN_ID) revert NotAvailableOnThisChain();
-        if (abi.decode(srcAddress_, (address)) != from_.toAddress(0)) revert InvalidFromAddress();
-        if (from_.toAddress(0) != proxyOftOf[srcChainId_]) revert InvalidFromAddress();
+        if (from_.toAddress(0) != _getProxyOftOf(srcChainId_)) revert InvalidFromAddress();
         if (msg.sender != address(this)) revert InvalidMsgSender();
 
-        // 1. Swap synthetic token from L2 for collateral
+        IStargateRouter _stargateRouter = stargateRouter;
+
+        // 1. Swap synthetic token from L2 for underlying
         address _pool;
-        bytes32 _key;
-        address _collateral;
-        uint256 _collateralAmount;
+        uint256 _requestId;
+        address _underlying;
+        uint256 _amountOut;
         {
-            address _syntheticToken;
+            address _account;
             uint256 _amountOutMin;
-            (_pool, _key, _syntheticToken, _collateral, _amountOutMin) = abi.decode(
+            uint256 _underlyingPoolId;
+            (_pool, _requestId, _underlyingPoolId, _account, _amountOutMin) = abi.decode(
                 payload_,
-                (address, bytes32, address, address, uint256)
+                (address, uint256, uint256, address, uint256)
             );
 
-            ISwapper _swapper = swapper;
-            IERC20(_syntheticToken).safeApprove(address(_swapper), 0);
-            IERC20(_syntheticToken).safeApprove(address(_swapper), amount_);
-            _collateralAmount = _swapper.swapExactInput({
-                tokenIn_: _syntheticToken,
-                tokenOut_: _collateral,
+            _underlying = IStargatePool(IStargateFactory(_stargateRouter.factory()).getPool(_underlyingPoolId)).token();
+
+            _amountOut = _swap({
+                requestId_: _requestId,
+                swapper_: swapper,
+                tokenIn_: address(syntheticToken),
+                tokenOut_: _underlying,
                 amountIn_: amount_,
-                amountOutMin_: _amountOutMin,
-                receiver_: address(this)
+                amountOutMin_: _amountOutMin
             });
         }
 
-        // 2. Transfer collateral to L2 using Stargate
+        // 2. Transfer underlying to L2 using Stargate
         uint16 _dstChainId = srcChainId_;
+        uint256 _poolId = poolIdOf[_underlying];
         // Note: `amountOut` isn't needed here because it's part of the message
-        bytes memory _payload = abi.encode(_pool, _key);
-        IStargateRouter _stargateRouter = stargateRouter;
-        IERC20(_collateral).safeApprove(address(_stargateRouter), 0);
-        IERC20(_collateral).safeApprove(address(_stargateRouter), _collateralAmount);
-        _stargateRouter.swap{value: quoteCallbackTxNativeFee(_pool, _dstChainId)}({
+        bytes memory _payload = abi.encode(_pool, _requestId); // Stack too deep
+        IERC20(_underlying).safeApprove(address(_stargateRouter), 0);
+        IERC20(_underlying).safeApprove(address(_stargateRouter), _amountOut);
+        _stargateRouter.swap{value: quoteLeverageCallbackNativeFee(_pool, _dstChainId)}({
             _dstChainId: _dstChainId,
-            _srcPoolId: poolIdOf[_collateral][LZ_MAINNET_CHAIN_ID],
-            _dstPoolId: poolIdOf[counterTokenOf[_collateral][_dstChainId]][_dstChainId],
+            _srcPoolId: _poolId,
+            _dstPoolId: _poolId,
             // Note: We can do a further swap (i.e. routerETH.swapETH) to refund the end user directly
             _refundAddress: payable(address(this)),
-            _amountLD: _collateralAmount,
-            _minAmountLD: _collateralAmount.wadMul(MAX_BPS - stargateSlippage),
+            _amountLD: _amountOut,
+            _minAmountLD: (_amountOut * (MAX_BPS - stargateSlippage)) / MAX_BPS,
             _lzTxParams: IStargateRouter.lzTxObj({
-                dstGasForCall: callbackTxGasLimit,
+                dstGasForCall: leverageCallbackTxGasLimit,
                 dstNativeAmount: 0,
                 dstNativeAddr: "0x"
             }),
-            _to: abi.encodePacked(proxyOftOf[_dstChainId]),
+            _to: abi.encodePacked(_getProxyOftOf(_dstChainId)),
             _payload: _payload
         });
     }
 
-    // TODO: Only the user can call this function
+    function swapUnderlyingAndTriggerCallback(
+        uint16 srcChainId_,
+        bytes memory srcAddress_,
+        address _underlying,
+        uint amount_,
+        bytes memory payload_
+    ) private {
+        if (block.chainid != 1) revert NotAvailableOnThisChain();
+        if (srcChainId_ == LZ_MAINNET_CHAIN_ID) revert NotAvailableOnThisChain();
+        if (abi.decode(srcAddress_, (address)) != _getProxyOftOf(srcChainId_)) revert InvalidFromAddress();
+
+        // 1. Swap underlying from L2 for synthetic token
+        address _pool;
+        uint256 _requestId;
+        uint256 _amountOut;
+        {
+            address _account;
+            uint256 _amountOutMin;
+
+            (_pool, _requestId, _account, _amountOutMin) = abi.decode(payload_, (address, uint256, address, uint256));
+
+            _amountOut = _swap({
+                requestId_: _requestId,
+                swapper_: swapper,
+                tokenIn_: _underlying,
+                tokenOut_: address(syntheticToken),
+                amountIn_: amount_,
+                amountOutMin_: _amountOutMin
+            });
+        }
+
+        // 2. Transfer synthetic token to L2 using LayerZero
+        uint16 _dstChainId = srcChainId_;
+
+        this.sendAndCall{value: quoteFlashRepayCallbackNativeFee(_pool, _dstChainId)}({
+            _from: address(this),
+            _dstChainId: _dstChainId,
+            _toAddress: abi.encodePacked(_getProxyOftOf(_dstChainId)),
+            _amount: _amountOut,
+            // Note: `amountOut` isn't needed here because it's part of the message
+            _payload: abi.encode(_pool, _requestId),
+            // Note: `_dstGasForCall` is the extra gas for the further call triggered from the destination
+            _dstGasForCall: flashRepayCallbackTxGasLimit,
+            // Note: We can do a further swap (i.e. routerETH.swapETH) to refund the end user directly
+            _refundAddress: payable(address(this)),
+            _zroPaymentAddress: address(0),
+            _adapterParams: abi.encodePacked(
+                LZ_ADAPTER_PARAMS_VERSION,
+                uint256(flashRepayCallbackTxGasLimit),
+                uint256(0),
+                address(0)
+            )
+        });
+    }
+
+    function _swap(
+        uint256 requestId_,
+        ISwapper swapper_,
+        address tokenIn_,
+        address tokenOut_,
+        uint256 amountIn_,
+        uint256 amountOutMin_
+    ) private returns (uint256 _amountOut) {
+        // 1. Use updated slippage if exist
+        uint256 _storedAmountOutMin = swapAmountOutMin[requestId_];
+
+        if (_storedAmountOutMin > 0) {
+            amountOutMin_ = _storedAmountOutMin;
+        }
+
+        // 2. Perform swap
+        IERC20(tokenIn_).safeApprove(address(swapper_), 0);
+        IERC20(tokenIn_).safeApprove(address(swapper_), amountIn_);
+        _amountOut = swapper_.swapExactInput({
+            tokenIn_: tokenIn_,
+            tokenOut_: tokenOut_,
+            amountIn_: amountIn_,
+            amountOutMin_: amountOutMin_,
+            receiver_: address(this)
+        });
+
+        // 3. Clear stored slippage if swap succeeds
+        _storedAmountOutMin = 0;
+    }
+
+    // TODO: Is this safe enough?
+    // TODO: use custom errors
     // TODO: Should we have timeout param also like uniswap has?
     // TODO: Slippage should be increased only
-    // Note: This function has the same implementation as `ComposableOFTCore.retryOFTReceived()` but with the ability to update param
-    function retryOFTReceived(
+    // TODO: Store and get clearCachedSwap params from storage
+    function retrySwapSynthAndTriggerCallback(
         uint16 srcChainId_,
         bytes calldata srcAddress_,
         uint64 nonce_,
@@ -318,26 +545,77 @@ contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCore {
         bytes calldata payload_,
         uint256 newAmountOutMin_
     ) public {
-        bytes32 msgHash = failedOFTReceivedMessages[srcChainId_][srcAddress_][nonce_];
-        require(msgHash != bytes32(0), "ComposableOFTCore: no failed message to retry");
+        // Stack too deep
+        uint16 _srcChainId = srcChainId_;
+        bytes calldata _srcAddress = srcAddress_;
+        uint64 _nonce = nonce_;
+        bytes calldata _from = from_;
+        address _to = to_;
+        uint _amount = amount_;
+        bytes calldata _payload = payload_;
 
-        bytes32 hash = keccak256(abi.encode(from_, to_, amount_, payload_));
-        require(hash == msgHash, "ComposableOFTCore: failed message hash mismatch");
-
-        delete failedOFTReceivedMessages[srcChainId_][srcAddress_][nonce_];
-
-        // replace slippage param and retry
-        bytes memory _newPayload;
         {
-            (address _pool, bytes32 _key, address _syntheticToken, address _collateral, ) = abi.decode(
-                payload_,
-                (address, bytes32, address, address, uint256)
+            bytes32 msgHash = failedOFTReceivedMessages[_srcChainId][_srcAddress][_nonce];
+            require(msgHash != bytes32(0), "ComposableOFTCore: no failed message to retry");
+
+            bytes32 hash = keccak256(abi.encode(_from, _to, _amount, _payload));
+            require(hash == msgHash, "ComposableOFTCore: failed message hash mismatch");
+
+            (, uint256 _requestId, , address account, ) = abi.decode(
+                _payload,
+                (address, uint256, address, address, uint256)
             );
-            _newPayload = abi.encode(_pool, _key, _syntheticToken, _collateral, newAmountOutMin_);
+            require(msg.sender == account, "invalid-sender");
+
+            swapAmountOutMin[_requestId] = newAmountOutMin_;
         }
 
-        IOFTReceiver(to_).onOFTReceived(srcChainId_, srcAddress_, nonce_, from_, amount_, _newPayload);
-        emit RetryOFTReceivedSuccess(hash);
+        this.retryOFTReceived(_srcChainId, _srcAddress, _nonce, _from, _to, _amount, _payload);
+    }
+
+    // TODO: Is this safe enough?
+    // TODO: use custom errors
+    // TODO: Should we have timeout param also like uniswap has?
+    // TODO: Slippage should be increased only
+    // TODO: Store and get clearCachedSwap params from storage
+    function retrySwapUnderlyingAndTriggerCallback(
+        uint16 srcChainId_,
+        bytes calldata srcAddress_,
+        uint256 nonce_,
+        address token_,
+        address to_,
+        uint amount_,
+        bytes calldata payload_,
+        uint256 newAmountOutMin_
+    ) public {
+        // Stack too deep
+        uint16 _srcChainId = srcChainId_;
+        bytes calldata _srcAddress = srcAddress_;
+        uint256 _nonce = nonce_;
+
+        IStargateRouter _stargateRouter = stargateRouter;
+        uint256 _requestId;
+        {
+            (address _token, uint256 _amountLD, address _to, bytes memory _payload) = _stargateRouter.cachedSwapLookup(
+                _srcChainId,
+                _srcAddress,
+                _nonce
+            );
+            require(_to != address(0x0), "Stargate: cache already cleared");
+            require(
+                _token == token_ && _to == to_ && _amountLD == amount_ && keccak256(_payload) == keccak256(payload_),
+                "invalid-params"
+            );
+
+            address _account;
+            (, _requestId, _account, ) = abi.decode(payload_, (address, uint256, address, uint256));
+
+            require(msg.sender == _account, "invalid-sender");
+        }
+
+        swapAmountOutMin[_requestId] = newAmountOutMin_;
+
+        _stargateRouter.clearCachedSwap(_srcChainId, _srcAddress, _nonce);
     }
 
     receive() external payable {}
@@ -349,13 +627,8 @@ contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCore {
         stargateRouter = stargateRouter_;
     }
 
-    // TODO:
-    // - only owner/governor
-    // - emit event
-    // - comment
-    //      Use LZ ids (https://layerzero.gitbook.io/docs/technical-reference/mainnet/supported-chain-ids)
-    function updateProxyOftOf(uint16 chainId_, address proxyOft_) public {
-        proxyOftOf[chainId_] = proxyOft_;
+    function _getProxyOftOf(uint16 chainId_) private view returns (address _proxyOft) {
+        return trustedRemoteLookup[chainId_].toAddress(0);
     }
 
     // TODO:
@@ -369,17 +642,8 @@ contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCore {
     // - only owner/governor
     // - emit event
     // - comment
-    //      Use LZ ids (https://layerzero.gitbook.io/docs/technical-reference/mainnet/supported-chain-ids)
-    function updateCounterTokenOf(address tokenHere_, uint16 chainId_, address tokenThere_) public {
-        counterTokenOf[tokenHere_][chainId_] = tokenThere_;
-    }
-
-    // TODO:
-    // - only owner/governor
-    // - emit event
-    // - comment
-    //      Use LZ ids (https://layerzero.gitbook.io/docs/technical-reference/mainnet/supported-chain-ids)
-    function updatePoolIdOf(address token_, uint16 chainId, uint256 poolId_) public {
-        poolIdOf[token_][chainId] = poolId_;
+    //      Use LZ ids (https://stargateprotocol.gitbook.io/stargate/developers/pool-ids)
+    function updatePoolIdOf(address token_, uint256 poolId_) public {
+        poolIdOf[token_] = poolId_;
     }
 }

@@ -104,7 +104,7 @@ abstract contract PoolStorageV3 is PoolStorageV2 {
     // TODO: Comment
     // TODO: Move to `IPool` ?
     struct Layer2Leverage {
-        IERC20 tokenIn;
+        IERC20 underlying;
         IDepositToken depositToken;
         ISyntheticToken syntheticToken;
         uint256 tokenInAmountIn;
@@ -112,12 +112,28 @@ abstract contract PoolStorageV3 is PoolStorageV2 {
         uint256 syntheticTokenIssued;
         uint256 collateralDeposited;
         address account;
-        bool finished; // Use status instead? STARTED|FINISHED|FAILED
+        bool finished;
     }
+
+    // TODO: Comment
+    // TODO: Move to `IPool` ?
+    struct Layer2FlashRepay {
+        ISyntheticToken syntheticToken;
+        IDepositToken depositToken;
+        uint256 withdrawAmount;
+        IERC20 underlying;
+        uint256 repayAmountMin;
+        uint256 debtRepaid;
+        address account;
+        bool finished;
+    }
+
+    // TODO: Comment
+    uint256 public layer2RequestId;
 
     // TODO: Comment
     mapping(uint256 => Layer2Leverage) public layer2Leverages;
 
     // TODO: Comment
-    uint256 public layer2LeverageId;
+    mapping(uint256 => Layer2FlashRepay) public layer2FlashRepays;
 }

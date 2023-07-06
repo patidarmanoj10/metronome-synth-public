@@ -65,8 +65,19 @@ interface IPool is IPauseable, IGovernable {
             uint256 _issuableInUsd
         );
 
+    function layer2FlashRepay(
+        ISyntheticToken syntheticToken_,
+        IDepositToken depositToken_,
+        uint256 withdrawAmount_,
+        IERC20 underlying_,
+        uint256 underlyingAmountMin_,
+        uint256 repayAmountMin_,
+        uint256 layer1SwapAmountOutMin_,
+        uint256 callbackTxNativeFee_
+    ) external payable returns (uint256 _withdrawn);
+
     function layer2Leverage(
-        IERC20 tokenIn_,
+        IERC20 underlying_,
         IDepositToken depositToken_,
         ISyntheticToken syntheticToken_,
         uint256 amountIn_,
@@ -77,6 +88,8 @@ interface IPool is IPauseable, IGovernable {
     ) external payable returns (uint256 _issued);
 
     function layer2LeverageCallback(uint256 id_, uint256 swapAmountOut_) external returns (uint256 _deposited);
+
+    function layer2FlashRepayCallback(uint256 id_, uint256 swapAmountOut_) external returns (uint256 _repaid);
 
     function leverage(
         IERC20 tokenIn_,

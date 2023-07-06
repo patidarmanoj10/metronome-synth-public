@@ -2,4 +2,6 @@ These contracts were forked from revision https://github.com/stargate-protocol/s
 
 # Changelog
 
-- Added `clearCachedSwap` to the `IStargateRouter` interface
+- Added `clearCachedSwap` function to the `IStargateRouter` interface
+- Added `factory` function to the `IStargateRouter` interface
+- Added `cachedSwapLookup` function to the `IStargateRouter` interface

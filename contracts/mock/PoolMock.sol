@@ -98,6 +98,19 @@ contract PoolMock is IPool, Governable, Pauseable {
         revert("mock-does-not-implement");
     }
 
+    function layer2FlashRepay(
+        ISyntheticToken,
+        IDepositToken,
+        uint256,
+        IERC20,
+        uint256,
+        uint256,
+        uint256,
+        uint256
+    ) external payable override returns (uint256) {
+        revert("mock-does-not-implement");
+    }
+
     function layer2Leverage(
         IERC20,
         IDepositToken,
@@ -112,6 +125,10 @@ contract PoolMock is IPool, Governable, Pauseable {
     }
 
     function layer2LeverageCallback(uint256, uint256) external pure returns (uint256) {
+        revert("mock-does-not-implement");
+    }
+
+    function layer2FlashRepayCallback(uint256, uint256) external pure returns (uint256) {
         revert("mock-does-not-implement");
     }
 
