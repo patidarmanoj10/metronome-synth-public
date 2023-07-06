@@ -53,6 +53,8 @@ const config: HardhatUserConfig = {
       saveDeployments: true,
       accounts,
       chainId,
+      // Pool and ProxyOFT contracts have > 24K
+      // TODO: Check why foundry only flags ProxyOFT
       allowUnlimitedContractSize: true,
     },
     mainnet: {

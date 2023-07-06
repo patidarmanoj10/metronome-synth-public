@@ -14,13 +14,29 @@ contract Layer2Leverage_Test is CrossChains_Test {
         uint256 leverage_,
         uint256 depositAmountMin_
     ) private {
-        vm.recordLogs();
-
         vm.selectFork(mainnetFork);
         uint256 _callbackTxNativeFee = proxyOFT_msUSD_mainnet.quoteLeverageCallbackNativeFee(
             address(pool_optimism),
             LZ_OP_CHAIN_ID
         );
+
+        _layer2Leverage({
+            amountIn_: amountIn_,
+            layer1SwapAmountOutMin_: layer1SwapAmountOutMin_,
+            leverage_: leverage_,
+            depositAmountMin_: depositAmountMin_,
+            callbackTxNativeFee_: _callbackTxNativeFee
+        });
+    }
+
+    function _layer2Leverage(
+        uint256 amountIn_,
+        uint256 layer1SwapAmountOutMin_,
+        uint256 leverage_,
+        uint256 depositAmountMin_,
+        uint256 callbackTxNativeFee_
+    ) private {
+        vm.recordLogs();
 
         vm.selectFork(optimismFork);
         uint256 fee = pool_optimism.quoteLayer2LeverageNativeFee({
@@ -28,7 +44,7 @@ contract Layer2Leverage_Test is CrossChains_Test {
             syntheticToken_: msUSD_optimism,
             amountIn_: amountIn_,
             layer1SwapAmountOutMin_: layer1SwapAmountOutMin_,
-            callbackTxNativeFee_: _callbackTxNativeFee
+            callbackTxNativeFee_: callbackTxNativeFee_
         });
 
         deal(alice, fee);
@@ -44,7 +60,7 @@ contract Layer2Leverage_Test is CrossChains_Test {
             leverage_: leverage_,
             depositAmountMin_: depositAmountMin_,
             layer1SwapAmountOutMin_: layer1SwapAmountOutMin_,
-            callbackTxNativeFee_: _callbackTxNativeFee
+            callbackTxNativeFee_: callbackTxNativeFee_
         });
         vm.stopPrank();
 
@@ -305,5 +321,68 @@ contract Layer2Leverage_Test is CrossChains_Test {
         (, uint256 _depositInUsdAfter, uint256 _debtInUsdAfter, , ) = pool_optimism.debtPositionOf(alice);
         assertApproxEqAbs(_depositInUsdAfter, 1500e18, 1e18);
         assertEq(_debtInUsdAfter, 500e18);
+    }
+
+    function test_failedTx_whenAirdropIsNotEnough() external {
+        //
+        // given
+        //
+        vm.selectFork(optimismFork);
+        uint256 _debtBefore = pool_optimism.debtOf(alice);
+        assertEq(_debtBefore, 0);
+
+        //
+        // when
+        //
+        vm.selectFork(mainnetFork);
+        uint256 _callbackTxNativeFee = proxyOFT_msUSD_mainnet.quoteLeverageCallbackNativeFee(
+            address(pool_optimism),
+            LZ_OP_CHAIN_ID
+        );
+
+        uint256 missingFee = 0.001e18;
+
+        // tx1
+        _layer2Leverage({
+            amountIn_: 1000e6,
+            layer1SwapAmountOutMin_: 0,
+            leverage_: 1.5e18,
+            depositAmountMin_: 1450e18,
+            callbackTxNativeFee_: _callbackTxNativeFee - missingFee // Setting lower fee than the needed
+        });
+        (Vm.Log memory SendToChain, Vm.Log memory Packet, Vm.Log memory RelayerParams) = _getOftTransferEvents();
+
+        // tx2 - fail
+        _executeSwapAndTriggerCallback(SendToChain, Packet, RelayerParams);
+        (, Vm.Log memory CallOFTReceivedFailure) = _getOftTransferErrorEvents();
+        assertGt(CallOFTReceivedFailure.data.length, 0);
+        (
+            uint16 srcChainId,
+            address to,
+            bytes memory srcAddress,
+            uint64 nonce,
+            bytes memory from,
+            uint amount,
+            bytes memory payload,
+            bytes memory reason
+        ) = _decodeCallOFTReceivedFailureEvent(CallOFTReceivedFailure);
+        assertEq(reason.length, 0); // "EvmError: OutOfFund"
+
+        // tx2
+        // Works after top-up with enough ether
+        deal(address(proxyOFT_msUSD_mainnet), address(proxyOFT_msUSD_mainnet).balance + (2 * missingFee)); // Sending more than needed
+        proxyOFT_msUSD_mainnet.retryOFTReceived(srcChainId, srcAddress, nonce, from, to, amount, payload);
+        assertEq(address(proxyOFT_msUSD_mainnet).balance, missingFee); // Should refund excess
+
+        (Vm.Log memory Swap, Vm.Log memory Packet_Tx2, Vm.Log memory RelayerParams_Tx2) = _getSgSwapEvents();
+
+        // tx3
+        _executeCallback(Swap, Packet_Tx2, RelayerParams_Tx2);
+
+        //
+        // then
+        //
+        uint256 _debtAfter = pool_optimism.debtOf(alice);
+        assertGt(_debtAfter, 0);
     }
 }
