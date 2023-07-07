@@ -207,10 +207,6 @@ contract Layer2FlashRepay_Test is CrossChains_Test {
             chainId,
             srcAddress,
             nonce,
-            token,
-            to,
-            amountLD,
-            payload,
             480e18 // Correct slippage
         );
 

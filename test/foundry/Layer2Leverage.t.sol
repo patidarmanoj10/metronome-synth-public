@@ -140,11 +140,13 @@ contract Layer2Leverage_Test is CrossChains_Test {
         vm.expectRevert();
         proxyOFT_msUSD_mainnet.retryMessage(_srcChainId, _srcAddress, _nonce, _payload);
 
-        // tx3
+        // tx2
         // Retry will work after amending state
         msUSD_mainnet.updateMaxBridgingBalance(type(uint256).max);
         proxyOFT_msUSD_mainnet.retryMessage(_srcChainId, _srcAddress, _nonce, _payload);
         (Vm.Log memory Swap, Vm.Log memory PacketEventTx2, Vm.Log memory RelayerParamsTx2) = _getSgSwapEvents();
+
+        // tx3
         _executeCallback(Swap, PacketEventTx2, RelayerParamsTx2);
 
         //
@@ -196,8 +198,6 @@ contract Layer2Leverage_Test is CrossChains_Test {
             srcChainId,
             srcAddress,
             nonce,
-            from,
-            to,
             amount,
             payload,
             500e6 // Correct slippage
@@ -323,7 +323,7 @@ contract Layer2Leverage_Test is CrossChains_Test {
         assertEq(_debtInUsdAfter, 500e18);
     }
 
-    function test_failedTx_whenAirdropIsNotEnough() external {
+    function test_failedTx2_whenAirdropIsNotEnough() external {
         //
         // given
         //
@@ -384,5 +384,61 @@ contract Layer2Leverage_Test is CrossChains_Test {
         //
         uint256 _debtAfter = pool_optimism.debtOf(alice);
         assertGt(_debtAfter, 0);
+    }
+
+    function test_failedTx2_whenSgSlippageIsTooHigh() external {
+        //
+        // given
+        //
+        vm.selectFork(mainnetFork);
+        // It will make mainnet's stargate call to fail
+        proxyOFT_msUSD_mainnet.updateStargateSlippage(0);
+
+        //
+        // when
+        //
+
+        // tx1
+        _layer2Leverage({amountIn_: 1000e6, layer1SwapAmountOutMin_: 0, leverage_: 1.5e18, depositAmountMin_: 1450e18});
+        (Vm.Log memory SendToChain, Vm.Log memory Packet, Vm.Log memory RelayerParams) = _getOftTransferEvents();
+
+        // tx2 - fail
+        _executeSwapAndTriggerCallback(SendToChain, Packet, RelayerParams);
+        (, Vm.Log memory CallOFTReceivedFailure) = _getOftTransferErrorEvents();
+        (
+            uint16 srcChainId,
+            address to,
+            bytes memory srcAddress,
+            uint64 nonce,
+            bytes memory from,
+            uint amount,
+            bytes memory payload,
+            bytes memory reason
+        ) = _decodeCallOFTReceivedFailureEvent(CallOFTReceivedFailure);
+        assertEq(reason.slice(4, reason.length - 4), abi.encode("Stargate: slippage too high"));
+
+        // tx2
+        // Retry will work after amending state
+        proxyOFT_msUSD_mainnet.updateStargateSlippage(20);
+        vm.prank(alice);
+        proxyOFT_msUSD_mainnet.retrySwapSynthAndTriggerCallback(
+            srcChainId,
+            srcAddress,
+            nonce,
+            amount,
+            payload,
+            500e6 // Correct slippage
+        );
+        (Vm.Log memory SwapTx2, Vm.Log memory PacketTx2, Vm.Log memory RelayerParamsTx2) = _getSgSwapEvents();
+
+        // tx3
+        _executeCallback(SwapTx2, PacketTx2, RelayerParamsTx2);
+
+        //
+        // then
+        //
+        (, uint256 _depositInUsdAfter, uint256 _debtInUsdAfter, , ) = pool_optimism.debtPositionOf(alice);
+        assertApproxEqAbs(_depositInUsdAfter, 1500e18, 1e18);
+        assertEq(_debtInUsdAfter, 500e18);
     }
 }

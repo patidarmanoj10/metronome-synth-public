@@ -23,6 +23,8 @@ error InvalidSourceChain();
 // TODO: Create all missing update function
 // TODO: Make it upgradable
 // TODO: Having the same implementation for all chains or have `Layer1ProxyOFT` and `Layer2ProxyOFT` implementations?
+// TODO: Should slippage (on retry) increases only? This question is valid for Pool retry functions too
+// TODO: Should slippage (on retry) have timeout as DEX has?  This question is valid for Pool retry functions too
 contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCore {
     using SafeERC20 for IERC20;
     using SafeERC20 for ISyntheticToken;
@@ -345,7 +347,7 @@ contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCore {
             _toAddress: abi.encodePacked(_getProxyOftOf(dstChainId_)),
             _transferAndCallPayload: abi.encodePacked(
                 l2Pool_,
-                bytes32(type(uint256).max) // The leverageKey. Using most expensive scenario
+                bytes32(type(uint256).max) // requestId
             ),
             _lzTxParams: IStargateRouter.lzTxObj({
                 dstGasForCall: leverageCallbackTxGasLimit,
@@ -530,92 +532,47 @@ contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCore {
         _storedAmountOutMin = 0;
     }
 
-    // TODO: Is this safe enough?
-    // TODO: use custom errors
-    // TODO: Should we have timeout param also like uniswap has?
-    // TODO: Slippage should be increased only
-    // TODO: Store and get clearCachedSwap params from storage
+    // TODO: Comment
+    // TODO: We may change OFT implementation to make it store message params same as SG `cachedSwapLookup` mapping does
     function retrySwapSynthAndTriggerCallback(
         uint16 srcChainId_,
         bytes calldata srcAddress_,
         uint64 nonce_,
-        bytes calldata from_,
-        address to_,
         uint amount_,
         bytes calldata payload_,
         uint256 newAmountOutMin_
     ) public {
-        // Stack too deep
-        uint16 _srcChainId = srcChainId_;
-        bytes calldata _srcAddress = srcAddress_;
-        uint64 _nonce = nonce_;
-        bytes calldata _from = from_;
-        address _to = to_;
-        uint _amount = amount_;
-        bytes calldata _payload = payload_;
+        (, uint256 _requestId, , address _account, ) = abi.decode(
+            payload_,
+            (address, uint256, address, address, uint256)
+        );
+        if (msg.sender != _account) revert InvalidMsgSender();
 
-        {
-            bytes32 msgHash = failedOFTReceivedMessages[_srcChainId][_srcAddress][_nonce];
-            require(msgHash != bytes32(0), "ComposableOFTCore: no failed message to retry");
+        swapAmountOutMin[_requestId] = newAmountOutMin_;
 
-            bytes32 hash = keccak256(abi.encode(_from, _to, _amount, _payload));
-            require(hash == msgHash, "ComposableOFTCore: failed message hash mismatch");
-
-            (, uint256 _requestId, , address account, ) = abi.decode(
-                _payload,
-                (address, uint256, address, address, uint256)
-            );
-            require(msg.sender == account, "invalid-sender");
-
-            swapAmountOutMin[_requestId] = newAmountOutMin_;
-        }
-
-        this.retryOFTReceived(_srcChainId, _srcAddress, _nonce, _from, _to, _amount, _payload);
+        // Note: `retryOFTReceived` has checks to ensure that the args are consistent
+        bytes memory _from = abi.encodePacked(_getProxyOftOf(srcChainId_));
+        address _to = address(this);
+        this.retryOFTReceived(srcChainId_, srcAddress_, nonce_, _from, _to, amount_, payload_);
     }
 
-    // TODO: Is this safe enough?
-    // TODO: use custom errors
-    // TODO: Should we have timeout param also like uniswap has?
-    // TODO: Slippage should be increased only
-    // TODO: Store and get clearCachedSwap params from storage
+    // TODO: Comment
     function retrySwapUnderlyingAndTriggerCallback(
         uint16 srcChainId_,
         bytes calldata srcAddress_,
         uint256 nonce_,
-        address token_,
-        address to_,
-        uint amount_,
-        bytes calldata payload_,
         uint256 newAmountOutMin_
     ) public {
-        // Stack too deep
-        uint16 _srcChainId = srcChainId_;
-        bytes calldata _srcAddress = srcAddress_;
-        uint256 _nonce = nonce_;
-
         IStargateRouter _stargateRouter = stargateRouter;
-        uint256 _requestId;
-        {
-            (address _token, uint256 _amountLD, address _to, bytes memory _payload) = _stargateRouter.cachedSwapLookup(
-                _srcChainId,
-                _srcAddress,
-                _nonce
-            );
-            require(_to != address(0x0), "Stargate: cache already cleared");
-            require(
-                _token == token_ && _to == to_ && _amountLD == amount_ && keccak256(_payload) == keccak256(payload_),
-                "invalid-params"
-            );
 
-            address _account;
-            (, _requestId, _account, ) = abi.decode(payload_, (address, uint256, address, uint256));
+        (, , , bytes memory _payload) = _stargateRouter.cachedSwapLookup(srcChainId_, srcAddress_, nonce_);
+        (, uint256 _requestId, address _account, ) = abi.decode(_payload, (address, uint256, address, uint256));
 
-            require(msg.sender == _account, "invalid-sender");
-        }
+        if (msg.sender != _account) revert InvalidMsgSender();
 
         swapAmountOutMin[_requestId] = newAmountOutMin_;
 
-        _stargateRouter.clearCachedSwap(_srcChainId, _srcAddress, _nonce);
+        _stargateRouter.clearCachedSwap(srcChainId_, srcAddress_, nonce_);
     }
 
     receive() external payable {}
@@ -645,5 +602,12 @@ contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCore {
     //      Use LZ ids (https://stargateprotocol.gitbook.io/stargate/developers/pool-ids)
     function updatePoolIdOf(address token_, uint256 poolId_) public {
         poolIdOf[token_] = poolId_;
+    }
+
+    // TODO:
+    // - only owner/governor
+    // - emit event
+    function updateStargateSlippage(uint256 stargateSlippage_) external {
+        stargateSlippage = stargateSlippage_;
     }
 }
