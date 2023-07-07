@@ -106,8 +106,8 @@ contract PoolMock is IPool, Governable, Pauseable {
         uint256,
         uint256,
         uint256,
-        uint256
-    ) external payable override returns (uint256) {
+        bytes calldata
+    ) external payable override {
         revert("mock-does-not-implement");
     }
 
@@ -119,8 +119,8 @@ contract PoolMock is IPool, Governable, Pauseable {
         uint256,
         uint256,
         uint256,
-        uint256
-    ) external payable override returns (uint256) {
+        bytes calldata
+    ) external payable override {
         revert("mock-does-not-implement");
     }
 

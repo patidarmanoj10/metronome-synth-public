@@ -15,7 +15,7 @@ contract Layer2Leverage_Test is CrossChains_Test {
         uint256 depositAmountMin_
     ) private {
         vm.selectFork(mainnetFork);
-        uint256 _callbackTxNativeFee = proxyOFT_msUSD_mainnet.quoteLeverageCallbackNativeFee(
+        bytes memory _lzArgs = proxyOFT_msUSD_mainnet.getLeverageSwapAndCallbackLzArgs(
             address(pool_optimism),
             LZ_OP_CHAIN_ID
         );
@@ -25,7 +25,7 @@ contract Layer2Leverage_Test is CrossChains_Test {
             layer1SwapAmountOutMin_: layer1SwapAmountOutMin_,
             leverage_: leverage_,
             depositAmountMin_: depositAmountMin_,
-            callbackTxNativeFee_: _callbackTxNativeFee
+            lzArgs_: _lzArgs
         });
     }
 
@@ -34,7 +34,7 @@ contract Layer2Leverage_Test is CrossChains_Test {
         uint256 layer1SwapAmountOutMin_,
         uint256 leverage_,
         uint256 depositAmountMin_,
-        uint256 callbackTxNativeFee_
+        bytes memory lzArgs_
     ) private {
         vm.recordLogs();
 
@@ -44,7 +44,7 @@ contract Layer2Leverage_Test is CrossChains_Test {
             syntheticToken_: msUSD_optimism,
             amountIn_: amountIn_,
             layer1SwapAmountOutMin_: layer1SwapAmountOutMin_,
-            callbackTxNativeFee_: callbackTxNativeFee_
+            lzArgs_: lzArgs_
         });
 
         deal(alice, fee);
@@ -60,7 +60,7 @@ contract Layer2Leverage_Test is CrossChains_Test {
             leverage_: leverage_,
             depositAmountMin_: depositAmountMin_,
             layer1SwapAmountOutMin_: layer1SwapAmountOutMin_,
-            callbackTxNativeFee_: callbackTxNativeFee_
+            lzArgs_: lzArgs_
         });
         vm.stopPrank();
 
@@ -335,12 +335,24 @@ contract Layer2Leverage_Test is CrossChains_Test {
         // when
         //
         vm.selectFork(mainnetFork);
-        uint256 _callbackTxNativeFee = proxyOFT_msUSD_mainnet.quoteLeverageCallbackNativeFee(
+        bytes memory _lzArgs = proxyOFT_msUSD_mainnet.getLeverageSwapAndCallbackLzArgs(
             address(pool_optimism),
             LZ_OP_CHAIN_ID
         );
 
         uint256 missingFee = 0.001e18;
+
+        {
+            (uint256 _callbackTxNativeFee, uint64 _leverageSwapTxGasLimit, uint64 _leverageCallbackTxGasLimit) = abi
+                .decode(_lzArgs, (uint256, uint64, uint64));
+
+            // Setting lower fee than the needed
+            _lzArgs = abi.encode(
+                _callbackTxNativeFee - missingFee,
+                _leverageSwapTxGasLimit,
+                _leverageCallbackTxGasLimit
+            );
+        }
 
         // tx1
         _layer2Leverage({
@@ -348,7 +360,7 @@ contract Layer2Leverage_Test is CrossChains_Test {
             layer1SwapAmountOutMin_: 0,
             leverage_: 1.5e18,
             depositAmountMin_: 1450e18,
-            callbackTxNativeFee_: _callbackTxNativeFee - missingFee // Setting lower fee than the needed
+            lzArgs_: _lzArgs
         });
         (Vm.Log memory SendToChain, Vm.Log memory Packet, Vm.Log memory RelayerParams) = _getOftTransferEvents();
 

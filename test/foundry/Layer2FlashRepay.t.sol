@@ -26,7 +26,7 @@ contract Layer2FlashRepay_Test is CrossChains_Test {
         vm.recordLogs();
 
         vm.selectFork(mainnetFork);
-        uint256 _callbackTxNativeFee = proxyOFT_msUSD_mainnet.quoteFlashRepayCallbackNativeFee(
+        bytes memory _lzArgs = proxyOFT_msUSD_mainnet.getFlashRepaySwapAndCallbackLzArgs(
             address(pool_optimism),
             LZ_OP_CHAIN_ID
         );
@@ -37,7 +37,7 @@ contract Layer2FlashRepay_Test is CrossChains_Test {
             syntheticToken_: msUSD_optimism,
             amountIn_: withdrawAmount_,
             layer1SwapAmountOutMin_: layer1SwapAmountOutMin_,
-            callbackTxNativeFee_: _callbackTxNativeFee
+            lzArgs_: _lzArgs
         });
         deal(alice, fee);
 
@@ -51,7 +51,7 @@ contract Layer2FlashRepay_Test is CrossChains_Test {
             underlyingAmountMin_: 0,
             repayAmountMin_: repayAmountMin_,
             layer1SwapAmountOutMin_: layer1SwapAmountOutMin_,
-            callbackTxNativeFee_: _callbackTxNativeFee
+            lzArgs_: _lzArgs
         });
         vm.stopPrank();
 
@@ -189,16 +189,9 @@ contract Layer2FlashRepay_Test is CrossChains_Test {
         _executeSwapAndTriggerCallback(Swap, Packet, RelayerParams);
         (Vm.Log memory CachedSwapSaved, ) = _getSgSwapErrorEvents();
         assertGt(CachedSwapSaved.data.length, 0); // Emitted `Revert` event
-        (
-            uint16 chainId,
-            bytes memory srcAddress,
-            uint256 nonce,
-            address token,
-            uint amountLD,
-            address to,
-            bytes memory payload,
-
-        ) = _decodeCachedSwapSavedEvent(CachedSwapSaved);
+        (uint16 chainId, bytes memory srcAddress, uint256 nonce, , , , , ) = _decodeCachedSwapSavedEvent(
+            CachedSwapSaved
+        );
 
         // tx2
         // Retry will work after amending slippage

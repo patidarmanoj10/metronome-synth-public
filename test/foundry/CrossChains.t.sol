@@ -6,13 +6,15 @@ import {BytesLib} from "../../contracts/dependencies/@layerzerolabs/solidity-exa
 import {ILayerZeroReceiver} from "../../contracts/dependencies/@layerzerolabs/solidity-examples/interfaces/ILayerZeroReceiver.sol";
 import {ILayerZeroEndpoint} from "../../contracts/dependencies/@layerzerolabs/solidity-examples/interfaces/ILayerZeroEndpoint.sol";
 import {Pool as StargatePool} from "../../contracts/dependencies/stargate-protocol/Pool.sol";
+import {IStargateRouter} from "../../contracts/dependencies/stargate-protocol/interfaces/IStargateRouter.sol";
 import {PoolRegistry} from "../../contracts/PoolRegistry.sol";
 import {Pool, ISyntheticToken, IERC20} from "../../contracts/Pool.sol";
 import {Treasury} from "../../contracts/Treasury.sol";
 import {DepositToken} from "../../contracts/DepositToken.sol";
 import {DebtToken} from "../../contracts/DebtToken.sol";
 import {SyntheticToken} from "../../contracts/SyntheticToken.sol";
-import {ProxyOFT, IStargateRouter} from "../../contracts/ProxyOFT.sol";
+import {Layer1ProxyOFT} from "../../contracts/Layer1ProxyOFT.sol";
+import {Layer2ProxyOFT} from "../../contracts/Layer2ProxyOFT.sol";
 import {FeeProvider, FeeProviderStorageV1, TiersNotOrderedByMin} from "../../contracts/FeeProvider.sol";
 import {ERC20Mock} from "../../contracts/mock/ERC20Mock.sol";
 import {MasterOracleMock} from "../../contracts/mock/MasterOracleMock.sol";
@@ -78,7 +80,7 @@ abstract contract CrossChains_Test is Test {
     DebtToken msUSDDebt_optimism;
     DepositToken msdUSDC_optimism;
     DepositToken msdVaUSDC_optimism;
-    ProxyOFT proxyOFT_msUSD_optimism;
+    Layer2ProxyOFT proxyOFT_msUSD_optimism;
 
     // Mainnet
     IERC20 usdc_mainnet = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
@@ -93,7 +95,7 @@ abstract contract CrossChains_Test is Test {
     SyntheticToken msUSD_mainnet;
     DebtToken msUSDDebt_mainnet;
     DepositToken msdUSDC_mainnet;
-    ProxyOFT proxyOFT_msUSD_mainnet;
+    Layer1ProxyOFT proxyOFT_msUSD_mainnet;
 
     function setUp() public virtual {
         // TODO: Get from .env
@@ -119,7 +121,7 @@ abstract contract CrossChains_Test is Test {
         msUSDDebt_optimism = new DebtToken();
         msdUSDC_optimism = new DepositToken();
         msdVaUSDC_optimism = new DepositToken();
-        proxyOFT_msUSD_optimism = new ProxyOFT(address(lzEndpoint_optimism), msUSD_optimism, LZ_OP_CHAIN_ID);
+        proxyOFT_msUSD_optimism = new Layer2ProxyOFT(address(lzEndpoint_optimism), msUSD_optimism);
         poolRegistry_optimism.initialize({masterOracle_: masterOracle_optimism, feeCollector_: feeCollector});
         feeProvider_optimism.initialize({poolRegistry_: poolRegistry_optimism, esMET_: IESMET(address(0))});
         pool_optimism.initialize(poolRegistry_optimism);
@@ -170,7 +172,6 @@ abstract contract CrossChains_Test is Test {
         masterOracle_optimism.updatePrice(address(usdc_optimism), 1e18);
         masterOracle_optimism.updatePrice(address(vaUSDC_optimism), 1e18);
         masterOracle_optimism.updatePrice(address(msUSD_optimism), 1e18);
-        proxyOFT_msUSD_optimism.updateSwapper(swapper_optimism);
         proxyOFT_msUSD_optimism.updateStargateRouter(IStargateRouter(sgRouter_optimism));
         proxyOFT_msUSD_optimism.setUseCustomAdapterParams(true);
         msUSD_optimism.updateProxyOFT(proxyOFT_msUSD_optimism);
@@ -190,7 +191,7 @@ abstract contract CrossChains_Test is Test {
         msUSD_mainnet = new SyntheticToken();
         msUSDDebt_mainnet = new DebtToken();
         msdUSDC_mainnet = new DepositToken();
-        proxyOFT_msUSD_mainnet = new ProxyOFT(address(lzEndpoint_mainnet), msUSD_mainnet, LZ_MAINNET_CHAIN_ID);
+        proxyOFT_msUSD_mainnet = new Layer1ProxyOFT(address(lzEndpoint_mainnet), msUSD_mainnet);
         poolRegistry_mainnet.initialize({masterOracle_: masterOracle_mainnet, feeCollector_: feeCollector});
         feeProvider_mainnet.initialize({poolRegistry_: poolRegistry_mainnet, esMET_: IESMET(address(0))});
         pool_mainnet.initialize(poolRegistry_mainnet);

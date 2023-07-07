@@ -3,6 +3,7 @@
 pragma solidity 0.8.9;
 
 import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
+import "./interfaces/ILayer2ProxyOFT.sol";
 import "./storage/PoolStorage.sol";
 import "./lib/WadRayMath.sol";
 import "./utils/Pauseable.sol";
@@ -172,7 +173,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
 
     // TODO: Comment
     modifier onlyIfProxyOFT() {
-        ISyntheticToken _syntheticToken = ISyntheticToken(IProxyOFT(msg.sender).token());
+        ISyntheticToken _syntheticToken = ISyntheticToken(ILayer2ProxyOFT(msg.sender).token());
         if (!doesSyntheticTokenExist(_syntheticToken) || address(_syntheticToken.proxyOFT()) != msg.sender) {
             revert SenderIsNotProxyOFT();
         }
@@ -251,6 +252,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
         onlyIfSyntheticTokenExists(syntheticToken_)
         returns (uint256 _withdrawn, uint256 _repaid)
     {
+        if (block.chainid != 1) revert NotAvailableOnThisChain();
         if (withdrawAmount_ > depositToken_.balanceOf(msg.sender)) revert AmountIsTooHigh();
         IDebtToken _debtToken = debtTokenOf[syntheticToken_];
         if (repayAmountMin_ > _debtToken.balanceOf(msg.sender)) revert AmountIsTooHigh();
@@ -414,15 +416,15 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
         ISyntheticToken syntheticToken_,
         uint256 amountIn_,
         uint256 layer1SwapAmountOutMin_,
-        uint256 callbackTxNativeFee_
+        bytes calldata lzArgs_
     ) external view returns (uint256 _nativeFee) {
         return
-            syntheticToken_.proxyOFT().quoteFlashRepaySwapNativeFee({
+            ILayer2ProxyOFT(address(syntheticToken_.proxyOFT())).quoteTriggerFlashRepaySwapNativeFee({
                 l2Pool_: address(this),
                 tokenIn_: address(underlying_),
                 amountIn_: amountIn_,
                 amountOutMin_: layer1SwapAmountOutMin_,
-                callbackTxNativeFee_: callbackTxNativeFee_
+                lzArgs_: lzArgs_
             });
     }
 
@@ -435,15 +437,15 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
         ISyntheticToken syntheticToken_,
         uint256 amountIn_,
         uint256 layer1SwapAmountOutMin_,
-        uint256 callbackTxNativeFee_
+        bytes calldata lzArgs_
     ) external view returns (uint256 _nativeFee) {
         return
-            syntheticToken_.proxyOFT().quoteLeverageSwapNativeFee({
+            ILayer2ProxyOFT(address(syntheticToken_.proxyOFT())).quoteTriggerLeverageSwapNativeFee({
                 l2Pool_: address(this),
                 tokenOut_: address(underlying_),
                 amountIn_: amountIn_,
                 amountOutMin_: layer1SwapAmountOutMin_,
-                callbackTxNativeFee_: callbackTxNativeFee_
+                lzArgs_: lzArgs_
             });
     }
 
@@ -689,10 +691,10 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
         IDepositToken depositToken_,
         uint256 withdrawAmount_,
         IERC20 underlying_,
-        uint256 underlyingAmountMin_,
+        uint256 underlyingAmountMin_, // collateral -> naked
+        uint256 layer1SwapAmountOutMin_, // naked -> synth
         uint256 repayAmountMin_,
-        uint256 layer1SwapAmountOutMin_,
-        uint256 callbackTxNativeFee_
+        bytes calldata lzArgs_
     )
         external
         payable
@@ -701,20 +703,24 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
         nonReentrant
         onlyIfDepositTokenExists(depositToken_)
         onlyIfSyntheticTokenExists(syntheticToken_)
-        returns (uint256 _withdrawn)
     {
+        if (block.chainid == 1) revert NotAvailableOnThisChain();
         if (withdrawAmount_ > depositToken_.balanceOf(msg.sender)) revert AmountIsTooHigh();
         IDebtToken _debtToken = debtTokenOf[syntheticToken_];
         if (repayAmountMin_ > _debtToken.balanceOf(msg.sender)) revert AmountIsTooHigh();
 
-        // 1. withdraw collateral
-        // Note: Withdraw to `proxyOFT` to save transfer gas
-        (_withdrawn, ) = depositToken_.flashWithdraw(msg.sender, withdrawAmount_);
+        uint256 _amountIn;
 
-        // 2. swap collateral for its underlying
-        uint256 _amountIn = _swap(swapper, depositToken_.underlying(), underlying_, _withdrawn, underlyingAmountMin_);
-        // TODO: Make swap send to proxyOFT directly
-        underlying_.safeTransfer(address(syntheticToken_.proxyOFT()), _amountIn);
+        {
+            // 1. withdraw collateral
+            // Note: Withdraw to `proxyOFT` to save transfer gas
+            (uint256 _withdrawn, ) = depositToken_.flashWithdraw(msg.sender, withdrawAmount_);
+
+            // 2. swap collateral for its underlying
+            _amountIn = _swap(swapper, depositToken_.underlying(), underlying_, _withdrawn, underlyingAmountMin_);
+            // TODO: Make swap send to proxyOFT directly
+            underlying_.safeTransfer(address(syntheticToken_.proxyOFT()), _amountIn);
+        }
 
         // 3. store request
         uint256 _id = layer2RequestId++;
@@ -731,16 +737,16 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
         });
 
         // 4. trigger L1  swap
-        syntheticToken_.proxyOFT().triggerFlashRepaySwap{value: msg.value}({
+        ILayer2ProxyOFT(address(syntheticToken_.proxyOFT())).triggerFlashRepaySwap{value: msg.value}({
             id_: _id,
             account_: payable(msg.sender),
             tokenIn_: address(underlying_),
             amountIn_: _amountIn,
             amountOutMin_: layer1SwapAmountOutMin_,
-            callbackTxNativeFee_: callbackTxNativeFee_
+            lzArgs_: lzArgs_ // abi.encode(callbackTxNativeFee_, uint64(500_000), uint64(750_000))
         });
 
-        emit Layer2FlashRepayStarted(_id);
+        emit Layer2FlashRepayStarted(_id); // TODO: add missing params
     }
 
     // TODO
@@ -749,6 +755,8 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
         uint256 id_,
         uint256 swapAmountOut_
     ) external override whenNotShutdown nonReentrant onlyIfProxyOFT returns (uint256 _repaid) {
+        if (block.chainid == 1) revert NotAvailableOnThisChain();
+
         Layer2FlashRepay memory _request = layer2FlashRepays[id_];
 
         if (_request.account == address(0)) revert Layer2RequestInvalidKey();
@@ -779,9 +787,9 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
         ISyntheticToken syntheticToken_,
         uint256 amountIn_,
         uint256 leverage_,
-        uint256 depositAmountMin_,
         uint256 layer1SwapAmountOutMin_, // Set slippage for L1 swap
-        uint256 callbackTxNativeFee_
+        uint256 depositAmountMin_,
+        bytes calldata lzArgs_
     )
         external
         payable
@@ -790,7 +798,6 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
         nonReentrant
         onlyIfDepositTokenExists(depositToken_)
         onlyIfSyntheticTokenExists(syntheticToken_)
-        returns (uint256 _issued)
     {
         IERC20 _underlying = underlying_; // stack too deep
 
@@ -804,7 +811,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
         _underlying.safeTransferFrom(msg.sender, address(this), amountIn_);
 
         // 2. mint synth
-        (_issued, ) = debtTokenOf[syntheticToken_].flashIssue(
+        (uint256 _issued, ) = debtTokenOf[syntheticToken_].flashIssue(
             address(syntheticToken_.proxyOFT()), // Note: Issue to `proxyOFT` to save transfer gas
             _calculateLeverageDebtAmount(_underlying, syntheticToken_, amountIn_, leverage_)
         );
@@ -825,13 +832,13 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
         });
 
         // 4. trigger L1 swap
-        syntheticToken_.proxyOFT().triggerLeverageSwap{value: msg.value}({
+        ILayer2ProxyOFT(address(syntheticToken_.proxyOFT())).triggerLeverageSwap{value: msg.value}({
             id_: _id,
             account_: payable(msg.sender),
             tokenOut_: address(_underlying),
             amountIn_: _issued,
             amountOutMin: layer1SwapAmountOutMin_,
-            callbackTxNativeFee_: callbackTxNativeFee_
+            lzArgs_: lzArgs_ // abi.encode(callbackTxNativeFee_, uint64(500_000), uint64(750_000))
         });
 
         emit Layer2LeverageStarted(_id);
