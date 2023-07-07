@@ -33,6 +33,7 @@ error TransferFromTheZeroAddress();
 error TransferToTheZeroAddress();
 error TransferAmountExceedsBalance();
 error NewValueIsSameAsCurrent();
+error SenderIsNotSmartFarmingManager();
 
 /**
  * @title Represents the users' deposits
@@ -69,6 +70,14 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
 
     /// @notice Emitted when max total supply is updated
     event MaxTotalSupplyUpdated(uint256 oldMaxTotalSupply, uint256 newMaxTotalSupply);
+
+    /**
+     * @dev Throws if sender is SmartFarmingManager
+     */
+    modifier onlyIfSmartFarmingManager() {
+        if (msg.sender != address(pool.smartFarmingManager())) revert SenderIsNotSmartFarmingManager();
+        _;
+    }
 
     /**
      * @dev Throws if sender can't seize
@@ -216,7 +225,7 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
     function flashWithdraw(
         address account_,
         uint256 amount_
-    ) external override onlyPool returns (uint256 _withdrawn, uint256 _fee) {
+    ) external override onlyIfSmartFarmingManager returns (uint256 _withdrawn, uint256 _fee) {
         return _withdraw({account_: account_, amount_: amount_, to_: msg.sender});
     }
 

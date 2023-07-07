@@ -27,6 +27,7 @@ error BurnAmountExceedsBalance();
 error MintToNullAddress();
 error SurpassMaxDebtSupply();
 error NewValueIsSameAsCurrent();
+error SenderIsNotSmartFarmingManager();
 
 /**
  * @title Non-transferable token that represents users' debts
@@ -61,10 +62,10 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
     );
 
     /**
-     * @dev Throws if sender can't burn
+     * @dev Throws if sender is SmartFarmingManager
      */
-    modifier onlyIfPool() {
-        if (msg.sender != address(pool)) revert SenderIsNotPool();
+    modifier onlyIfSmartFarmingManager() {
+        if (msg.sender != address(pool.smartFarmingManager())) revert SenderIsNotSmartFarmingManager();
         _;
     }
 
@@ -186,7 +187,7 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
      * @param from_ The account to burn from
      * @param amount_ The amount to burn
      */
-    function burn(address from_, uint256 amount_) external override onlyIfPool {
+    function burn(address from_, uint256 amount_) external override onlyPool {
         _burn(from_, amount_);
     }
 
@@ -260,7 +261,7 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
     )
         external
         override
-        onlyIfPool
+        onlyIfSmartFarmingManager
         whenNotShutdown
         nonReentrant
         onlyIfSyntheticTokenExists
@@ -298,7 +299,7 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
     )
         external
         override
-        onlyIfPool
+        onlyIfSmartFarmingManager
         whenNotShutdown
         nonReentrant
         onlyIfSyntheticTokenExists

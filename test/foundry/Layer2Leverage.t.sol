@@ -15,10 +15,7 @@ contract Layer2Leverage_Test is CrossChains_Test {
         uint256 depositAmountMin_
     ) private {
         vm.selectFork(mainnetFork);
-        bytes memory _lzArgs = proxyOFT_msUSD_mainnet.getLeverageSwapAndCallbackLzArgs(
-            address(pool_optimism),
-            LZ_OP_CHAIN_ID
-        );
+        bytes memory _lzArgs = proxyOFT_msUSD_mainnet.getLeverageSwapAndCallbackLzArgs(LZ_OP_CHAIN_ID);
 
         _layer2Leverage({
             amountIn_: amountIn_,
@@ -39,11 +36,8 @@ contract Layer2Leverage_Test is CrossChains_Test {
         vm.recordLogs();
 
         vm.selectFork(optimismFork);
-        uint256 fee = pool_optimism.quoteLayer2LeverageNativeFee({
-            underlying_: usdc_optimism,
+        uint256 fee = smartFarmingManager_optimism.quoteLayer2LeverageNativeFee({
             syntheticToken_: msUSD_optimism,
-            amountIn_: amountIn_,
-            layer1SwapAmountOutMin_: layer1SwapAmountOutMin_,
             lzArgs_: lzArgs_
         });
 
@@ -51,8 +45,8 @@ contract Layer2Leverage_Test is CrossChains_Test {
         deal(address(usdc_optimism), alice, amountIn_);
 
         vm.startPrank(alice);
-        usdc_optimism.approve(address(pool_optimism), type(uint256).max);
-        pool_optimism.layer2Leverage{value: fee}({
+        usdc_optimism.approve(address(smartFarmingManager_optimism), type(uint256).max);
+        smartFarmingManager_optimism.layer2Leverage{value: fee}({
             underlying_: usdc_optimism,
             depositToken_: msdVaUSDC_optimism,
             syntheticToken_: msUSD_optimism,
@@ -307,7 +301,7 @@ contract Layer2Leverage_Test is CrossChains_Test {
         // Retry will work with right slippage
         (, uint256 _layer2LeverageId) = abi.decode(payload, (address, uint256));
         vm.prank(alice);
-        pool_optimism.retryLayer2LeverageCallback(
+        smartFarmingManager_optimism.retryLayer2LeverageCallback(
             _layer2LeverageId,
             1450e18, // Correct slippage
             chainId,
@@ -335,10 +329,7 @@ contract Layer2Leverage_Test is CrossChains_Test {
         // when
         //
         vm.selectFork(mainnetFork);
-        bytes memory _lzArgs = proxyOFT_msUSD_mainnet.getLeverageSwapAndCallbackLzArgs(
-            address(pool_optimism),
-            LZ_OP_CHAIN_ID
-        );
+        bytes memory _lzArgs = proxyOFT_msUSD_mainnet.getLeverageSwapAndCallbackLzArgs(LZ_OP_CHAIN_ID);
 
         uint256 missingFee = 0.001e18;
 

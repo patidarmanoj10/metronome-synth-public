@@ -10,7 +10,7 @@ contract Layer1ProxyOFT is ProxyOFT {
     using WadRayMath for uint256;
     using BytesLib for bytes;
 
-    ISwapper public swapper;
+    ISwapper public swapper; // TODO: Use from SFM
 
     mapping(uint256 => uint256) swapAmountOutMin;
 
@@ -24,25 +24,19 @@ contract Layer1ProxyOFT is ProxyOFT {
         if (block.chainid != 1) revert NotAvailableOnThisChain();
     }
 
-    function getLeverageSwapAndCallbackLzArgs(
-        address l2Pool_,
-        uint16 dstChainId_
-    ) external view returns (bytes memory lzArgs_) {
+    function getLeverageSwapAndCallbackLzArgs(uint16 dstChainId_) external view returns (bytes memory lzArgs_) {
         return
             abi.encode(
-                _quoteLeverageCallbackNativeFee(l2Pool_, dstChainId_),
+                _quoteLeverageCallbackNativeFee(dstChainId_),
                 leverageSwapTxGasLimit,
                 leverageCallbackTxGasLimit
             );
     }
 
-    function getFlashRepaySwapAndCallbackLzArgs(
-        address l2Pool_,
-        uint16 dstChainId_
-    ) external view returns (bytes memory lzArgs_) {
+    function getFlashRepaySwapAndCallbackLzArgs(uint16 dstChainId_) external view returns (bytes memory lzArgs_) {
         return
             abi.encode(
-                _quoteFlashRepayCallbackNativeFee(l2Pool_, dstChainId_),
+                _quoteFlashRepayCallbackNativeFee(dstChainId_),
                 flashRepaySwapTxGasLimit,
                 flashRepayCallbackTxGasLimit
             );
@@ -62,7 +56,7 @@ contract Layer1ProxyOFT is ProxyOFT {
         IStargateRouter _stargateRouter = stargateRouter;
 
         // 1. Swap synthetic token from L2 for underlying
-        address _pool;
+        address _smartFarmingManager;
         uint256 _requestId;
         address _underlying;
         uint256 _amountOut;
@@ -70,7 +64,7 @@ contract Layer1ProxyOFT is ProxyOFT {
             address _account;
             uint256 _amountOutMin;
             uint256 _underlyingPoolId;
-            (_pool, _requestId, _underlyingPoolId, _account, _amountOutMin) = abi.decode(
+            (_smartFarmingManager, _requestId, _underlyingPoolId, _account, _amountOutMin) = abi.decode(
                 payload_,
                 (address, uint256, uint256, address, uint256)
             );
@@ -91,17 +85,17 @@ contract Layer1ProxyOFT is ProxyOFT {
         uint16 _dstChainId = srcChainId_;
         uint256 _poolId = poolIdOf[_underlying];
         // Note: The amount  isn't needed here because it's part of the message
-        bytes memory _payload = abi.encode(_pool, _requestId); // Stack too deep
+        bytes memory _payload = abi.encode(_smartFarmingManager, _requestId); // Stack too deep
         IERC20(_underlying).safeApprove(address(_stargateRouter), 0);
         IERC20(_underlying).safeApprove(address(_stargateRouter), _amountOut);
-        _stargateRouter.swap{value: _quoteLeverageCallbackNativeFee(_pool, _dstChainId)}({
+        _stargateRouter.swap{value: _quoteLeverageCallbackNativeFee(_dstChainId)}({
             _dstChainId: _dstChainId,
             _srcPoolId: _poolId,
             _dstPoolId: _poolId,
             // Note: We can do a further swap (i.e. routerETH.swapETH) to refund the end user directly
             _refundAddress: payable(address(this)),
             _amountLD: _amountOut,
-            _minAmountLD: _getSgAmountInMin(_amountOut),
+            _minAmountLD: _getSgAmountOutMin(_amountOut),
             _lzTxParams: IStargateRouter.lzTxObj({
                 dstGasForCall: leverageCallbackTxGasLimit,
                 dstNativeAmount: 0,
@@ -123,14 +117,17 @@ contract Layer1ProxyOFT is ProxyOFT {
         if (abi.decode(srcAddress_, (address)) != _getProxyOftOf(srcChainId_)) revert InvalidFromAddress();
 
         // 1. Swap underlying from L2 for synthetic token
-        address _pool;
+        address _smartFarmingManager;
         uint256 _requestId;
         uint256 _amountOut;
         {
             address _account;
             uint256 _amountOutMin;
 
-            (_pool, _requestId, _account, _amountOutMin) = abi.decode(payload_, (address, uint256, address, uint256));
+            (_smartFarmingManager, _requestId, _account, _amountOutMin) = abi.decode(
+                payload_,
+                (address, uint256, address, uint256)
+            );
 
             _amountOut = _swap({
                 requestId_: _requestId,
@@ -146,13 +143,13 @@ contract Layer1ProxyOFT is ProxyOFT {
         uint16 _dstChainId = srcChainId_;
         uint64 _flashRepayCallbackTxGasLimit = flashRepayCallbackTxGasLimit;
 
-        this.sendAndCall{value: _quoteFlashRepayCallbackNativeFee(_pool, _dstChainId)}({
+        this.sendAndCall{value: _quoteFlashRepayCallbackNativeFee(_dstChainId)}({
             _from: address(this),
             _dstChainId: _dstChainId,
             _toAddress: abi.encodePacked(_getProxyOftOf(_dstChainId)),
             _amount: _amountOut,
             // Note: The amount isn't needed here because it's part of the message
-            _payload: abi.encode(_pool, _requestId),
+            _payload: abi.encode(_smartFarmingManager, _requestId),
             // Note: `_dstGasForCall` is the extra gas for the further call triggered from the destination
             _dstGasForCall: _flashRepayCallbackTxGasLimit,
             // Note: We can do a further swap (i.e. routerETH.swapETH) to refund the end user directly
@@ -167,16 +164,13 @@ contract Layer1ProxyOFT is ProxyOFT {
         });
     }
 
-    function _quoteFlashRepayCallbackNativeFee(
-        address l2Pool_,
-        uint16 dstChainId_
-    ) public view returns (uint256 _callbackTxNativeFee) {
+    function _quoteFlashRepayCallbackNativeFee(uint16 dstChainId_) public view returns (uint256 _callbackTxNativeFee) {
         (_callbackTxNativeFee, ) = this.estimateSendAndCallFee({
             _dstChainId: dstChainId_,
             _toAddress: abi.encodePacked(_getProxyOftOf(dstChainId_)),
-            _amount: type(uint256).max, // TODO: Review
+            _amount: type(uint256).max,
             _payload: abi.encode(
-                l2Pool_,
+                address(type(uint160).max), // smart farming manager
                 bytes32(type(uint256).max) // requestId
             ),
             // Note: `_dstGasForCall` is the extra gas for the further call triggered from the destination
@@ -191,16 +185,13 @@ contract Layer1ProxyOFT is ProxyOFT {
         });
     }
 
-    function _quoteLeverageCallbackNativeFee(
-        address l2Pool_,
-        uint16 dstChainId_
-    ) private view returns (uint256 _callbackTxNativeFee) {
+    function _quoteLeverageCallbackNativeFee(uint16 dstChainId_) private view returns (uint256 _callbackTxNativeFee) {
         (_callbackTxNativeFee, ) = stargateRouter.quoteLayerZeroFee({
             _dstChainId: dstChainId_,
             _functionType: SG_TYPE_SWAP_REMOTE,
             _toAddress: abi.encodePacked(_getProxyOftOf(dstChainId_)),
             _transferAndCallPayload: abi.encodePacked(
-                l2Pool_,
+                address(type(uint160).max), // smart farming manager
                 bytes32(type(uint256).max) // requestId
             ),
             _lzTxParams: IStargateRouter.lzTxObj({

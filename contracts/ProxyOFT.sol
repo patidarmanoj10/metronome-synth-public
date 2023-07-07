@@ -84,7 +84,7 @@ abstract contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCore {
         return trustedRemoteLookup[chainId_].toAddress(0);
     }
 
-    function _getSgAmountInMin(uint256 amountIn_) internal view returns (uint256) {
+    function _getSgAmountOutMin(uint256 amountIn_) internal view returns (uint256) {
         return (amountIn_ * (MAX_BPS - stargateSlippage)) / MAX_BPS;
     }
 

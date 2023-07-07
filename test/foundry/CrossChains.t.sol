@@ -9,6 +9,7 @@ import {Pool as StargatePool} from "../../contracts/dependencies/stargate-protoc
 import {IStargateRouter} from "../../contracts/dependencies/stargate-protocol/interfaces/IStargateRouter.sol";
 import {PoolRegistry} from "../../contracts/PoolRegistry.sol";
 import {Pool, ISyntheticToken, IERC20} from "../../contracts/Pool.sol";
+import {SmartFarmingManager} from "../../contracts/SmartFarmingManager.sol";
 import {Treasury} from "../../contracts/Treasury.sol";
 import {DepositToken} from "../../contracts/DepositToken.sol";
 import {DebtToken} from "../../contracts/DebtToken.sol";
@@ -75,6 +76,7 @@ abstract contract CrossChains_Test is Test {
     PoolRegistry poolRegistry_optimism;
     FeeProvider feeProvider_optimism;
     Pool pool_optimism;
+    SmartFarmingManager smartFarmingManager_optimism;
     Treasury treasury_optimism;
     SyntheticToken msUSD_optimism;
     DebtToken msUSDDebt_optimism;
@@ -92,6 +94,7 @@ abstract contract CrossChains_Test is Test {
     PoolRegistry poolRegistry_mainnet;
     FeeProvider feeProvider_mainnet;
     Pool pool_mainnet;
+    SmartFarmingManager smartFarmingManager_mainnet;
     SyntheticToken msUSD_mainnet;
     DebtToken msUSDDebt_mainnet;
     DepositToken msdUSDC_mainnet;
@@ -117,6 +120,7 @@ abstract contract CrossChains_Test is Test {
         feeProvider_optimism = new FeeProvider();
         treasury_optimism = new Treasury();
         pool_optimism = new Pool();
+        smartFarmingManager_optimism = new SmartFarmingManager();
         msUSD_optimism = new SyntheticToken();
         msUSDDebt_optimism = new DebtToken();
         msdUSDC_optimism = new DepositToken();
@@ -125,6 +129,7 @@ abstract contract CrossChains_Test is Test {
         poolRegistry_optimism.initialize({masterOracle_: masterOracle_optimism, feeCollector_: feeCollector});
         feeProvider_optimism.initialize({poolRegistry_: poolRegistry_optimism, esMET_: IESMET(address(0))});
         pool_optimism.initialize(poolRegistry_optimism);
+        smartFarmingManager_optimism.initialize(pool_optimism);
         treasury_optimism.initialize(pool_optimism);
 
         msdUSDC_optimism.initialize({
@@ -165,10 +170,11 @@ abstract contract CrossChains_Test is Test {
         poolRegistry_optimism.registerPool(address(pool_optimism));
         pool_optimism.updateFeeProvider(feeProvider_optimism);
         pool_optimism.updateTreasury(treasury_optimism);
-        pool_optimism.updateSwapper(swapper_optimism);
+        pool_optimism.updateSmartFarmingManager(smartFarmingManager_optimism);
         pool_optimism.addDepositToken(address(msdUSDC_optimism));
         pool_optimism.addDepositToken(address(msdVaUSDC_optimism));
         pool_optimism.addDebtToken(msUSDDebt_optimism);
+        smartFarmingManager_optimism.updateSwapper(swapper_optimism);
         masterOracle_optimism.updatePrice(address(usdc_optimism), 1e18);
         masterOracle_optimism.updatePrice(address(vaUSDC_optimism), 1e18);
         masterOracle_optimism.updatePrice(address(msUSD_optimism), 1e18);
@@ -188,6 +194,7 @@ abstract contract CrossChains_Test is Test {
         poolRegistry_mainnet = new PoolRegistry();
         feeProvider_mainnet = new FeeProvider();
         pool_mainnet = new Pool();
+        smartFarmingManager_mainnet = new SmartFarmingManager();
         msUSD_mainnet = new SyntheticToken();
         msUSDDebt_mainnet = new DebtToken();
         msdUSDC_mainnet = new DepositToken();
@@ -195,6 +202,7 @@ abstract contract CrossChains_Test is Test {
         poolRegistry_mainnet.initialize({masterOracle_: masterOracle_mainnet, feeCollector_: feeCollector});
         feeProvider_mainnet.initialize({poolRegistry_: poolRegistry_mainnet, esMET_: IESMET(address(0))});
         pool_mainnet.initialize(poolRegistry_mainnet);
+        smartFarmingManager_mainnet.initialize(pool_mainnet);
 
         msdUSDC_mainnet.initialize({
             underlying_: usdc_mainnet,
@@ -223,9 +231,10 @@ abstract contract CrossChains_Test is Test {
 
         poolRegistry_mainnet.registerPool(address(pool_mainnet));
         pool_mainnet.updateFeeProvider(feeProvider_mainnet);
-        pool_mainnet.updateSwapper(swapper_mainnet);
+        pool_mainnet.updateSmartFarmingManager(smartFarmingManager_mainnet);
         pool_mainnet.addDepositToken(address(msdUSDC_mainnet));
         pool_mainnet.addDebtToken(msUSDDebt_mainnet);
+        smartFarmingManager_mainnet.updateSwapper(swapper_mainnet);
         masterOracle_mainnet.updatePrice(address(usdc_mainnet), 1e18);
         masterOracle_mainnet.updatePrice(address(msUSD_mainnet), 1e18);
         proxyOFT_msUSD_mainnet.updateSwapper(swapper_mainnet);

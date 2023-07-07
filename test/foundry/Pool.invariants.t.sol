@@ -52,8 +52,6 @@ contract PoolInvariant_Test is Test {
         pool.updateFeeProvider(feeProvider);
         poolRegistry.registerPool(address(pool));
 
-        pool.updateSwapper(swapper);
-
         treasury = new Treasury();
         treasury.initialize(pool);
         pool.updateTreasury(treasury);

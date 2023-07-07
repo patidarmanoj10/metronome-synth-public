@@ -23,7 +23,7 @@ contract PoolMock is IPool, Governable, Pauseable {
     IMasterOracle public masterOracle;
     IPoolRegistry public poolRegistry;
     IFeeProvider public feeProvider;
-    ISwapper public swapper;
+    ISmartFarmingManager public smartFarmingManager;
     uint256 public debtFloorInUsd;
     uint256 public maxLiquidable;
     bool public isSwapActive;
@@ -87,60 +87,6 @@ contract PoolMock is IPool, Governable, Pauseable {
         _debtInUsd = debtOf(_account);
         _issuableLimitInUsd = _depositInUsd.wadMul(depositToken.collateralFactor());
         _issuableInUsd = _debtInUsd < _issuableLimitInUsd ? _issuableLimitInUsd - _debtInUsd : 0;
-    }
-
-    function flashRepay(
-        ISyntheticToken,
-        IDepositToken,
-        uint256,
-        uint256
-    ) external pure override returns (uint256, uint256) {
-        revert("mock-does-not-implement");
-    }
-
-    function layer2FlashRepay(
-        ISyntheticToken,
-        IDepositToken,
-        uint256,
-        IERC20,
-        uint256,
-        uint256,
-        uint256,
-        bytes calldata
-    ) external payable override {
-        revert("mock-does-not-implement");
-    }
-
-    function layer2Leverage(
-        IERC20,
-        IDepositToken,
-        ISyntheticToken,
-        uint256,
-        uint256,
-        uint256,
-        uint256,
-        bytes calldata
-    ) external payable override {
-        revert("mock-does-not-implement");
-    }
-
-    function layer2LeverageCallback(uint256, uint256) external pure returns (uint256) {
-        revert("mock-does-not-implement");
-    }
-
-    function layer2FlashRepayCallback(uint256, uint256) external pure returns (uint256) {
-        revert("mock-does-not-implement");
-    }
-
-    function leverage(
-        IERC20,
-        IDepositToken,
-        ISyntheticToken,
-        uint256,
-        uint256,
-        uint256
-    ) external pure override returns (uint256, uint256) {
-        revert("mock-does-not-implement");
     }
 
     function liquidate(

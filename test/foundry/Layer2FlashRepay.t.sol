@@ -26,24 +26,18 @@ contract Layer2FlashRepay_Test is CrossChains_Test {
         vm.recordLogs();
 
         vm.selectFork(mainnetFork);
-        bytes memory _lzArgs = proxyOFT_msUSD_mainnet.getFlashRepaySwapAndCallbackLzArgs(
-            address(pool_optimism),
-            LZ_OP_CHAIN_ID
-        );
+        bytes memory _lzArgs = proxyOFT_msUSD_mainnet.getFlashRepaySwapAndCallbackLzArgs(LZ_OP_CHAIN_ID);
 
         vm.selectFork(optimismFork);
-        uint256 fee = pool_optimism.quoteLayer2FlashRepayNativeFee({
-            underlying_: usdc_optimism,
+        uint256 fee = smartFarmingManager_optimism.quoteLayer2FlashRepayNativeFee({
             syntheticToken_: msUSD_optimism,
-            amountIn_: withdrawAmount_,
-            layer1SwapAmountOutMin_: layer1SwapAmountOutMin_,
             lzArgs_: _lzArgs
         });
         deal(alice, fee);
 
         vm.startPrank(alice);
         usdc_optimism.approve(address(pool_optimism), type(uint256).max);
-        pool_optimism.layer2FlashRepay{value: fee}({
+        smartFarmingManager_optimism.layer2FlashRepay{value: fee}({
             syntheticToken_: msUSD_optimism,
             depositToken_: msdVaUSDC_optimism,
             withdrawAmount_: withdrawAmount_,
@@ -314,7 +308,7 @@ contract Layer2FlashRepay_Test is CrossChains_Test {
         // tx3
         // Retry will work after fix slippage
         vm.prank(alice);
-        pool_optimism.retryLayer2FlashRepayCallback(
+        smartFarmingManager_optimism.retryLayer2FlashRepayCallback(
             0,
             490e18, // right `repayAmountMin_`
             srcChainId,

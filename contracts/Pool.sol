@@ -8,7 +8,6 @@ import "./storage/PoolStorage.sol";
 import "./lib/WadRayMath.sol";
 import "./utils/Pauseable.sol";
 
-error CollateralDoesNotExist();
 error SyntheticDoesNotExist();
 error SenderIsNotDebtToken();
 error SenderIsNotDepositToken();
@@ -16,11 +15,6 @@ error UserReachedMaxTokens();
 error PoolRegistryIsNull();
 error DebtTokenAlreadyExists();
 error DepositTokenAlreadyExists();
-error FlashRepaySlippageTooHigh();
-error LeverageTooLow();
-error LeverageTooHigh();
-error LeverageSlippageTooHigh();
-error PositionIsNotHealthy();
 error AmountIsZero();
 error CanNotLiquidateOwnPosition();
 error PositionIsHealthy();
@@ -40,14 +34,7 @@ error RewardDistributorAlreadyExists();
 error RewardDistributorDoesNotExist();
 error TotalSupplyIsNotZero();
 error NewValueIsSameAsCurrent();
-error FeeIsGreaterThanTheMax();
 error MaxLiquidableTooHigh();
-error Layer2RequestInvalidKey();
-error SenderIsNotProxyOFT();
-error NotAvailableOnThisChain();
-error Layer2RequestCompletedAlready();
-error TokenInIsNull();
-error SenderIsNotAccount();
 
 /**
  * @title Pool contract
@@ -110,11 +97,14 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
     /// @notice Emitted when rewards distributor contract is removed
     event RewardsDistributorRemoved(IRewardsDistributor _distributor);
 
+    /// @notice Emitted when SmartFarmingManager contract is updated
+    event SmartFarmingManagerUpdated(
+        ISmartFarmingManager oldSmartFarmingManager,
+        ISmartFarmingManager newSmartFarmingManager
+    );
+
     /// @notice Emitted when the swap active flag is updated
     event SwapActiveUpdated(bool newActive);
-
-    /// @notice Emitted when swapper contract is updated
-    event SwapperUpdated(ISwapper oldSwapFee, ISwapper newSwapFee);
 
     /// @notice Emitted when synthetic token is swapped
     event SyntheticTokenSwapped(
@@ -143,7 +133,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
      * @dev Throws if deposit token doesn't exist
      */
     modifier onlyIfDepositTokenExists(IDepositToken depositToken_) {
-        if (!doesDepositTokenExist(depositToken_)) revert CollateralDoesNotExist();
+        if (!doesDepositTokenExist(depositToken_)) revert DepositTokenDoesNotExist();
         _;
     }
 
@@ -168,15 +158,6 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
      */
     modifier onlyIfMsgSenderIsDepositToken() {
         if (!doesDepositTokenExist(IDepositToken(msg.sender))) revert SenderIsNotDepositToken();
-        _;
-    }
-
-    // TODO: Comment
-    modifier onlyIfProxyOFT() {
-        ISyntheticToken _syntheticToken = ISyntheticToken(ILayer2ProxyOFT(msg.sender).token());
-        if (!doesSyntheticTokenExist(_syntheticToken) || address(_syntheticToken.proxyOFT()) != msg.sender) {
-            revert SenderIsNotProxyOFT();
-        }
         _;
     }
 
@@ -229,47 +210,6 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
                 _debtToken.balanceOf(account_)
             );
         }
-    }
-
-    /**
-     * @notice Flash debt repayment
-     * @param syntheticToken_ The debt token to repay
-     * @param depositToken_ The collateral to withdraw
-     * @param withdrawAmount_ The amount to withdraw
-     * @param repayAmountMin_ The minimum amount to repay (slippage check)
-     */
-    function flashRepay(
-        ISyntheticToken syntheticToken_,
-        IDepositToken depositToken_,
-        uint256 withdrawAmount_,
-        uint256 repayAmountMin_
-    )
-        external
-        override
-        whenNotShutdown
-        nonReentrant
-        onlyIfDepositTokenExists(depositToken_)
-        onlyIfSyntheticTokenExists(syntheticToken_)
-        returns (uint256 _withdrawn, uint256 _repaid)
-    {
-        if (block.chainid != 1) revert NotAvailableOnThisChain();
-        if (withdrawAmount_ > depositToken_.balanceOf(msg.sender)) revert AmountIsTooHigh();
-        IDebtToken _debtToken = debtTokenOf[syntheticToken_];
-        if (repayAmountMin_ > _debtToken.balanceOf(msg.sender)) revert AmountIsTooHigh();
-
-        // 1. withdraw collateral
-        (_withdrawn, ) = depositToken_.flashWithdraw(msg.sender, withdrawAmount_);
-
-        // 2. swap for synth
-        uint256 _amountToRepay = _swap(swapper, depositToken_.underlying(), syntheticToken_, _withdrawn, 0);
-
-        // 3. repay debt
-        (_repaid, ) = _debtToken.repay(msg.sender, _amountToRepay);
-        if (_repaid < repayAmountMin_) revert FlashRepaySlippageTooHigh();
-
-        // 4. check the health of the outcome position
-        (bool _isHealthy, , , , ) = debtPositionOf(msg.sender);
-        if (!_isHealthy) revert PositionIsNotHealthy();
     }
 
     /**
@@ -405,48 +345,6 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
      */
     function doesSyntheticTokenExist(ISyntheticToken syntheticToken_) public view override returns (bool) {
         return address(debtTokenOf[syntheticToken_]) != address(0);
-    }
-
-    // Note: The quotation may change from a block to block, and, since user will call this before
-    // broadcasting the actual leverage tx, the tx may fail if fee rises in the meanwhile
-    // to avoid that, user may send a bit more (e.g. _nativeFee * 110%) and get refund.
-    // TODO: Which is better? Make quote function to return slightly more or let the UI handle this?
-    function quoteLayer2FlashRepayNativeFee(
-        IERC20 underlying_,
-        ISyntheticToken syntheticToken_,
-        uint256 amountIn_,
-        uint256 layer1SwapAmountOutMin_,
-        bytes calldata lzArgs_
-    ) external view returns (uint256 _nativeFee) {
-        return
-            ILayer2ProxyOFT(address(syntheticToken_.proxyOFT())).quoteTriggerFlashRepaySwapNativeFee({
-                l2Pool_: address(this),
-                tokenIn_: address(underlying_),
-                amountIn_: amountIn_,
-                amountOutMin_: layer1SwapAmountOutMin_,
-                lzArgs_: lzArgs_
-            });
-    }
-
-    // Note: The quotation may change from a block to block, and, since user will call this before
-    // broadcasting the actual leverage tx, the tx may fail if fee rises in the meanwhile
-    // to avoid that, user may send a bit more (e.g. _nativeFee * 110%) and get refund.
-    // TODO: Which is better? Make quote function to return slightly more or let the UI handle this?
-    function quoteLayer2LeverageNativeFee(
-        IERC20 underlying_,
-        ISyntheticToken syntheticToken_,
-        uint256 amountIn_,
-        uint256 layer1SwapAmountOutMin_,
-        bytes calldata lzArgs_
-    ) external view returns (uint256 _nativeFee) {
-        return
-            ILayer2ProxyOFT(address(syntheticToken_.proxyOFT())).quoteTriggerLeverageSwapNativeFee({
-                l2Pool_: address(this),
-                tokenOut_: address(underlying_),
-                amountIn_: amountIn_,
-                amountOutMin_: layer1SwapAmountOutMin_,
-                lzArgs_: lzArgs_
-            });
     }
 
     /**
@@ -599,349 +497,6 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
             _fee = _amountOut.wadMul(_swapFee);
             _amountOut -= _fee;
         }
-    }
-
-    // TODO: Comment
-    function _collateralTransferFrom(
-        address from_,
-        ISwapper swapper_,
-        IERC20 tokenIn_,
-        IERC20 _collateral,
-        uint256 amountIn_
-    ) private returns (uint256 _transferredAmount) {
-        if (address(tokenIn_) == address(0)) tokenIn_ = _collateral;
-        tokenIn_.safeTransferFrom(from_, address(this), amountIn_);
-        if (tokenIn_ != _collateral) {
-            // Note: `amountOutMin_` is `0` because slippage will be checked later on
-            return _swap(swapper_, tokenIn_, _collateral, amountIn_, 0);
-        }
-        return amountIn_;
-    }
-
-    // TODO: Comment
-    // TODO: See if fits https://github.com/autonomoussoftware/metronome-synth/issues/798
-    function _calculateLeverageDebtAmount(
-        IERC20 _collateral,
-        ISyntheticToken syntheticToken_,
-        uint256 amountIn_,
-        uint256 leverage_
-    ) private view returns (uint256 _debtAmount) {
-        return
-            masterOracle().quote(address(_collateral), address(syntheticToken_), (leverage_ - 1e18).wadMul(amountIn_));
-    }
-
-    /**
-     * @notice Leverage yield position
-     * @param tokenIn_ The token to transfer
-     * @param depositToken_ The collateral to deposit
-     * @param syntheticToken_ The msAsset to mint
-     * @param amountIn_ The amount to deposit
-     * @param leverage_ The leverage X param (e.g. 1.5e18 for 1.5X)
-     * @param depositAmountMin_ The min final deposit amount (slippage)
-     */
-    function leverage(
-        IERC20 tokenIn_,
-        IDepositToken depositToken_,
-        ISyntheticToken syntheticToken_,
-        uint256 amountIn_,
-        uint256 leverage_,
-        uint256 depositAmountMin_
-    )
-        external
-        override
-        whenNotShutdown
-        nonReentrant
-        onlyIfDepositTokenExists(depositToken_)
-        onlyIfSyntheticTokenExists(syntheticToken_)
-        returns (uint256 _deposited, uint256 _issued)
-    {
-        if (block.chainid != 1) revert NotAvailableOnThisChain();
-        if (leverage_ <= 1e18) revert LeverageTooLow();
-        if (leverage_ > uint256(1e18).wadDiv(1e18 - depositToken_.collateralFactor())) revert LeverageTooHigh();
-
-        ISwapper _swapper = swapper;
-
-        // 1. transfer collateral
-        IERC20 _collateral = depositToken_.underlying();
-        amountIn_ = _collateralTransferFrom(msg.sender, _swapper, tokenIn_, _collateral, amountIn_);
-
-        // 2. mint synth + debt
-        uint256 _debtAmount = _calculateLeverageDebtAmount(_collateral, syntheticToken_, amountIn_, leverage_);
-        IDebtToken _debtToken = debtTokenOf[syntheticToken_];
-        (_issued, ) = _debtToken.flashIssue(address(this), _debtAmount);
-        _debtToken.mint(msg.sender, _debtAmount);
-
-        // 3. swap synth for collateral
-        uint256 _depositAmount = amountIn_ + _swap(_swapper, syntheticToken_, _collateral, _issued, 0);
-        if (_depositAmount < depositAmountMin_) revert LeverageSlippageTooHigh();
-
-        // 4. deposit collateral
-        _collateral.safeApprove(address(depositToken_), 0);
-        _collateral.safeApprove(address(depositToken_), _depositAmount);
-        (_deposited, ) = depositToken_.deposit(_depositAmount, msg.sender);
-
-        // 5. check the health of the outcome position
-        (bool _isHealthy, , , , ) = debtPositionOf(msg.sender);
-        if (!_isHealthy) revert PositionIsNotHealthy();
-    }
-
-    // TODO: Comment
-    function layer2FlashRepay(
-        ISyntheticToken syntheticToken_,
-        IDepositToken depositToken_,
-        uint256 withdrawAmount_,
-        IERC20 underlying_,
-        uint256 underlyingAmountMin_, // collateral -> naked
-        uint256 layer1SwapAmountOutMin_, // naked -> synth
-        uint256 repayAmountMin_,
-        bytes calldata lzArgs_
-    )
-        external
-        payable
-        override
-        whenNotShutdown
-        nonReentrant
-        onlyIfDepositTokenExists(depositToken_)
-        onlyIfSyntheticTokenExists(syntheticToken_)
-    {
-        if (block.chainid == 1) revert NotAvailableOnThisChain();
-        if (withdrawAmount_ > depositToken_.balanceOf(msg.sender)) revert AmountIsTooHigh();
-        IDebtToken _debtToken = debtTokenOf[syntheticToken_];
-        if (repayAmountMin_ > _debtToken.balanceOf(msg.sender)) revert AmountIsTooHigh();
-
-        uint256 _amountIn;
-
-        {
-            // 1. withdraw collateral
-            // Note: Withdraw to `proxyOFT` to save transfer gas
-            (uint256 _withdrawn, ) = depositToken_.flashWithdraw(msg.sender, withdrawAmount_);
-
-            // 2. swap collateral for its underlying
-            _amountIn = _swap(swapper, depositToken_.underlying(), underlying_, _withdrawn, underlyingAmountMin_);
-            // TODO: Make swap send to proxyOFT directly
-            underlying_.safeTransfer(address(syntheticToken_.proxyOFT()), _amountIn);
-        }
-
-        // 3. store request
-        uint256 _id = layer2RequestId++;
-
-        layer2FlashRepays[_id] = Layer2FlashRepay({
-            syntheticToken: syntheticToken_,
-            depositToken: depositToken_,
-            withdrawAmount: withdrawAmount_,
-            underlying: underlying_,
-            repayAmountMin: repayAmountMin_,
-            debtRepaid: 0,
-            account: msg.sender,
-            finished: false
-        });
-
-        // 4. trigger L1  swap
-        ILayer2ProxyOFT(address(syntheticToken_.proxyOFT())).triggerFlashRepaySwap{value: msg.value}({
-            id_: _id,
-            account_: payable(msg.sender),
-            tokenIn_: address(underlying_),
-            amountIn_: _amountIn,
-            amountOutMin_: layer1SwapAmountOutMin_,
-            lzArgs_: lzArgs_ // abi.encode(callbackTxNativeFee_, uint64(500_000), uint64(750_000))
-        });
-
-        emit Layer2FlashRepayStarted(_id); // TODO: add missing params
-    }
-
-    // TODO
-    //  - Comment
-    function layer2FlashRepayCallback(
-        uint256 id_,
-        uint256 swapAmountOut_
-    ) external override whenNotShutdown nonReentrant onlyIfProxyOFT returns (uint256 _repaid) {
-        if (block.chainid == 1) revert NotAvailableOnThisChain();
-
-        Layer2FlashRepay memory _request = layer2FlashRepays[id_];
-
-        if (_request.account == address(0)) revert Layer2RequestInvalidKey();
-        if (msg.sender != address(_request.syntheticToken.proxyOFT())) revert SenderIsNotProxyOFT();
-        if (_request.finished) revert Layer2RequestCompletedAlready();
-
-        // 1. update state
-        layer2FlashRepays[id_].finished = true;
-
-        // 2. transfer synthetic token (swapAmountOut)
-        _request.syntheticToken.transferFrom(msg.sender, address(this), swapAmountOut_);
-
-        // 3. repay debt
-        (_repaid, ) = debtTokenOf[_request.syntheticToken].repay(_request.account, swapAmountOut_);
-        if (_repaid < _request.repayAmountMin) revert FlashRepaySlippageTooHigh();
-        layer2FlashRepays[id_].debtRepaid = _repaid;
-
-        // 4. check the health of the outcome position
-        (bool _isHealthy, , , , ) = debtPositionOf(_request.account);
-        if (!_isHealthy) revert PositionIsNotHealthy();
-
-        emit Layer2FlashRepayFinished(id_);
-    }
-
-    function layer2Leverage(
-        IERC20 underlying_, // e.g. USDC is the vaUSDC's underlying (a.k.a. naked token)
-        IDepositToken depositToken_,
-        ISyntheticToken syntheticToken_,
-        uint256 amountIn_,
-        uint256 leverage_,
-        uint256 layer1SwapAmountOutMin_, // Set slippage for L1 swap
-        uint256 depositAmountMin_,
-        bytes calldata lzArgs_
-    )
-        external
-        payable
-        override
-        whenNotShutdown
-        nonReentrant
-        onlyIfDepositTokenExists(depositToken_)
-        onlyIfSyntheticTokenExists(syntheticToken_)
-    {
-        IERC20 _underlying = underlying_; // stack too deep
-
-        if (block.chainid == 1) revert NotAvailableOnThisChain();
-        if (leverage_ <= 1e18) revert LeverageTooLow();
-        if (leverage_ > uint256(1e18).wadDiv(1e18 - depositToken_.collateralFactor())) revert LeverageTooHigh();
-        if (address(_underlying) == address(0)) revert TokenInIsNull();
-
-        // 1. transfer collateral
-        // Note: Not performing tokenIn->depositToken swap here because is preferable to do cross-chain operations using naked tokens
-        _underlying.safeTransferFrom(msg.sender, address(this), amountIn_);
-
-        // 2. mint synth
-        (uint256 _issued, ) = debtTokenOf[syntheticToken_].flashIssue(
-            address(syntheticToken_.proxyOFT()), // Note: Issue to `proxyOFT` to save transfer gas
-            _calculateLeverageDebtAmount(_underlying, syntheticToken_, amountIn_, leverage_)
-        );
-
-        // 3. store request
-        uint256 _id = layer2RequestId++;
-
-        layer2Leverages[_id] = Layer2Leverage({
-            underlying: _underlying,
-            depositToken: depositToken_,
-            syntheticToken: syntheticToken_,
-            depositAmountMin: depositAmountMin_,
-            tokenInAmountIn: amountIn_,
-            syntheticTokenIssued: _issued,
-            collateralDeposited: 0,
-            account: msg.sender,
-            finished: false
-        });
-
-        // 4. trigger L1 swap
-        ILayer2ProxyOFT(address(syntheticToken_.proxyOFT())).triggerLeverageSwap{value: msg.value}({
-            id_: _id,
-            account_: payable(msg.sender),
-            tokenOut_: address(_underlying),
-            amountIn_: _issued,
-            amountOutMin: layer1SwapAmountOutMin_,
-            lzArgs_: lzArgs_ // abi.encode(callbackTxNativeFee_, uint64(500_000), uint64(750_000))
-        });
-
-        emit Layer2LeverageStarted(_id);
-    }
-
-    // TODO: Comment
-    // TODO: Should we have timeout param also like uniswap has?
-    // TODO: Slippage should be increased only
-    // TODO: Store and get clearCachedSwap params from storage
-    function retryLayer2LeverageCallback(
-        uint256 id_,
-        uint256 newDepositAmountMin_,
-        uint16 _srcChainId,
-        bytes calldata srcAddress_,
-        uint256 nonce_
-    ) external {
-        Layer2Leverage memory _request = layer2Leverages[id_];
-
-        require(_request.account != address(0), "invalid-id");
-        if (msg.sender != _request.account) revert SenderIsNotAccount();
-        if (_request.finished) revert Layer2RequestCompletedAlready();
-
-        layer2Leverages[id_].depositAmountMin = newDepositAmountMin_;
-
-        _request.syntheticToken.proxyOFT().stargateRouter().clearCachedSwap(_srcChainId, srcAddress_, nonce_);
-    }
-
-    // TODO: Comment
-    // TODO: Should we have timeout param also like uniswap has?
-    // TODO: Slippage should be increased only
-    // TODO: Store and get retryOFTReceived params from storage
-    function retryLayer2FlashRepayCallback(
-        uint256 id_,
-        uint256 newRepayAmountMin_,
-        uint16 srcChainId_,
-        bytes calldata srcAddress_,
-        uint64 nonce_,
-        bytes calldata from_,
-        address to_,
-        uint amount_,
-        bytes calldata payload_
-    ) external {
-        Layer2FlashRepay memory _request = layer2FlashRepays[id_];
-
-        // TODO: Custom error
-        require(_request.account != address(0), "invalid-id");
-        if (msg.sender != _request.account) revert SenderIsNotAccount();
-        if (_request.finished) revert Layer2RequestCompletedAlready();
-
-        layer2FlashRepays[id_].repayAmountMin = newRepayAmountMin_;
-
-        _request.syntheticToken.proxyOFT().retryOFTReceived(
-            srcChainId_,
-            srcAddress_,
-            nonce_,
-            from_,
-            to_,
-            amount_,
-            payload_
-        );
-    }
-
-    // TODO
-    //  - Comment
-    //  - Reuse code from `leverage()`?
-    function layer2LeverageCallback(
-        uint256 id_,
-        uint256 swapAmountOut_
-    ) external override whenNotShutdown nonReentrant onlyIfProxyOFT returns (uint256 _deposited) {
-        Layer2Leverage memory _leverage = layer2Leverages[id_];
-
-        if (_leverage.account == address(0)) revert Layer2RequestInvalidKey();
-        if (msg.sender != address(_leverage.syntheticToken.proxyOFT())) revert SenderIsNotProxyOFT();
-        if (_leverage.finished) revert Layer2RequestCompletedAlready();
-        IERC20 _collateral = _leverage.depositToken.underlying();
-
-        // 1. transfer underlying (swapAmountOut)
-        _leverage.underlying.transferFrom(msg.sender, address(this), swapAmountOut_);
-
-        // 2. swap tokenIn for collateral if they aren't the same
-        uint256 _tokenInAmount = _leverage.tokenInAmountIn + swapAmountOut_;
-        uint256 _depositAmount = _leverage.underlying == _collateral
-            ? _tokenInAmount
-            : _swap(swapper, _leverage.underlying, _collateral, _tokenInAmount, 0);
-        if (_depositAmount < _leverage.depositAmountMin) revert LeverageSlippageTooHigh();
-
-        // 3. update state
-        layer2Leverages[id_].collateralDeposited = _depositAmount;
-        layer2Leverages[id_].finished = true;
-
-        // 4. deposit collateral
-        _collateral.safeApprove(address(_leverage.depositToken), 0);
-        _collateral.safeApprove(address(_leverage.depositToken), _depositAmount);
-        (_deposited, ) = _leverage.depositToken.deposit(_depositAmount, _leverage.account);
-
-        // 5. mint debt
-        debtTokenOf[_leverage.syntheticToken].mint(_leverage.account, _leverage.syntheticTokenIssued);
-
-        // 6. check the health of the outcome position
-        (bool _isHealthy, , , , ) = debtPositionOf(_leverage.account);
-        if (!_isHealthy) revert PositionIsNotHealthy();
-
-        emit Layer2LeverageFinished(id_);
     }
 
     /**
@@ -1254,14 +809,14 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
     }
 
     /**
-     * @notice Update swapper contract
+     * @notice Update SmartFarmingManager contract
      */
-    function updateSwapper(ISwapper newSwapper_) external onlyGovernor {
-        if (address(newSwapper_) == address(0)) revert AddressIsNull();
-        ISwapper _currentSwapper = swapper;
-        if (newSwapper_ == _currentSwapper) revert NewValueIsSameAsCurrent();
+    function updateSmartFarmingManager(ISmartFarmingManager newSmartFarmingManager_) external onlyGovernor {
+        if (address(newSmartFarmingManager_) == address(0)) revert AddressIsNull();
+        ISmartFarmingManager _current = smartFarmingManager;
+        if (newSmartFarmingManager_ == _current) revert NewValueIsSameAsCurrent();
 
-        emit SwapperUpdated(_currentSwapper, newSwapper_);
-        swapper = newSwapper_;
+        emit SmartFarmingManagerUpdated(_current, newSmartFarmingManager_);
+        smartFarmingManager = newSmartFarmingManager_;
     }
 }
