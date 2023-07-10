@@ -15,6 +15,7 @@ import {ERC20Mock} from "../../contracts/mock/ERC20Mock.sol";
 import {IESMET} from "../../contracts/interfaces/external/IESMET.sol";
 import {SyntheticToken} from "../../contracts/SyntheticToken.sol";
 import {DebtToken, IDebtToken} from "../../contracts/DebtToken.sol";
+import {SmartFarmingManager} from "../../contracts/SmartFarmingManager.sol";
 
 contract DebtTokenInvariant_Test is Test {
     MasterOracleMock masterOracle;
@@ -46,6 +47,10 @@ contract DebtTokenInvariant_Test is Test {
         pool.initialize(poolRegistry);
         pool.updateFeeProvider(feeProvider);
         poolRegistry.registerPool(address(pool));
+
+        SmartFarmingManager smartFarmingManager = new SmartFarmingManager();
+        smartFarmingManager.initialize(pool);
+        pool.updateSmartFarmingManager(smartFarmingManager);
 
         underlying = new ERC20Mock("dai", "dai", 18);
 

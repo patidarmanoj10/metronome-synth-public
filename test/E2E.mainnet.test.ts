@@ -17,6 +17,7 @@ import {
   IWETH,
   NativeTokenGateway,
   PoolRegistry,
+  SmartFarmingManager,
 } from '../typechain'
 import {address as POOL_REGISTRY_ADDRESS} from '../deployments/mainnet/PoolRegistry.json'
 import {address as USDC_DEPOSIT_ADDRESS} from '../deployments/mainnet/USDCDepositToken.json'
@@ -38,6 +39,9 @@ import {address as SRFXETH_DEPOSIT_ADDRESS} from '../deployments/mainnet/sfrxETH
 import {address as VASTETH_DEPOSIT_ADDRESS} from '../deployments/mainnet/vaSTETHDepositToken.json'
 import {address as VARETH_DEPOSIT_ADDRESS} from '../deployments/mainnet/vaRETHDepositToken.json'
 import {address as VACBETH_DEPOSIT_ADDRESS} from '../deployments/mainnet/vaCBETHDepositToken.json'
+import {address as POOL_UPGRADER_ADDRESS} from '../deployments/mainnet/PoolUpgraderV2.json'
+import {address as DEPOSIT_TOKEN_UPGRADER_ADDRESS} from '../deployments/mainnet/DepositTokenUpgrader.json'
+import {address as DEBT_TOKEN_UPGRADER_ADDRESS} from '../deployments/mainnet/DebtTokenUpgrader.json'
 
 const {MaxUint256} = ethers.constants
 const dust = toUSD('5')
@@ -45,6 +49,7 @@ const dust = toUSD('5')
 const isNodeHardhat = hre.network.name === 'hardhat'
 
 describe('E2E tests (mainnet)', function () {
+  let deployer: SignerWithAddress
   let governor: SignerWithAddress
   let alice: SignerWithAddress
   let bob: SignerWithAddress
@@ -63,6 +68,7 @@ describe('E2E tests (mainnet)', function () {
   let masterOracle: Contract
   let poolRegistry: PoolRegistry
   let nativeGateway: NativeTokenGateway
+  let smartFarmingManager: SmartFarmingManager
   let pool: Pool
   let msdUSDC: DepositToken
   let msdWBTC: DepositToken
@@ -91,7 +97,7 @@ describe('E2E tests (mainnet)', function () {
 
   async function fixture() {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
-    ;[, alice, bob] = await ethers.getSigners()
+    ;[deployer, alice, bob] = await ethers.getSigners()
     usdc = await ethers.getContractAt('ERC20', Address.USDC_ADDRESS, alice)
     dai = await ethers.getContractAt('ERC20', Address.DAI_ADDRESS, alice)
     wbtc = await ethers.getContractAt('ERC20', Address.WBTC_ADDRESS, alice)
@@ -172,9 +178,43 @@ describe('E2E tests (mainnet)', function () {
     )
     await defaultOracle.updateDefaultStalePeriod(ethers.constants.MaxUint256)
 
-    // TODO: Remove this after unpausing
-    await pool.connect(governor).open()
-    await pool.connect(governor).unpause()
+    //
+    // TODO: Remove setup below after having `SmartFarmingManager` contract deployed
+    //
+    const poolFactory = await ethers.getContractFactory('contracts/Pool.sol:Pool', deployer)
+    const poolImpl = await poolFactory.deploy()
+    const depositTokenFactory = await ethers.getContractFactory('DepositToken', deployer)
+    const depositTokenImpl = await depositTokenFactory.deploy()
+    const debtTokenFactory = await ethers.getContractFactory('DebtToken', deployer)
+    const debtTokenImpl = await debtTokenFactory.deploy()
+
+    const poolProxyAdmin = await ethers.getContractAt('PoolUpgraderV2', POOL_UPGRADER_ADDRESS)
+    const poolProxyAdminOwner = await impersonateAccount(await poolProxyAdmin.owner())
+    await poolProxyAdmin.connect(poolProxyAdminOwner).upgrade(pool.address, poolImpl.address)
+
+    const msdProxyAdmin = await ethers.getContractAt('DepositTokenUpgrader', DEPOSIT_TOKEN_UPGRADER_ADDRESS)
+    const msdProxyAdminOwner = await impersonateAccount(await msdProxyAdmin.owner())
+    await msdProxyAdmin.connect(msdProxyAdminOwner).upgrade(msdVaUSDC.address, depositTokenImpl.address)
+    await msdProxyAdmin.connect(msdProxyAdminOwner).upgrade(msdVaFRAX.address, depositTokenImpl.address)
+    await msdProxyAdmin.connect(msdProxyAdminOwner).upgrade(msdVaETH.address, depositTokenImpl.address)
+    await msdProxyAdmin.connect(msdProxyAdminOwner).upgrade(msdVaRETH.address, depositTokenImpl.address)
+    await msdProxyAdmin.connect(msdProxyAdminOwner).upgrade(msdVaSTETH.address, depositTokenImpl.address)
+    await msdProxyAdmin.connect(msdProxyAdminOwner).upgrade(msdVaCBETH.address, depositTokenImpl.address)
+
+    const debtTokenProxyAdmin = await ethers.getContractAt('DebtTokenUpgrader', DEBT_TOKEN_UPGRADER_ADDRESS)
+    const debtTokenProxyAdminOwner = await impersonateAccount(await debtTokenProxyAdmin.owner())
+    await debtTokenProxyAdmin.connect(debtTokenProxyAdminOwner).upgrade(msUSDDebt.address, debtTokenImpl.address)
+    await debtTokenProxyAdmin.connect(debtTokenProxyAdminOwner).upgrade(msETHDebt.address, debtTokenImpl.address)
+
+    const smartFarmingManagerFactory = await ethers.getContractFactory('SmartFarmingManager')
+    smartFarmingManager = await smartFarmingManagerFactory.deploy()
+    await smartFarmingManager.deployed()
+
+    await smartFarmingManager.initialize(pool.address)
+    smartFarmingManager = smartFarmingManager.connect(alice)
+    await smartFarmingManager.connect(governor).updateSwapper(Address.SWAPPER)
+
+    await pool.connect(governor).updateSmartFarmingManager(smartFarmingManager.address)
   }
 
   beforeEach(async function () {
@@ -549,8 +589,15 @@ describe('E2E tests (mainnet)', function () {
         // when
         const amountIn = parseUnits('100', 18)
         const leverage = parseEther('1.5')
-        await vaUSDC.connect(alice).approve(pool.address, MaxUint256)
-        const tx = await pool.leverage(vaUSDC.address, msdVaUSDC.address, msUSD.address, amountIn, leverage, 0)
+        await vaUSDC.connect(alice).approve(smartFarmingManager.address, MaxUint256)
+        const tx = await smartFarmingManager.leverage(
+          vaUSDC.address,
+          msdVaUSDC.address,
+          msUSD.address,
+          amountIn,
+          leverage,
+          0
+        )
 
         // then
         const {gasUsed} = await tx.wait()
@@ -564,8 +611,15 @@ describe('E2E tests (mainnet)', function () {
         // when
         const amountIn = parseUnits('100', 18)
         const leverage = parseEther('1.5')
-        await vaFRAX.connect(alice).approve(pool.address, MaxUint256)
-        const tx = await pool.leverage(vaFRAX.address, msdVaFRAX.address, msUSD.address, amountIn, leverage, 0)
+        await vaFRAX.connect(alice).approve(smartFarmingManager.address, MaxUint256)
+        const tx = await smartFarmingManager.leverage(
+          vaFRAX.address,
+          msdVaFRAX.address,
+          msUSD.address,
+          amountIn,
+          leverage,
+          0
+        )
 
         // then
         const {gasUsed} = await tx.wait()
@@ -580,8 +634,15 @@ describe('E2E tests (mainnet)', function () {
         const amountIn = parseUnits('0.1', 18)
         const amountInUsd = parseUnits('190', 18) // approx.
         const leverage = parseEther('1.5')
-        await vaETH.connect(alice).approve(pool.address, MaxUint256)
-        const tx = await pool.leverage(vaETH.address, msdVaETH.address, msETH.address, amountIn, leverage, 0)
+        await vaETH.connect(alice).approve(smartFarmingManager.address, MaxUint256)
+        const tx = await smartFarmingManager.leverage(
+          vaETH.address,
+          msdVaETH.address,
+          msETH.address,
+          amountIn,
+          leverage,
+          0
+        )
 
         // then
         const {gasUsed} = await tx.wait()
@@ -599,8 +660,15 @@ describe('E2E tests (mainnet)', function () {
         const amountIn = parseUnits('0.1', 18)
         const amountInUsd = parseUnits('204', 18) // approx.
         const leverage = parseEther('1.5')
-        await vaRETH.connect(alice).approve(pool.address, MaxUint256)
-        const tx = await pool.leverage(vaRETH.address, msdVaRETH.address, msETH.address, amountIn, leverage, 0)
+        await vaRETH.connect(alice).approve(smartFarmingManager.address, MaxUint256)
+        const tx = await smartFarmingManager.leverage(
+          vaRETH.address,
+          msdVaRETH.address,
+          msETH.address,
+          amountIn,
+          leverage,
+          0
+        )
 
         // then
         const {gasUsed} = await tx.wait()
@@ -618,8 +686,15 @@ describe('E2E tests (mainnet)', function () {
         const amountIn = parseUnits('0.1', 18)
         const amountInUsd = parseUnits('195', 18) // approx.
         const leverage = parseEther('1.5')
-        await vaSTETH.connect(alice).approve(pool.address, MaxUint256)
-        const tx = await pool.leverage(vaSTETH.address, msdVaSTETH.address, msETH.address, amountIn, leverage, 0)
+        await vaSTETH.connect(alice).approve(smartFarmingManager.address, MaxUint256)
+        const tx = await smartFarmingManager.leverage(
+          vaSTETH.address,
+          msdVaSTETH.address,
+          msETH.address,
+          amountIn,
+          leverage,
+          0
+        )
 
         // then
         const {gasUsed} = await tx.wait()
@@ -637,8 +712,15 @@ describe('E2E tests (mainnet)', function () {
         const amountIn = parseUnits('0.1', 18)
         const amountInUsd = parseUnits('197', 18) // approx.
         const leverage = parseEther('1.5')
-        await vaCBETH.connect(alice).approve(pool.address, MaxUint256)
-        const tx = await pool.leverage(vaCBETH.address, msdVaCBETH.address, msETH.address, amountIn, leverage, 0)
+        await vaCBETH.connect(alice).approve(smartFarmingManager.address, MaxUint256)
+        const tx = await smartFarmingManager.leverage(
+          vaCBETH.address,
+          msdVaCBETH.address,
+          msETH.address,
+          amountIn,
+          leverage,
+          0
+        )
 
         // then
         const {gasUsed} = await tx.wait()
@@ -659,14 +741,14 @@ describe('E2E tests (mainnet)', function () {
         expect(_depositInUsd).eq(0)
         const amountIn = parseUnits('100', 18)
         const leverage = parseEther('1.5')
-        await vaUSDC.connect(alice).approve(pool.address, MaxUint256)
-        await pool.leverage(vaUSDC.address, msdVaUSDC.address, msUSD.address, amountIn, leverage, 0)
+        await vaUSDC.connect(alice).approve(smartFarmingManager.address, MaxUint256)
+        await smartFarmingManager.leverage(vaUSDC.address, msdVaUSDC.address, msUSD.address, amountIn, leverage, 0)
       })
 
       it('should flash repay msUSD debt using vaUSDC', async function () {
         // when
-        const withdrawAmount = parseEther('45')
-        const tx = await pool.flashRepay(msUSD.address, msdVaUSDC.address, withdrawAmount, 0)
+        const withdrawAmount = parseEther('49')
+        const tx = await smartFarmingManager.flashRepay(msUSD.address, msdVaUSDC.address, withdrawAmount, 0)
 
         // then
         const {gasUsed} = await tx.wait()

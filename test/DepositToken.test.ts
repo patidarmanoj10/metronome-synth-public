@@ -3,7 +3,16 @@ import {parseEther} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import chai, {expect} from 'chai'
 import {ethers} from 'hardhat'
-import {DepositToken, ERC20Mock, MasterOracleMock, Treasury, Pool, FeeProvider, PoolRegistry} from '../typechain'
+import {
+  DepositToken,
+  ERC20Mock,
+  MasterOracleMock,
+  Treasury,
+  Pool,
+  FeeProvider,
+  PoolRegistry,
+  SmartFarmingManager,
+} from '../typechain'
 import {setBalance} from '@nomicfoundation/hardhat-network-helpers'
 import {FakeContract, MockContract, smock} from '@defi-wonderland/smock'
 import {BigNumber} from 'ethers'
@@ -22,6 +31,7 @@ describe('DepositToken', function () {
   let treasury: Treasury
   let met: ERC20Mock
   let poolMock: FakeContract<Pool>
+  let smartFarmingManagerMock: FakeContract<SmartFarmingManager>
   let metDepositToken: DepositToken
   let masterOracle: MasterOracleMock
   let rewardsDistributorMock: MockContract
@@ -61,6 +71,9 @@ describe('DepositToken', function () {
     metDepositToken = await depositTokenFactory.deploy()
     await metDepositToken.deployed()
 
+    smartFarmingManagerMock = await smock.fake<SmartFarmingManager>('SmartFarmingManager')
+    await setBalance(smartFarmingManagerMock.address, parseEther('10'))
+
     poolMock = await smock.fake<Pool>('contracts/Pool.sol:Pool')
     await setBalance(poolMock.address, parseEther('10'))
     poolMock.masterOracle.returns(masterOracle.address)
@@ -71,6 +84,9 @@ describe('DepositToken', function () {
     poolMock.doesDepositTokenExist.returns(true)
     poolMock.treasury.returns(treasury.address)
     poolMock.feeProvider.returns(feeProvider.address)
+    poolMock.smartFarmingManager.returns(smartFarmingManagerMock.address)
+
+    smartFarmingManagerMock.pool.returns(poolMock.address)
 
     const rewardsDistributorMockFactory = await smock.mock('RewardsDistributor')
     rewardsDistributorMock = await rewardsDistributorMockFactory.deploy()
@@ -241,7 +257,7 @@ describe('DepositToken', function () {
 
         // when
         const toWithdraw = 1
-        const tx = metDepositToken.connect(poolMock.wallet).flashWithdraw(alice.address, toWithdraw)
+        const tx = metDepositToken.connect(smartFarmingManagerMock.wallet).flashWithdraw(alice.address, toWithdraw)
 
         // then
         await expect(tx).emit(metDepositToken, 'CollateralWithdrawn')
@@ -254,7 +270,7 @@ describe('DepositToken', function () {
 
         // when
         const toWithdraw = 1
-        const tx = metDepositToken.connect(poolMock.wallet).flashWithdraw(alice.address, toWithdraw)
+        const tx = metDepositToken.connect(smartFarmingManagerMock.wallet).flashWithdraw(alice.address, toWithdraw)
 
         // then
         await expect(tx).revertedWithCustomError(metDepositToken, 'IsShutdown')
@@ -262,7 +278,7 @@ describe('DepositToken', function () {
 
       it('should revert if amount is 0', async function () {
         // when
-        const tx = metDepositToken.connect(poolMock.wallet).flashWithdraw(alice.address, 0)
+        const tx = metDepositToken.connect(smartFarmingManagerMock.wallet).flashWithdraw(alice.address, 0)
 
         // then
         await expect(tx).revertedWithCustomError(metDepositToken, 'AmountIsZero')
@@ -271,7 +287,9 @@ describe('DepositToken', function () {
       it('should revert if amount > balance', async function () {
         // when
         const balance = await metDepositToken.balanceOf(alice.address)
-        const tx = metDepositToken.connect(poolMock.wallet).flashWithdraw(alice.address, balance.add('1'))
+        const tx = metDepositToken
+          .connect(smartFarmingManagerMock.wallet)
+          .flashWithdraw(alice.address, balance.add('1'))
 
         // then
         await expect(tx).revertedWithCustomError(metDepositToken, 'BurnAmountExceedsBalance')
@@ -283,44 +301,45 @@ describe('DepositToken', function () {
         const tx = metDepositToken.connect(alice).flashWithdraw(alice.address, toWithdraw)
 
         // then
-        await expect(tx).revertedWithCustomError(metDepositToken, 'SenderIsNotPool')
+        await expect(tx).revertedWithCustomError(metDepositToken, 'SenderIsNotSmartFarmingManager')
       })
 
       it('should withdraw if amount <= collateral balance (withdrawFee == 0)', async function () {
         // given
-        expect(await met.balanceOf(poolMock.address)).eq(0)
+        expect(await met.balanceOf(smartFarmingManagerMock.address)).eq(0)
         const balanceOfAlice = await metDepositToken.balanceOf(alice.address)
         expect(balanceOfAlice).gt(0)
 
         // when
         const amountToWithdraw = balanceOfAlice
-        const tx = metDepositToken.connect(poolMock.wallet).flashWithdraw(alice.address, amountToWithdraw)
+        const tx = metDepositToken
+          .connect(smartFarmingManagerMock.wallet)
+          .flashWithdraw(alice.address, amountToWithdraw)
         await expect(tx)
           .emit(metDepositToken, 'CollateralWithdrawn')
-          .withArgs(alice.address, poolMock.address, amountToWithdraw, amountToWithdraw, 0)
+          .withArgs(alice.address, smartFarmingManagerMock.address, amountToWithdraw, amountToWithdraw, 0)
 
         // then
-        expect(await met.balanceOf(poolMock.address)).eq(amountToWithdraw)
         expect(await metDepositToken.balanceOf(alice.address)).eq(0)
       })
 
       it('should withdraw if amount <= collateral balance (withdrawFee > 0)', async function () {
         // given
         await feeProvider.connect(governor).updateWithdrawFee(parseEther('0.1')) // 10%
-        expect(await met.balanceOf(poolMock.address)).eq(0)
+        expect(await met.balanceOf(smartFarmingManagerMock.address)).eq(0)
         const balanceOfAlice = await metDepositToken.balanceOf(alice.address)
         expect(balanceOfAlice).gt(0)
         const amount = await metDepositToken.balanceOf(alice.address)
         const {_amountToWithdraw: withdrawn, _fee: fee} = await metDepositToken.quoteWithdrawOut(amount)
 
         // when
-        const tx = metDepositToken.connect(poolMock.wallet).flashWithdraw(alice.address, amount)
+        const tx = metDepositToken.connect(smartFarmingManagerMock.wallet).flashWithdraw(alice.address, amount)
         await expect(tx)
           .emit(metDepositToken, 'CollateralWithdrawn')
-          .withArgs(alice.address, poolMock.address, amount, withdrawn, fee)
+          .withArgs(alice.address, smartFarmingManagerMock.address, amount, withdrawn, fee)
 
         // then
-        expect(await met.balanceOf(poolMock.address)).eq(withdrawn)
+        expect(await met.balanceOf(smartFarmingManagerMock.address)).eq(withdrawn)
         expect(await metDepositToken.balanceOf(alice.address)).eq(0)
       })
 
@@ -329,7 +348,7 @@ describe('DepositToken', function () {
         rewardsDistributorMock.updateBeforeMintOrBurn.reset()
 
         // when
-        await metDepositToken.connect(poolMock.wallet).flashWithdraw(alice.address, parseEther('1'))
+        await metDepositToken.connect(smartFarmingManagerMock.wallet).flashWithdraw(alice.address, parseEther('1'))
 
         // then
         // Note: Use `callCount` instead (Refs: https://github.com/defi-wonderland/smock/issues/85)

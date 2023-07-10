@@ -14,7 +14,6 @@ import {
   Treasury,
   Pool,
   DebtToken,
-  SwapperMock,
   VPoolMock,
   FeeProvider,
 } from '../typechain'
@@ -26,7 +25,6 @@ import {toUSD} from '../helpers'
 chai.use(smock.matchers)
 
 const {MaxUint256} = ethers.constants
-const {parseUnits} = ethers.utils
 
 const liquidatorIncentive = parseEther('0.1') // 10%
 const metCF = parseEther('0.67') // 67%
@@ -45,7 +43,7 @@ describe('Pool', function () {
   let bob: SignerWithAddress
   let liquidator: SignerWithAddress
   let feeCollector: SignerWithAddress
-  let swapper: SwapperMock
+  let smartFarmingManager: FakeContract
   let met: ERC20Mock
   let dai: ERC20Mock
   let vaDAI: VPoolMock
@@ -71,9 +69,7 @@ describe('Pool', function () {
     masterOracle = await masterOracleMockFactory.deploy()
     await masterOracle.deployed()
 
-    const swapperMockFactory = await ethers.getContractFactory('SwapperMock', deployer)
-    swapper = await swapperMockFactory.deploy(masterOracle.address)
-    await swapper.deployed()
+    smartFarmingManager = await smock.fake('SmartFarmingManager')
 
     const erc20MockFactory = await ethers.getContractFactory('ERC20Mock', deployer)
     const vPoolMockFactory = await ethers.getContractFactory('VPoolMock', deployer)
@@ -170,7 +166,7 @@ describe('Pool', function () {
     await pool.initialize(poolRegistryMock.address)
     await pool.updateMaxLiquidable(parseEther('1')) // 100%
     await pool.updateTreasury(treasury.address)
-    await pool.updateSwapper(swapper.address)
+    await pool.updateSmartFarmingManager(smartFarmingManager.address)
     await pool.updateFeeProvider(feeProvider.address)
     const liquidationFees = await feeProvider.liquidationFees()
     expect(liquidationFees.liquidatorIncentive).eq(liquidatorIncentive)
@@ -198,219 +194,6 @@ describe('Pool', function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[deployer, alice, bob, liquidator] = await ethers.getSigners()
     await loadFixture(fixture)
-  })
-
-  describe('leverage', function () {
-    beforeEach(async function () {
-      await dai.mint(swapper.address, parseEther(`${1e6}`))
-      await vaDAI.mint(swapper.address, parseEther(`${1e6}`))
-      await met.mint(swapper.address, parseEther(`${1e6}`))
-      await pool.connect(deployer).addDepositToken(msdVaDAI.address)
-      await pool.connect(deployer).addDebtToken(msUsdDebtToken.address)
-
-      // given
-      expect(await feeProvider.issueFee()).eq(0)
-      expect(await feeProvider.depositFee()).eq(0)
-      const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
-      expect(_debtInUsd).eq(0)
-      expect(_depositInUsd).eq(0)
-      await vaDAI.connect(alice).approve(pool.address, MaxUint256)
-    })
-
-    it('should revert if X it too low', async function () {
-      // when
-      const amountIn = parseUnits('100', 18)
-      const leverage = parseEther('1').sub('1')
-      const tx = pool.connect(alice).leverage(vaDAI.address, msdVaDAI.address, msUSD.address, amountIn, leverage, 0)
-
-      // then
-      await expect(tx).revertedWithCustomError(pool, 'LeverageTooLow')
-    })
-
-    it('should revert if X it too high', async function () {
-      // when
-      const amountIn = parseUnits('100', 18)
-      const cf = await msdVaDAI.collateralFactor()
-      const maxLeverage = parseEther('1').mul(parseEther('1')).div(parseEther('1').sub(cf))
-      const leverage = maxLeverage.add('1')
-      const tx = pool.connect(alice).leverage(vaDAI.address, msdVaDAI.address, msUSD.address, amountIn, leverage, 0)
-
-      // then
-      await expect(tx).revertedWithCustomError(pool, 'LeverageTooHigh')
-    })
-
-    it('should revert if slippage is too high', async function () {
-      // given
-      await swapper.updateRate(parseEther('0.9')) // 10% slippage
-
-      // when
-      const amountIn = parseUnits('100', 18)
-      const leverage = parseEther('1.5')
-      const depositAmountMin = parseEther('147.5') // 5% slippage (100 + 50*0.95)
-      const tx = pool
-        .connect(alice)
-        .leverage(vaDAI.address, msdVaDAI.address, msUSD.address, amountIn, leverage, depositAmountMin)
-
-      // then
-      await expect(tx).revertedWithCustomError(pool, 'LeverageSlippageTooHigh')
-    })
-
-    it('should revert if outcome position is not healthy', async function () {
-      // given
-      await swapper.updateRate(parseEther('0.9')) // 10% slippage
-
-      // when
-      const amountIn = parseUnits('100', 18)
-      const cf = await msdVaDAI.collateralFactor()
-      const maxLeverage = parseEther('1').mul(parseEther('1')).div(parseEther('1').sub(cf))
-      const tx = pool.connect(alice).leverage(vaDAI.address, msdVaDAI.address, msUSD.address, amountIn, maxLeverage, 0)
-
-      // then
-      await expect(tx).revertedWithCustomError(pool, 'PositionIsNotHealthy')
-    })
-
-    it('should revert if outcome position is too close to min leverage making swap return 0', async function () {
-      // when
-      const amountIn = parseUnits('100', 18)
-      const minLeverage = parseEther('1').add('1')
-      const tx = pool.connect(alice).leverage(vaDAI.address, msdVaDAI.address, msUSD.address, amountIn, minLeverage, 0)
-
-      // then
-      await expect(tx).revertedWith('amount-out-zero') // Error from DEX
-    })
-
-    it('should be able to leverage close to min', async function () {
-      // when
-      const amountIn = parseUnits('100', 18)
-      const leverage = parseEther('1.01')
-      await pool.connect(alice).leverage(vaDAI.address, msdVaDAI.address, msUSD.address, amountIn, leverage, 0)
-
-      // then
-      const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
-      expect(_depositInUsd).closeTo(amountIn, parseEther('5')) // ~$100
-      expect(_debtInUsd).closeTo(0, parseEther('5')) // ~$0
-    })
-
-    it('should be able to leverage (a little bit less than the) max', async function () {
-      // given
-      await swapper.updateRate(parseEther('0.999')) // 0.1% slippage
-
-      // when
-      const amountIn = parseUnits('100', 18)
-      const cf = await msdVaDAI.collateralFactor()
-      const maxLeverage = parseEther('1').mul(parseEther('1')).div(parseEther('1').sub(cf))
-      expect(maxLeverage).eq(parseEther('2.5'))
-      const damper = parseEther('0.05')
-      const leverage = maxLeverage.sub(damper) // -5% to cover fees + slippage
-      await pool.connect(alice).leverage(vaDAI.address, msdVaDAI.address, msUSD.address, amountIn, leverage, 0)
-
-      // then
-      const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
-      expect(_depositInUsd).closeTo(parseEther('250'), parseEther('10')) // ~$250
-      expect(_debtInUsd).closeTo(parseEther('150'), parseEther('10')) // ~$150
-    })
-
-    it('should leverage vaDAI->msUSD', async function () {
-      // when
-      const amountIn = parseUnits('100', 18)
-      const leverage = parseEther('1.5')
-      await pool.connect(alice).leverage(vaDAI.address, msdVaDAI.address, msUSD.address, amountIn, leverage, 0)
-
-      // then
-      const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
-      expect(_depositInUsd).closeTo(amountIn.mul(leverage).div(parseEther('1')), parseEther('10')) // ~$150
-      // eslint-disable-next-line max-len
-      expect(_debtInUsd).closeTo(amountIn.mul(leverage.sub(parseEther('1'))).div(parseEther('1')), parseEther('10')) // ~$50
-    })
-
-    it('should leverage vaDAI->msUSD using MET as tokenIn', async function () {
-      // given
-      await masterOracle.updatePrice(met.address, parseEther('0.5'))
-
-      // when
-      const amountIn = parseUnits('100', 18)
-      const leverage = parseEther('1.5')
-      await met.connect(alice).approve(pool.address, MaxUint256)
-      await pool.connect(alice).leverage(met.address, msdVaDAI.address, msUSD.address, amountIn, leverage, 0)
-
-      // then
-      expect(await met.balanceOf(pool.address)).eq(0)
-      const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
-      expect(_depositInUsd).closeTo(parseEther('75'), parseEther('10'))
-      expect(_debtInUsd).closeTo(parseEther('25'), parseEther('10'))
-    })
-
-    describe('flashRepay', function () {
-      beforeEach('leverage vaDAI->msUSD', async function () {
-        const amountIn = parseUnits('100', 18)
-        const leverage = parseEther('1.5')
-        await pool.connect(alice).leverage(vaDAI.address, msdVaDAI.address, msUSD.address, amountIn, leverage, 0)
-      })
-
-      it('should revert if withdraw amount is too high', async function () {
-        // when
-        const withdrawAmount = (await msdVaDAI.balanceOf(alice.address)).add('1')
-        const tx = pool.connect(alice).flashRepay(msUSD.address, msdVaDAI.address, withdrawAmount, 0)
-
-        // then
-        await expect(tx).revertedWithCustomError(pool, 'AmountIsTooHigh')
-      })
-
-      it('should revert if repay amount is too high', async function () {
-        // when
-        const withdrawAmount = await msdVaDAI.balanceOf(alice.address)
-        const repayAmountMin = (await msUsdDebtToken.balanceOf(alice.address)).add('1')
-        const tx = pool.connect(alice).flashRepay(msUSD.address, msdVaDAI.address, withdrawAmount, repayAmountMin)
-
-        // then
-        await expect(tx).revertedWithCustomError(pool, 'AmountIsTooHigh')
-      })
-
-      it('should revert if slippage is too high', async function () {
-        // given
-        await swapper.updateRate(parseEther('0.9')) // 10% slippage
-
-        // when
-        const withdrawAmount = parseEther('50')
-        const repayAmountMin = parseEther('49.5') // 1% slippage
-        const tx = pool.connect(alice).flashRepay(msUSD.address, msdVaDAI.address, withdrawAmount, repayAmountMin)
-
-        // then
-        await expect(tx).revertedWithCustomError(pool, 'FlashRepaySlippageTooHigh')
-      })
-
-      it('should revert if the outcome position is unhealthy', async function () {
-        // given
-        const {_debtInUsd: debtBefore, _depositInUsd: depositBefore} = await pool.debtPositionOf(alice.address)
-        expect(depositBefore).eq(parseEther('150'))
-        expect(debtBefore).eq(parseEther('50'))
-        // Simulates huge slippage (90%), that makes user withdraw large collateral but repay small amount
-        await swapper.updateRate(parseEther('0.1'))
-
-        // when
-        const withdrawAmount = parseEther('100')
-        const tx = pool.connect(alice).flashRepay(msUSD.address, msdVaDAI.address, withdrawAmount, 0)
-
-        // then
-        await expect(tx).revertedWithCustomError(pool, 'PositionIsNotHealthy')
-      })
-
-      it('should flashRepay vaDAI->msUSD', async function () {
-        // given
-        const {_debtInUsd: debtBefore, _depositInUsd: depositBefore} = await pool.debtPositionOf(alice.address)
-        expect(depositBefore).eq(parseEther('150'))
-        expect(debtBefore).eq(parseEther('50'))
-
-        // when
-        const withdrawAmount = parseEther('50')
-        await pool.connect(alice).flashRepay(msUSD.address, msdVaDAI.address, withdrawAmount, 0)
-
-        // then
-        const {_debtInUsd: debtAfter, _depositInUsd: depositAfter} = await pool.debtPositionOf(alice.address)
-        expect(depositAfter).eq(parseEther('100'))
-        expect(debtAfter).eq(0)
-      })
-    })
   })
 
   describe('when user deposited multi-collateral', function () {
@@ -1929,13 +1712,13 @@ describe('Pool', function () {
     })
   })
 
-  describe('updateSwapper', function () {
+  describe('updateSmartFarmingManager', function () {
     it('should revert if using the same address', async function () {
       // given
-      expect(await pool.swapper()).eq(swapper.address)
+      expect(await pool.smartFarmingManager()).eq(smartFarmingManager.address)
 
       // when
-      const tx = pool.updateSwapper(swapper.address)
+      const tx = pool.updateSmartFarmingManager(smartFarmingManager.address)
 
       // then
       await expect(tx).revertedWithCustomError(pool, 'NewValueIsSameAsCurrent')
@@ -1943,7 +1726,7 @@ describe('Pool', function () {
 
     it('should revert if caller is not governor', async function () {
       // when
-      const tx = pool.connect(alice).updateSwapper(swapper.address)
+      const tx = pool.connect(alice).updateSmartFarmingManager(smartFarmingManager.address)
 
       // then
       await expect(tx).revertedWithCustomError(pool, 'SenderIsNotGovernor')
@@ -1951,7 +1734,7 @@ describe('Pool', function () {
 
     it('should revert if address is zero', async function () {
       // when
-      const tx = pool.updateSwapper(ethers.constants.AddressZero)
+      const tx = pool.updateSmartFarmingManager(ethers.constants.AddressZero)
 
       // then
       await expect(tx).revertedWithCustomError(pool, 'AddressIsNull')
@@ -1959,15 +1742,15 @@ describe('Pool', function () {
 
     it('should update swapper', async function () {
       // given
-      const before = await pool.swapper()
+      const before = await pool.smartFarmingManager()
       const after = alice.address
 
       // when
-      const tx = pool.updateSwapper(after)
+      const tx = pool.updateSmartFarmingManager(after)
 
       // then
-      await expect(tx).emit(pool, 'SwapperUpdated').withArgs(before, after)
-      expect(await pool.swapper()).eq(after)
+      await expect(tx).emit(pool, 'SmartFarmingManagerUpdated').withArgs(before, after)
+      expect(await pool.smartFarmingManager()).eq(after)
     })
   })
 
