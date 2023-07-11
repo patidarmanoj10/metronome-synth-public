@@ -125,7 +125,8 @@ abstract contract CrossChains_Test is Test {
         msUSDDebt_optimism = new DebtToken();
         msdUSDC_optimism = new DepositToken();
         msdVaUSDC_optimism = new DepositToken();
-        proxyOFT_msUSD_optimism = new Layer2ProxyOFT(address(lzEndpoint_optimism), msUSD_optimism);
+        proxyOFT_msUSD_optimism = new Layer2ProxyOFT();
+        proxyOFT_msUSD_optimism.initialize(address(lzEndpoint_optimism), msUSD_optimism);
         poolRegistry_optimism.initialize({masterOracle_: masterOracle_optimism, feeCollector_: feeCollector});
         feeProvider_optimism.initialize({poolRegistry_: poolRegistry_optimism, esMET_: IESMET(address(0))});
         pool_optimism.initialize(poolRegistry_optimism);
@@ -198,7 +199,8 @@ abstract contract CrossChains_Test is Test {
         msUSD_mainnet = new SyntheticToken();
         msUSDDebt_mainnet = new DebtToken();
         msdUSDC_mainnet = new DepositToken();
-        proxyOFT_msUSD_mainnet = new Layer1ProxyOFT(address(lzEndpoint_mainnet), msUSD_mainnet);
+        proxyOFT_msUSD_mainnet = new Layer1ProxyOFT();
+        proxyOFT_msUSD_mainnet.initialize(address(lzEndpoint_mainnet), msUSD_mainnet);
         poolRegistry_mainnet.initialize({masterOracle_: masterOracle_mainnet, feeCollector_: feeCollector});
         feeProvider_mainnet.initialize({poolRegistry_: poolRegistry_mainnet, esMET_: IESMET(address(0))});
         pool_mainnet.initialize(poolRegistry_mainnet);

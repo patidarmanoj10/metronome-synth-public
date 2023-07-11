@@ -5,18 +5,19 @@ pragma solidity 0.8.9;
 import "./interfaces/ILayer2ProxyOFT.sol";
 import "./interfaces/ISmartFarmingManager.sol";
 import "./ProxyOFT.sol";
+import "./storage/Layer2ProxyOFTStorage.sol";
 
-contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT {
+contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT, Layer2ProxyOFTStorage {
     using SafeERC20 for IERC20;
     using SafeERC20 for ISyntheticToken;
     using WadRayMath for uint256;
     using BytesLib for bytes;
 
-    // TODO: Create setter for this
-    uint16 public lzMainnetChainId = 101;
-
-    constructor(address _lzEndpoint, ISyntheticToken syntheticToken_) ProxyOFT(_lzEndpoint, syntheticToken_) {
+    function initialize(address _lzEndpoint, ISyntheticToken syntheticToken_) public initializer {
+        __ProxyOFT_init(_lzEndpoint, syntheticToken_);
         if (block.chainid == 1) revert NotAvailableOnThisChain();
+
+        lzMainnetChainId = 101;
     }
 
     modifier onlyIfMsgSenderIsValid() {

@@ -3,25 +3,22 @@
 pragma solidity 0.8.9;
 
 import "./ProxyOFT.sol";
+import "./storage/Layer1ProxyOFTStorage.sol";
 
-contract Layer1ProxyOFT is ProxyOFT {
+contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
     using SafeERC20 for IERC20;
     using SafeERC20 for ISyntheticToken;
     using WadRayMath for uint256;
     using BytesLib for bytes;
 
-    ISwapper public swapper; // TODO: Use from SFM
-
-    mapping(uint256 => uint256) swapAmountOutMin;
-
-    // TODO: Move to `SmartFarmManager`, `Pool` or `PoolRegistry`?
-    uint64 public flashRepayCallbackTxGasLimit = 750_000;
-    uint64 public flashRepaySwapTxGasLimit = 500_000;
-    uint64 public leverageCallbackTxGasLimit = 750_000;
-    uint64 public leverageSwapTxGasLimit = 500_000;
-
-    constructor(address _lzEndpoint, ISyntheticToken syntheticToken_) ProxyOFT(_lzEndpoint, syntheticToken_) {
+    function initialize(address _lzEndpoint, ISyntheticToken syntheticToken_) public initializer {
+        __ProxyOFT_init(_lzEndpoint, syntheticToken_);
         if (block.chainid != 1) revert NotAvailableOnThisChain();
+
+        flashRepayCallbackTxGasLimit = 750_000;
+        flashRepaySwapTxGasLimit = 500_000;
+        leverageCallbackTxGasLimit = 750_000;
+        leverageSwapTxGasLimit = 500_000;
     }
 
     function getLeverageSwapAndCallbackLzArgs(uint16 dstChainId_) external view returns (bytes memory lzArgs_) {
@@ -92,7 +89,7 @@ contract Layer1ProxyOFT is ProxyOFT {
             _dstChainId: _dstChainId,
             _srcPoolId: _poolId,
             _dstPoolId: _poolId,
-            // Note: We can do a further swap (i.e. routerETH.swapETH) to refund the end user directly
+            // Note: Keep current address or use user's account?
             _refundAddress: payable(address(this)),
             _amountLD: _amountOut,
             _minAmountLD: _getSgAmountOutMin(_amountOut),
@@ -152,7 +149,7 @@ contract Layer1ProxyOFT is ProxyOFT {
             _payload: abi.encode(_smartFarmingManager, _requestId),
             // Note: `_dstGasForCall` is the extra gas for the further call triggered from the destination
             _dstGasForCall: _flashRepayCallbackTxGasLimit,
-            // Note: We can do a further swap (i.e. routerETH.swapETH) to refund the end user directly
+            // Note: Keep current address or use user's account?
             _refundAddress: payable(address(this)),
             _zroPaymentAddress: address(0),
             _adapterParams: abi.encodePacked(

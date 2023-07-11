@@ -3,7 +3,7 @@
 pragma solidity 0.8.9;
 
 import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
-import "./dependencies/@layerzerolabs/solidity-examples/token/oft/composable/ComposableOFTCore.sol";
+import "./dependencies/@layerzerolabs/solidity-examples/contracts-upgradeable/token/oft/composable/ComposableOFTCoreUpgradeable.sol";
 import "./dependencies/stargate-protocol/interfaces/IStargateReceiver.sol";
 import "./interfaces/external/ISwapper.sol";
 import "./interfaces/external/IStargateFactory.sol";
@@ -24,7 +24,7 @@ error InvalidSourceChain();
 // TODO: Make it upgradable
 // TODO: Should slippage (on retry) increases only? This question is valid for Pool retry functions too
 // TODO: Should slippage (on retry) have timeout as DEX has?  This question is valid for Pool retry functions too
-abstract contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCore {
+abstract contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCoreUpgradeable {
     using SafeERC20 for IERC20;
     using SafeERC20 for ISyntheticToken;
     using WadRayMath for uint256;
@@ -38,18 +38,24 @@ abstract contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCore {
     // See more: https://stargateprotocol.gitbook.io/stargate/developers/function-types
     uint8 internal constant SG_TYPE_SWAP_REMOTE = 1;
 
-    ISyntheticToken internal immutable syntheticToken;
+    ISyntheticToken internal syntheticToken;
 
     // Note: Can we get this from the sgRouter contract?
-    uint256 public stargateSlippage = 10; // 0.1%
+    uint256 public stargateSlippage;
 
     IStargateRouter public stargateRouter;
 
     // token => chainId => poolId
     mapping(address => uint256) public poolIdOf;
 
-    constructor(address _lzEndpoint, ISyntheticToken syntheticToken_) ComposableOFTCore(_lzEndpoint) {
+    function __ProxyOFT_init(address _lzEndpoint, ISyntheticToken syntheticToken_) internal onlyInitializing {
+        __ComposableOFTCoreUpgradeable_init(_lzEndpoint);
+        __ProxyOFT_init_unchained(syntheticToken_);
+    }
+
+    function __ProxyOFT_init_unchained(ISyntheticToken syntheticToken_) internal onlyInitializing {
         syntheticToken = syntheticToken_;
+        stargateSlippage = 10; // 0.1%
     }
 
     function circulatingSupply() public view virtual override returns (uint) {
