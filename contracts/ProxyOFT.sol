@@ -38,10 +38,12 @@ abstract contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCoreUpg
     // See more: https://stargateprotocol.gitbook.io/stargate/developers/function-types
     uint8 internal constant SG_TYPE_SWAP_REMOTE = 1;
 
-    ISyntheticToken internal syntheticToken;
+    uint256 public lzBaseGasLimit;
 
     // Note: Can we get this from the sgRouter contract?
     uint256 public stargateSlippage;
+
+    ISyntheticToken internal syntheticToken;
 
     IStargateRouter public stargateRouter;
 
@@ -56,6 +58,7 @@ abstract contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCoreUpg
     function __ProxyOFT_init_unchained(ISyntheticToken syntheticToken_) internal onlyInitializing {
         syntheticToken = syntheticToken_;
         stargateSlippage = 10; // 0.1%
+        lzBaseGasLimit = 200_00;
     }
 
     function circulatingSupply() public view virtual override returns (uint) {
@@ -115,6 +118,13 @@ abstract contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCoreUpg
     // - emit event
     function updateStargateSlippage(uint256 stargateSlippage_) external {
         stargateSlippage = stargateSlippage_;
+    }
+
+    // TODO:
+    // - only owner/governor
+    // - emit event
+    function updateLzBaseGasLimit(uint256 lzBaseGasLimit_) external {
+        lzBaseGasLimit = lzBaseGasLimit_;
     }
 
     receive() external payable {}

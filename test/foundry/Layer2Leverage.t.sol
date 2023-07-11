@@ -334,15 +334,10 @@ contract Layer2Leverage_Test is CrossChains_Test {
         uint256 missingFee = 0.001e18;
 
         {
-            (uint256 _callbackTxNativeFee, uint64 _leverageSwapTxGasLimit, uint64 _leverageCallbackTxGasLimit) = abi
-                .decode(_lzArgs, (uint256, uint64, uint64));
+            (uint256 _callbackTxNativeFee, uint64 _leverageSwapTxGasLimit) = abi.decode(_lzArgs, (uint256, uint64));
 
             // Setting lower fee than the needed
-            _lzArgs = abi.encode(
-                _callbackTxNativeFee - missingFee,
-                _leverageSwapTxGasLimit,
-                _leverageCallbackTxGasLimit
-            );
+            _lzArgs = abi.encode(_callbackTxNativeFee - missingFee, _leverageSwapTxGasLimit);
         }
 
         // tx1

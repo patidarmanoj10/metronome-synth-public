@@ -31,10 +31,7 @@ contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT, Layer2ProxyOFTStorage {
     function quoteTriggerFlashRepaySwapNativeFee(bytes calldata lzArgs_) external view returns (uint256 _nativeFee) {
         bytes memory _mainnetOFT = abi.encodePacked(_getProxyOftOf(lzMainnetChainId));
 
-        (uint256 _callbackTxNativeFee, uint64 _swapTxGasLimit_, uint64 _callbackTxGasLimit_) = abi.decode(
-            lzArgs_,
-            (uint256, uint64, uint64)
-        );
+        (uint256 _callbackTxNativeFee, uint64 _swapTxGasLimit_) = abi.decode(lzArgs_, (uint256, uint64));
 
         (_nativeFee, ) = stargateRouter.quoteLayerZeroFee({
             _dstChainId: lzMainnetChainId,
@@ -47,7 +44,7 @@ contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT, Layer2ProxyOFTStorage {
                 type(uint256).max // amountOutMin_
             ),
             _lzTxParams: IStargateRouter.lzTxObj({
-                dstGasForCall: _swapTxGasLimit_ + _callbackTxGasLimit_,
+                dstGasForCall: _swapTxGasLimit_,
                 dstNativeAmount: _callbackTxNativeFee,
                 dstNativeAddr: _mainnetOFT
             })
@@ -61,7 +58,7 @@ contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT, Layer2ProxyOFTStorage {
         address _mainnetOFT = _getProxyOftOf(lzMainnetChainId);
         bytes memory _payload;
         bytes memory _adapterParams;
-        uint64 _callbackTxGasLimit;
+        uint64 _swapTxGasLimit;
         {
             _payload = abi.encode(
                 address(type(uint160).max), // L2 smart farming manager
@@ -72,15 +69,11 @@ contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT, Layer2ProxyOFTStorage {
             );
 
             uint256 _callbackTxNativeFee;
-            uint64 _swapTxGasLimit;
-            (_callbackTxNativeFee, _swapTxGasLimit, _callbackTxGasLimit) = abi.decode(
-                lzArgs_,
-                (uint256, uint64, uint64)
-            );
+            (_callbackTxNativeFee, _swapTxGasLimit) = abi.decode(lzArgs_, (uint256, uint64));
 
             _adapterParams = abi.encodePacked(
                 LZ_ADAPTER_PARAMS_VERSION,
-                uint256(_swapTxGasLimit + _callbackTxGasLimit),
+                uint256(lzBaseGasLimit + _swapTxGasLimit),
                 _callbackTxNativeFee,
                 _mainnetOFT
             );
@@ -91,8 +84,7 @@ contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT, Layer2ProxyOFTStorage {
             _toAddress: abi.encodePacked(_mainnetOFT),
             _amount: type(uint256).max,
             _payload: _payload,
-            // Note: `_dstGasForCall` is the extra gas for the further call triggered from the destination
-            _dstGasForCall: _callbackTxGasLimit,
+            _dstGasForCall: _swapTxGasLimit,
             _useZro: false,
             _adapterParams: _adapterParams
         });
@@ -124,11 +116,10 @@ contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT, Layer2ProxyOFTStorage {
             IERC20(tokenIn_).safeApprove(address(_stargateRouter), 0);
             IERC20(tokenIn_).safeApprove(address(_stargateRouter), _amountIn);
 
-            (uint256 callbackTxNativeFee_, uint64 flashRepaySwapTxGasLimit_, uint64 flashRepayCallbackTxGasLimit_) = abi
-                .decode(lzArgs_, (uint256, uint64, uint64));
+            (uint256 callbackTxNativeFee_, uint64 flashRepaySwapTxGasLimit_) = abi.decode(lzArgs_, (uint256, uint64));
 
             _lzTxParams = IStargateRouter.lzTxObj({
-                dstGasForCall: flashRepaySwapTxGasLimit_ + flashRepayCallbackTxGasLimit_,
+                dstGasForCall: flashRepaySwapTxGasLimit_,
                 dstNativeAmount: callbackTxNativeFee_,
                 dstNativeAddr: _mainnetOFT
             });
@@ -162,21 +153,17 @@ contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT, Layer2ProxyOFTStorage {
         address _mainnetOFT = _getProxyOftOf(lzMainnetChainId);
         bytes memory _payload;
         bytes memory _adapterParams;
-        uint64 _leverageCallbackTxGasLimit;
+        uint64 _leverageSwapTxGasLimit;
         {
             // Note: The amount isn't needed here because it's part of the message
             _payload = abi.encode(msg.sender, requestId_, poolIdOf[tokenOut_], account_, amountOutMin_);
 
             uint256 _callbackTxNativeFee;
-            uint64 _leverageSwapTxGasLimit;
-            (_callbackTxNativeFee, _leverageSwapTxGasLimit, _leverageCallbackTxGasLimit) = abi.decode(
-                lzArgs_,
-                (uint256, uint64, uint64)
-            );
+            (_callbackTxNativeFee, _leverageSwapTxGasLimit) = abi.decode(lzArgs_, (uint256, uint64));
 
             _adapterParams = abi.encodePacked(
                 LZ_ADAPTER_PARAMS_VERSION,
-                uint256(_leverageSwapTxGasLimit + _leverageCallbackTxGasLimit),
+                uint256(lzBaseGasLimit + _leverageSwapTxGasLimit),
                 _callbackTxNativeFee,
                 _mainnetOFT
             );
@@ -188,8 +175,7 @@ contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT, Layer2ProxyOFTStorage {
             _toAddress: abi.encodePacked(_mainnetOFT),
             _amount: amountIn_,
             _payload: _payload,
-            // Note: `_dstGasForCall` is the extra gas for the further call triggered from the destination
-            _dstGasForCall: _leverageCallbackTxGasLimit,
+            _dstGasForCall: _leverageSwapTxGasLimit,
             _refundAddress: _refundAddress,
             _zroPaymentAddress: address(0),
             _adapterParams: _adapterParams

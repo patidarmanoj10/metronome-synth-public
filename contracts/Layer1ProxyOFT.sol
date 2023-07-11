@@ -18,25 +18,15 @@ contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
         flashRepayCallbackTxGasLimit = 750_000;
         flashRepaySwapTxGasLimit = 500_000;
         leverageCallbackTxGasLimit = 750_000;
-        leverageSwapTxGasLimit = 500_000;
+        leverageSwapTxGasLimit = 600_000;
     }
 
     function getLeverageSwapAndCallbackLzArgs(uint16 dstChainId_) external view returns (bytes memory lzArgs_) {
-        return
-            abi.encode(
-                _quoteLeverageCallbackNativeFee(dstChainId_),
-                leverageSwapTxGasLimit,
-                leverageCallbackTxGasLimit
-            );
+        return abi.encode(_quoteLeverageCallbackNativeFee(dstChainId_), leverageSwapTxGasLimit);
     }
 
     function getFlashRepaySwapAndCallbackLzArgs(uint16 dstChainId_) external view returns (bytes memory lzArgs_) {
-        return
-            abi.encode(
-                _quoteFlashRepayCallbackNativeFee(dstChainId_),
-                flashRepaySwapTxGasLimit,
-                flashRepayCallbackTxGasLimit
-            );
+        return abi.encode(_quoteFlashRepayCallbackNativeFee(dstChainId_), flashRepaySwapTxGasLimit);
     }
 
     function onOFTReceived(
@@ -154,7 +144,7 @@ contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
             _zroPaymentAddress: address(0),
             _adapterParams: abi.encodePacked(
                 LZ_ADAPTER_PARAMS_VERSION,
-                uint256(_flashRepayCallbackTxGasLimit),
+                uint256(lzBaseGasLimit + _flashRepayCallbackTxGasLimit),
                 uint256(0),
                 address(0)
             )
@@ -175,7 +165,7 @@ contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
             _useZro: false,
             _adapterParams: abi.encodePacked(
                 LZ_ADAPTER_PARAMS_VERSION,
-                uint256(flashRepayCallbackTxGasLimit),
+                uint256(lzBaseGasLimit + flashRepayCallbackTxGasLimit),
                 uint256(0),
                 address(0)
             )
