@@ -14,7 +14,7 @@ import {Treasury} from "../../contracts/Treasury.sol";
 import {DepositToken} from "../../contracts/DepositToken.sol";
 import {DebtToken} from "../../contracts/DebtToken.sol";
 import {SyntheticToken} from "../../contracts/SyntheticToken.sol";
-import {Layer1ProxyOFT} from "../../contracts/Layer1ProxyOFT.sol";
+import {Layer1ProxyOFT, IProxyOFT} from "../../contracts/Layer1ProxyOFT.sol";
 import {Layer2ProxyOFT} from "../../contracts/Layer2ProxyOFT.sol";
 import {FeeProvider, FeeProviderStorageV1, TiersNotOrderedByMin} from "../../contracts/FeeProvider.sol";
 import {ERC20Mock} from "../../contracts/mock/ERC20Mock.sol";
@@ -91,6 +91,7 @@ abstract contract CrossChains_Test is Test {
     IStargateRouterExtended sgRouter_mainnet = IStargateRouterExtended(0x8731d54E9D02c286767d56ac03e8037C07e01e98);
     MasterOracleMock masterOracle_mainnet;
     SwapperMock swapper_mainnet;
+    Treasury treasury_mainnet;
     PoolRegistry poolRegistry_mainnet;
     FeeProvider feeProvider_mainnet;
     Pool pool_mainnet;
@@ -181,6 +182,7 @@ abstract contract CrossChains_Test is Test {
         masterOracle_optimism.updatePrice(address(msUSD_optimism), 1e18);
         proxyOFT_msUSD_optimism.updateStargateRouter(IStargateRouter(sgRouter_optimism));
         proxyOFT_msUSD_optimism.setUseCustomAdapterParams(true);
+        proxyOFT_msUSD_optimism.setMinDstGas(LZ_MAINNET_CHAIN_ID, proxyOFT_msUSD_optimism.PT_SEND(), 200_000);
         msUSD_optimism.updateProxyOFT(proxyOFT_msUSD_optimism);
         msUSD_optimism.updateMaxBridgingBalance(type(uint256).max);
         swapper_optimism.updateRate(1e18);
@@ -194,6 +196,7 @@ abstract contract CrossChains_Test is Test {
         swapper_mainnet = new SwapperMock(masterOracle_mainnet);
         poolRegistry_mainnet = new PoolRegistry();
         feeProvider_mainnet = new FeeProvider();
+        treasury_mainnet = new Treasury();
         pool_mainnet = new Pool();
         smartFarmingManager_mainnet = new SmartFarmingManager();
         msUSD_mainnet = new SyntheticToken();
@@ -204,6 +207,7 @@ abstract contract CrossChains_Test is Test {
         poolRegistry_mainnet.initialize({masterOracle_: masterOracle_mainnet, feeCollector_: feeCollector});
         feeProvider_mainnet.initialize({poolRegistry_: poolRegistry_mainnet, esMET_: IESMET(address(0))});
         pool_mainnet.initialize(poolRegistry_mainnet);
+        treasury_mainnet.initialize(pool_mainnet);
         smartFarmingManager_mainnet.initialize(pool_mainnet);
 
         msdUSDC_mainnet.initialize({
@@ -237,17 +241,18 @@ abstract contract CrossChains_Test is Test {
         pool_mainnet.updateSmartFarmingManager(smartFarmingManager_mainnet);
         pool_mainnet.addDepositToken(address(msdUSDC_mainnet));
         pool_mainnet.addDebtToken(msUSDDebt_mainnet);
+        pool_mainnet.updateTreasury(treasury_mainnet);
         masterOracle_mainnet.updatePrice(address(usdc_mainnet), 1e18);
         masterOracle_mainnet.updatePrice(address(msUSD_mainnet), 1e18);
         proxyOFT_msUSD_mainnet.updateSwapper(swapper_mainnet);
         proxyOFT_msUSD_mainnet.updateStargateRouter(sgRouter_mainnet);
         proxyOFT_msUSD_mainnet.setUseCustomAdapterParams(true);
+        proxyOFT_msUSD_mainnet.setMinDstGas(LZ_OP_CHAIN_ID, proxyOFT_msUSD_mainnet.PT_SEND(), 200_000);
         msUSD_mainnet.updateProxyOFT(proxyOFT_msUSD_mainnet);
         msUSD_mainnet.updateMaxBridgingBalance(type(uint256).max);
         swapper_mainnet.updateRate(1e18);
 
         // Labels
-
         vm.label(alice, "Alice");
         vm.label(feeCollector, "FeeCollector");
 
