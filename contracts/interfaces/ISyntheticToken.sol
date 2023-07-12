@@ -20,7 +20,11 @@ interface ISyntheticToken is IERC20Metadata {
 
     function seize(address from_, address to_, uint256 amount_) external;
 
+    function updateMaxBridgingBalance(uint256 newMaxBridgingBalance_) external;
+
     function updateMaxTotalSupply(uint256 newMaxTotalSupply_) external;
+
+    function updateProxyOFT(IProxyOFT newProxyOFT_) external;
 
     function maxTotalSupply() external view returns (uint256);
 

@@ -30,6 +30,7 @@ error TransferFromTheZeroAddress();
 error TransferToTheZeroAddress();
 error TransferAmountExceedsBalance();
 error NewValueIsSameAsCurrent();
+error AddressIsNull();
 
 /**
  * @title Synthetic Token contract
@@ -44,6 +45,12 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
 
     /// @notice Emitted when max total supply is updated
     event MaxTotalSupplyUpdated(uint256 oldMaxTotalSupply, uint256 newMaxTotalSupply);
+
+    /// @notice Emitted when max Bridging Balance is updated
+    event MaxBridgingBalanceUpdated(uint256 oldMaxBridgingBalance, uint256 newMaxBridgingBalance);
+
+    /// @notice Emitted when proxyOFT is updated
+    event ProxyOFTUpdated(IProxyOFT oldProxyOFT, IProxyOFT newProxyOFT);
 
     /**
      * @notice Throws if caller isn't the governor
@@ -214,7 +221,9 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
         emit Transfer(account_, address(0), amount_);
     }
 
-    // TODO: Comment
+    /**
+     * @dev Check if the sender is proxyOFT
+     */
     function _isMsgSenderProxyOFT() private view returns (bool) {
         return msg.sender == address(proxyOFT);
     }
@@ -300,15 +309,26 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
         maxTotalSupply = newMaxTotalSupply_;
     }
 
-    // TODO: Comment and emit event
-    function updateMaxBridgingBalance(uint256 newMaxBridgingBalance_) external /*override*/ onlyGovernor {
-        // emit MaxBridgingBalanceUpdated(maxBridgingBalance, newMaxBridgingBalance_);
+    /**
+     * @notice Update max bridging balance
+     * @param newMaxBridgingBalance_  New value for Max Bridging Balance
+     */
+    function updateMaxBridgingBalance(uint256 newMaxBridgingBalance_) external override onlyGovernor {
+        uint256 _currentMaxBridgingBalance = maxBridgingBalance;
+        if (newMaxBridgingBalance_ == _currentMaxBridgingBalance) revert NewValueIsSameAsCurrent();
+        emit MaxBridgingBalanceUpdated(_currentMaxBridgingBalance, newMaxBridgingBalance_);
         maxBridgingBalance = newMaxBridgingBalance_;
     }
 
-    // TODO: Comment and emit event
-    function updateProxyOFT(IProxyOFT newProxyOFT_) external /*override*/ onlyGovernor {
-        // emit ProxyOFTUpdated(_currentProxyOFT, newProxyOFT_);
+    /**
+     * @notice Update proxyOFT
+     * @param newProxyOFT_ Address of new ProxyOFT
+     */
+    function updateProxyOFT(IProxyOFT newProxyOFT_) external override onlyGovernor {
+        if (address(newProxyOFT_) == address(0)) revert AddressIsNull();
+        IProxyOFT _currentProxyOFT = proxyOFT;
+        if (newProxyOFT_ == _currentProxyOFT) revert NewValueIsSameAsCurrent();
+        emit ProxyOFTUpdated(_currentProxyOFT, newProxyOFT_);
         proxyOFT = newProxyOFT_;
     }
 }
