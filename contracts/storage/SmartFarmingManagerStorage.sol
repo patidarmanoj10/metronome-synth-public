@@ -2,50 +2,48 @@
 
 pragma solidity 0.8.9;
 
-import "../dependencies/openzeppelin/utils/structs/EnumerableSet.sol";
-import "../lib/MappedEnumerableSet.sol";
 import "../interfaces/ISmartFarmingManager.sol";
 
 // solhint-disable var-name-mixedcase, max-states-count
 abstract contract SmartFarmingManagerV1 is ISmartFarmingManager {
     /**
-     * @notice Swapper contract
+     * @notice L2 Leverage request data
      */
-    ISwapper public swapper;
-
-    // TODO: Comment
-    // TODO: Move to `IPool` ?
     struct Layer2Leverage {
-        IERC20 underlying;
+        IERC20 underlying; // e.g. USDC is vaUSDC's underlying
         IDepositToken depositToken;
         ISyntheticToken syntheticToken;
         uint256 tokenInAmountIn;
         uint256 depositAmountMin;
         uint256 syntheticTokenIssued;
-        uint256 collateralDeposited;
         address account;
         bool finished;
     }
 
-    // TODO: Comment
-    // TODO: Move to `IPool` ?
+    /**
+     * @notice L2 Flash repay request data
+     */
     struct Layer2FlashRepay {
         ISyntheticToken syntheticToken;
-        IDepositToken depositToken;
         uint256 withdrawAmount;
-        IERC20 underlying;
         uint256 repayAmountMin;
         uint256 debtRepaid;
         address account;
         bool finished;
     }
 
-    // TODO: Comment
+    /**
+     * @notice L2 requests' ids counter
+     */
     uint256 public layer2RequestId;
 
-    // TODO: Comment
+    /**
+     * @notice L2 leverage requests
+     */
     mapping(uint256 => Layer2Leverage) public layer2Leverages;
 
-    // TODO: Comment
+    /**
+     * @notice L2 flash repay requests
+     */
     mapping(uint256 => Layer2FlashRepay) public layer2FlashRepays;
 }

@@ -169,13 +169,13 @@ abstract contract CrossChains_Test is Test {
         });
 
         poolRegistry_optimism.registerPool(address(pool_optimism));
+        poolRegistry_optimism.updateSwapper(swapper_optimism);
         pool_optimism.updateFeeProvider(feeProvider_optimism);
         pool_optimism.updateTreasury(treasury_optimism);
         pool_optimism.updateSmartFarmingManager(smartFarmingManager_optimism);
         pool_optimism.addDepositToken(address(msdUSDC_optimism));
         pool_optimism.addDepositToken(address(msdVaUSDC_optimism));
         pool_optimism.addDebtToken(msUSDDebt_optimism);
-        smartFarmingManager_optimism.updateSwapper(swapper_optimism);
         masterOracle_optimism.updatePrice(address(usdc_optimism), 1e18);
         masterOracle_optimism.updatePrice(address(vaUSDC_optimism), 1e18);
         masterOracle_optimism.updatePrice(address(msUSD_optimism), 1e18);
@@ -232,11 +232,11 @@ abstract contract CrossChains_Test is Test {
         });
 
         poolRegistry_mainnet.registerPool(address(pool_mainnet));
+        poolRegistry_mainnet.updateSwapper(swapper_mainnet);
         pool_mainnet.updateFeeProvider(feeProvider_mainnet);
         pool_mainnet.updateSmartFarmingManager(smartFarmingManager_mainnet);
         pool_mainnet.addDepositToken(address(msdUSDC_mainnet));
         pool_mainnet.addDebtToken(msUSDDebt_mainnet);
-        smartFarmingManager_mainnet.updateSwapper(swapper_mainnet);
         masterOracle_mainnet.updatePrice(address(usdc_mainnet), 1e18);
         masterOracle_mainnet.updatePrice(address(msUSD_mainnet), 1e18);
         proxyOFT_msUSD_mainnet.updateSwapper(swapper_mainnet);

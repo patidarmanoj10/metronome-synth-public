@@ -5,15 +5,11 @@ pragma solidity 0.8.9;
 import "./IManageable.sol";
 import "./IDepositToken.sol";
 import "./IDebtToken.sol";
-import "./external/ISwapper.sol";
 
 /**
  * @notice SmartFarmingManager interface
  */
 interface ISmartFarmingManager {
-    // TODO: Move to poolRegistry?
-    function swapper() external view returns (ISwapper);
-
     function flashRepay(
         ISyntheticToken syntheticToken_,
         IDepositToken depositToken_,

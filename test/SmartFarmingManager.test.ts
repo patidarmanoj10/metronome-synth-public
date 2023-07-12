@@ -120,6 +120,7 @@ describe('SmartFarmingManager', function () {
     poolRegistryMock.isPoolRegistered.returns((address: string) => address == pool.address)
     poolRegistryMock.masterOracle.returns(masterOracle.address)
     poolRegistryMock.feeCollector.returns(feeCollector.address)
+    poolRegistryMock.swapper.returns(swapper.address)
 
     const esMET = await smock.fake('IESMET')
 
@@ -142,7 +143,6 @@ describe('SmartFarmingManager', function () {
     await feeProvider.initialize(poolRegistryMock.address, esMET.address)
 
     await smartFarmingManager.initialize(pool.address)
-    await smartFarmingManager.updateSwapper(swapper.address)
 
     await pool.initialize(poolRegistryMock.address)
     await pool.updateMaxLiquidable(parseEther('1')) // 100%
@@ -405,48 +405,6 @@ describe('SmartFarmingManager', function () {
         expect(depositAfter).eq(parseEther('100'))
         expect(debtAfter).eq(0)
       })
-    })
-  })
-
-  describe('updateSwapper', function () {
-    it('should revert if using the same address', async function () {
-      // given
-      expect(await smartFarmingManager.swapper()).eq(swapper.address)
-
-      // when
-      const tx = smartFarmingManager.updateSwapper(swapper.address)
-
-      // then
-      await expect(tx).revertedWithCustomError(smartFarmingManager, 'NewValueIsSameAsCurrent')
-    })
-
-    it('should revert if caller is not governor', async function () {
-      // when
-      const tx = smartFarmingManager.connect(alice).updateSwapper(swapper.address)
-
-      // then
-      await expect(tx).revertedWithCustomError(smartFarmingManager, 'SenderIsNotGovernor')
-    })
-
-    it('should revert if address is zero', async function () {
-      // when
-      const tx = smartFarmingManager.updateSwapper(ethers.constants.AddressZero)
-
-      // then
-      await expect(tx).revertedWithCustomError(smartFarmingManager, 'AddressIsNull')
-    })
-
-    it('should update swapper', async function () {
-      // given
-      const before = await smartFarmingManager.swapper()
-      const after = alice.address
-
-      // when
-      const tx = smartFarmingManager.updateSwapper(after)
-
-      // then
-      await expect(tx).emit(smartFarmingManager, 'SwapperUpdated').withArgs(before, after)
-      expect(await smartFarmingManager.swapper()).eq(after)
     })
   })
 })

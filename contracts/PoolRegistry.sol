@@ -40,6 +40,9 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
     /// @notice Emitted when a pool is unregistered
     event PoolUnregistered(uint256 indexed id, address indexed pool);
 
+    /// @notice Emitted when swapper contract is updated
+    event SwapperUpdated(ISwapper oldSwapFee, ISwapper newSwapFee);
+
     function initialize(IMasterOracle masterOracle_, address feeCollector_) external initializer {
         if (address(masterOracle_) == address(0)) revert OracleIsNull();
         if (feeCollector_ == address(0)) revert FeeCollectorIsNull();
@@ -124,5 +127,17 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
         if (newGateway_ == _currentGateway) revert NewValueIsSameAsCurrent();
         emit NativeTokenGatewayUpdated(_currentGateway, newGateway_);
         nativeTokenGateway = newGateway_;
+    }
+
+    /**
+     * @notice Update Swapper contract
+     */
+    function updateSwapper(ISwapper newSwapper_) external onlyGovernor {
+        if (address(newSwapper_) == address(0)) revert AddressIsNull();
+        ISwapper _currentSwapper = swapper;
+        if (newSwapper_ == _currentSwapper) revert NewValueIsSameAsCurrent();
+
+        emit SwapperUpdated(_currentSwapper, newSwapper_);
+        swapper = newSwapper_;
     }
 }

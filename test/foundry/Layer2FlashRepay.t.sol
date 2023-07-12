@@ -45,7 +45,7 @@ contract Layer2FlashRepay_Test is CrossChains_Test {
             underlyingAmountMin_: 0,
             repayAmountMin_: repayAmountMin_,
             layer1SwapAmountOutMin_: layer1SwapAmountOutMin_,
-            lzArgs_: _lzArgs
+            layer1LzArgs_: _lzArgs
         });
         vm.stopPrank();
 
@@ -309,13 +309,11 @@ contract Layer2FlashRepay_Test is CrossChains_Test {
         // Retry will work after fix slippage
         vm.prank(alice);
         smartFarmingManager_optimism.retryLayer2FlashRepayCallback(
-            0,
+            1, // request id
             490e18, // right `repayAmountMin_`
             srcChainId,
             srcAddress,
             nonce,
-            from,
-            to,
             amount,
             payload
         );

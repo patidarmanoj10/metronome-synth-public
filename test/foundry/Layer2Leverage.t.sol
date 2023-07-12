@@ -22,7 +22,7 @@ contract Layer2Leverage_Test is CrossChains_Test {
             layer1SwapAmountOutMin_: layer1SwapAmountOutMin_,
             leverage_: leverage_,
             depositAmountMin_: depositAmountMin_,
-            lzArgs_: _lzArgs
+            layer1LzArgs_: _lzArgs
         });
     }
 
@@ -31,14 +31,14 @@ contract Layer2Leverage_Test is CrossChains_Test {
         uint256 layer1SwapAmountOutMin_,
         uint256 leverage_,
         uint256 depositAmountMin_,
-        bytes memory lzArgs_
+        bytes memory layer1LzArgs_
     ) private {
         vm.recordLogs();
 
         vm.selectFork(optimismFork);
         uint256 fee = smartFarmingManager_optimism.quoteLayer2LeverageNativeFee({
             syntheticToken_: msUSD_optimism,
-            lzArgs_: lzArgs_
+            lzArgs_: layer1LzArgs_
         });
 
         deal(alice, fee);
@@ -54,7 +54,7 @@ contract Layer2Leverage_Test is CrossChains_Test {
             leverage_: leverage_,
             depositAmountMin_: depositAmountMin_,
             layer1SwapAmountOutMin_: layer1SwapAmountOutMin_,
-            lzArgs_: lzArgs_
+            layer1LzArgs_: layer1LzArgs_
         });
         vm.stopPrank();
 
@@ -346,7 +346,7 @@ contract Layer2Leverage_Test is CrossChains_Test {
             layer1SwapAmountOutMin_: 0,
             leverage_: 1.5e18,
             depositAmountMin_: 1450e18,
-            lzArgs_: _lzArgs
+            layer1LzArgs_: _lzArgs
         });
         (Vm.Log memory SendToChain, Vm.Log memory Packet, Vm.Log memory RelayerParams) = _getOftTransferEvents();
 

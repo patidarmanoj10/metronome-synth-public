@@ -37,7 +37,7 @@ contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
         uint amount_,
         bytes calldata payload_
     ) external override {
-        if (from_.toAddress(0) != _getProxyOftOf(srcChainId_)) revert InvalidFromAddress();
+        if (from_.toAddress(0) != getProxyOFTOf(srcChainId_)) revert InvalidFromAddress();
         if (msg.sender != address(this)) revert InvalidMsgSender();
 
         IStargateRouter _stargateRouter = stargateRouter;
@@ -88,7 +88,7 @@ contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
                 dstNativeAmount: 0,
                 dstNativeAddr: "0x"
             }),
-            _to: abi.encodePacked(_getProxyOftOf(_dstChainId)),
+            _to: abi.encodePacked(getProxyOFTOf(_dstChainId)),
             _payload: _payload
         });
     }
@@ -101,7 +101,7 @@ contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
         uint256 amount_,
         bytes memory payload_
     ) external override {
-        if (abi.decode(srcAddress_, (address)) != _getProxyOftOf(srcChainId_)) revert InvalidFromAddress();
+        if (abi.decode(srcAddress_, (address)) != getProxyOFTOf(srcChainId_)) revert InvalidFromAddress();
 
         // 1. Swap underlying from L2 for synthetic token
         address _smartFarmingManager;
@@ -133,7 +133,7 @@ contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
         this.sendAndCall{value: _quoteFlashRepayCallbackNativeFee(_dstChainId)}({
             _from: address(this),
             _dstChainId: _dstChainId,
-            _toAddress: abi.encodePacked(_getProxyOftOf(_dstChainId)),
+            _toAddress: abi.encodePacked(getProxyOFTOf(_dstChainId)),
             _amount: _amountOut,
             // Note: The amount isn't needed here because it's part of the message
             _payload: abi.encode(_smartFarmingManager, _requestId),
@@ -154,7 +154,7 @@ contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
     function _quoteFlashRepayCallbackNativeFee(uint16 dstChainId_) public view returns (uint256 _callbackTxNativeFee) {
         (_callbackTxNativeFee, ) = this.estimateSendAndCallFee({
             _dstChainId: dstChainId_,
-            _toAddress: abi.encodePacked(_getProxyOftOf(dstChainId_)),
+            _toAddress: abi.encodePacked(getProxyOFTOf(dstChainId_)),
             _amount: type(uint256).max,
             _payload: abi.encode(
                 address(type(uint160).max), // smart farming manager
@@ -176,7 +176,7 @@ contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
         (_callbackTxNativeFee, ) = stargateRouter.quoteLayerZeroFee({
             _dstChainId: dstChainId_,
             _functionType: SG_TYPE_SWAP_REMOTE,
-            _toAddress: abi.encodePacked(_getProxyOftOf(dstChainId_)),
+            _toAddress: abi.encodePacked(getProxyOFTOf(dstChainId_)),
             _transferAndCallPayload: abi.encodePacked(
                 address(type(uint160).max), // smart farming manager
                 bytes32(type(uint256).max) // requestId
@@ -238,7 +238,7 @@ contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
         swapAmountOutMin[_requestId] = newAmountOutMin_;
 
         // Note: `retryOFTReceived` has checks to ensure that the args are consistent
-        bytes memory _from = abi.encodePacked(_getProxyOftOf(srcChainId_));
+        bytes memory _from = abi.encodePacked(getProxyOFTOf(srcChainId_));
         address _to = address(this);
         this.retryOFTReceived(srcChainId_, srcAddress_, nonce_, _from, _to, amount_, payload_);
     }

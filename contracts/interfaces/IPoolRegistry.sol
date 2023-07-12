@@ -6,6 +6,7 @@ import "./external/IMasterOracle.sol";
 import "./IPauseable.sol";
 import "./IGovernable.sol";
 import "./ISyntheticToken.sol";
+import "./external/ISwapper.sol";
 
 interface IPoolRegistry is IPauseable, IGovernable {
     function isPoolRegistered(address pool_) external view returns (bool);
@@ -31,4 +32,6 @@ interface IPoolRegistry is IPauseable, IGovernable {
     function idOfPool(address pool_) external view returns (uint256);
 
     function nextPoolId() external view returns (uint256);
+
+    function swapper() external view returns (ISwapper);
 }

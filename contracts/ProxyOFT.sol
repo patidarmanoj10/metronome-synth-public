@@ -89,7 +89,7 @@ abstract contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCoreUpg
         return _amount;
     }
 
-    function _getProxyOftOf(uint16 chainId_) internal view returns (address _proxyOft) {
+    function getProxyOFTOf(uint16 chainId_) public view returns (address _proxyOFT) {
         return trustedRemoteLookup[chainId_].toAddress(0);
     }
 

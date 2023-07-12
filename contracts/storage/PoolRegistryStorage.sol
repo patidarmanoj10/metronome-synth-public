@@ -36,4 +36,9 @@ abstract contract PoolRegistryStorageV1 is IPoolRegistry {
      * @notice Counter of ids of the pools
      */
     uint256 public override nextPoolId;
+
+    /**
+     * @notice Swapper contract
+     */
+    ISwapper public swapper;
 }

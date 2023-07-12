@@ -42,6 +42,7 @@ import {address as VACBETH_DEPOSIT_ADDRESS} from '../deployments/mainnet/vaCBETH
 import {address as POOL_UPGRADER_ADDRESS} from '../deployments/mainnet/PoolUpgraderV2.json'
 import {address as DEPOSIT_TOKEN_UPGRADER_ADDRESS} from '../deployments/mainnet/DepositTokenUpgrader.json'
 import {address as DEBT_TOKEN_UPGRADER_ADDRESS} from '../deployments/mainnet/DebtTokenUpgrader.json'
+import {address as POOL_REGISTRY_UPGRADER_ADDRESS} from '../deployments/mainnet/PoolRegistryUpgrader.json'
 
 const {MaxUint256} = ethers.constants
 const dust = toUSD('5')
@@ -181,12 +182,20 @@ describe('E2E tests (mainnet)', function () {
     //
     // TODO: Remove setup below after having `SmartFarmingManager` contract deployed
     //
+    const poolRegistryFactory = await ethers.getContractFactory('PoolRegistry', deployer)
+    const poolRegistryImpl = await poolRegistryFactory.deploy()
     const poolFactory = await ethers.getContractFactory('contracts/Pool.sol:Pool', deployer)
     const poolImpl = await poolFactory.deploy()
     const depositTokenFactory = await ethers.getContractFactory('DepositToken', deployer)
     const depositTokenImpl = await depositTokenFactory.deploy()
     const debtTokenFactory = await ethers.getContractFactory('DebtToken', deployer)
     const debtTokenImpl = await debtTokenFactory.deploy()
+
+    const poolRegistryProxyAdmin = await ethers.getContractAt('PoolRegistryUpgrader', POOL_REGISTRY_UPGRADER_ADDRESS)
+    const poolRegistryProxyAdminOwner = await impersonateAccount(await poolRegistryProxyAdmin.owner())
+    await poolRegistryProxyAdmin
+      .connect(poolRegistryProxyAdminOwner)
+      .upgrade(poolRegistry.address, poolRegistryImpl.address)
 
     const poolProxyAdmin = await ethers.getContractAt('PoolUpgraderV2', POOL_UPGRADER_ADDRESS)
     const poolProxyAdminOwner = await impersonateAccount(await poolProxyAdmin.owner())
@@ -212,7 +221,7 @@ describe('E2E tests (mainnet)', function () {
 
     await smartFarmingManager.initialize(pool.address)
     smartFarmingManager = smartFarmingManager.connect(alice)
-    await smartFarmingManager.connect(governor).updateSwapper(Address.SWAPPER)
+    await poolRegistry.connect(governor).updateSwapper(Address.SWAPPER)
 
     await pool.connect(governor).updateSmartFarmingManager(smartFarmingManager.address)
   }
