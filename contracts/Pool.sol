@@ -3,7 +3,6 @@
 pragma solidity 0.8.9;
 
 import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
-import "./interfaces/ILayer2ProxyOFT.sol";
 import "./storage/PoolStorage.sol";
 import "./lib/WadRayMath.sol";
 import "./utils/Pauseable.sol";
@@ -70,13 +69,6 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
 
     /// @notice Emitted when fee provider contract is updated
     event FeeProviderUpdated(IFeeProvider indexed oldFeeProvider, IFeeProvider indexed newFeeProvider);
-
-    // TODO: Comment
-    event Layer2LeverageStarted(uint256 indexed id);
-    event Layer2LeverageFinished(uint256 indexed id);
-
-    event Layer2FlashRepayStarted(uint256 indexed id);
-    event Layer2FlashRepayFinished(uint256 indexed id);
 
     /// @notice Emitted when maxLiquidable (liquidation cap) is updated
     event MaxLiquidableUpdated(uint256 oldMaxLiquidable, uint256 newMaxLiquidable);
@@ -637,40 +629,6 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
         syntheticTokenOut_.mint(msg.sender, _amountOut);
 
         emit SyntheticTokenSwapped(msg.sender, syntheticTokenIn_, syntheticTokenOut_, amountIn_, _amountOut, _fee);
-    }
-
-    /**
-     * @notice Swap assets using Swapper contract
-     * @param swapper_ The Swapper contract
-     * @param tokenIn_ The token to swap from
-     * @param tokenOut_ The token to swap to
-     * @param amountIn_ The amount in
-     * @param amountOutMin_ The minimum amount out (slippage check)
-     * @return _amountOut The actual amount out
-     */
-    function _swap(
-        ISwapper swapper_,
-        IERC20 tokenIn_,
-        IERC20 tokenOut_,
-        uint256 amountIn_,
-        uint256 amountOutMin_
-    ) private returns (uint256 _amountOut) {
-        return _swap(swapper_, tokenIn_, tokenOut_, amountIn_, amountOutMin_, address(this));
-    }
-
-    function _swap(
-        ISwapper swapper_,
-        IERC20 tokenIn_,
-        IERC20 tokenOut_,
-        uint256 amountIn_,
-        uint256 amountOutMin_,
-        address to_
-    ) private returns (uint256 _amountOut) {
-        tokenIn_.safeApprove(address(swapper_), 0);
-        tokenIn_.safeApprove(address(swapper_), amountIn_);
-        uint256 _tokenOutBefore = tokenOut_.balanceOf(to_);
-        swapper_.swapExactInput(address(tokenIn_), address(tokenOut_), amountIn_, amountOutMin_, to_);
-        return tokenOut_.balanceOf(to_) - _tokenOutBefore;
     }
 
     /**
