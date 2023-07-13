@@ -50,6 +50,16 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
     /// @notice Emitted when a L2 flash repay request is created
     event Layer2FlashRepayStarted(uint256 indexed id);
 
+    /// @notice Emitted when leverage is completed
+    event LeverageCompleted(
+        IERC20 tokenIn,
+        IDepositToken depositToken,
+        ISyntheticToken syntheticToken,
+        uint256 leverage,
+        uint256 amountIn,
+        uint256 deposited
+    );
+
     /**
      * @dev Throws if sender isn't a valid ProxyOFT contract
      */
@@ -181,6 +191,8 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         // 5. check the health of the outcome position
         (bool _isHealthy, , , , ) = _pool.debtPositionOf(msg.sender);
         if (!_isHealthy) revert PositionIsNotHealthy();
+        // TODO getting stack too deep error. Do we want to emit event, we are not emitting event from flashIssue.
+        // emit LeverageCompleted(tokenIn_, depositToken_, syntheticToken_, leverage_, amountIn_, _deposited);
     }
 
     /***

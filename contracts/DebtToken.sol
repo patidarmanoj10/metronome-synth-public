@@ -62,7 +62,7 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
     );
 
     /**
-     * @dev Throws if sender is SmartFarmingManager
+     * @dev Throws if sender is not SmartFarmingManager
      */
     modifier onlyIfSmartFarmingManager() {
         if (msg.sender != address(pool.smartFarmingManager())) revert SenderIsNotSmartFarmingManager();
@@ -279,10 +279,6 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
             _syntheticToken.mint(pool.feeCollector(), _fee);
         }
         _syntheticToken.mint(to_, _issued);
-
-        // TODO: Which event to emit?
-        // `SyntheticTokenIssued` is emitted when end-user calls `issue()`, assuming 1:1 feature:event relation,
-        // The better is to not any emit here but from `Pool.leverage()`
     }
 
     /**
@@ -292,7 +288,11 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
         return interestRate / SECONDS_PER_YEAR;
     }
 
-    // TODO: Comment
+    /**
+     * @notice onlySmartFarmingManager:: Mint `amount_` of debtToken at `to_`.
+     * @param to_ Receiver address
+     * @param amount_ Token amount to mint
+     */
     function mint(
         address to_,
         uint256 amount_
@@ -532,10 +532,9 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
     }
 
     /**
-     * @notice Create `amount` tokens and assigns them to `account`, increasing
+     * @dev Create `amount` tokens and assigns them to `account`, increasing
      * the total supply
      */
-    // TODO: Update comment
     function _mint(
         IPool pool_,
         IMasterOracle masterOracle_,
