@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.9;
 
-import "../dependencies/openzeppelin/proxy/utils/Initializable.sol";
+import "../dependencies/openzeppelin-upgradeable/proxy/utils/Initializable.sol";
 import "../interfaces/IGovernable.sol";
 import "../interfaces/IManageable.sol";
 
@@ -54,7 +54,7 @@ abstract contract Manageable is IManageable, Initializable {
     }
 
     // solhint-disable-next-line func-name-mixedcase
-    function __Manageable_init(IPool pool_) internal initializer {
+    function __Manageable_init(IPool pool_) internal onlyInitializing {
         if (address(pool_) == address(0)) revert PoolAddressIsNull();
         pool = pool_;
     }

@@ -4,7 +4,7 @@ pragma solidity 0.8.9;
 
 import "./dependencies/openzeppelin/utils/math/SafeCast.sol";
 import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
-import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
+import "./utils/ReentrancyGuard.sol";
 import "./interfaces/IDebtToken.sol";
 import "./interfaces/IDepositToken.sol";
 import "./access/Manageable.sol";

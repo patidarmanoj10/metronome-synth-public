@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.9;
 
-import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
+import "./utils/ReentrancyGuard.sol";
 import "./lib/WadRayMath.sol";
 import "./storage/PoolRegistryStorage.sol";
 import "./interfaces/IPool.sol";

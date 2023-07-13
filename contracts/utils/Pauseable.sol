@@ -67,7 +67,7 @@ abstract contract Pauseable is IPauseable, Governable {
      * __Pauseable_init() function to initialization this contract
      */
     // solhint-disable-next-line func-name-mixedcase
-    function __Pauseable_init() internal initializer {
+    function __Pauseable_init() internal onlyInitializing {
         __Governable_init();
     }
 

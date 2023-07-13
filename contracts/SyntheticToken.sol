@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.9;
 
-import "./dependencies/openzeppelin/proxy/utils/Initializable.sol";
+import "./dependencies/openzeppelin-upgradeable/proxy/utils/Initializable.sol";
 import "./interfaces/IPool.sol";
 import "./interfaces/IManageable.sol";
 import "./lib/WadRayMath.sol";

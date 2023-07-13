@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.9;
 
-import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
+import "./utils/ReentrancyGuard.sol";
 import "./utils/TokenHolder.sol";
 import "./access/Manageable.sol";
 import "./storage/DebtTokenStorage.sol";
