@@ -25,9 +25,7 @@ abstract contract SmartFarmingManagerV1 is ISmartFarmingManager {
      */
     struct Layer2FlashRepay {
         ISyntheticToken syntheticToken;
-        uint256 withdrawAmount;
         uint256 repayAmountMin;
-        uint256 debtRepaid;
         address account;
         bool finished;
     }

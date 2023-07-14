@@ -117,7 +117,7 @@ contract Layer2FlashRepay_Test is CrossChains_Test {
             address(msUSD_optimism),
             amountInUsdc
         );
-        _depositAndIssue({depositAmount_: amountInVaUSDC, issueAmount_: amountInMsUSD / 2});
+        _depositAndIssue({depositAmount_: amountInVaUSDC, issueAmount_: amountInMsUSD / 3});
         uint256 debtInUsdBefore = pool_optimism.debtOf(alice);
 
         //
@@ -125,7 +125,7 @@ contract Layer2FlashRepay_Test is CrossChains_Test {
         //
 
         // tx1
-        _layer2FlashRepay({withdrawAmount_: amountInVaUSDC / 2, layer1SwapAmountOutMin_: 0, repayAmountMin_: 0});
+        _layer2FlashRepay({withdrawAmount_: amountInVaUSDC / 5, layer1SwapAmountOutMin_: 0, repayAmountMin_: 0});
         (Vm.Log memory Swap, Vm.Log memory Packet, Vm.Log memory RelayerParams) = _getSgSwapEvents();
 
         // tx2 - fail

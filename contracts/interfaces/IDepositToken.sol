@@ -38,4 +38,10 @@ interface IDepositToken is IERC20Metadata {
     function maxTotalSupply() external view returns (uint256);
 
     function updateMaxTotalSupply(uint256 newMaxTotalSupply_) external;
+
+    function withdrawFrom(
+        address from_,
+        uint256 amount_,
+        address to_
+    ) external returns (uint256 _withdrawn, uint256 _fee);
 }

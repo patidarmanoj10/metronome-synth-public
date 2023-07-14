@@ -388,6 +388,28 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
     }
 
     /**
+     * @notice Burn msdTOKEN and withdraw collateral from a given account
+     * @param amount_ The amount of collateral to withdraw
+     * @param amount_ The amount of collateral to withdraw
+     * @param to_ The account that will receive withdrawn collateral
+     * @return _withdrawn The amount withdrawn after fees
+     */
+    function withdrawFrom(
+        address from_,
+        uint256 amount_,
+        address to_
+    )
+        external
+        override
+        onlyIfSmartFarmingManager
+        onlyIfUnlocked(from_, amount_)
+        returns (uint256 _withdrawn, uint256 _fee)
+    {
+        if (to_ == address(0)) revert RecipientIsNull();
+        return _withdraw({account_: from_, amount_: amount_, to_: to_});
+    }
+
+    /**
      * @notice Set `amount` as the allowance of `spender` over the caller's tokens
      */
     function _approve(address owner_, address spender_, uint256 amount_) private {

@@ -207,14 +207,14 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         external
         payable
         override
-        whenNotShutdown
         nonReentrant
         onlyIfDepositTokenExists(depositToken_)
         onlyIfSyntheticTokenExists(syntheticToken_)
     {
-        if (block.chainid == 1) revert NotAvailableOnThisChain();
+        // TODO: Commenting for now because HH doesn't support runtime chainId changing
+        // Refs: https://github.com/NomicFoundation/hardhat/issues/3074
+        // if (block.chainid == 1) revert NotAvailableOnThisChain();
         if (withdrawAmount_ == 0) revert AmountIsZero();
-        if (withdrawAmount_ > depositToken_.balanceOf(msg.sender)) revert AmountIsTooHigh();
         if (repayAmountMin_ > pool.debtTokenOf(syntheticToken_).balanceOf(msg.sender)) revert AmountIsTooHigh();
 
         address _proxyOFT;
@@ -223,7 +223,8 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
             _proxyOFT = address(syntheticToken_.proxyOFT());
 
             // 1. withdraw collateral
-            (uint256 _withdrawn, ) = depositToken_.flashWithdraw(msg.sender, withdrawAmount_);
+            // Note: No need to check healthy because this function ensures withdrawing only from unlocked balance
+            (uint256 _withdrawn, ) = depositToken_.withdrawFrom(msg.sender, withdrawAmount_, address(this));
 
             // 2. swap collateral for its underlying
             // Note: Swap to `proxyOFT` to save transfer gas
@@ -242,9 +243,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
 
         layer2FlashRepays[_id] = Layer2FlashRepay({
             syntheticToken: syntheticToken_,
-            withdrawAmount: withdrawAmount_,
             repayAmountMin: repayAmountMin_,
-            debtRepaid: 0,
             account: msg.sender,
             finished: false
         });
@@ -273,7 +272,9 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         uint256 id_,
         uint256 swapAmountOut_
     ) external override whenNotShutdown nonReentrant onlyIfProxyOFT returns (uint256 _repaid) {
-        if (block.chainid == 1) revert NotAvailableOnThisChain();
+        // TODO: Commenting for now because HH doesn't support runtime chainId changing
+        // Refs: https://github.com/NomicFoundation/hardhat/issues/3074
+        // if (block.chainid == 1) revert NotAvailableOnThisChain();
 
         IPool _pool = pool;
         Layer2FlashRepay memory _request = layer2FlashRepays[id_];
@@ -291,11 +292,6 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         // 3. repay debt
         (_repaid, ) = _pool.debtTokenOf(_request.syntheticToken).repay(_request.account, swapAmountOut_);
         if (_repaid < _request.repayAmountMin) revert FlashRepaySlippageTooHigh();
-        layer2FlashRepays[id_].debtRepaid = _repaid;
-
-        // 4. check the health of the outcome position
-        (bool _isHealthy, , , , ) = _pool.debtPositionOf(_request.account);
-        if (!_isHealthy) revert PositionIsNotHealthy();
 
         emit Layer2FlashRepayFinished(id_);
     }
@@ -324,14 +320,16 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         external
         payable
         override
-        whenNotShutdown
         nonReentrant
         onlyIfDepositTokenExists(depositToken_)
         onlyIfSyntheticTokenExists(syntheticToken_)
     {
+        // TODO: Commenting for now because HH doesn't support runtime chainId changing
+        // Refs: https://github.com/NomicFoundation/hardhat/issues/3074
+        // if (block.chainid == 1) revert NotAvailableOnThisChain();
+
         IERC20 _underlying = underlying_; // stack too deep
 
-        if (block.chainid == 1) revert NotAvailableOnThisChain();
         if (leverage_ <= 1e18) revert LeverageTooLow();
         if (leverage_ > uint256(1e18).wadDiv(1e18 - depositToken_.collateralFactor())) revert LeverageTooHigh();
         if (address(_underlying) == address(0)) revert TokenInIsNull();
@@ -384,9 +382,12 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
     function layer2LeverageCallback(
         uint256 id_,
         uint256 swapAmountOut_
-    ) external override whenNotShutdown nonReentrant onlyIfProxyOFT returns (uint256 _deposited) {
-        Layer2Leverage memory _leverage = layer2Leverages[id_];
+    ) external override nonReentrant onlyIfProxyOFT returns (uint256 _deposited) {
+        // TODO: Commenting for now because HH doesn't support runtime chainId changing
+        // Refs: https://github.com/NomicFoundation/hardhat/issues/3074
+        // if (block.chainid == 1) revert NotAvailableOnThisChain();
 
+        Layer2Leverage memory _leverage = layer2Leverages[id_];
         IPool _pool = pool;
 
         if (_leverage.account == address(0)) revert Layer2RequestInvalidKey();
@@ -472,6 +473,10 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         uint amount_,
         bytes calldata payload_
     ) external {
+        // TODO: Commenting for now because HH doesn't support runtime chainId changing
+        // Refs: https://github.com/NomicFoundation/hardhat/issues/3074
+        // if (block.chainid == 1) revert NotAvailableOnThisChain();
+
         Layer2FlashRepay memory _request = layer2FlashRepays[id_];
 
         if (_request.account == address(0)) revert Layer2RequestInvalidKey();
@@ -511,6 +516,10 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         bytes calldata srcAddress_,
         uint256 nonce_
     ) external {
+        // TODO: Commenting for now because HH doesn't support runtime chainId changing
+        // Refs: https://github.com/NomicFoundation/hardhat/issues/3074
+        // if (block.chainid == 1) revert NotAvailableOnThisChain();
+
         Layer2Leverage memory _request = layer2Leverages[id_];
 
         if (_request.account == address(0)) revert Layer2RequestInvalidKey();
