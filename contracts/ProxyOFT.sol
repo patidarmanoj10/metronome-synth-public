@@ -36,7 +36,7 @@ abstract contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCoreUpg
     uint16 public constant LZ_ADAPTER_PARAMS_VERSION = 2;
 
     // See more: https://stargateprotocol.gitbook.io/stargate/developers/function-types
-    uint8 internal constant SG_TYPE_SWAP_REMOTE = 1;
+    uint8 public constant SG_TYPE_SWAP_REMOTE = 1;
 
     uint256 public lzBaseGasLimit;
 
@@ -58,7 +58,9 @@ abstract contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCoreUpg
     function __ProxyOFT_init_unchained(ISyntheticToken syntheticToken_) internal onlyInitializing {
         syntheticToken = syntheticToken_;
         stargateSlippage = 10; // 0.1%
-        lzBaseGasLimit = 200_00;
+
+        // TODO: Should we use `minDstGasLookup[dstChainId][PT_SEND_AND_CALL]` instead?
+        lzBaseGasLimit = 200_000;
     }
 
     function circulatingSupply() public view virtual override returns (uint) {
@@ -109,6 +111,7 @@ abstract contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCoreUpg
     // - emit event
     // - comment
     //      Use LZ ids (https://stargateprotocol.gitbook.io/stargate/developers/pool-ids)
+    // - rename to updateSgPoolIdOf?
     function updatePoolIdOf(address token_, uint256 poolId_) public {
         poolIdOf[token_] = poolId_;
     }
