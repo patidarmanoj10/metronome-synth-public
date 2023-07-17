@@ -14,7 +14,7 @@ interface ISyntheticToken is IERC20Metadata {
 
     function burn(address from_, uint256 amount) external;
 
-    function poolRegistry() external returns (IPoolRegistry);
+    function poolRegistry() external view returns (IPoolRegistry);
 
     function toggleIsActive() external;
 

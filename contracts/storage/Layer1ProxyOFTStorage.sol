@@ -2,12 +2,8 @@
 
 pragma solidity 0.8.9;
 
-import "../interfaces/external/ISwapper.sol";
-
 abstract contract Layer1ProxyOFTStorage {
-    ISwapper public swapper; // TODO: Use from SFM
-
-    mapping(uint256 => uint256) swapAmountOutMin;
+    mapping(uint256 => uint256) internal swapAmountOutMin;
 
     // TODO: Move to `SmartFarmManager`, `Pool` or `PoolRegistry`?
     uint64 public flashRepayCallbackTxGasLimit;

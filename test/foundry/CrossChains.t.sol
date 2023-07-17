@@ -244,7 +244,6 @@ abstract contract CrossChains_Test is Test {
         pool_mainnet.updateTreasury(treasury_mainnet);
         masterOracle_mainnet.updatePrice(address(usdc_mainnet), 1e18);
         masterOracle_mainnet.updatePrice(address(msUSD_mainnet), 1e18);
-        proxyOFT_msUSD_mainnet.updateSwapper(swapper_mainnet);
         proxyOFT_msUSD_mainnet.updateStargateRouter(sgRouter_mainnet);
         proxyOFT_msUSD_mainnet.setUseCustomAdapterParams(true);
         proxyOFT_msUSD_mainnet.setMinDstGas(LZ_OP_CHAIN_ID, proxyOFT_msUSD_mainnet.PT_SEND(), 200_000);

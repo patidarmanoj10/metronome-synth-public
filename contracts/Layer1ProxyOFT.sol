@@ -60,7 +60,7 @@ contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
 
             _amountOut = _swap({
                 requestId_: _requestId,
-                swapper_: swapper,
+                swapper_: swapper(),
                 tokenIn_: address(syntheticToken),
                 tokenOut_: _underlying,
                 amountIn_: amount_,
@@ -101,6 +101,7 @@ contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
         uint256 amount_,
         bytes memory payload_
     ) external override {
+        if (msg.sender != address(stargateRouter)) revert InvalidMsgSender();
         if (abi.decode(srcAddress_, (address)) != getProxyOFTOf(srcChainId_)) revert InvalidFromAddress();
 
         // 1. Swap underlying from L2 for synthetic token
@@ -118,7 +119,7 @@ contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
 
             _amountOut = _swap({
                 requestId_: _requestId,
-                swapper_: swapper,
+                swapper_: swapper(),
                 tokenIn_: token_,
                 tokenOut_: address(syntheticToken),
                 amountIn_: amount_,
@@ -151,7 +152,11 @@ contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
         });
     }
 
-    function _quoteFlashRepayCallbackNativeFee(uint16 dstChainId_) public view returns (uint256 _callbackTxNativeFee) {
+    function swapper() public view returns (ISwapper) {
+        return syntheticToken.poolRegistry().swapper();
+    }
+
+    function _quoteFlashRepayCallbackNativeFee(uint16 dstChainId_) private view returns (uint256 _callbackTxNativeFee) {
         (_callbackTxNativeFee, ) = this.estimateSendAndCallFee({
             _dstChainId: dstChainId_,
             _toAddress: abi.encodePacked(getProxyOFTOf(dstChainId_)),
@@ -231,7 +236,7 @@ contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
     ) public {
         (, uint256 _requestId, , address _account, ) = abi.decode(
             payload_,
-            (address, uint256, address, address, uint256)
+            (address, uint256, uint256, address, uint256)
         );
         if (msg.sender != _account) revert InvalidMsgSender();
 
@@ -260,12 +265,5 @@ contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
         swapAmountOutMin[_requestId] = newAmountOutMin_;
 
         _stargateRouter.clearCachedSwap(srcChainId_, srcAddress_, nonce_);
-    }
-
-    // TODO:
-    // - only owner/governor
-    // - emit event
-    function updateSwapper(ISwapper swapper_) public {
-        swapper = swapper_;
     }
 }

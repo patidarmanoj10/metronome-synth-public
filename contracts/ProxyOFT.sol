@@ -5,7 +5,6 @@ pragma solidity 0.8.9;
 import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import "./dependencies/@layerzerolabs/solidity-examples/contracts-upgradeable/token/oft/composable/ComposableOFTCoreUpgradeable.sol";
 import "./dependencies/stargate-protocol/interfaces/IStargateReceiver.sol";
-import "./interfaces/external/ISwapper.sol";
 import "./interfaces/external/IStargateFactory.sol";
 import "./interfaces/external/IStargatePool.sol";
 import "./interfaces/IProxyOFT.sol";
