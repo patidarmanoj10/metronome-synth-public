@@ -18,6 +18,7 @@ import {
   VPoolMock,
   FeeProvider,
   SmartFarmingManager,
+  SmartFarmingManagerMock,
 } from '../typechain'
 import {FakeContract, smock} from '@defi-wonderland/smock'
 import {toUSD} from '../helpers'
@@ -52,7 +53,7 @@ describe('SmartFarmingManager', function () {
   let msdDAI: DepositToken
   let msdVaDAI: DepositToken
   let masterOracle: MasterOracleMock
-  let smartFarmingManager: SmartFarmingManager
+  let smartFarmingManager: SmartFarmingManagerMock
   let pool: Pool
   let poolRegistryMock: FakeContract
   let feeProvider: FeeProvider
@@ -122,9 +123,10 @@ describe('SmartFarmingManager', function () {
     pool = await poolFactory.deploy()
     await pool.deployed()
 
-    const smartFarmingManagerFactory = await ethers.getContractFactory('SmartFarmingManager', deployer)
+    const smartFarmingManagerFactory = await ethers.getContractFactory('SmartFarmingManagerMock', deployer)
     smartFarmingManager = await smartFarmingManagerFactory.deploy()
     await smartFarmingManager.deployed()
+    await smartFarmingManager.updateChainId(2)
 
     poolRegistryMock = await smock.fake('PoolRegistry')
     poolRegistryMock.governor.returns(deployer.address)

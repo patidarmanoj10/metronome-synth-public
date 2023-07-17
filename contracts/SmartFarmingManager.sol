@@ -235,9 +235,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         onlyIfDepositTokenExists(depositToken_)
         onlyIfSyntheticTokenExists(syntheticToken_)
     {
-        // TODO: Commenting for now because HH doesn't support runtime chainId changing
-        // Refs: https://github.com/NomicFoundation/hardhat/issues/3074
-        // if (block.chainid == 1) revert NotAvailableOnThisChain();
+        if (_chainId() == 1) revert NotAvailableOnThisChain();
         if (withdrawAmount_ == 0) revert AmountIsZero();
         if (repayAmountMin_ > pool.debtTokenOf(syntheticToken_).balanceOf(msg.sender)) revert AmountIsTooHigh();
 
@@ -296,9 +294,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         uint256 id_,
         uint256 swapAmountOut_
     ) external override whenNotShutdown nonReentrant onlyIfProxyOFT returns (uint256 _repaid) {
-        // TODO: Commenting for now because HH doesn't support runtime chainId changing
-        // Refs: https://github.com/NomicFoundation/hardhat/issues/3074
-        // if (block.chainid == 1) revert NotAvailableOnThisChain();
+        if (_chainId() == 1) revert NotAvailableOnThisChain();
 
         IPool _pool = pool;
         Layer2FlashRepay memory _request = layer2FlashRepays[id_];
@@ -348,9 +344,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         onlyIfDepositTokenExists(depositToken_)
         onlyIfSyntheticTokenExists(syntheticToken_)
     {
-        // TODO: Commenting for now because HH doesn't support runtime chainId changing
-        // Refs: https://github.com/NomicFoundation/hardhat/issues/3074
-        // if (block.chainid == 1) revert NotAvailableOnThisChain();
+        if (_chainId() == 1) revert NotAvailableOnThisChain();
 
         IERC20 _underlying = underlying_; // stack too deep
 
@@ -407,9 +401,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         uint256 id_,
         uint256 swapAmountOut_
     ) external override nonReentrant onlyIfProxyOFT returns (uint256 _deposited) {
-        // TODO: Commenting for now because HH doesn't support runtime chainId changing
-        // Refs: https://github.com/NomicFoundation/hardhat/issues/3074
-        // if (block.chainid == 1) revert NotAvailableOnThisChain();
+        if (_chainId() == 1) revert NotAvailableOnThisChain();
 
         Layer2Leverage memory _leverage = layer2Leverages[id_];
         IPool _pool = pool;
@@ -497,9 +489,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         uint amount_,
         bytes calldata payload_
     ) external {
-        // TODO: Commenting for now because HH doesn't support runtime chainId changing
-        // Refs: https://github.com/NomicFoundation/hardhat/issues/3074
-        // if (block.chainid == 1) revert NotAvailableOnThisChain();
+        if (_chainId() == 1) revert NotAvailableOnThisChain();
 
         Layer2FlashRepay memory _request = layer2FlashRepays[id_];
 
@@ -540,9 +530,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         bytes calldata srcAddress_,
         uint256 nonce_
     ) external {
-        // TODO: Commenting for now because HH doesn't support runtime chainId changing
-        // Refs: https://github.com/NomicFoundation/hardhat/issues/3074
-        // if (block.chainid == 1) revert NotAvailableOnThisChain();
+        if (_chainId() == 1) revert NotAvailableOnThisChain();
 
         Layer2Leverage memory _request = layer2Leverages[id_];
 
@@ -582,6 +570,14 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
                 address(syntheticToken_),
                 (leverage_ - 1e18).wadMul(amountIn_)
             );
+    }
+
+    /**
+     * @dev Encapsulates chainId call for better tests fit
+     * Refs: https://github.com/NomicFoundation/hardhat/issues/3074
+     */
+    function _chainId() internal view virtual returns (uint256) {
+        return block.chainid;
     }
 
     /**
