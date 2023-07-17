@@ -1413,7 +1413,7 @@ describe('SmartFarmingManager', function () {
     it('should update depositAmountMin and retry', async function () {
       // given
       const stargateRouter = await smock.fake('IStargateRouter')
-      proxyOFT_msUSD.stargateRouter.returns(stargateRouter.address)
+      poolRegistryMock.stargateRouter.returns(stargateRouter.address)
       const {depositAmountMin: before} = await smartFarmingManager.layer2Leverages(id)
 
       // when

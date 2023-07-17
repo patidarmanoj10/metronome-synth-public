@@ -540,7 +540,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
 
         layer2Leverages[id_].depositAmountMin = newDepositAmountMin_;
 
-        _request.syntheticToken.proxyOFT().stargateRouter().clearCachedSwap(srcChainId_, srcAddress_, nonce_);
+        _request.syntheticToken.poolRegistry().stargateRouter().clearCachedSwap(srcChainId_, srcAddress_, nonce_);
     }
 
     /**

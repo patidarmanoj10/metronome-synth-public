@@ -19,7 +19,7 @@ error NewValueIsSameAsCurrent();
 /**
  * @title PoolRegistry contract
  */
-contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
+contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV2 {
     using WadRayMath for uint256;
     using EnumerableSet for EnumerableSet.AddressSet;
 
@@ -27,6 +27,9 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
 
     /// @notice Emitted when fee collector is updated
     event FeeCollectorUpdated(address indexed oldFeeCollector, address indexed newFeeCollector);
+
+    /// @notice Emitted when Lz base gas limit updated
+    event LzBaseGasLimitUpdated(uint256 oldLzBaseGasLimit, uint256 newLzBaseGasLimit);
 
     /// @notice Emitted when master oracle contract is updated
     event MasterOracleUpdated(IMasterOracle indexed oldOracle, IMasterOracle indexed newOracle);
@@ -40,8 +43,28 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
     /// @notice Emitted when a pool is unregistered
     event PoolUnregistered(uint256 indexed id, address indexed pool);
 
+    /// @notice Emitted when stargateRouter is updated
+    event StargateRouterUpdated(IStargateRouter oldStargateRouter, IStargateRouter newStargateRouter);
+
+    /// @notice Emitted when Stargate pool id is updated
+    event StargatePoolIdUpdated(address indexed token, uint256 oldPoolId, uint256 newPoolId);
+
+    /// @notice Emitted when Stargate slippage is updated
+    event StargateSlippageUpdated(uint256 oldStargateSlippage, uint256 newStargateSlippage);
+
     /// @notice Emitted when swapper contract is updated
     event SwapperUpdated(ISwapper oldSwapFee, ISwapper newSwapFee);
+
+    event LeverageSwapTxGasLimitUpdated(uint64 currentLeverageSwapTxGasLimit, uint64 newLeverageSwapTxGasLimit);
+    event LeverageCallbackTxGasLimitUpdated(
+        uint64 currentLeverageCallbackTxGasLimit,
+        uint64 newLeverageCallbackTxGasLimit
+    );
+    event FlashRepaySwapTxGasLimitUpdated(uint64 currentFlashRepaySwapTxGasLimit, uint64 newFlashRepaySwapTxGasLimit);
+    event FlashRepayCallbackTxGasLimitUpdated(
+        uint64 currentFlashRepayCallbackTxGasLimit,
+        uint64 newFlashRepayCallbackTxGasLimit
+    );
 
     function initialize(IMasterOracle masterOracle_, address feeCollector_) external initializer {
         if (address(masterOracle_) == address(0)) revert OracleIsNull();
@@ -54,6 +77,12 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
         feeCollector = feeCollector_;
 
         nextPoolId = 1;
+        stargateSlippage = 10; // 0.1%
+        lzBaseGasLimit = 200_00;
+        flashRepayCallbackTxGasLimit = 750_000;
+        flashRepaySwapTxGasLimit = 500_000;
+        leverageCallbackTxGasLimit = 750_000;
+        leverageSwapTxGasLimit = 600_000;
     }
 
     /**
@@ -108,6 +137,61 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
     }
 
     /**
+     * @notice Update flash repay callback tx gas limit
+     */
+    function updateFlashRepayCallbackTxGasLimit(
+        uint64 newFlashRepayCallbackTxGasLimit_
+    ) external override onlyGovernor {
+        uint64 _currentFlashRepayCallbackTxGasLimit = flashRepayCallbackTxGasLimit;
+        if (newFlashRepayCallbackTxGasLimit_ == _currentFlashRepayCallbackTxGasLimit) revert NewValueIsSameAsCurrent();
+        emit FlashRepayCallbackTxGasLimitUpdated(
+            _currentFlashRepayCallbackTxGasLimit,
+            newFlashRepayCallbackTxGasLimit_
+        );
+        flashRepayCallbackTxGasLimit = newFlashRepayCallbackTxGasLimit_;
+    }
+
+    /**
+     * @notice Update flash repay swap tx gas limit
+     */
+    function updateFlashRepaySwapTxGasLimit(uint64 newFlashRepaySwapTxGasLimit_) external override onlyGovernor {
+        uint64 _currentFlashRepaySwapTxGasLimit = flashRepaySwapTxGasLimit;
+        if (newFlashRepaySwapTxGasLimit_ == _currentFlashRepaySwapTxGasLimit) revert NewValueIsSameAsCurrent();
+        emit FlashRepaySwapTxGasLimitUpdated(_currentFlashRepaySwapTxGasLimit, newFlashRepaySwapTxGasLimit_);
+        flashRepaySwapTxGasLimit = newFlashRepaySwapTxGasLimit_;
+    }
+
+    /**
+     * @notice Update leverage callback tx gas limit
+     */
+    function updateLeverageCallbackTxGasLimit(uint64 newLeverageCallbackTxGasLimit_) external override onlyGovernor {
+        uint64 _currentLeverageCallbackTxGasLimit = leverageCallbackTxGasLimit;
+        if (newLeverageCallbackTxGasLimit_ == _currentLeverageCallbackTxGasLimit) revert NewValueIsSameAsCurrent();
+        emit LeverageCallbackTxGasLimitUpdated(_currentLeverageCallbackTxGasLimit, newLeverageCallbackTxGasLimit_);
+        leverageCallbackTxGasLimit = newLeverageCallbackTxGasLimit_;
+    }
+
+    /**
+     * @notice Update leverage swap tx gas limit
+     */
+    function updateLeverageSwapTxGasLimit(uint64 newLeverageSwapTxGasLimit_) external override onlyGovernor {
+        uint64 _currentSwapTxGasLimit = leverageSwapTxGasLimit;
+        if (newLeverageSwapTxGasLimit_ == _currentSwapTxGasLimit) revert NewValueIsSameAsCurrent();
+        emit LeverageSwapTxGasLimitUpdated(_currentSwapTxGasLimit, newLeverageSwapTxGasLimit_);
+        leverageSwapTxGasLimit = newLeverageSwapTxGasLimit_;
+    }
+
+    /**
+     * @notice Update Lz base gas limit
+     */
+    function updateLzBaseGasLimit(uint256 newLzBaseGasLimit_) external override onlyGovernor {
+        uint256 _currentBaseGasLimit = lzBaseGasLimit;
+        if (newLzBaseGasLimit_ == _currentBaseGasLimit) revert NewValueIsSameAsCurrent();
+        emit LzBaseGasLimitUpdated(_currentBaseGasLimit, newLzBaseGasLimit_);
+        lzBaseGasLimit = newLzBaseGasLimit_;
+    }
+
+    /**
      * @notice Update master oracle contract
      */
     function updateMasterOracle(IMasterOracle newMasterOracle_) external override onlyGovernor {
@@ -130,9 +214,40 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
     }
 
     /**
+     * @notice Update Stargate pool id of token.
+     * @dev Use LZ ids (https://stargateprotocol.gitbook.io/stargate/developers/pool-ids)
+     */
+    function updateStargatePoolIdOf(address token_, uint256 newPoolId_) external override onlyGovernor {
+        uint256 _currentPoolId = stargatePoolIdOf[token_];
+        if (newPoolId_ == _currentPoolId) revert NewValueIsSameAsCurrent();
+        emit StargatePoolIdUpdated(token_, _currentPoolId, newPoolId_);
+        stargatePoolIdOf[token_] = newPoolId_;
+    }
+
+    /**
+     * @notice Update Stargate slippage
+     */
+    function updateStargateSlippage(uint256 newStargateSlippage_) external override onlyGovernor {
+        uint256 _currentStargateSlippage = stargateSlippage;
+        if (newStargateSlippage_ == _currentStargateSlippage) revert NewValueIsSameAsCurrent();
+        emit StargateSlippageUpdated(_currentStargateSlippage, newStargateSlippage_);
+        stargateSlippage = newStargateSlippage_;
+    }
+
+    /**
+     * @notice Update StargateRouter
+     */
+    function updateStargateRouter(IStargateRouter newStargateRouter_) external override onlyGovernor {
+        IStargateRouter _currentStargateRouter = stargateRouter;
+        if (newStargateRouter_ == _currentStargateRouter) revert NewValueIsSameAsCurrent();
+        emit StargateRouterUpdated(_currentStargateRouter, newStargateRouter_);
+        stargateRouter = newStargateRouter_;
+    }
+
+    /**
      * @notice Update Swapper contract
      */
-    function updateSwapper(ISwapper newSwapper_) external onlyGovernor {
+    function updateSwapper(ISwapper newSwapper_) external override onlyGovernor {
         if (address(newSwapper_) == address(0)) revert AddressIsNull();
         ISwapper _currentSwapper = swapper;
         if (newSwapper_ == _currentSwapper) revert NewValueIsSameAsCurrent();

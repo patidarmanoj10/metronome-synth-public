@@ -390,7 +390,7 @@ contract Layer2Leverage_Test is CrossChains_Test {
         //
         vm.selectFork(mainnetFork);
         // It will make mainnet's stargate call to fail
-        proxyOFT_msUSD_mainnet.updateStargateSlippage(0);
+        poolRegistry_mainnet.updateStargateSlippage(0);
 
         //
         // when
@@ -417,7 +417,7 @@ contract Layer2Leverage_Test is CrossChains_Test {
 
         // tx2
         // Retry will work after amending state
-        proxyOFT_msUSD_mainnet.updateStargateSlippage(20);
+        poolRegistry_mainnet.updateStargateSlippage(20);
         vm.prank(alice);
         proxyOFT_msUSD_mainnet.retrySwapSynthAndTriggerCallback(
             srcChainId,

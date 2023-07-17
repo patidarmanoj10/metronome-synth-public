@@ -8,20 +8,22 @@ import "./dependencies/stargate-protocol/interfaces/IStargateReceiver.sol";
 import "./interfaces/external/IStargateFactory.sol";
 import "./interfaces/external/IStargatePool.sol";
 import "./interfaces/IProxyOFT.sol";
-import "./interfaces/ISyntheticToken.sol";
 import "./interfaces/IPool.sol";
 import "./lib/WadRayMath.sol";
+import "./storage/ProxyOFTStorage.sol";
 
 error SenderIsNotTheOwner();
 error NotAvailableOnThisChain();
 error InvalidFromAddress();
 error InvalidMsgSender();
 error InvalidSourceChain();
+error NewValueIsSameAsCurrent();
+error AddressIsNull();
 
 /**
  * @title The ProxyOFT abstract contract
  */
-abstract contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCoreUpgradeable {
+abstract contract ProxyOFT is IStargateReceiver, ComposableOFTCoreUpgradeable, ProxyOFTStorageV1 {
     using SafeERC20 for IERC20;
     using SafeERC20 for ISyntheticToken;
     using WadRayMath for uint256;
@@ -35,29 +37,15 @@ abstract contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCoreUpg
     // See more: https://stargateprotocol.gitbook.io/stargate/developers/function-types
     uint8 public constant SG_TYPE_SWAP_REMOTE = 1;
 
-    uint256 public lzBaseGasLimit;
-
-    // Note: Can we get this from the sgRouter contract?
-    uint256 public stargateSlippage;
-
-    ISyntheticToken internal syntheticToken;
-
-    IStargateRouter public stargateRouter;
-
-    // token => chainId => poolId
-    mapping(address => uint256) public poolIdOf;
-
     function __ProxyOFT_init(address _lzEndpoint, ISyntheticToken syntheticToken_) internal onlyInitializing {
+        if (address(syntheticToken_) == address(0)) revert AddressIsNull();
+        if (address(_lzEndpoint) == address(0)) revert AddressIsNull();
         __ComposableOFTCoreUpgradeable_init(_lzEndpoint);
         __ProxyOFT_init_unchained(syntheticToken_);
     }
 
     function __ProxyOFT_init_unchained(ISyntheticToken syntheticToken_) internal onlyInitializing {
         syntheticToken = syntheticToken_;
-        stargateSlippage = 10; // 0.1%
-
-        // TODO: Should we use `minDstGasLookup[dstChainId][PT_SEND_AND_CALL]` instead?
-        lzBaseGasLimit = 200_000;
     }
 
     function circulatingSupply() public view virtual override returns (uint) {
@@ -93,38 +81,7 @@ abstract contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCoreUpg
     }
 
     function _getSgAmountOutMin(uint256 amountIn_) internal view returns (uint256) {
-        return (amountIn_ * (MAX_BPS - stargateSlippage)) / MAX_BPS;
-    }
-
-    // TODO:
-    // - only owner/governor
-    // - emit event
-    function updateStargateRouter(IStargateRouter stargateRouter_) public {
-        stargateRouter = stargateRouter_;
-    }
-
-    // TODO:
-    // - only owner/governor
-    // - emit event
-    // - comment
-    //      Use LZ ids (https://stargateprotocol.gitbook.io/stargate/developers/pool-ids)
-    // - rename to updateSgPoolIdOf?
-    function updatePoolIdOf(address token_, uint256 poolId_) public {
-        poolIdOf[token_] = poolId_;
-    }
-
-    // TODO:
-    // - only owner/governor
-    // - emit event
-    function updateStargateSlippage(uint256 stargateSlippage_) external {
-        stargateSlippage = stargateSlippage_;
-    }
-
-    // TODO:
-    // - only owner/governor
-    // - emit event
-    function updateLzBaseGasLimit(uint256 lzBaseGasLimit_) external {
-        lzBaseGasLimit = lzBaseGasLimit_;
+        return (amountIn_ * (MAX_BPS - syntheticToken.poolRegistry().stargateSlippage())) / MAX_BPS;
     }
 
     receive() external payable {}

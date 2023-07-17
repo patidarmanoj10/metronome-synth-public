@@ -3,6 +3,7 @@
 pragma solidity 0.8.9;
 
 import "../dependencies/openzeppelin/utils/structs/EnumerableSet.sol";
+import "../dependencies/stargate-protocol/interfaces/IStargateRouter.sol";
 import "../interfaces/IPoolRegistry.sol";
 import "../interfaces/external/IMasterOracle.sol";
 
@@ -41,4 +42,16 @@ abstract contract PoolRegistryStorageV1 is IPoolRegistry {
      * @notice Swapper contract
      */
     ISwapper public swapper;
+}
+
+abstract contract PoolRegistryStorageV2 is PoolRegistryStorageV1 {
+    uint256 public lzBaseGasLimit;
+
+    uint256 public stargateSlippage;
+    uint64 public flashRepayCallbackTxGasLimit;
+    uint64 public flashRepaySwapTxGasLimit;
+    uint64 public leverageCallbackTxGasLimit;
+    uint64 public leverageSwapTxGasLimit;
+    IStargateRouter public stargateRouter;
+    mapping(address => uint256) public stargatePoolIdOf;
 }

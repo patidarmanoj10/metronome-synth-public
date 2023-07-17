@@ -7,8 +7,6 @@ import "./interfaces/ISmartFarmingManager.sol";
 import "./ProxyOFT.sol";
 import "./storage/Layer2ProxyOFTStorage.sol";
 
-error AddressIsNull();
-
 /**
  * @title Layer2ProxyOFT contract
  */
@@ -42,7 +40,7 @@ contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT, Layer2ProxyOFTStorage {
 
         (uint256 _callbackTxNativeFee, uint64 _swapTxGasLimit_) = abi.decode(lzArgs_, (uint256, uint64));
 
-        (_nativeFee, ) = stargateRouter.quoteLayerZeroFee({
+        (_nativeFee, ) = syntheticToken.poolRegistry().stargateRouter().quoteLayerZeroFee({
             _dstChainId: lzMainnetChainId,
             _functionType: SG_TYPE_SWAP_REMOTE,
             _toAddress: _mainnetOFT,
@@ -81,7 +79,7 @@ contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT, Layer2ProxyOFTStorage {
 
             _adapterParams = abi.encodePacked(
                 LZ_ADAPTER_PARAMS_VERSION,
-                uint256(lzBaseGasLimit + _swapTxGasLimit),
+                uint256(syntheticToken.poolRegistry().lzBaseGasLimit() + _swapTxGasLimit),
                 _callbackTxNativeFee,
                 _mainnetOFT
             );
@@ -112,7 +110,7 @@ contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT, Layer2ProxyOFTStorage {
         uint256 _amountIn = amountIn_;
         address payable _account = account_;
 
-        IStargateRouter _stargateRouter = stargateRouter;
+        IStargateRouter _stargateRouter = syntheticToken.poolRegistry().stargateRouter();
 
         bytes memory _payload;
         bytes memory _mainnetOFT;
@@ -132,8 +130,7 @@ contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT, Layer2ProxyOFTStorage {
             });
         }
 
-        // Note: Tokens share the same id across chains
-        uint256 _poolId = poolIdOf[tokenIn_];
+        uint256 _poolId = syntheticToken.poolRegistry().stargatePoolIdOf(tokenIn_);
 
         IERC20(tokenIn_).safeApprove(address(_stargateRouter), 0);
         IERC20(tokenIn_).safeApprove(address(_stargateRouter), _amountIn);
@@ -168,14 +165,20 @@ contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT, Layer2ProxyOFTStorage {
         uint64 _leverageSwapTxGasLimit;
         {
             // Note: The amount isn't needed here because it's part of the message
-            _payload = abi.encode(msg.sender, requestId_, poolIdOf[tokenOut_], account_, amountOutMin_);
+            _payload = abi.encode(
+                msg.sender,
+                requestId_,
+                syntheticToken.poolRegistry().stargatePoolIdOf(tokenOut_),
+                account_,
+                amountOutMin_
+            );
 
             uint256 _callbackTxNativeFee;
             (_callbackTxNativeFee, _leverageSwapTxGasLimit) = abi.decode(lzArgs_, (uint256, uint64));
 
             _adapterParams = abi.encodePacked(
                 LZ_ADAPTER_PARAMS_VERSION,
-                uint256(lzBaseGasLimit + _leverageSwapTxGasLimit),
+                uint256(syntheticToken.poolRegistry().lzBaseGasLimit() + _leverageSwapTxGasLimit),
                 _callbackTxNativeFee,
                 _mainnetOFT
             );
@@ -224,7 +227,7 @@ contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT, Layer2ProxyOFTStorage {
         uint256 amountLD_,
         bytes memory payload_
     ) external override {
-        if (msg.sender != address(stargateRouter)) revert InvalidMsgSender();
+        if (msg.sender != address(syntheticToken.poolRegistry().stargateRouter())) revert InvalidMsgSender();
         if (srcChainId_ != lzMainnetChainId) revert InvalidSourceChain();
         if (abi.decode(srcAddress_, (address)) != getProxyOFTOf(srcChainId_)) revert InvalidFromAddress();
 

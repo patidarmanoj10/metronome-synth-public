@@ -180,7 +180,7 @@ abstract contract CrossChains_Test is Test {
         masterOracle_optimism.updatePrice(address(usdc_optimism), 1e18);
         masterOracle_optimism.updatePrice(address(vaUSDC_optimism), 1e18);
         masterOracle_optimism.updatePrice(address(msUSD_optimism), 1e18);
-        proxyOFT_msUSD_optimism.updateStargateRouter(IStargateRouter(sgRouter_optimism));
+        poolRegistry_optimism.updateStargateRouter(IStargateRouter(sgRouter_optimism));
         proxyOFT_msUSD_optimism.setUseCustomAdapterParams(true);
         proxyOFT_msUSD_optimism.setMinDstGas(LZ_MAINNET_CHAIN_ID, proxyOFT_msUSD_optimism.PT_SEND(), 200_000);
         msUSD_optimism.updateProxyOFT(proxyOFT_msUSD_optimism);
@@ -237,6 +237,7 @@ abstract contract CrossChains_Test is Test {
 
         poolRegistry_mainnet.registerPool(address(pool_mainnet));
         poolRegistry_mainnet.updateSwapper(swapper_mainnet);
+        poolRegistry_mainnet.updateStargateRouter(IStargateRouter(sgRouter_mainnet));
         pool_mainnet.updateFeeProvider(feeProvider_mainnet);
         pool_mainnet.updateSmartFarmingManager(smartFarmingManager_mainnet);
         pool_mainnet.addDepositToken(address(msdUSDC_mainnet));
@@ -244,7 +245,6 @@ abstract contract CrossChains_Test is Test {
         pool_mainnet.updateTreasury(treasury_mainnet);
         masterOracle_mainnet.updatePrice(address(usdc_mainnet), 1e18);
         masterOracle_mainnet.updatePrice(address(msUSD_mainnet), 1e18);
-        proxyOFT_msUSD_mainnet.updateStargateRouter(sgRouter_mainnet);
         proxyOFT_msUSD_mainnet.setUseCustomAdapterParams(true);
         proxyOFT_msUSD_mainnet.setMinDstGas(LZ_OP_CHAIN_ID, proxyOFT_msUSD_mainnet.PT_SEND(), 200_000);
         msUSD_mainnet.updateProxyOFT(proxyOFT_msUSD_mainnet);
@@ -274,7 +274,7 @@ abstract contract CrossChains_Test is Test {
             abi.encodePacked(address(proxyOFT_msUSD_mainnet), address(proxyOFT_msUSD_optimism))
         );
 
-        proxyOFT_msUSD_optimism.updatePoolIdOf(address(usdc_optimism), SG_USDC_POOL_ID);
+        poolRegistry_optimism.updateStargatePoolIdOf(address(usdc_optimism), SG_USDC_POOL_ID);
 
         deal(address(usdc_optimism), address(swapper_optimism), 1000000000000000e6);
         deal(address(vaUSDC_optimism), address(swapper_optimism), 1000000000000000e18);
@@ -286,7 +286,7 @@ abstract contract CrossChains_Test is Test {
             abi.encodePacked(address(proxyOFT_msUSD_optimism), address(proxyOFT_msUSD_mainnet))
         );
 
-        proxyOFT_msUSD_mainnet.updatePoolIdOf(address(usdc_mainnet), SG_USDC_POOL_ID);
+        poolRegistry_mainnet.updateStargatePoolIdOf(address(usdc_mainnet), SG_USDC_POOL_ID);
 
         deal(address(usdc_mainnet), address(swapper_mainnet), 1000000000e6);
         deal(address(msUSD_mainnet), address(swapper_mainnet), 1000000000e18);
@@ -397,6 +397,7 @@ abstract contract CrossChains_Test is Test {
         if (sgPool == SG_MAINNET_USDC_POOL) {
             deal(address(usdc_mainnet), whale, amountIn);
             vm.startPrank(whale);
+            console.log("sgRouter_mainnet", address(sgRouter_mainnet));
             usdc_mainnet.approve(address(sgRouter_mainnet), type(uint256).max);
             sgRouter_mainnet.addLiquidity(SG_USDC_POOL_ID, amountIn, whale);
             vm.stopPrank();
@@ -416,6 +417,7 @@ abstract contract CrossChains_Test is Test {
         } else {
             deal(address(usdc_optimism), whale, amountIn);
             vm.startPrank(whale);
+            console.log("sgRouter_mainnet", address(sgRouter_mainnet));
             usdc_optimism.approve(address(sgRouter_optimism), type(uint256).max);
             sgRouter_optimism.addLiquidity(SG_USDC_POOL_ID, amountIn, whale);
             vm.stopPrank();
