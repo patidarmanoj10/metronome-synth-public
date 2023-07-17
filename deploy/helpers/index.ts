@@ -97,13 +97,14 @@ export const deployUpgradable = async ({
 
   const deployFunction = () =>
     deploy(alias, {
+      contract,
       from: deployer,
       log: true,
       proxy: {
         owner: GNOSIS_SAFE_ADDRESS,
         proxyContract: 'OpenZeppelinTransparentProxy',
         viaAdminContract: adminContract,
-        implementationName: alias === contract ? undefined : contract,
+        implementationName: alias === contract || alias === 'Pool' ? undefined : contract,
         execute: {
           init: {
             methodName: 'initialize',
