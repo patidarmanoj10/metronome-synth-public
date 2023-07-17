@@ -3,7 +3,7 @@
 pragma solidity 0.8.9;
 
 abstract contract Layer1ProxyOFTStorage {
-    mapping(uint256 => uint256) internal swapAmountOutMin;
+    mapping(uint256 => uint256) public swapAmountOutMin;
 
     // TODO: Move to `SmartFarmManager`, `Pool` or `PoolRegistry`?
     uint64 public flashRepayCallbackTxGasLimit;

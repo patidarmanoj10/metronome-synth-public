@@ -266,4 +266,8 @@ contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
 
         _stargateRouter.clearCachedSwap(srcChainId_, srcAddress_, nonce_);
     }
+
+    function swapper() private view returns (ISwapper) {
+        return syntheticToken.poolRegistry().swapper();
+    }
 }
