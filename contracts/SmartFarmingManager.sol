@@ -50,13 +50,22 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
     /// @notice Emitted when a L2 flash repay request is created
     event Layer2FlashRepayStarted(uint256 indexed id);
 
-    /// @notice Emitted when leverage is completed
-    event LeverageCompleted(
-        IERC20 tokenIn,
-        IDepositToken depositToken,
-        ISyntheticToken syntheticToken,
+    /// @notice Emitted when debt is flash repaid
+    event FlashRepaid(
+        ISyntheticToken indexed syntheticToken,
+        IDepositToken indexed depositToken,
+        uint256 withdrawn,
+        uint256 repaid
+    );
+
+    /// @notice Emitted when deposit is leveraged
+    event Leveraged(
+        IERC20 indexed tokenIn,
+        IDepositToken indexed depositToken,
+        ISyntheticToken indexed syntheticToken,
         uint256 leverage,
         uint256 amountIn,
+        uint256 issued,
         uint256 deposited
     );
 
@@ -134,6 +143,8 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         // 4. check the health of the outcome position
         (bool _isHealthy, , , , ) = _pool.debtPositionOf(msg.sender);
         if (!_isHealthy) revert PositionIsNotHealthy();
+
+        emit FlashRepaid(syntheticToken_, depositToken_, _withdrawn, _repaid);
     }
 
     /**
@@ -166,18 +177,19 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         if (leverage_ <= 1e18) revert LeverageTooLow();
         if (leverage_ > uint256(1e18).wadDiv(1e18 - depositToken_.collateralFactor())) revert LeverageTooHigh();
 
-        IPool _pool = pool;
         ISwapper _swapper = swapper();
 
         // 1. transfer collateral
         IERC20 _collateral = depositToken_.underlying();
         amountIn_ = _collateralTransferFrom(msg.sender, _swapper, tokenIn_, _collateral, amountIn_);
 
-        // 2. mint synth + debt
-        uint256 _debtAmount = _calculateLeverageDebtAmount(_collateral, syntheticToken_, amountIn_, leverage_);
-        IDebtToken _debtToken = _pool.debtTokenOf(syntheticToken_);
-        (_issued, ) = _debtToken.flashIssue(address(this), _debtAmount);
-        _debtToken.mint(msg.sender, _debtAmount);
+        {
+            // 2. mint synth + debt
+            uint256 _debtAmount = _calculateLeverageDebtAmount(_collateral, syntheticToken_, amountIn_, leverage_);
+            IDebtToken _debtToken = pool.debtTokenOf(syntheticToken_);
+            (_issued, ) = _debtToken.flashIssue(address(this), _debtAmount);
+            _debtToken.mint(msg.sender, _debtAmount);
+        }
 
         // 3. swap synth for collateral
         uint256 _depositAmount = amountIn_ + _swap(_swapper, syntheticToken_, _collateral, _issued, 0);
@@ -189,10 +201,10 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         (_deposited, ) = depositToken_.deposit(_depositAmount, msg.sender);
 
         // 5. check the health of the outcome position
-        (bool _isHealthy, , , , ) = _pool.debtPositionOf(msg.sender);
+        (bool _isHealthy, , , , ) = pool.debtPositionOf(msg.sender);
         if (!_isHealthy) revert PositionIsNotHealthy();
-        // TODO getting stack too deep error. Do we want to emit event, we are not emitting event from flashIssue.
-        // emit LeverageCompleted(tokenIn_, depositToken_, syntheticToken_, leverage_, amountIn_, _deposited);
+
+        emit Leveraged(tokenIn_, depositToken_, syntheticToken_, leverage_, amountIn_, _issued, _deposited);
     }
 
     /***
