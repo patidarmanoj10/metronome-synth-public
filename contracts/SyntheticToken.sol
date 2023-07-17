@@ -259,11 +259,9 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
 
             uint256 _totalBridgedIn = totalBridgedIn;
             uint256 _totalBridgedOut = totalBridgedOut;
-            uint256 _bridgingBalance = _totalBridgedIn > _totalBridgedOut
-                ? _totalBridgedIn - _totalBridgedOut
-                : _totalBridgedOut - _totalBridgedIn;
 
-            if (_bridgingBalance > maxBridgingBalance) revert SurpassMaxBridgingBalance();
+            if (_totalBridgedIn > _totalBridgedOut && _totalBridgedIn - _totalBridgedOut > maxBridgingBalance)
+                revert SurpassMaxBridgingBalance();
         }
 
         totalSupply += amount_;

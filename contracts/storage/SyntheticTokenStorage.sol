@@ -51,26 +51,24 @@ abstract contract SyntheticTokenStorageV1 is ISyntheticToken {
      */
     uint8 public override decimals;
 
-    // TODO: Comment
+    /**
+     * @notice The ProxyOFT contract
+     */
     IProxyOFT public override proxyOFT;
 
-    // TODO: Comment
-    // Note 1: Possible ways to track bridge impact on supply
-    // 1) `uint bridgingSupply`: Increases when minting + Decreases if burning amount <= bridgingSupply, when minting, requires `bridgingSupply <= maxBridgingSupply`
-    // 2) `int bridgingSupply`: Increases when minting + Decreases when burning. The sum of `bridgingSupply` values among chains must be `0`. when minting, requires `bridgingSupply <= maxBridgingSupply`
-    // 3) `totalBridgedIn` + `totalBridgedOut`: when minting, requires `(totalBridgedIn - totalBridgedOut) <= maxBridgingSupply`
-    //
-    // Note 2: We may move these vars and limits handle to the `ProxyOFT` contract,
-    // it would make all bridging-related logic will live apart `SyntheticToken` implementation but is safer to keep it here
+    /**
+     * @notice Track amount received cross-chain
+     */
     uint256 public totalBridgedIn;
+
+    /**
+     * @notice Track amount sent cross-chain
+     */
     uint256 public totalBridgedOut;
 
-    // TODO: Comment
-    // Note 1: Possible ways to cap bridge impact on supply
-    // 1) maxBridgingBalance: Limits both ways `abs(totalBridgedIn - totalBridgedOut)`
-    // 2) maxBridgingBalance: Limits mintings only (assumes burns aren't a problem)
-    //
-    // Note 2: We may move these vars and limits handle to the `ProxyOFT` contract,
-    // it would make all bridging-related logic will live apart `SyntheticToken` implementation but is safer to keep it here
+    /**
+     * @notice Set cap for bridging amount
+     * @dev New bridging-in transfers (i.e. mintings) will fail if `totalBridgedIn - totalBridgedOut > maxBridgingBalance`
+     */
     uint256 public maxBridgingBalance;
 }

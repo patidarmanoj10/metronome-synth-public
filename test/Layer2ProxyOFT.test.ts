@@ -2,7 +2,7 @@
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import chai, {expect} from 'chai'
 import {ethers} from 'hardhat'
-import {Layer2ProxyOFT, Pool, PoolRegistry, SmartFarmingManager} from '../typechain'
+import {Layer2ProxyOFT, Layer2ProxyOFTMock, Pool, PoolRegistry, SmartFarmingManager} from '../typechain'
 import {FakeContract, smock} from '@defi-wonderland/smock'
 import {SyntheticToken} from '../typechain/contracts'
 import {ILayerZeroEndpoint} from '../typechain/contracts/dependencies/@layerzerolabs/solidity-examples/interfaces'
@@ -30,7 +30,7 @@ describe('Layer2ProxyOFT', function () {
   let stargateRouter: FakeContract<IStargateRouter>
   let msUSD: FakeContract<SyntheticToken>
   let dai: ERC20Mock
-  let layer2ProxyOFT: Layer2ProxyOFT
+  let layer2ProxyOFT: Layer2ProxyOFTMock
   let smartFarmingManager: FakeContract<SmartFarmingManager>
   let pool: FakeContract<Pool>
   let poolRegistry: FakeContract<PoolRegistry>
@@ -52,9 +52,10 @@ describe('Layer2ProxyOFT', function () {
     smartFarmingManager = await smock.fake('SmartFarmingManager')
     stargateRouter = await smock.fake('IStargateRouter')
 
-    const layer2ProxyOFTFactory = await ethers.getContractFactory('Layer2ProxyOFT')
+    const layer2ProxyOFTFactory = await ethers.getContractFactory('Layer2ProxyOFTMock')
     layer2ProxyOFT = await layer2ProxyOFTFactory.deploy()
     await layer2ProxyOFT.deployed()
+    await layer2ProxyOFT.updateChainId(2)
 
     await layer2ProxyOFT.initialize(lzEndpoint.address, msUSD.address)
     await layer2ProxyOFT.updateStargateRouter(stargateRouter.address)

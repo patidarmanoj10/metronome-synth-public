@@ -18,11 +18,9 @@ error InvalidFromAddress();
 error InvalidMsgSender();
 error InvalidSourceChain();
 
-// TODO: Add all missing comments
-// TODO: Create all missing update function
-// TODO: Make it upgradable
-// TODO: Should slippage (on retry) increases only? This question is valid for Pool retry functions too
-// TODO: Should slippage (on retry) have timeout as DEX has?  This question is valid for Pool retry functions too
+/**
+ * @title The ProxyOFT abstract contract
+ */
 abstract contract ProxyOFT is IProxyOFT, IStargateReceiver, ComposableOFTCoreUpgradeable {
     using SafeERC20 for IERC20;
     using SafeERC20 for ISyntheticToken;

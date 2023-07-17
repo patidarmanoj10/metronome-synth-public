@@ -152,10 +152,6 @@ contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
         });
     }
 
-    function swapper() public view returns (ISwapper) {
-        return syntheticToken.poolRegistry().swapper();
-    }
-
     function _quoteFlashRepayCallbackNativeFee(uint16 dstChainId_) private view returns (uint256 _callbackTxNativeFee) {
         (_callbackTxNativeFee, ) = this.estimateSendAndCallFee({
             _dstChainId: dstChainId_,
@@ -267,7 +263,7 @@ contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
         _stargateRouter.clearCachedSwap(srcChainId_, srcAddress_, nonce_);
     }
 
-    function swapper() private view returns (ISwapper) {
+    function swapper() public view returns (ISwapper) {
         return syntheticToken.poolRegistry().swapper();
     }
 }

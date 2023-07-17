@@ -20,9 +20,7 @@ contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT, Layer2ProxyOFTStorage {
 
     function initialize(address _lzEndpoint, ISyntheticToken syntheticToken_) public initializer {
         __ProxyOFT_init(_lzEndpoint, syntheticToken_);
-        // TODO: Commenting for now because HH doesn't support runtime chainId changing
-        // Refs: https://github.com/NomicFoundation/hardhat/issues/3074
-        // if (block.chainid == 1) revert NotAvailableOnThisChain();
+        if (_chainId() == 1) revert NotAvailableOnThisChain();
 
         lzMainnetChainId = 101;
     }
@@ -235,5 +233,13 @@ contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT, Layer2ProxyOFTStorage {
         IERC20(token_).safeApprove(_smartFarmingManager, 0);
         IERC20(token_).safeApprove(_smartFarmingManager, amountLD_);
         ISmartFarmingManager(_smartFarmingManager).layer2LeverageCallback(_layer2LeverageId, amountLD_);
+    }
+
+    /**
+     * @dev Encapsulates chainId call for better tests fit
+     * Refs: https://github.com/NomicFoundation/hardhat/issues/3074
+     */
+    function _chainId() internal view virtual returns (uint256) {
+        return block.chainid;
     }
 }

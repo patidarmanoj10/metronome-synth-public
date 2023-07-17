@@ -248,7 +248,7 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
     }
 
     /**
-     * @notice Issue synth without checking collateral
+     * @notice Issue synth without checking collateral and without minting debt tokens
      * @dev The healthy of outcome position must be done afterhand
      * @param to_ The beneficiary account
      * @param amount_ The amount to mint
@@ -270,7 +270,7 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
     {
         if (amount_ == 0) revert AmountIsZero();
 
-        accrueInterest(); // TODO: Review to see if it's needed here
+        accrueInterest();
 
         ISyntheticToken _syntheticToken = syntheticToken;
 
@@ -305,7 +305,7 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
         onlyIfSyntheticTokenExists
         onlyIfSyntheticTokenIsActive
     {
-        accrueInterest(); // TODO: Review to see if it's needed here
+        accrueInterest();
 
         IPool _pool = pool;
 
