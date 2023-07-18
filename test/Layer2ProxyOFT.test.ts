@@ -2,7 +2,7 @@
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import chai, {expect} from 'chai'
 import {ethers} from 'hardhat'
-import {Layer2ProxyOFT, Layer2ProxyOFTMock, Pool, PoolRegistry, SmartFarmingManager} from '../typechain'
+import {Layer2ProxyOFT, Pool, PoolRegistry, SmartFarmingManager} from '../typechain'
 import {FakeContract, smock} from '@defi-wonderland/smock'
 import {SyntheticToken} from '../typechain/contracts'
 import {ILayerZeroEndpoint} from '../typechain/contracts/dependencies/@layerzerolabs/solidity-examples/interfaces'
@@ -14,6 +14,8 @@ import {BigNumber} from 'ethers'
 import {impersonateAccount} from './helpers'
 
 chai.use(smock.matchers)
+
+const LZ_ADAPTER_PARAMS_VERSION = 2
 
 const LZ_MAINNET_ID = 101
 const MAINNET_OFT_ADDRESS = '0x9000000000000000000000000000000000000009'
@@ -30,7 +32,7 @@ describe('Layer2ProxyOFT', function () {
   let stargateRouter: FakeContract<IStargateRouter>
   let msUSD: FakeContract<SyntheticToken>
   let dai: ERC20Mock
-  let layer2ProxyOFT: Layer2ProxyOFTMock
+  let layer2ProxyOFT: Layer2ProxyOFT
   let smartFarmingManager: FakeContract<SmartFarmingManager>
   let pool: FakeContract<Pool>
   let poolRegistry: FakeContract<PoolRegistry>
@@ -52,15 +54,11 @@ describe('Layer2ProxyOFT', function () {
     smartFarmingManager = await smock.fake('SmartFarmingManager')
     stargateRouter = await smock.fake('IStargateRouter')
 
-    const layer2ProxyOFTFactory = await ethers.getContractFactory('Layer2ProxyOFTMock')
+    const layer2ProxyOFTFactory = await ethers.getContractFactory('Layer2ProxyOFT')
     layer2ProxyOFT = await layer2ProxyOFTFactory.deploy()
     await layer2ProxyOFT.deployed()
-    await layer2ProxyOFT.updateChainId(2)
 
     await layer2ProxyOFT.initialize(lzEndpoint.address, msUSD.address)
-    await layer2ProxyOFT.updateStargateRouter(stargateRouter.address)
-    await layer2ProxyOFT.updatePoolIdOf(dai.address, SG_POOL_ID)
-    await layer2ProxyOFT.updateStargateSlippage(0)
     await layer2ProxyOFT.setUseCustomAdapterParams(true)
     await layer2ProxyOFT.setTrustedRemote(
       LZ_MAINNET_ID,
@@ -71,6 +69,9 @@ describe('Layer2ProxyOFT', function () {
     smartFarmingManager.pool.returns(pool.address)
     msUSD.poolRegistry.returns(poolRegistry.address)
     poolRegistry.isPoolRegistered.returns(([poolAddress]: string) => poolAddress === pool.address)
+    poolRegistry.stargateRouter(stargateRouter.address)
+    poolRegistry.stargatePoolIdOf.returns(SG_POOL_ID)
+    poolRegistry.stargateSlippage(0)
     pool.smartFarmingManager.returns(smartFarmingManager.address)
     msUSD.proxyOFT.returns(layer2ProxyOFT.address)
 
@@ -122,12 +123,7 @@ describe('Layer2ProxyOFT', function () {
     // then
     const adapterParams = ethers.utils.solidityPack(
       ['uint16', 'uint256', 'uint256', 'address'],
-      [
-        await layer2ProxyOFT.LZ_ADAPTER_PARAMS_VERSION(),
-        LZ_BASE_GAS_LIMIT.add(swapTxGasLimit_),
-        callbackTxNativeFee,
-        MAINNET_OFT_ADDRESS,
-      ]
+      [LZ_ADAPTER_PARAMS_VERSION, LZ_BASE_GAS_LIMIT.add(swapTxGasLimit_), callbackTxNativeFee, MAINNET_OFT_ADDRESS]
     )
 
     const lzPayload = ethers.utils.defaultAbiCoder.encode(
@@ -280,12 +276,7 @@ describe('Layer2ProxyOFT', function () {
 
       const adapterParams = ethers.utils.solidityPack(
         ['uint16', 'uint256', 'uint256', 'address'],
-        [
-          await layer2ProxyOFT.LZ_ADAPTER_PARAMS_VERSION(),
-          LZ_BASE_GAS_LIMIT.add(swapTxGasLimit_),
-          callbackTxNativeFee,
-          MAINNET_OFT_ADDRESS,
-        ]
+        [LZ_ADAPTER_PARAMS_VERSION, LZ_BASE_GAS_LIMIT.add(swapTxGasLimit_), callbackTxNativeFee, MAINNET_OFT_ADDRESS]
       )
 
       const lzPayload = ethers.utils.defaultAbiCoder.encode(

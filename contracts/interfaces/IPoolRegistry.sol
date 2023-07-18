@@ -48,25 +48,5 @@ interface IPoolRegistry is IPauseable, IGovernable {
 
     function swapper() external view returns (ISwapper);
 
-    function updateFlashRepayCallbackTxGasLimit(uint64 newFlashRepayCallbackTxGasLimit_) external;
-
-    function updateFlashRepaySwapTxGasLimit(uint64 newFlashRepaySwapTxGasLimit_) external;
-
-    function updateLeverageCallbackTxGasLimit(uint64 newLeverageCallbackTxGasLimit_) external;
-
-    function updateLeverageSwapTxGasLimit(uint64 newLeverageSwapTxGasLimit_) external;
-
-    function updateLzBaseGasLimit(uint256 newLzBaseGasLimit_) external;
-
-    function updateMasterOracle(IMasterOracle newMasterOracle_) external;
-
-    function updateNativeTokenGateway(address newGateway_) external;
-
-    function updateStargatePoolIdOf(address token_, uint256 newPoolId_) external;
-
-    function updateStargateSlippage(uint256 newStargateSlippage_) external;
-
-    function updateStargateRouter(IStargateRouter newStargateRouter_) external;
-
-    function updateSwapper(ISwapper newSwapper_) external;
+    function lzMainnetChainId() external view returns (uint16);
 }

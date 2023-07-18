@@ -33,6 +33,7 @@ describe('SmartFarmingManager', function () {
     ;[deployer, alice, bob] = await ethers.getSigners()
 
     const layer1ProxyOFTFactory = await ethers.getContractFactory('Layer1ProxyOFT', deployer)
+
     layer1ProxyOFT = await layer1ProxyOFTFactory.deploy()
 
     usdc = await smock.fake('ERC20')
@@ -49,8 +50,8 @@ describe('SmartFarmingManager', function () {
 
     await layer1ProxyOFT.initialize(lzEndpoint.address, msUSD.address)
     await layer1ProxyOFT.setTrustedRemoteAddress(LZ_CHAIN_ID_OPTIMISM, layer2ProxyOFT.address)
-    await layer1ProxyOFT.updateStargateRouter(stargateRouter.address)
-    await layer1ProxyOFT.updatePoolIdOf(usdc.address, SG_USDC_POOL_ID)
+    await poolRegistry.updateStargateRouter(stargateRouter.address)
+    await poolRegistry.updatePoolIdOf(usdc.address, SG_USDC_POOL_ID)
     await layer1ProxyOFT.setUseCustomAdapterParams(true)
 
     layer1ProxyOFTSigner = await ethers.getImpersonatedSigner(layer1ProxyOFT.address)

@@ -65,6 +65,8 @@ interface IStargateRouter {
 
     function factory() external view returns (address);
 
+    function bridge() external view returns (address);
+
     function cachedSwapLookup(
         uint16 _chainId_,
         bytes calldata _srcAddress,

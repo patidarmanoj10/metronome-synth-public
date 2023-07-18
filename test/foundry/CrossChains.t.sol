@@ -397,7 +397,6 @@ abstract contract CrossChains_Test is Test {
         if (sgPool == SG_MAINNET_USDC_POOL) {
             deal(address(usdc_mainnet), whale, amountIn);
             vm.startPrank(whale);
-            console.log("sgRouter_mainnet", address(sgRouter_mainnet));
             usdc_mainnet.approve(address(sgRouter_mainnet), type(uint256).max);
             sgRouter_mainnet.addLiquidity(SG_USDC_POOL_ID, amountIn, whale);
             vm.stopPrank();
@@ -417,7 +416,6 @@ abstract contract CrossChains_Test is Test {
         } else {
             deal(address(usdc_optimism), whale, amountIn);
             vm.startPrank(whale);
-            console.log("sgRouter_mainnet", address(sgRouter_mainnet));
             usdc_optimism.approve(address(sgRouter_optimism), type(uint256).max);
             sgRouter_optimism.addLiquidity(SG_USDC_POOL_ID, amountIn, whale);
             vm.stopPrank();

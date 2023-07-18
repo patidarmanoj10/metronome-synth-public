@@ -2,10 +2,14 @@
 
 pragma solidity 0.8.9;
 
+import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import "./interfaces/ILayer2ProxyOFT.sol";
 import "./interfaces/ISmartFarmingManager.sol";
 import "./ProxyOFT.sol";
 import "./storage/Layer2ProxyOFTStorage.sol";
+import "./interfaces/IPool.sol";
+
+error InvalidSourceChain();
 
 /**
  * @title Layer2ProxyOFT contract
@@ -13,14 +17,11 @@ import "./storage/Layer2ProxyOFTStorage.sol";
 contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT, Layer2ProxyOFTStorage {
     using SafeERC20 for IERC20;
     using SafeERC20 for ISyntheticToken;
-    using WadRayMath for uint256;
     using BytesLib for bytes;
+    using SmartFarming for IPoolRegistry;
 
     function initialize(address _lzEndpoint, ISyntheticToken syntheticToken_) public initializer {
         __ProxyOFT_init(_lzEndpoint, syntheticToken_);
-        if (_chainId() == 1) revert NotAvailableOnThisChain();
-
-        lzMainnetChainId = 101;
     }
 
     modifier onlyIfSmartFarmingManager() {
@@ -36,66 +37,13 @@ contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT, Layer2ProxyOFTStorage {
      * @return _nativeFee The fee in native coin
      */
     function quoteTriggerFlashRepaySwapNativeFee(bytes calldata lzArgs_) external view returns (uint256 _nativeFee) {
-        bytes memory _mainnetOFT = abi.encodePacked(getProxyOFTOf(lzMainnetChainId));
-
-        (uint256 _callbackTxNativeFee, uint64 _swapTxGasLimit_) = abi.decode(lzArgs_, (uint256, uint64));
-
-        (_nativeFee, ) = syntheticToken.poolRegistry().stargateRouter().quoteLayerZeroFee({
-            _dstChainId: lzMainnetChainId,
-            _functionType: SG_TYPE_SWAP_REMOTE,
-            _toAddress: _mainnetOFT,
-            _transferAndCallPayload: abi.encodePacked(
-                address(type(uint160).max), // L2 smart farming manager
-                bytes32(type(uint256).max), // requestId
-                address(type(uint160).max), // account
-                type(uint256).max // amountOutMin_
-            ),
-            _lzTxParams: IStargateRouter.lzTxObj({
-                dstGasForCall: _swapTxGasLimit_,
-                dstNativeAmount: _callbackTxNativeFee,
-                dstNativeAddr: _mainnetOFT
-            })
-        });
+        return syntheticToken.poolRegistry().quoteTriggerFlashRepaySwapNativeFee(lzArgs_);
     }
 
     function quoteTriggerLeverageSwapNativeFee(
         bytes calldata lzArgs_
     ) public view override returns (uint256 _nativeFee) {
-        address _mainnetOFT = getProxyOFTOf(lzMainnetChainId);
-        bytes memory _payload;
-        bytes memory _adapterParams;
-        uint64 _swapTxGasLimit;
-        {
-            _payload = abi.encode(
-                address(type(uint160).max), // L2 smart farming manager
-                bytes32(type(uint256).max), // requestId
-                type(uint256).max, // sgPoolId
-                address(type(uint160).max), // account
-                type(uint256).max // amountOutMin_
-            );
-
-            uint256 _callbackTxNativeFee;
-            (_callbackTxNativeFee, _swapTxGasLimit) = abi.decode(lzArgs_, (uint256, uint64));
-
-            _adapterParams = abi.encodePacked(
-                LZ_ADAPTER_PARAMS_VERSION,
-                uint256(syntheticToken.poolRegistry().lzBaseGasLimit() + _swapTxGasLimit),
-                _callbackTxNativeFee,
-                _mainnetOFT
-            );
-        }
-
-        (uint256 _swapTxNativeFee, ) = this.estimateSendAndCallFee({
-            _dstChainId: lzMainnetChainId,
-            _toAddress: abi.encodePacked(_mainnetOFT),
-            _amount: type(uint256).max,
-            _payload: _payload,
-            _dstGasForCall: _swapTxGasLimit,
-            _useZro: false,
-            _adapterParams: _adapterParams
-        });
-
-        return _swapTxNativeFee;
+        return syntheticToken.poolRegistry().quoteTriggerLeverageSwapNativeFee(lzArgs_);
     }
 
     function triggerFlashRepaySwap(
@@ -106,45 +54,24 @@ contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT, Layer2ProxyOFTStorage {
         uint256 amountOutMin_,
         bytes calldata lzArgs_
     ) external payable override onlyIfSmartFarmingManager {
-        // Stack too deep
-        uint256 _amountIn = amountIn_;
-        address payable _account = account_;
+        // Note: The amount isn't needed here because it's part of the message
+        bytes memory _payload = abi.encode(msg.sender, requestId_, account_, amountOutMin_);
 
-        IStargateRouter _stargateRouter = syntheticToken.poolRegistry().stargateRouter();
+        (uint256 callbackTxNativeFee_, uint64 flashRepaySwapTxGasLimit_) = abi.decode(lzArgs_, (uint256, uint64));
 
-        bytes memory _payload;
-        bytes memory _mainnetOFT;
-        IStargateRouter.lzTxObj memory _lzTxParams;
-        {
-            // Note: The amount isn't needed here because it's part of the message
-            _payload = abi.encode(msg.sender, requestId_, account_, amountOutMin_);
-            _mainnetOFT = abi.encodePacked(getProxyOFTOf(lzMainnetChainId));
-            if (_mainnetOFT.toAddress(0) == address(0)) revert AddressIsNull();
-
-            (uint256 callbackTxNativeFee_, uint64 flashRepaySwapTxGasLimit_) = abi.decode(lzArgs_, (uint256, uint64));
-
-            _lzTxParams = IStargateRouter.lzTxObj({
+        IPoolRegistry _poolRegistry = syntheticToken.poolRegistry();
+        _poolRegistry.swapUsingStargate(
+            SmartFarming.StargateParams({
+                tokenIn: tokenIn_,
+                dstChainId: _poolRegistry.lzMainnetChainId(),
+                amountIn: amountIn_,
+                nativeFee: msg.value,
+                payload: _payload,
+                refundAddress: account_,
                 dstGasForCall: flashRepaySwapTxGasLimit_,
-                dstNativeAmount: callbackTxNativeFee_,
-                dstNativeAddr: _mainnetOFT
-            });
-        }
-
-        uint256 _poolId = syntheticToken.poolRegistry().stargatePoolIdOf(tokenIn_);
-
-        IERC20(tokenIn_).safeApprove(address(_stargateRouter), 0);
-        IERC20(tokenIn_).safeApprove(address(_stargateRouter), _amountIn);
-        _stargateRouter.swap{value: msg.value}({
-            _dstChainId: lzMainnetChainId,
-            _srcPoolId: _poolId,
-            _dstPoolId: _poolId,
-            _refundAddress: _account,
-            _amountLD: _amountIn,
-            _minAmountLD: _getSgAmountOutMin(_amountIn),
-            _lzTxParams: _lzTxParams,
-            _to: _mainnetOFT,
-            _payload: _payload
-        });
+                dstNativeAmount: callbackTxNativeFee_
+            })
+        );
     }
 
     function triggerLeverageSwap(
@@ -155,46 +82,29 @@ contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT, Layer2ProxyOFTStorage {
         uint256 amountOutMin_,
         bytes calldata lzArgs_
     ) external payable override onlyIfSmartFarmingManager {
-        address payable _refundAddress = account_; // Stack too deep
+        IPoolRegistry _poolRegistry = syntheticToken.poolRegistry();
 
-        address _mainnetOFT = getProxyOFTOf(lzMainnetChainId);
-        if (_mainnetOFT == address(0)) revert AddressIsNull();
+        bytes memory _payload = abi.encode(
+            msg.sender,
+            requestId_,
+            _poolRegistry.stargatePoolIdOf(tokenOut_),
+            account_,
+            amountOutMin_
+        );
 
-        bytes memory _payload;
-        bytes memory _adapterParams;
-        uint64 _leverageSwapTxGasLimit;
-        {
-            // Note: The amount isn't needed here because it's part of the message
-            _payload = abi.encode(
-                msg.sender,
-                requestId_,
-                syntheticToken.poolRegistry().stargatePoolIdOf(tokenOut_),
-                account_,
-                amountOutMin_
-            );
+        (uint256 _callbackTxNativeFee, uint64 _leverageSwapTxGasLimit) = abi.decode(lzArgs_, (uint256, uint64));
 
-            uint256 _callbackTxNativeFee;
-            (_callbackTxNativeFee, _leverageSwapTxGasLimit) = abi.decode(lzArgs_, (uint256, uint64));
-
-            _adapterParams = abi.encodePacked(
-                LZ_ADAPTER_PARAMS_VERSION,
-                uint256(syntheticToken.poolRegistry().lzBaseGasLimit() + _leverageSwapTxGasLimit),
-                _callbackTxNativeFee,
-                _mainnetOFT
-            );
-        }
-
-        this.sendAndCall{value: msg.value}({
-            _from: address(this),
-            _dstChainId: lzMainnetChainId,
-            _toAddress: abi.encodePacked(_mainnetOFT),
-            _amount: amountIn_,
-            _payload: _payload,
-            _dstGasForCall: _leverageSwapTxGasLimit,
-            _refundAddress: _refundAddress,
-            _zroPaymentAddress: address(0),
-            _adapterParams: _adapterParams
-        });
+        _poolRegistry.sendUsingLayerZero(
+            SmartFarming.LayerZeroParams({
+                dstChainId: _poolRegistry.lzMainnetChainId(),
+                amountIn: amountIn_,
+                payload: _payload,
+                refundAddress: account_,
+                dstGasForCall: _leverageSwapTxGasLimit,
+                dstNativeAmount: _callbackTxNativeFee,
+                nativeFee: msg.value
+            })
+        );
     }
 
     function onOFTReceived(
@@ -206,7 +116,7 @@ contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT, Layer2ProxyOFTStorage {
         bytes calldata payload_
     ) external override {
         if (msg.sender != address(this)) revert InvalidMsgSender();
-        if (srcChainId_ != lzMainnetChainId) revert InvalidSourceChain();
+        if (srcChainId_ != syntheticToken.poolRegistry().lzMainnetChainId()) revert InvalidSourceChain();
         address _from = from_.toAddress(0);
         if (_from == address(0) || _from != getProxyOFTOf(srcChainId_)) revert InvalidFromAddress();
 
@@ -228,7 +138,7 @@ contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT, Layer2ProxyOFTStorage {
         bytes memory payload_
     ) external override {
         if (msg.sender != address(syntheticToken.poolRegistry().stargateRouter())) revert InvalidMsgSender();
-        if (srcChainId_ != lzMainnetChainId) revert InvalidSourceChain();
+        if (srcChainId_ != syntheticToken.poolRegistry().lzMainnetChainId()) revert InvalidSourceChain();
         if (abi.decode(srcAddress_, (address)) != getProxyOFTOf(srcChainId_)) revert InvalidFromAddress();
 
         (address _smartFarmingManager, uint256 _layer2LeverageId) = abi.decode(payload_, (address, uint256));
@@ -236,13 +146,5 @@ contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT, Layer2ProxyOFTStorage {
         IERC20(token_).safeApprove(_smartFarmingManager, 0);
         IERC20(token_).safeApprove(_smartFarmingManager, amountLD_);
         ISmartFarmingManager(_smartFarmingManager).layer2LeverageCallback(_layer2LeverageId, amountLD_);
-    }
-
-    /**
-     * @dev Encapsulates chainId call for better tests fit
-     * Refs: https://github.com/NomicFoundation/hardhat/issues/3074
-     */
-    function _chainId() internal view virtual returns (uint256) {
-        return block.chainid;
     }
 }

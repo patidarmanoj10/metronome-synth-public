@@ -54,4 +54,6 @@ abstract contract PoolRegistryStorageV2 is PoolRegistryStorageV1 {
     uint64 public leverageSwapTxGasLimit;
     IStargateRouter public stargateRouter;
     mapping(address => uint256) public stargatePoolIdOf;
+    // TODO: Create setter for this
+    uint16 public lzMainnetChainId;
 }

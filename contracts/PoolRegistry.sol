@@ -82,7 +82,8 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV2 {
         flashRepayCallbackTxGasLimit = 750_000;
         flashRepaySwapTxGasLimit = 500_000;
         leverageCallbackTxGasLimit = 750_000;
-        leverageSwapTxGasLimit = 600_000;
+        leverageSwapTxGasLimit = 650_000;
+        lzMainnetChainId = 101;
     }
 
     /**
@@ -139,9 +140,7 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV2 {
     /**
      * @notice Update flash repay callback tx gas limit
      */
-    function updateFlashRepayCallbackTxGasLimit(
-        uint64 newFlashRepayCallbackTxGasLimit_
-    ) external override onlyGovernor {
+    function updateFlashRepayCallbackTxGasLimit(uint64 newFlashRepayCallbackTxGasLimit_) external onlyGovernor {
         uint64 _currentFlashRepayCallbackTxGasLimit = flashRepayCallbackTxGasLimit;
         if (newFlashRepayCallbackTxGasLimit_ == _currentFlashRepayCallbackTxGasLimit) revert NewValueIsSameAsCurrent();
         emit FlashRepayCallbackTxGasLimitUpdated(
@@ -154,7 +153,7 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV2 {
     /**
      * @notice Update flash repay swap tx gas limit
      */
-    function updateFlashRepaySwapTxGasLimit(uint64 newFlashRepaySwapTxGasLimit_) external override onlyGovernor {
+    function updateFlashRepaySwapTxGasLimit(uint64 newFlashRepaySwapTxGasLimit_) external onlyGovernor {
         uint64 _currentFlashRepaySwapTxGasLimit = flashRepaySwapTxGasLimit;
         if (newFlashRepaySwapTxGasLimit_ == _currentFlashRepaySwapTxGasLimit) revert NewValueIsSameAsCurrent();
         emit FlashRepaySwapTxGasLimitUpdated(_currentFlashRepaySwapTxGasLimit, newFlashRepaySwapTxGasLimit_);
@@ -164,7 +163,7 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV2 {
     /**
      * @notice Update leverage callback tx gas limit
      */
-    function updateLeverageCallbackTxGasLimit(uint64 newLeverageCallbackTxGasLimit_) external override onlyGovernor {
+    function updateLeverageCallbackTxGasLimit(uint64 newLeverageCallbackTxGasLimit_) external onlyGovernor {
         uint64 _currentLeverageCallbackTxGasLimit = leverageCallbackTxGasLimit;
         if (newLeverageCallbackTxGasLimit_ == _currentLeverageCallbackTxGasLimit) revert NewValueIsSameAsCurrent();
         emit LeverageCallbackTxGasLimitUpdated(_currentLeverageCallbackTxGasLimit, newLeverageCallbackTxGasLimit_);
@@ -174,7 +173,7 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV2 {
     /**
      * @notice Update leverage swap tx gas limit
      */
-    function updateLeverageSwapTxGasLimit(uint64 newLeverageSwapTxGasLimit_) external override onlyGovernor {
+    function updateLeverageSwapTxGasLimit(uint64 newLeverageSwapTxGasLimit_) external onlyGovernor {
         uint64 _currentSwapTxGasLimit = leverageSwapTxGasLimit;
         if (newLeverageSwapTxGasLimit_ == _currentSwapTxGasLimit) revert NewValueIsSameAsCurrent();
         emit LeverageSwapTxGasLimitUpdated(_currentSwapTxGasLimit, newLeverageSwapTxGasLimit_);
@@ -184,7 +183,7 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV2 {
     /**
      * @notice Update Lz base gas limit
      */
-    function updateLzBaseGasLimit(uint256 newLzBaseGasLimit_) external override onlyGovernor {
+    function updateLzBaseGasLimit(uint256 newLzBaseGasLimit_) external onlyGovernor {
         uint256 _currentBaseGasLimit = lzBaseGasLimit;
         if (newLzBaseGasLimit_ == _currentBaseGasLimit) revert NewValueIsSameAsCurrent();
         emit LzBaseGasLimitUpdated(_currentBaseGasLimit, newLzBaseGasLimit_);
@@ -194,7 +193,7 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV2 {
     /**
      * @notice Update master oracle contract
      */
-    function updateMasterOracle(IMasterOracle newMasterOracle_) external override onlyGovernor {
+    function updateMasterOracle(IMasterOracle newMasterOracle_) external onlyGovernor {
         if (address(newMasterOracle_) == address(0)) revert OracleIsNull();
         IMasterOracle _currentMasterOracle = masterOracle;
         if (newMasterOracle_ == _currentMasterOracle) revert NewValueIsSameAsCurrent();
@@ -205,7 +204,7 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV2 {
     /**
      * @notice Update native token gateway
      */
-    function updateNativeTokenGateway(address newGateway_) external override onlyGovernor {
+    function updateNativeTokenGateway(address newGateway_) external onlyGovernor {
         if (address(newGateway_) == address(0)) revert NativeTokenGatewayIsNull();
         address _currentGateway = nativeTokenGateway;
         if (newGateway_ == _currentGateway) revert NewValueIsSameAsCurrent();
@@ -217,7 +216,7 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV2 {
      * @notice Update Stargate pool id of token.
      * @dev Use LZ ids (https://stargateprotocol.gitbook.io/stargate/developers/pool-ids)
      */
-    function updateStargatePoolIdOf(address token_, uint256 newPoolId_) external override onlyGovernor {
+    function updateStargatePoolIdOf(address token_, uint256 newPoolId_) external onlyGovernor {
         uint256 _currentPoolId = stargatePoolIdOf[token_];
         if (newPoolId_ == _currentPoolId) revert NewValueIsSameAsCurrent();
         emit StargatePoolIdUpdated(token_, _currentPoolId, newPoolId_);
@@ -227,7 +226,7 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV2 {
     /**
      * @notice Update Stargate slippage
      */
-    function updateStargateSlippage(uint256 newStargateSlippage_) external override onlyGovernor {
+    function updateStargateSlippage(uint256 newStargateSlippage_) external onlyGovernor {
         uint256 _currentStargateSlippage = stargateSlippage;
         if (newStargateSlippage_ == _currentStargateSlippage) revert NewValueIsSameAsCurrent();
         emit StargateSlippageUpdated(_currentStargateSlippage, newStargateSlippage_);
@@ -237,7 +236,7 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV2 {
     /**
      * @notice Update StargateRouter
      */
-    function updateStargateRouter(IStargateRouter newStargateRouter_) external override onlyGovernor {
+    function updateStargateRouter(IStargateRouter newStargateRouter_) external onlyGovernor {
         IStargateRouter _currentStargateRouter = stargateRouter;
         if (newStargateRouter_ == _currentStargateRouter) revert NewValueIsSameAsCurrent();
         emit StargateRouterUpdated(_currentStargateRouter, newStargateRouter_);
@@ -247,7 +246,7 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV2 {
     /**
      * @notice Update Swapper contract
      */
-    function updateSwapper(ISwapper newSwapper_) external override onlyGovernor {
+    function updateSwapper(ISwapper newSwapper_) external onlyGovernor {
         if (address(newSwapper_) == address(0)) revert AddressIsNull();
         ISwapper _currentSwapper = swapper;
         if (newSwapper_ == _currentSwapper) revert NewValueIsSameAsCurrent();
