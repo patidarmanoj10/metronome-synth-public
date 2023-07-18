@@ -2,7 +2,6 @@
 
 pragma solidity 0.8.9;
 
-import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import "./ProxyOFT.sol";
 import "./storage/Layer1ProxyOFTStorage.sol";
 import "./interfaces/external/IStargatePool.sol";
@@ -10,21 +9,10 @@ import "./interfaces/external/IStargateFactory.sol";
 
 // TODO: Comment functions
 contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
-    using SafeERC20 for IERC20;
-    using SafeERC20 for ISyntheticToken;
     using BytesLib for bytes;
-    using SmartFarming for IPoolRegistry;
 
     function initialize(address _lzEndpoint, ISyntheticToken syntheticToken_) public initializer {
         __ProxyOFT_init(_lzEndpoint, syntheticToken_);
-    }
-
-    function getLeverageSwapAndCallbackLzArgs(uint16 dstChainId_) external view returns (bytes memory lzArgs_) {
-        return syntheticToken.poolRegistry().getLeverageSwapAndCallbackLzArgs(dstChainId_);
-    }
-
-    function getFlashRepaySwapAndCallbackLzArgs(uint16 dstChainId_) external view returns (bytes memory lzArgs_) {
-        return syntheticToken.poolRegistry().getFlashRepaySwapAndCallbackLzArgs(dstChainId_);
     }
 
     function onOFTReceived(
@@ -44,7 +32,6 @@ contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
         address _smartFarmingManager;
         uint256 _requestId;
         address _underlying;
-        uint256 _amountOut;
         address _account;
         {
             uint256 _amountOutMin;
@@ -58,7 +45,8 @@ contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
                 IStargateFactory(_poolRegistry.stargateRouter().factory()).getPool(_underlyingPoolId)
             ).token();
 
-            _amountOut = _swap({
+            amount_ = _swap({
+                poolRegistry_: _poolRegistry,
                 requestId_: _requestId,
                 tokenIn_: address(syntheticToken),
                 tokenOut_: _underlying,
@@ -69,16 +57,15 @@ contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
 
         // 2. Transfer underlying to L2 using Stargate
         uint16 _dstChainId = srcChainId_;
-        // Note: The amount  isn't needed here because it's part of the message
-        bytes memory _payload = abi.encode(_smartFarmingManager, _requestId); // Stack too deep
 
-        _poolRegistry.swapUsingStargate(
-            SmartFarming.StargateParams({
-                tokenIn: _underlying,
+        sendUsingStargate(
+            _poolRegistry,
+            _underlying,
+            LayerZeroParams({
                 dstChainId: _dstChainId,
-                amountIn: _amountOut,
-                nativeFee: _poolRegistry.quoteLeverageCallbackNativeFee(_dstChainId),
-                payload: _payload,
+                amountIn: amount_,
+                nativeFee: _poolRegistry.quoter().quoteLeverageCallbackNativeFee(_dstChainId),
+                payload: abi.encode(_smartFarmingManager, _requestId),
                 refundAddress: _account,
                 dstGasForCall: _poolRegistry.leverageCallbackTxGasLimit(),
                 dstNativeAmount: 0
@@ -100,47 +87,39 @@ contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
         if (abi.decode(srcAddress_, (address)) != getProxyOFTOf(srcChainId_)) revert InvalidFromAddress();
 
         // 1. Swap underlying from L2 for synthetic token
-        address _smartFarmingManager;
-        uint256 _requestId;
-        uint256 _amountOut;
-        address _account;
-        {
-            uint256 _amountOutMin;
+        (address _smartFarmingManager, uint256 _requestId, address _account, uint256 _amountOutMin) = abi.decode(
+            payload_,
+            (address, uint256, address, uint256)
+        );
 
-            (_smartFarmingManager, _requestId, _account, _amountOutMin) = abi.decode(
-                payload_,
-                (address, uint256, address, uint256)
-            );
+        amount_ = _swap({
+            poolRegistry_: _poolRegistry,
+            requestId_: _requestId,
+            tokenIn_: token_,
+            tokenOut_: address(syntheticToken),
+            amountIn_: amount_,
+            amountOutMin_: _amountOutMin
+        });
 
-            _amountOut = _swap({
-                requestId_: _requestId,
-                tokenIn_: token_,
-                tokenOut_: address(syntheticToken),
-                amountIn_: amount_,
-                amountOutMin_: _amountOutMin
-            });
-        }
+        // 2. Transfer synthetic token to L2 using LayerZero
+        uint16 _dstChainId = srcChainId_;
 
-        {
-            // 2. Transfer synthetic token to L2 using LayerZero
-            uint16 _dstChainId = srcChainId_;
-            uint64 _flashRepayCallbackTxGasLimit = _poolRegistry.flashRepayCallbackTxGasLimit();
-
-            _poolRegistry.sendUsingLayerZero(
-                SmartFarming.LayerZeroParams({
-                    dstChainId: _dstChainId,
-                    amountIn: _amountOut,
-                    payload: abi.encode(_smartFarmingManager, _requestId),
-                    refundAddress: _account,
-                    dstGasForCall: _flashRepayCallbackTxGasLimit,
-                    dstNativeAmount: 0,
-                    nativeFee: _poolRegistry.quoteFlashRepayCallbackNativeFee(_dstChainId)
-                })
-            );
-        }
+        sendUsingLayerZero(
+            _poolRegistry,
+            LayerZeroParams({
+                dstChainId: _dstChainId,
+                amountIn: amount_,
+                payload: abi.encode(_smartFarmingManager, _requestId),
+                refundAddress: _account,
+                dstGasForCall: _poolRegistry.flashRepayCallbackTxGasLimit(),
+                dstNativeAmount: 0,
+                nativeFee: _poolRegistry.quoter().quoteFlashRepayCallbackNativeFee(_dstChainId)
+            })
+        );
     }
 
     function _swap(
+        IPoolRegistry poolRegistry_,
         uint256 requestId_,
         address tokenIn_,
         address tokenOut_,
@@ -154,15 +133,19 @@ contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
             amountOutMin_ = _storedAmountOutMin;
         }
 
-        _amountOut = syntheticToken.poolRegistry().swap({
+        // 2. Perform swap
+        ISwapper _swapper = poolRegistry_.swapper();
+        _safeApprove(IERC20(tokenIn_), address(_swapper), amountIn_);
+        _amountOut = _swapper.swapExactInput({
             tokenIn_: tokenIn_,
             tokenOut_: tokenOut_,
             amountIn_: amountIn_,
-            amountOutMin_: amountOutMin_
+            amountOutMin_: amountOutMin_,
+            receiver_: address(this)
         });
 
         // 3. Clear stored slippage if swap succeeds
-        _storedAmountOutMin = 0;
+        swapAmountOutMin[requestId_] = 0;
     }
 
     /**
@@ -192,8 +175,7 @@ contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
 
         // Note: `retryOFTReceived` has checks to ensure that the args are consistent
         bytes memory _from = abi.encodePacked(getProxyOFTOf(srcChainId_));
-        address _to = address(this);
-        this.retryOFTReceived(srcChainId_, srcAddress_, nonce_, _from, _to, amount_, payload_);
+        this.retryOFTReceived(srcChainId_, srcAddress_, nonce_, _from, address(this), amount_, payload_);
     }
 
     /**

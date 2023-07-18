@@ -26,13 +26,10 @@ contract Layer2FlashRepay_Test is CrossChains_Test {
         vm.recordLogs();
 
         vm.selectFork(mainnetFork);
-        bytes memory _lzArgs = proxyOFT_msUSD_mainnet.getFlashRepaySwapAndCallbackLzArgs(LZ_OP_CHAIN_ID);
+        bytes memory _lzArgs = poolRegistry_mainnet.quoter().getFlashRepaySwapAndCallbackLzArgs(LZ_OP_CHAIN_ID);
 
         vm.selectFork(optimismFork);
-        uint256 fee = smartFarmingManager_optimism.quoteLayer2FlashRepayNativeFee({
-            syntheticToken_: msUSD_optimism,
-            lzArgs_: _lzArgs
-        });
+        uint256 fee = poolRegistry_optimism.quoter().quoteLayer2FlashRepayNativeFee(proxyOFT_msUSD_optimism, _lzArgs);
         deal(alice, fee);
 
         vm.startPrank(alice);

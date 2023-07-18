@@ -440,36 +440,6 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
     }
 
     /**
-     * @notice Estimate native fee needed to pay for the L2 flash repay
-     * @dev Because the quotation may vary from block to block,
-     *      it's recommended to send higher fee than the `_nativeFee` when calling
-     *      because it'll avoid transaction to fail and any extra fee will be refunded to caller.
-     * @param syntheticToken_ The synthetic token to repay
-     * @param lzArgs_ The LayerZero params (See: `Layer1ProxyOFT.getFlashRepaySwapAndCallbackLzArgs()`)
-     */
-    function quoteLayer2FlashRepayNativeFee(
-        ISyntheticToken syntheticToken_,
-        bytes calldata lzArgs_
-    ) external view returns (uint256 _nativeFee) {
-        return ILayer2ProxyOFT(address(syntheticToken_.proxyOFT())).quoteTriggerFlashRepaySwapNativeFee(lzArgs_);
-    }
-
-    /**
-     * @notice Estimate native fee needed to pay for the L2 leverage
-     * @dev Because the quotation may vary from block to block,
-     *      it's recommended to send higher fee than the `_nativeFee` when calling
-     *      because it'll avoid transaction to fail and any extra fee will be refunded to caller.
-     * @param syntheticToken_ The synthetic token to repay
-     * @param lzArgs_ The LayerZero params (See: `Layer1ProxyOFT.getLeverageSwapAndCallbackLzArgs()`)
-     */
-    function quoteLayer2LeverageNativeFee(
-        ISyntheticToken syntheticToken_,
-        bytes calldata lzArgs_
-    ) external view returns (uint256 _nativeFee) {
-        return ILayer2ProxyOFT(address(syntheticToken_.proxyOFT())).quoteTriggerLeverageSwapNativeFee(lzArgs_);
-    }
-
-    /**
      * @notice Retry L2 flash repay callback
      * @dev This function is used to recover from callback failures due to slippage
      * @param id_ The id of the request

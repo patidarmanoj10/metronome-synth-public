@@ -21,6 +21,7 @@ import {ERC20Mock} from "../../contracts/mock/ERC20Mock.sol";
 import {MasterOracleMock} from "../../contracts/mock/MasterOracleMock.sol";
 import {SwapperMock, ISwapper} from "../../contracts/mock/SwapperMock.sol";
 import {IESMET} from "../../contracts/interfaces/external/IESMET.sol";
+import {Quoter, IQuoter} from "../../contracts/Quoter.sol";
 import {WadRayMath} from "../../contracts/lib/WadRayMath.sol";
 
 interface ILayerZeroEndpointExtended is ILayerZeroEndpoint {
@@ -83,6 +84,7 @@ abstract contract CrossChains_Test is Test {
     DepositToken msdUSDC_optimism;
     DepositToken msdVaUSDC_optimism;
     Layer2ProxyOFT proxyOFT_msUSD_optimism;
+    Quoter quoter_optimism;
 
     // Mainnet
     IERC20 usdc_mainnet = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
@@ -100,6 +102,7 @@ abstract contract CrossChains_Test is Test {
     DebtToken msUSDDebt_mainnet;
     DepositToken msdUSDC_mainnet;
     Layer1ProxyOFT proxyOFT_msUSD_mainnet;
+    Quoter quoter_mainnet;
 
     function setUp() public virtual {
         // TODO: Get from .env
@@ -127,12 +130,15 @@ abstract contract CrossChains_Test is Test {
         msdUSDC_optimism = new DepositToken();
         msdVaUSDC_optimism = new DepositToken();
         proxyOFT_msUSD_optimism = new Layer2ProxyOFT();
+        quoter_optimism = new Quoter();
         proxyOFT_msUSD_optimism.initialize(address(lzEndpoint_optimism), msUSD_optimism);
         poolRegistry_optimism.initialize({masterOracle_: masterOracle_optimism, feeCollector_: feeCollector});
+        poolRegistry_optimism.updateQuoter(quoter_optimism);
         feeProvider_optimism.initialize({poolRegistry_: poolRegistry_optimism, esMET_: IESMET(address(0))});
         pool_optimism.initialize(poolRegistry_optimism);
         smartFarmingManager_optimism.initialize(pool_optimism);
         treasury_optimism.initialize(pool_optimism);
+        quoter_optimism.initialize(poolRegistry_optimism);
 
         msdUSDC_optimism.initialize({
             underlying_: usdc_optimism,
@@ -203,12 +209,15 @@ abstract contract CrossChains_Test is Test {
         msUSDDebt_mainnet = new DebtToken();
         msdUSDC_mainnet = new DepositToken();
         proxyOFT_msUSD_mainnet = new Layer1ProxyOFT();
+        quoter_mainnet = new Quoter();
         proxyOFT_msUSD_mainnet.initialize(address(lzEndpoint_mainnet), msUSD_mainnet);
         poolRegistry_mainnet.initialize({masterOracle_: masterOracle_mainnet, feeCollector_: feeCollector});
+        poolRegistry_mainnet.updateQuoter(quoter_mainnet);
         feeProvider_mainnet.initialize({poolRegistry_: poolRegistry_mainnet, esMET_: IESMET(address(0))});
         pool_mainnet.initialize(poolRegistry_mainnet);
         treasury_mainnet.initialize(pool_mainnet);
         smartFarmingManager_mainnet.initialize(pool_mainnet);
+        quoter_mainnet.initialize(poolRegistry_mainnet);
 
         msdUSDC_mainnet.initialize({
             underlying_: usdc_mainnet,

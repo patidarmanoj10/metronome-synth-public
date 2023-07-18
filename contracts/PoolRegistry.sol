@@ -8,10 +8,10 @@ import "./storage/PoolRegistryStorage.sol";
 import "./interfaces/IPool.sol";
 import "./utils/Pauseable.sol";
 
+error AddressIsNull();
 error OracleIsNull();
 error FeeCollectorIsNull();
 error NativeTokenGatewayIsNull();
-error AddressIsNull();
 error AlreadyRegistered();
 error UnregisteredPool();
 error NewValueIsSameAsCurrent();
@@ -43,7 +43,7 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV2 {
     /// @notice Emitted when a pool is unregistered
     event PoolUnregistered(uint256 indexed id, address indexed pool);
 
-    /// @notice Emitted when stargateRouter is updated
+    /// @notice Emitted when Stargate router is updated
     event StargateRouterUpdated(IStargateRouter oldStargateRouter, IStargateRouter newStargateRouter);
 
     /// @notice Emitted when Stargate pool id is updated
@@ -52,8 +52,14 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV2 {
     /// @notice Emitted when Stargate slippage is updated
     event StargateSlippageUpdated(uint256 oldStargateSlippage, uint256 newStargateSlippage);
 
-    /// @notice Emitted when swapper contract is updated
+    /// @notice Emitted when Swapper contract is updated
     event SwapperUpdated(ISwapper oldSwapFee, ISwapper newSwapFee);
+
+    /// @notice Emitted when Quoter contract is updated
+    event QuoterUpdated(IQuoter oldQuoter, IQuoter newQuoter);
+
+    /// @notice Emitted when LZ mainnet chain id is updated
+    event LzMainnetChainIdUpdated(uint16 oldLzMainnetChainId, uint16 newLzMainnetChainId);
 
     event LeverageSwapTxGasLimitUpdated(uint64 currentLeverageSwapTxGasLimit, uint64 newLeverageSwapTxGasLimit);
     event LeverageCallbackTxGasLimitUpdated(
@@ -253,5 +259,27 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV2 {
 
         emit SwapperUpdated(_currentSwapper, newSwapper_);
         swapper = newSwapper_;
+    }
+
+    /**
+     * @notice Update Quoter contract
+     */
+    function updateQuoter(IQuoter newQuoter_) external onlyGovernor {
+        if (address(newQuoter_) == address(0)) revert AddressIsNull();
+        IQuoter _currentQuoter = quoter;
+        if (newQuoter_ == _currentQuoter) revert NewValueIsSameAsCurrent();
+
+        emit QuoterUpdated(_currentQuoter, newQuoter_);
+        quoter = newQuoter_;
+    }
+
+    /**
+     * @notice Update LZ mainnet chain id
+     */
+    function updateLzMainnetChainId(uint16 newLzMainnetChainId_) external onlyGovernor {
+        uint16 _currentLzMainnetChainId = lzMainnetChainId;
+        if (newLzMainnetChainId_ == _currentLzMainnetChainId) revert NewValueIsSameAsCurrent();
+        emit LzMainnetChainIdUpdated(_currentLzMainnetChainId, newLzMainnetChainId_);
+        lzMainnetChainId = newLzMainnetChainId_;
     }
 }

@@ -8,6 +8,7 @@ import "./IPauseable.sol";
 import "./IGovernable.sol";
 import "./ISyntheticToken.sol";
 import "./external/ISwapper.sol";
+import "./IQuoter.sol";
 
 interface IPoolRegistry is IPauseable, IGovernable {
     function feeCollector() external view returns (address);
@@ -49,4 +50,6 @@ interface IPoolRegistry is IPauseable, IGovernable {
     function swapper() external view returns (ISwapper);
 
     function lzMainnetChainId() external view returns (uint16);
+
+    function quoter() external view returns (IQuoter);
 }

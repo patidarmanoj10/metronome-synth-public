@@ -15,7 +15,7 @@ contract Layer2Leverage_Test is CrossChains_Test {
         uint256 depositAmountMin_
     ) private {
         vm.selectFork(mainnetFork);
-        bytes memory _lzArgs = proxyOFT_msUSD_mainnet.getLeverageSwapAndCallbackLzArgs(LZ_OP_CHAIN_ID);
+        bytes memory _lzArgs = poolRegistry_mainnet.quoter().getLeverageSwapAndCallbackLzArgs(LZ_OP_CHAIN_ID);
 
         _layer2Leverage({
             amountIn_: amountIn_,
@@ -36,8 +36,8 @@ contract Layer2Leverage_Test is CrossChains_Test {
         vm.recordLogs();
 
         vm.selectFork(optimismFork);
-        uint256 fee = smartFarmingManager_optimism.quoteLayer2LeverageNativeFee({
-            syntheticToken_: msUSD_optimism,
+        uint256 fee = poolRegistry_optimism.quoter().quoteLayer2LeverageNativeFee({
+            proxyOFT_: proxyOFT_msUSD_optimism,
             lzArgs_: layer1LzArgs_
         });
 
@@ -329,7 +329,7 @@ contract Layer2Leverage_Test is CrossChains_Test {
         // when
         //
         vm.selectFork(mainnetFork);
-        bytes memory _lzArgs = proxyOFT_msUSD_mainnet.getLeverageSwapAndCallbackLzArgs(LZ_OP_CHAIN_ID);
+        bytes memory _lzArgs = poolRegistry_mainnet.quoter().getLeverageSwapAndCallbackLzArgs(LZ_OP_CHAIN_ID);
 
         uint256 missingFee = 0.001e18;
 
