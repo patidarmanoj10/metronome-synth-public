@@ -11,7 +11,7 @@ import "../interfaces/external/IStargateBridge.sol";
 error AddressIsNull();
 
 /**
- * @title Layer zero quoter
+ * @title Smarting Farming utils lib
  */
 library SmartFarming {
     using BytesLib for bytes;
