@@ -6,7 +6,6 @@ import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import "./interfaces/ILayer2ProxyOFT.sol";
 import "./interfaces/ISmartFarmingManager.sol";
 import "./ProxyOFT.sol";
-import "./storage/Layer2ProxyOFTStorage.sol";
 import "./interfaces/IPool.sol";
 
 error InvalidSourceChain();
@@ -14,7 +13,7 @@ error InvalidSourceChain();
 /**
  * @title Layer2ProxyOFT contract
  */
-contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT, Layer2ProxyOFTStorage {
+contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT {
     using SafeERC20 for IERC20;
     using SafeERC20 for ISyntheticToken;
     using BytesLib for bytes;
