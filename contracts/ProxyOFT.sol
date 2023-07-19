@@ -28,7 +28,7 @@ abstract contract ProxyOFT is IStargateReceiver, ComposableOFTCoreUpgradeable, P
         uint256 nativeFee;
         bytes payload;
         address refundAddress;
-        uint64 dstGasForCall; // TODO: Rename to gasLimit?
+        uint64 dstGasForCall;
         uint256 dstNativeAmount;
     }
 
@@ -37,15 +37,14 @@ abstract contract ProxyOFT is IStargateReceiver, ComposableOFTCoreUpgradeable, P
         if (address(_lzEndpoint) == address(0)) revert AddressIsNull();
         __ComposableOFTCoreUpgradeable_init(_lzEndpoint);
 
-        // TODO: See https://github.com/autonomoussoftware/metronome-synth/pull/898#discussion_r1266954842
         syntheticToken = syntheticToken_;
     }
 
-    function circulatingSupply() public view virtual override returns (uint) {
+    function circulatingSupply() public view override returns (uint) {
         return syntheticToken.totalSupply();
     }
 
-    function token() public view virtual override returns (address) {
+    function token() public view override returns (address) {
         return address(syntheticToken);
     }
 
@@ -54,7 +53,7 @@ abstract contract ProxyOFT is IStargateReceiver, ComposableOFTCoreUpgradeable, P
         uint16 /*dstChainId_*/,
         bytes memory /*toAddress_*/,
         uint _amount
-    ) internal virtual override returns (uint256 _sent) {
+    ) internal override returns (uint256 _sent) {
         if (from_ != _msgSender()) revert SenderIsNotTheOwner();
         syntheticToken.burn(from_, _amount);
         return _amount;
@@ -64,7 +63,7 @@ abstract contract ProxyOFT is IStargateReceiver, ComposableOFTCoreUpgradeable, P
         uint16 /*srcChainId_*/,
         address toAddress_,
         uint _amount
-    ) internal virtual override returns (uint256 _received) {
+    ) internal override returns (uint256 _received) {
         syntheticToken.mint(toAddress_, _amount);
         return _amount;
     }

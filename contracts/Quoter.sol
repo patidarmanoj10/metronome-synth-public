@@ -173,14 +173,4 @@ contract Quoter is Initializable, QuoterStorageV1 {
             _adapterParams: _adapterParams
         });
     }
-
-    /**
-     * @notice Update pool registry contract
-     */
-    function updatePoolRegistry(IPoolRegistry newPoolRegistry_) external onlyGovernor {
-        IPoolRegistry _currentPoolRegistry = poolRegistry;
-        if (newPoolRegistry_ == _currentPoolRegistry) revert NewValueIsSameAsCurrent();
-        emit PoolRegistryUpdated(_currentPoolRegistry, newPoolRegistry_);
-        poolRegistry = newPoolRegistry_;
-    }
 }
