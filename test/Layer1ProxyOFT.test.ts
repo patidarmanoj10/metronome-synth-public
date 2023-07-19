@@ -15,7 +15,7 @@ const {parseUnits} = ethers.utils
 const LZ_CHAIN_ID_OPTIMISM = 111
 const SG_USDC_POOL_ID = 1
 
-describe('SmartFarmingManager', function () {
+describe('Layer1ProxyOFT', function () {
   let deployer: SignerWithAddress
   let alice: SignerWithAddress
   let bob: SignerWithAddress
@@ -66,6 +66,7 @@ describe('SmartFarmingManager', function () {
     poolRegistry.swapper.returns(swapper.address)
     poolRegistry.quoter.returns(quoter.address)
     poolRegistry.flashRepayCallbackTxGasLimit.returns(500000)
+    poolRegistry.isBridgingActive.returns(true)
     usdc.approve.returns(true)
     msUSD.approve.returns(true)
     msUSD.poolRegistry.returns(poolRegistry.address)

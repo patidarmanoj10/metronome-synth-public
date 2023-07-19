@@ -52,4 +52,6 @@ interface IPoolRegistry is IPauseable, IGovernable {
     function lzMainnetChainId() external view returns (uint16);
 
     function quoter() external view returns (IQuoter);
+
+    function isBridgingActive() external view returns (bool);
 }

@@ -280,4 +280,19 @@ describe('PoolRegistry', function () {
       expect(await poolRegistry.swapper()).eq(after)
     })
   })
+
+  describe('toggleBridgingIsActive', function () {
+    it('should toggle isBridgingActive flag', async function () {
+      const before = await poolRegistry.isBridgingActive()
+      const after = !before
+      const tx = poolRegistry.toggleBridgingIsActive()
+      await expect(tx).emit(poolRegistry, 'BridgingIsActiveUpdated').withArgs(after)
+      expect(await poolRegistry.isBridgingActive()).eq(after)
+    })
+
+    it('should revert if not governor', async function () {
+      const tx = poolRegistry.connect(alice).toggleBridgingIsActive()
+      await expect(tx).revertedWithCustomError(poolRegistry, 'SenderIsNotGovernor')
+    })
+  })
 })

@@ -43,12 +43,12 @@ contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT {
         bytes calldata lzArgs_
     ) external payable override {
         _revertIfNotSmartFarmingManager();
+        IPoolRegistry _poolRegistry = syntheticToken.poolRegistry();
+        _revertIfBridgingIsPaused(_poolRegistry);
 
         bytes memory _payload = abi.encode(msg.sender, requestId_, account_, amountOutMin_);
 
         (uint256 callbackTxNativeFee_, uint64 flashRepaySwapTxGasLimit_) = abi.decode(lzArgs_, (uint256, uint64));
-
-        IPoolRegistry _poolRegistry = syntheticToken.poolRegistry();
 
         sendUsingStargate(
             _poolRegistry,
@@ -67,6 +67,7 @@ contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT {
 
     /***
      * @notice Send message using lz and trigger swap at destination chain.
+     * @dev Not checking if bridging is pause because `_debitFrom()` will do it
      * @param requestId_ Request id.
      * @param account_ User address and also refund address
      * @param tokenOut_ tokenOut

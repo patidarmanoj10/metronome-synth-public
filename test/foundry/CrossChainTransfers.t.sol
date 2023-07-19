@@ -103,6 +103,42 @@ contract CrossChainTransfers_Test is CrossChains_Test {
         assertEq(msUSD_mainnet.balanceOf(alice), 0);
     }
 
+    function test_revertWhenBridgingIsPaused_transferSynthFromLayer1ToLayer2() external {
+        uint256 amount = 200e18;
+        uint16 dstChainId = LZ_OP_CHAIN_ID;
+
+        //
+        // given
+        //
+        _issueOnMainnet(amount);
+
+        //
+        // when
+        //
+        poolRegistry_mainnet.toggleBridgingIsActive();
+
+        //
+        // then
+        //
+        bytes memory toAddress = abi.encodePacked(alice);
+        bytes memory adapterParams = abi.encodePacked(LZ_ADAPTER_PARAMS_VERSION, SIMPLE_TRANSFER_GAS);
+        (uint256 fee, ) = proxyOFT_msUSD_mainnet.estimateSendFee(dstChainId, toAddress, amount, false, adapterParams);
+
+        deal(alice, fee);
+        vm.startPrank(alice);
+        vm.expectRevert(BridgingIsPaused.selector);
+        proxyOFT_msUSD_mainnet.sendFrom{value: fee}(
+            alice,
+            dstChainId,
+            toAddress,
+            amount,
+            payable(alice),
+            address(0),
+            adapterParams
+        );
+        vm.stopPrank();
+    }
+
     function test_transferSynthFromLayer2ToLayer1() external {
         vm.recordLogs();
         uint256 amount = 200e18;
@@ -166,5 +202,41 @@ contract CrossChainTransfers_Test is CrossChains_Test {
         assertEq(msUSD_mainnet.balanceOf(alice), amount);
         vm.selectFork(optimismFork);
         assertEq(msUSD_optimism.balanceOf(alice), 0);
+    }
+
+    function test_revertWhenBridgingIsPaused_transferSynthFromLayer2ToLayer1() external {
+        uint256 amount = 200e18;
+        uint16 dstChainId = LZ_MAINNET_CHAIN_ID;
+
+        //
+        // given
+        //
+        _issueOnOptimism(amount);
+
+        //
+        // when
+        //
+        poolRegistry_optimism.toggleBridgingIsActive();
+
+        //
+        // then
+        //
+        bytes memory toAddress = abi.encodePacked(alice);
+        bytes memory adapterParams = abi.encodePacked(LZ_ADAPTER_PARAMS_VERSION, SIMPLE_TRANSFER_GAS);
+        (uint256 fee, ) = proxyOFT_msUSD_optimism.estimateSendFee(dstChainId, toAddress, amount, false, adapterParams);
+
+        deal(alice, fee);
+        vm.startPrank(alice);
+        vm.expectRevert(BridgingIsPaused.selector);
+        proxyOFT_msUSD_optimism.sendFrom{value: fee}(
+            alice,
+            dstChainId,
+            toAddress,
+            amount,
+            payable(alice),
+            address(0),
+            adapterParams
+        );
+        vm.stopPrank();
     }
 }

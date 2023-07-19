@@ -76,6 +76,7 @@ describe('Layer2ProxyOFT', function () {
     poolRegistry.stargateSlippage.returns(0)
     poolRegistry.lzMainnetChainId.returns(LZ_MAINNET_ID)
     poolRegistry.lzBaseGasLimit.returns(LZ_BASE_GAS_LIMIT)
+    poolRegistry.isBridgingActive.returns(true)
     pool.smartFarmingManager.returns(smartFarmingManager.address)
     msUSD.proxyOFT.returns(layer2ProxyOFT.address)
 
@@ -113,6 +114,19 @@ describe('Layer2ProxyOFT', function () {
 
       // then
       await expect(tx).revertedWithCustomError(layer2ProxyOFT, 'AddressIsNull')
+    })
+
+    it('should revert if bridging is paused', async function () {
+      // given
+      poolRegistry.isBridgingActive.returns(false)
+
+      // when
+      const tx = layer2ProxyOFT
+        .connect(smartFarmingManager.wallet)
+        .triggerFlashRepaySwap(1, alice.address, dai.address, parseEther('10'), 0, '0x')
+
+      // then
+      await expect(tx).revertedWithCustomError(layer2ProxyOFT, 'BridgingIsPaused')
     })
 
     it('should trigger SG transfer and call', async function () {
@@ -190,6 +204,19 @@ describe('Layer2ProxyOFT', function () {
 
       // then
       await expect(tx).revertedWithCustomError(layer2ProxyOFT, 'AddressIsNull')
+    })
+
+    it('should revert if bridging is paused', async function () {
+      // given
+      poolRegistry.isBridgingActive.returns(false)
+
+      // when
+      const tx = layer2ProxyOFT
+        .connect(smartFarmingManager.wallet)
+        .triggerLeverageSwap(1, alice.address, dai.address, parseEther('10'), 0, EMPTY_LZ_ARGS)
+
+      // then
+      await expect(tx).revertedWithCustomError(layer2ProxyOFT, 'BridgingIsPaused')
     })
 
     it('should call LZ transfer and call', async function () {

@@ -14,7 +14,8 @@ import {Treasury} from "../../contracts/Treasury.sol";
 import {DepositToken} from "../../contracts/DepositToken.sol";
 import {DebtToken} from "../../contracts/DebtToken.sol";
 import {SyntheticToken} from "../../contracts/SyntheticToken.sol";
-import {Layer1ProxyOFT, IProxyOFT} from "../../contracts/Layer1ProxyOFT.sol";
+import {IProxyOFT, BridgingIsPaused} from "../../contracts/ProxyOFT.sol";
+import {Layer1ProxyOFT} from "../../contracts/Layer1ProxyOFT.sol";
 import {Layer2ProxyOFT} from "../../contracts/Layer2ProxyOFT.sol";
 import {FeeProvider, FeeProviderStorageV1, TiersNotOrderedByMin} from "../../contracts/FeeProvider.sol";
 import {ERC20Mock} from "../../contracts/mock/ERC20Mock.sol";
@@ -134,6 +135,7 @@ abstract contract CrossChains_Test is Test {
         proxyOFT_msUSD_optimism.initialize(address(lzEndpoint_optimism), msUSD_optimism);
         poolRegistry_optimism.initialize({masterOracle_: masterOracle_optimism, feeCollector_: feeCollector});
         poolRegistry_optimism.updateQuoter(quoter_optimism);
+        poolRegistry_optimism.toggleBridgingIsActive();
         feeProvider_optimism.initialize({poolRegistry_: poolRegistry_optimism, esMET_: IESMET(address(0))});
         pool_optimism.initialize(poolRegistry_optimism);
         smartFarmingManager_optimism.initialize(pool_optimism);
@@ -213,6 +215,7 @@ abstract contract CrossChains_Test is Test {
         proxyOFT_msUSD_mainnet.initialize(address(lzEndpoint_mainnet), msUSD_mainnet);
         poolRegistry_mainnet.initialize({masterOracle_: masterOracle_mainnet, feeCollector_: feeCollector});
         poolRegistry_mainnet.updateQuoter(quoter_mainnet);
+        poolRegistry_mainnet.toggleBridgingIsActive();
         feeProvider_mainnet.initialize({poolRegistry_: poolRegistry_mainnet, esMET_: IESMET(address(0))});
         pool_mainnet.initialize(poolRegistry_mainnet);
         treasury_mainnet.initialize(pool_mainnet);

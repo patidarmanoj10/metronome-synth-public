@@ -132,6 +132,7 @@ describe('SmartFarmingManager', function () {
     poolRegistryMock.isPoolRegistered.returns((address: string) => address == pool.address)
     poolRegistryMock.masterOracle.returns(masterOracle.address)
     poolRegistryMock.feeCollector.returns(feeCollector.address)
+    poolRegistryMock.isBridgingActive.returns(true)
     poolRegistryMock.swapper.returns(swapper.address)
 
     const esMET = await smock.fake('IESMET')

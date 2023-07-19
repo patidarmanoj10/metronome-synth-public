@@ -49,12 +49,14 @@ abstract contract PoolRegistryStorageV2 is PoolRegistryStorageV1 {
 
     uint256 public stargateSlippage;
 
+    // TODO: Would make sense having just one var for callback gas and another for swap gas?
     uint64 public flashRepayCallbackTxGasLimit;
     uint64 public flashRepaySwapTxGasLimit;
     uint64 public leverageCallbackTxGasLimit;
     uint64 public leverageSwapTxGasLimit;
 
     uint16 public lzMainnetChainId;
+    bool public isBridgingActive;
     IStargateRouter public stargateRouter;
 
     IQuoter public quoter;

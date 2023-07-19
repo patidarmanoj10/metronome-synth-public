@@ -61,16 +61,20 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV2 {
     /// @notice Emitted when LZ mainnet chain id is updated
     event LzMainnetChainIdUpdated(uint16 oldLzMainnetChainId, uint16 newLzMainnetChainId);
 
-    event LeverageSwapTxGasLimitUpdated(uint64 currentLeverageSwapTxGasLimit, uint64 newLeverageSwapTxGasLimit);
-    event LeverageCallbackTxGasLimitUpdated(
-        uint64 currentLeverageCallbackTxGasLimit,
-        uint64 newLeverageCallbackTxGasLimit
-    );
-    event FlashRepaySwapTxGasLimitUpdated(uint64 currentFlashRepaySwapTxGasLimit, uint64 newFlashRepaySwapTxGasLimit);
-    event FlashRepayCallbackTxGasLimitUpdated(
-        uint64 currentFlashRepayCallbackTxGasLimit,
-        uint64 newFlashRepayCallbackTxGasLimit
-    );
+    /// @notice Emitted when synth->underlying L1 swap gas limit is updated
+    event LeverageSwapTxGasLimitUpdated(uint64 oldSwapTxGasLimit, uint64 newSwapTxGasLimit);
+
+    /// @notice Emitted when leverage callback gas limit is updated
+    event LeverageCallbackTxGasLimitUpdated(uint64 oldCallbackTxGasLimit, uint64 newCallbackTxGasLimit);
+
+    /// @notice Emitted when underlying->synth L1 swap gas limit is updated
+    event FlashRepaySwapTxGasLimitUpdated(uint64 oldSwapTxGasLimit, uint64 newSwapTxGasLimit);
+
+    /// @notice Emitted when flash repay callback gas limit is updated
+    event FlashRepayCallbackTxGasLimitUpdated(uint64 oldCallbackTxGasLimit, uint64 newCallbackTxGasLimit);
+
+    /// @notice Emitted when flag for pause bridge transfer is toggled
+    event BridgingIsActiveUpdated(bool newIsActive);
 
     function initialize(IMasterOracle masterOracle_, address feeCollector_) external initializer {
         if (address(masterOracle_) == address(0)) revert OracleIsNull();
@@ -281,5 +285,14 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV2 {
         if (newLzMainnetChainId_ == _currentLzMainnetChainId) revert NewValueIsSameAsCurrent();
         emit LzMainnetChainIdUpdated(_currentLzMainnetChainId, newLzMainnetChainId_);
         lzMainnetChainId = newLzMainnetChainId_;
+    }
+
+    /**
+     * @notice Pause/Unpause bridge transfers
+     */
+    function toggleBridgingIsActive() external onlyGovernor {
+        bool _newIsBridgingActive = !isBridgingActive;
+        emit BridgingIsActiveUpdated(_newIsBridgingActive);
+        isBridgingActive = _newIsBridgingActive;
     }
 }

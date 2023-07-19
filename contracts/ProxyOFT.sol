@@ -12,6 +12,7 @@ import "./Quoter.sol";
 error SenderIsNotTheOwner();
 error InvalidFromAddress();
 error InvalidMsgSender();
+error BridgingIsPaused();
 
 /**
  * @title The ProxyOFT abstract contract
@@ -30,6 +31,10 @@ abstract contract ProxyOFT is IStargateReceiver, ComposableOFTCoreUpgradeable, P
         address refundAddress;
         uint64 dstGasForCall;
         uint256 dstNativeAmount;
+    }
+
+    function _revertIfBridgingIsPaused(IPoolRegistry poolRegistry_) internal view {
+        if (!poolRegistry_.isBridgingActive()) revert BridgingIsPaused();
     }
 
     function __ProxyOFT_init(address _lzEndpoint, ISyntheticToken syntheticToken_) internal onlyInitializing {
@@ -55,6 +60,7 @@ abstract contract ProxyOFT is IStargateReceiver, ComposableOFTCoreUpgradeable, P
         uint _amount
     ) internal override returns (uint256 _sent) {
         if (from_ != _msgSender()) revert SenderIsNotTheOwner();
+        _revertIfBridgingIsPaused(syntheticToken.poolRegistry());
         syntheticToken.burn(from_, _amount);
         return _amount;
     }
