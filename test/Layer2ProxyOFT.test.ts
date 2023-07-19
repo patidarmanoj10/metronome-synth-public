@@ -23,8 +23,10 @@ const SG_POOL_ID = 1
 
 const LZ_BASE_GAS_LIMIT = BigNumber.from('200000')
 const PT_SEND_AND_CALL = BigNumber.from(1)
-const MAX_ADDRESS = '0x' + 'f'.repeat(20 * 2)
+
 const MAX_BYTES32 = '0x' + 'f'.repeat(32 * 2)
+const MAX_BYTES8 = '0x' + 'f'.repeat(8 * 2)
+const EMPTY_LZ_ARGS = ethers.utils.defaultAbiCoder.encode(['uint256', 'uint64'], [MAX_BYTES32, MAX_BYTES8])
 
 describe('Layer2ProxyOFT', function () {
   let alice: SignerWithAddress
@@ -69,76 +71,16 @@ describe('Layer2ProxyOFT', function () {
     smartFarmingManager.pool.returns(pool.address)
     msUSD.poolRegistry.returns(poolRegistry.address)
     poolRegistry.isPoolRegistered.returns(([poolAddress]: string) => poolAddress === pool.address)
-    poolRegistry.stargateRouter(stargateRouter.address)
+    poolRegistry.stargateRouter.returns(stargateRouter.address)
     poolRegistry.stargatePoolIdOf.returns(SG_POOL_ID)
-    poolRegistry.stargateSlippage(0)
+    poolRegistry.stargateSlippage.returns(0)
+    poolRegistry.lzMainnetChainId.returns(LZ_MAINNET_ID)
+    poolRegistry.lzBaseGasLimit.returns(LZ_BASE_GAS_LIMIT)
     pool.smartFarmingManager.returns(smartFarmingManager.address)
     msUSD.proxyOFT.returns(layer2ProxyOFT.address)
 
     await setBalance(smartFarmingManager.address, parseEther('10'))
     await setBalance(stargateRouter.address, parseEther('10'))
-  })
-
-  it('quoteTriggerFlashRepaySwapNativeFee', async function () {
-    // given
-    const swapTxGasLimit_ = BigNumber.from('500000')
-    const callbackTxNativeFee = parseEther('0.1')
-    const lzArgs = ethers.utils.defaultAbiCoder.encode(['uint256', 'uint64'], [callbackTxNativeFee, swapTxGasLimit_])
-    const transferAndCallFullPayload = ethers.utils.solidityPack(
-      ['address', 'bytes32', 'address', 'uint256'],
-      [MAX_ADDRESS, MAX_BYTES32, MAX_ADDRESS, MAX_BYTES32]
-    )
-
-    // when
-    await layer2ProxyOFT.quoteTriggerFlashRepaySwapNativeFee(lzArgs)
-
-    // then
-    expect(stargateRouter.quoteLayerZeroFee).calledWith(
-      LZ_MAINNET_ID,
-      1,
-      MAINNET_OFT_ADDRESS,
-      transferAndCallFullPayload,
-      {
-        dstGasForCall: swapTxGasLimit_,
-        dstNativeAmount: callbackTxNativeFee,
-        dstNativeAddr: MAINNET_OFT_ADDRESS,
-      }
-    )
-  })
-
-  it('quoteTriggerLeverageSwapNativeFee', async function () {
-    // given
-
-    const swapTxGasLimit_ = BigNumber.from('500000')
-    const callbackTxNativeFee = parseEther('0.1')
-    const lzArgs = ethers.utils.defaultAbiCoder.encode(['uint256', 'uint64'], [callbackTxNativeFee, swapTxGasLimit_])
-    const transferAndCallFullPayload = ethers.utils.defaultAbiCoder.encode(
-      ['address', 'bytes32', 'uint256', 'address', 'uint256'],
-      [MAX_ADDRESS, MAX_BYTES32, MAX_BYTES32, MAX_ADDRESS, MAX_BYTES32]
-    )
-
-    // when
-    await layer2ProxyOFT.quoteTriggerLeverageSwapNativeFee(lzArgs)
-
-    // then
-    const adapterParams = ethers.utils.solidityPack(
-      ['uint16', 'uint256', 'uint256', 'address'],
-      [LZ_ADAPTER_PARAMS_VERSION, LZ_BASE_GAS_LIMIT.add(swapTxGasLimit_), callbackTxNativeFee, MAINNET_OFT_ADDRESS]
-    )
-
-    const lzPayload = ethers.utils.defaultAbiCoder.encode(
-      ['uint16', 'bytes', 'bytes', 'uint256', 'bytes', 'uint64'],
-      [
-        PT_SEND_AND_CALL,
-        ethers.utils.solidityPack(['address'], [layer2ProxyOFT.address]), // msg.sender
-        ethers.utils.solidityPack(['address'], [MAINNET_OFT_ADDRESS]), // toAddress
-        ethers.constants.MaxUint256,
-        transferAndCallFullPayload,
-        swapTxGasLimit_,
-      ]
-    )
-
-    expect(lzEndpoint.estimateFees).calledWith(LZ_MAINNET_ID, layer2ProxyOFT.address, lzPayload, false, adapterParams)
   })
 
   describe('triggerFlashRepaySwap', function () {
@@ -167,7 +109,7 @@ describe('Layer2ProxyOFT', function () {
       // when
       const tx = layer2ProxyOFT
         .connect(smartFarmingManager.wallet)
-        .triggerFlashRepaySwap(1, alice.address, dai.address, parseEther('10'), 0, '0x')
+        .triggerFlashRepaySwap(1, alice.address, dai.address, parseEther('10'), 0, EMPTY_LZ_ARGS)
 
       // then
       await expect(tx).revertedWithCustomError(layer2ProxyOFT, 'AddressIsNull')
@@ -184,7 +126,7 @@ describe('Layer2ProxyOFT', function () {
       const callbackTxNativeFee = parseEther('0.1')
       const lzArgs = ethers.utils.defaultAbiCoder.encode(['uint256', 'uint64'], [callbackTxNativeFee, swapTxGasLimit_])
 
-      const fee = await layer2ProxyOFT.quoteTriggerLeverageSwapNativeFee(lzArgs)
+      const fee = parseEther('0.25')
 
       // when
       await layer2ProxyOFT
@@ -244,7 +186,7 @@ describe('Layer2ProxyOFT', function () {
       // when
       const tx = layer2ProxyOFT
         .connect(smartFarmingManager.wallet)
-        .triggerLeverageSwap(1, alice.address, dai.address, parseEther('10'), 0, '0x')
+        .triggerLeverageSwap(1, alice.address, dai.address, parseEther('10'), 0, EMPTY_LZ_ARGS)
 
       // then
       await expect(tx).revertedWithCustomError(layer2ProxyOFT, 'AddressIsNull')
@@ -261,7 +203,7 @@ describe('Layer2ProxyOFT', function () {
       const callbackTxNativeFee = parseEther('0.1')
       const lzArgs = ethers.utils.defaultAbiCoder.encode(['uint256', 'uint64'], [callbackTxNativeFee, swapTxGasLimit_])
 
-      const fee = await layer2ProxyOFT.quoteTriggerLeverageSwapNativeFee(lzArgs)
+      const fee = parseEther('0.25')
 
       // when
       await layer2ProxyOFT

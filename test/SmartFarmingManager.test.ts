@@ -17,7 +17,6 @@ import {
   SwapperMock,
   VPoolMock,
   FeeProvider,
-  SmartFarmingManager,
   SmartFarmingManagerMock,
 } from '../typechain'
 import {FakeContract, smock} from '@defi-wonderland/smock'

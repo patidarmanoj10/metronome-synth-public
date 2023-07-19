@@ -1,10 +1,12 @@
 import {parseEther} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
-import {loadFixture, setBalance} from '@nomicfoundation/hardhat-network-helpers'
+import {loadFixture, setBalance, setCode} from '@nomicfoundation/hardhat-network-helpers'
 import chai, {expect} from 'chai'
 import {ethers} from 'hardhat'
-import {Layer1ProxyOFT} from '../typechain'
+import {IStargateRouter, Layer1ProxyOFT, Layer2ProxyOFT, PoolRegistry, Quoter, SmartFarmingManager} from '../typechain'
 import {FakeContract, smock} from '@defi-wonderland/smock'
+import {ISwapper} from '../typechain/contracts/interfaces/external'
+import {ILayerZeroEndpoint} from '../typechain/contracts/dependencies/@layerzerolabs/solidity-examples/interfaces'
 
 chai.use(smock.matchers)
 
@@ -21,51 +23,54 @@ describe('SmartFarmingManager', function () {
   let layer1ProxyOFTSigner: SignerWithAddress
   let usdc: FakeContract
   let msUSD: FakeContract
-  let poolRegistry: FakeContract
-  let swapper: FakeContract
-  let smartFarmingManager: FakeContract
-  let layer2ProxyOFT: FakeContract
-  let lzEndpoint: FakeContract
-  let stargateRouter: FakeContract
+  let poolRegistry: FakeContract<PoolRegistry>
+  let swapper: FakeContract<ISwapper>
+  let smartFarmingManager: FakeContract<SmartFarmingManager>
+  let layer2ProxyOFT: FakeContract<Layer2ProxyOFT>
+  let lzEndpoint: FakeContract<ILayerZeroEndpoint>
+  let stargateRouter: FakeContract<IStargateRouter>
+  let quoter: FakeContract<Quoter>
 
   async function fixture() {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[deployer, alice, bob] = await ethers.getSigners()
 
-    const layer1ProxyOFTFactory = await ethers.getContractFactory('Layer1ProxyOFT', deployer)
-
-    layer1ProxyOFT = await layer1ProxyOFTFactory.deploy()
-
     usdc = await smock.fake('ERC20')
     msUSD = await smock.fake('SyntheticToken')
     poolRegistry = await smock.fake('PoolRegistry')
     swapper = await smock.fake('ISwapper')
-
     smartFarmingManager = await smock.fake('SmartFarmingManager')
     layer2ProxyOFT = await smock.fake('Layer2ProxyOFT')
+    quoter = await smock.fake('Quoter')
     lzEndpoint = await smock.fake('ILayerZeroEndpoint')
     stargateRouter = await smock.fake('IStargateRouter')
+    await setBalance(stargateRouter.address, parseEther('10'))
     const stargateFactory = await smock.fake('IStargateFactory')
     const stargatePool = await smock.fake('IStargatePool')
+    await setCode(stargatePool.address, '0x01')
 
-    await layer1ProxyOFT.initialize(lzEndpoint.address, msUSD.address)
-    await layer1ProxyOFT.setTrustedRemoteAddress(LZ_CHAIN_ID_OPTIMISM, layer2ProxyOFT.address)
-    await poolRegistry.updateStargateRouter(stargateRouter.address)
-    await poolRegistry.updatePoolIdOf(usdc.address, SG_USDC_POOL_ID)
-    await layer1ProxyOFT.setUseCustomAdapterParams(true)
-
+    const layer1ProxyOFTFactory = await ethers.getContractFactory('Layer1ProxyOFT', deployer)
+    layer1ProxyOFT = await layer1ProxyOFTFactory.deploy()
     layer1ProxyOFTSigner = await ethers.getImpersonatedSigner(layer1ProxyOFT.address)
     await setBalance(layer1ProxyOFTSigner.address, parseEther('10'))
+    await layer1ProxyOFT.initialize(lzEndpoint.address, msUSD.address)
+    await layer1ProxyOFT.setTrustedRemoteAddress(LZ_CHAIN_ID_OPTIMISM, layer2ProxyOFT.address)
+    await layer1ProxyOFT.setUseCustomAdapterParams(true)
 
+    stargateRouter.factory.returns(stargateFactory.address)
+    stargateFactory.getPool.returns(stargatePool.address)
+    stargatePool.token.returns(usdc.address)
+
+    poolRegistry.stargateRouter.returns(stargateRouter.address)
+    poolRegistry.stargatePoolIdOf.returns(SG_USDC_POOL_ID)
+    poolRegistry.swapper.returns(swapper.address)
+    poolRegistry.quoter.returns(quoter.address)
+    poolRegistry.flashRepayCallbackTxGasLimit.returns(500000)
     usdc.approve.returns(true)
     msUSD.approve.returns(true)
     msUSD.poolRegistry.returns(poolRegistry.address)
-    poolRegistry.swapper.returns(swapper.address)
-
-    stargateRouter.factory.returns(stargateFactory.address)
-    await setBalance(stargateRouter.address, parseEther('10'))
-    stargateFactory.getPool.returns(stargatePool.address)
-    stargatePool.token.returns(usdc.address)
+    quoter.quoteLeverageCallbackNativeFee.returns(parseEther('0.25'))
+    quoter.quoteFlashRepayCallbackNativeFee.returns(parseEther('0.25'))
   }
 
   beforeEach(async function () {

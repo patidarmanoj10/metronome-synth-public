@@ -63,16 +63,16 @@ contract Quoter is Initializable, QuoterStorageV1 {
             _lzTxParams: IStargateRouter.lzTxObj({
                 dstGasForCall: _poolRegistry.leverageCallbackTxGasLimit(),
                 dstNativeAmount: 0,
-                dstNativeAddr: "0x"
+                dstNativeAddr: ""
             })
         });
     }
 
     function quoteFlashRepayCallbackNativeFee(uint16 dstChainId_) public view returns (uint256 _callbackTxNativeFee) {
         IPoolRegistry _poolRegistry = poolRegistry;
-        uint64 _flashRepayCallbackTxGasLimit = _poolRegistry.flashRepayCallbackTxGasLimit();
+        uint64 _callbackTxGasLimit = _poolRegistry.flashRepayCallbackTxGasLimit();
 
-        bytes memory _payload = abi.encode(
+        bytes memory _lzPayload = abi.encode(
             PT_SEND_AND_CALL,
             abi.encodePacked(msg.sender),
             abi.encodePacked(address(type(uint160).max)),
@@ -81,7 +81,7 @@ contract Quoter is Initializable, QuoterStorageV1 {
                 address(type(uint160).max), // smart farming manager
                 bytes32(type(uint256).max) // requestId
             ),
-            _flashRepayCallbackTxGasLimit
+            _callbackTxGasLimit
         );
 
         ILayerZeroEndpoint _lzEndpoint = IStargateBridge(_poolRegistry.stargateRouter().bridge()).layerZeroEndpoint();
@@ -89,11 +89,11 @@ contract Quoter is Initializable, QuoterStorageV1 {
         (_callbackTxNativeFee, ) = _lzEndpoint.estimateFees(
             dstChainId_,
             address(this),
-            _payload,
+            _lzPayload,
             false,
             abi.encodePacked(
                 LZ_ADAPTER_PARAMS_VERSION,
-                uint256(_poolRegistry.lzBaseGasLimit() + _flashRepayCallbackTxGasLimit),
+                uint256(_poolRegistry.lzBaseGasLimit() + _callbackTxGasLimit),
                 uint256(0),
                 address(0)
             )
@@ -163,7 +163,7 @@ contract Quoter is Initializable, QuoterStorageV1 {
             );
         }
 
-        (uint256 _swapTxNativeFee, ) = proxyOFT_.estimateSendAndCallFee({
+        (_nativeFee, ) = proxyOFT_.estimateSendAndCallFee({
             _dstChainId: _lzMainnetChainId,
             _toAddress: abi.encodePacked(_mainnetOFT),
             _amount: type(uint256).max,
@@ -172,8 +172,6 @@ contract Quoter is Initializable, QuoterStorageV1 {
             _useZro: false,
             _adapterParams: _adapterParams
         });
-
-        return _swapTxNativeFee;
     }
 
     /**
