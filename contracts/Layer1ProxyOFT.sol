@@ -7,7 +7,9 @@ import "./storage/Layer1ProxyOFTStorage.sol";
 import "./interfaces/external/IStargatePool.sol";
 import "./interfaces/external/IStargateFactory.sol";
 
-// TODO: Comment functions
+/**
+ * @title Layer1ProxyOFT contract
+ */
 contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
     using BytesLib for bytes;
 
@@ -15,6 +17,14 @@ contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
         __ProxyOFT_init(_lzEndpoint, syntheticToken_);
     }
 
+    /**
+     * @notice Called by the OFT contract when synthetic tokens are received from source chain.
+     * @dev These tokens are swapped to other token and sent to source chain using Stargate
+     * @param srcChainId_ The chain id of the source chain.
+     * @param from_ The address of the account who calls the sendAndCall() on the source chain.
+     * @param amount_ The amount of tokens to transfer.
+     * @param payload_ Additional data with no specified format.
+     */
     function onOFTReceived(
         uint16 srcChainId_,
         bytes calldata /*srcAddress_*/,
@@ -73,6 +83,15 @@ contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
         );
     }
 
+    /**
+     * @notice Receive token & payload from Stargate.
+     * @dev After swapped to Synthetic token , it trigger flashRepayCallback to source chain
+     * @param srcChainId_ The chain id of the source chain.
+     * @param srcAddress_ The remote Bridge address
+     * @param token_ The token contract on the local chain
+     * @param amount_ The qty of local _token contract tokens
+     * @param payload_ The bytes containing the _tokenOut, _deadline, _amountOutMin, _toAddr
+     */
     function sgReceive(
         uint16 srcChainId_,
         bytes memory srcAddress_,

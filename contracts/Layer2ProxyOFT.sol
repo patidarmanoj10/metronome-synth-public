@@ -25,6 +25,15 @@ contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT {
         if (msg.sender != address(_pool.smartFarmingManager())) revert InvalidMsgSender();
     }
 
+    /***
+     * @notice Trigger swap using Stargate for flashRepay.
+     * @param requestId_ Request id.
+     * @param account_ User address and also refund address
+     * @param tokenIn_ tokenIn
+     * @param amountIn_ amountIn_
+     * @param amountOutMin_ amountOutMin_
+     * @param lzArgs_ LayerZero method argument
+     */
     function triggerFlashRepaySwap(
         uint256 requestId_,
         address payable account_,
@@ -56,6 +65,15 @@ contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT {
         );
     }
 
+    /***
+     * @notice Send message using lz and trigger swap at destination chain.
+     * @param requestId_ Request id.
+     * @param account_ User address and also refund address
+     * @param tokenOut_ tokenOut
+     * @param amountIn_ amountIn
+     * @param amountOutMin_ amountOutMin
+     * @param lzArgs_ LayerZero method argument
+     */
     function triggerLeverageSwap(
         uint256 requestId_,
         address payable account_,
@@ -92,6 +110,14 @@ contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT {
         );
     }
 
+    /**
+     * @notice Called by the OFT contract when tokens are received from source chain.
+     * @dev Token received are swapped to another token
+     * @param srcChainId_ The chain id of the source chain.
+     * @param from_ The address of the account who calls the sendAndCall() on the source chain.
+     * @param amount_ The amount of tokens to transfer.
+     * @param payload_ Additional data with no specified format.
+     */
     function onOFTReceived(
         uint16 srcChainId_,
         bytes calldata /*srcAddress_*/,
@@ -113,6 +139,14 @@ contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT {
         ISmartFarmingManager(_smartFarmingManager).layer2FlashRepayCallback(_layer2FlashRepayId, amount_);
     }
 
+    /**
+     * @notice Receive token and payload from Stargate
+     * @param srcChainId_ The chain id of the source chain.
+     * @param srcAddress_ The remote Bridge address
+     * @param token_ The token contract on the local chain
+     * @param amountLD_ The qty of local _token contract tokens
+     * @param payload_ The bytes containing the _tokenOut, _deadline, _amountOutMin, _toAddr
+     */
     function sgReceive(
         uint16 srcChainId_,
         bytes memory srcAddress_,
