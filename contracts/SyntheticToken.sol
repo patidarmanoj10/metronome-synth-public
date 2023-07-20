@@ -120,6 +120,19 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
     }
 
     /**
+     * @notice Get bridged circulating supply
+     * @dev The supply is calculated using `_totalBridgedIn - _totalBridgedOut` or `0` if it's negative
+     */
+    function bridgedCirculatingSupply() public view returns (uint256 _supply) {
+        uint256 _totalBridgedIn = totalBridgedIn;
+        uint256 _totalBridgedOut = totalBridgedOut;
+
+        if (_totalBridgedIn > _totalBridgedOut) {
+            return _totalBridgedIn - _totalBridgedOut;
+        }
+    }
+
+    /**
      * @notice Burn synthetic token
      * @param from_ The account to burn from
      * @param amount_ The amount to burn
@@ -257,11 +270,7 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
         if (_isMsgSenderProxyOFT()) {
             totalBridgedIn += amount_;
 
-            uint256 _totalBridgedIn = totalBridgedIn;
-            uint256 _totalBridgedOut = totalBridgedOut;
-
-            if (_totalBridgedIn > _totalBridgedOut && _totalBridgedIn - _totalBridgedOut > maxBridgingBalance)
-                revert SurpassMaxBridgingBalance();
+            if (bridgedCirculatingSupply() > maxBridgedCirculatingSupply) revert SurpassMaxBridgingBalance();
         }
 
         totalSupply += amount_;
@@ -312,10 +321,10 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
      * @param newMaxBridgingBalance_  New value for Max Bridging Balance
      */
     function updateMaxBridgingBalance(uint256 newMaxBridgingBalance_) external override onlyGovernor {
-        uint256 _currentMaxBridgingBalance = maxBridgingBalance;
+        uint256 _currentMaxBridgingBalance = maxBridgedCirculatingSupply;
         if (newMaxBridgingBalance_ == _currentMaxBridgingBalance) revert NewValueIsSameAsCurrent();
         emit MaxBridgingBalanceUpdated(_currentMaxBridgingBalance, newMaxBridgingBalance_);
-        maxBridgingBalance = newMaxBridgingBalance_;
+        maxBridgedCirculatingSupply = newMaxBridgingBalance_;
     }
 
     /**

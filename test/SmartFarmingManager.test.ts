@@ -125,7 +125,6 @@ describe('SmartFarmingManager', function () {
     const smartFarmingManagerFactory = await ethers.getContractFactory('SmartFarmingManagerMock', deployer)
     smartFarmingManager = await smartFarmingManagerFactory.deploy()
     await smartFarmingManager.deployed()
-    await smartFarmingManager.updateChainId(2)
 
     poolRegistryMock = await smock.fake('PoolRegistry')
     poolRegistryMock.governor.returns(deployer.address)
@@ -438,6 +437,8 @@ describe('SmartFarmingManager', function () {
       await smartFarmingManager
         .connect(alice)
         .leverage(vaDAI.address, msdVaDAI.address, msUSD.address, amountIn, leverage, 0)
+
+      await smartFarmingManager.updateChainId(2)
     })
 
     it('should revert if deposit token is invalid', async function () {
@@ -745,6 +746,8 @@ describe('SmartFarmingManager', function () {
         .connect(alice)
         .leverage(vaDAI.address, msdVaDAI.address, msUSD.address, amountIn, leverage, 0)
 
+      await smartFarmingManager.updateChainId(2)
+
       // Start flash repay
       const fee = parseEther('0.1')
       const syntheticToken = msUSD.address
@@ -866,6 +869,8 @@ describe('SmartFarmingManager', function () {
 
   describe('layer2Leverage', function () {
     beforeEach(async function () {
+      await smartFarmingManager.updateChainId(2)
+
       await dai.connect(alice).approve(smartFarmingManager.address, ethers.constants.MaxUint256)
     })
 
@@ -1080,6 +1085,8 @@ describe('SmartFarmingManager', function () {
     const id = 1
 
     beforeEach(async function () {
+      await smartFarmingManager.updateChainId(2)
+
       await dai.connect(alice).approve(smartFarmingManager.address, ethers.constants.MaxUint256)
 
       const fee = parseEther('0.1')
@@ -1224,6 +1231,8 @@ describe('SmartFarmingManager', function () {
         .connect(alice)
         .leverage(vaDAI.address, msdVaDAI.address, msUSD.address, amountIn, leverage, 0)
 
+      await smartFarmingManager.updateChainId(2)
+
       // Start flash repay
       const fee = parseEther('0.1')
       const syntheticToken = msUSD.address
@@ -1336,6 +1345,8 @@ describe('SmartFarmingManager', function () {
     const nonce = 123
 
     beforeEach(async function () {
+      await smartFarmingManager.updateChainId(2)
+
       await dai.connect(alice).approve(smartFarmingManager.address, ethers.constants.MaxUint256)
 
       const fee = parseEther('0.1')
