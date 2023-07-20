@@ -123,7 +123,6 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         onlyIfSyntheticTokenExists(syntheticToken_)
         returns (uint256 _withdrawn, uint256 _repaid)
     {
-        if (_chainId() != 1) revert NotAvailableOnThisChain();
         if (withdrawAmount_ == 0) revert AmountIsZero();
         if (withdrawAmount_ > depositToken_.balanceOf(msg.sender)) revert AmountIsTooHigh();
         IPool _pool = pool;
@@ -172,7 +171,6 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         onlyIfSyntheticTokenExists(syntheticToken_)
         returns (uint256 _deposited, uint256 _issued)
     {
-        if (_chainId() != 1) revert NotAvailableOnThisChain();
         if (amountIn_ == 0) revert AmountIsZero();
         if (leverage_ <= 1e18) revert LeverageTooLow();
         if (leverage_ > uint256(1e18).wadDiv(1e18 - depositToken_.collateralFactor())) revert LeverageTooHigh();
@@ -221,7 +219,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
      * @param underlyingAmountMin_ The minimum amount out for collateral->underlying swap (slippage check)
      * @param layer1SwapAmountOutMin_ The minimum amount out for underlying->msAsset swap (slippage check)
      * @param repayAmountMin_ The minimum amount to repay (slippage check)
-     * @param layer1LzArgs_ The LayerZero params (See: `Layer1ProxyOFT.getFlashRepaySwapAndCallbackLzArgs()`)
+     * @param layer1LzArgs_ The LayerZero params (See: `Quoter.getFlashRepaySwapAndCallbackLzArgs()`)
      */
     function layer2FlashRepay(
         ISyntheticToken syntheticToken_,
@@ -280,7 +278,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
             finished: false
         });
 
-        // 4. trigger L1  swap
+        // 4. trigger L1 swap
         ILayer2ProxyOFT(_proxyOFT).triggerFlashRepaySwap{value: msg.value}({
             id_: _id,
             account_: payable(msg.sender),
@@ -335,7 +333,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
      * @param leverage_ The leverage X param (e.g. 1.5e18 for 1.5X)
      * @param layer1SwapAmountOutMin_ The minimum amount out for msAsset->underlying swap (slippage check)
      * @param depositAmountMin_ The minimum amount to deposit (slippage check)
-     * @param layer1LzArgs_ The LayerZero params (See: `Layer1ProxyOFT.getLeverageSwapAndCallbackLzArgs()`)
+     * @param layer1LzArgs_ The LayerZero params (See: `Quoter.getLeverageSwapAndCallbackLzArgs()`)
      */
     function layer2Leverage(
         IERC20 underlying_,
