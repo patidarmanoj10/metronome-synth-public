@@ -2,14 +2,22 @@
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import chai, {expect} from 'chai'
 import {ethers} from 'hardhat'
-import {IStargateBridge, Layer2ProxyOFT, Pool, PoolRegistry, Quoter, SmartFarmingManager} from '../typechain'
+import {
+  IStargateBridge,
+  Layer2ProxyOFT,
+  Pool,
+  PoolRegistry,
+  QuoterMock,
+  SmartFarmingManager,
+  IStargateRouter,
+  SyntheticToken,
+  ILayerZeroEndpoint,
+  ERC20Mock,
+} from '../typechain'
 import {FakeContract, smock} from '@defi-wonderland/smock'
-import {SyntheticToken} from '../typechain/contracts'
-import {ERC20Mock} from '../typechain/contracts/mock'
 import {parseEther} from '../helpers'
 import {setBalance} from '@nomicfoundation/hardhat-network-helpers'
 import {BigNumber} from 'ethers'
-import {ILayerZeroEndpoint} from '../typechain/contracts/dependencies/@layerzerolabs/solidity-examples/interfaces'
 
 chai.use(smock.matchers)
 
@@ -29,7 +37,7 @@ const MAX_BYTES32 = '0x' + 'f'.repeat(32 * 2)
 describe('Quoter', function () {
   let owner: SignerWithAddress
   let lzEndpoint: FakeContract<ILayerZeroEndpoint>
-  let stargateRouter: FakeContract //<IStargateRouter>
+  let stargateRouter: FakeContract<IStargateRouter>
   let stargateBridge: FakeContract<IStargateBridge>
   let msUSD: FakeContract<SyntheticToken>
   let dai: ERC20Mock
@@ -37,7 +45,7 @@ describe('Quoter', function () {
   let smartFarmingManager: FakeContract<SmartFarmingManager>
   let pool: FakeContract<Pool>
   let poolRegistry: FakeContract<PoolRegistry>
-  let quoter: Quoter
+  let quoter: QuoterMock
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
@@ -69,7 +77,7 @@ describe('Quoter', function () {
     )
     expect(await layer2ProxyOFT.getProxyOFTOf(LZ_MAINNET_ID)).eq(MAINNET_OFT_ADDRESS)
 
-    const quoterFactory = await ethers.getContractFactory('Quoter')
+    const quoterFactory = await ethers.getContractFactory('QuoterMock')
     quoter = await quoterFactory.deploy()
     await quoter.deployed()
     await quoter.initialize(poolRegistry.address)
@@ -96,149 +104,241 @@ describe('Quoter', function () {
     await setBalance(stargateRouter.address, parseEther('10'))
   })
 
-  it('getLeverageSwapAndCallbackLzArgs', async function () {
-    // given
-    const leverageCallbackNativeFee = parseEther('0.25')
-    stargateRouter.quoteLayerZeroFee.returns([leverageCallbackNativeFee, 0])
-    const leverageSwapTxGasLimit = await poolRegistry.leverageSwapTxGasLimit()
+  describe('L1 calls', function () {
+    describe('getLeverageSwapAndCallbackLzArgs', function () {
+      it('should revert if called from L2', async function () {
+        // when
+        await quoter.updateChainId(2)
+        const tx = quoter.getLeverageSwapAndCallbackLzArgs(LZ_MAINNET_ID)
 
-    // when
-    const lzArgs = await quoter.getLeverageSwapAndCallbackLzArgs(LZ_OPTIMISM_ID)
+        // then
+        await expect(tx).revertedWithCustomError(quoter, 'NotAvailableOnThisChain')
+      })
 
-    // then
-    expect(lzArgs).eq(
-      ethers.utils.defaultAbiCoder.encode(['uint256', 'uint256'], [leverageCallbackNativeFee, leverageSwapTxGasLimit])
-    )
+      it('should get lzArgs', async function () {
+        // given
+        const leverageCallbackNativeFee = parseEther('0.25')
+        stargateRouter.quoteLayerZeroFee.returns([leverageCallbackNativeFee, 0])
+        const leverageSwapTxGasLimit = await poolRegistry.leverageSwapTxGasLimit()
+
+        // when
+        const lzArgs = await quoter.getLeverageSwapAndCallbackLzArgs(LZ_OPTIMISM_ID)
+
+        // then
+        expect(lzArgs).eq(
+          ethers.utils.defaultAbiCoder.encode(
+            ['uint256', 'uint256'],
+            [leverageCallbackNativeFee, leverageSwapTxGasLimit]
+          )
+        )
+      })
+    })
+
+    describe('getFlashRepaySwapAndCallbackLzArgs', function () {
+      it('should revert if called from L2', async function () {
+        // when
+        await quoter.updateChainId(2)
+        const tx = quoter.getFlashRepaySwapAndCallbackLzArgs(LZ_MAINNET_ID)
+
+        // then
+        await expect(tx).revertedWithCustomError(quoter, 'NotAvailableOnThisChain')
+      })
+
+      it('should get lzArgs', async function () {
+        // given
+        const flashRepayCallbackNativeFee = parseEther('0.25')
+        lzEndpoint.estimateFees.returns([flashRepayCallbackNativeFee, 0])
+        const flashRepaySwapTxGasLimit = await poolRegistry.flashRepaySwapTxGasLimit()
+
+        // when
+        const lzArgs = await quoter.getFlashRepaySwapAndCallbackLzArgs(LZ_OPTIMISM_ID)
+
+        // then
+        expect(lzArgs).eq(
+          ethers.utils.defaultAbiCoder.encode(
+            ['uint256', 'uint256'],
+            [flashRepayCallbackNativeFee, flashRepaySwapTxGasLimit]
+          )
+        )
+      })
+    })
+
+    describe('quoteLeverageCallbackNativeFee', function () {
+      it('should revert if called from L2', async function () {
+        // when
+        await quoter.updateChainId(2)
+        const tx = quoter.quoteLeverageCallbackNativeFee(LZ_MAINNET_ID)
+
+        // then
+        await expect(tx).revertedWithCustomError(quoter, 'NotAvailableOnThisChain')
+      })
+
+      it('should quote', async function () {
+        // given
+        const dstGasForCall = await poolRegistry.leverageCallbackTxGasLimit()
+        const transferAndCallFullPayload = ethers.utils.solidityPack(['address', 'bytes32'], [MAX_ADDRESS, MAX_BYTES32])
+
+        // when
+        await quoter.quoteLeverageCallbackNativeFee(LZ_OPTIMISM_ID)
+
+        // then
+        expect(stargateRouter.quoteLayerZeroFee).calledWith(
+          LZ_OPTIMISM_ID,
+          SG_TYPE_SWAP_REMOTE,
+          ethers.utils.solidityPack(['address'], [MAX_ADDRESS]),
+          transferAndCallFullPayload,
+          {
+            dstGasForCall,
+            dstNativeAmount: BigNumber.from(0),
+            dstNativeAddr: '0x',
+          }
+        )
+      })
+    })
+
+    describe('quoteFlashRepayCallbackNativeFee', function () {
+      it('should revert if called from L2', async function () {
+        // when
+        await quoter.updateChainId(2)
+        const tx = quoter.quoteFlashRepayCallbackNativeFee(LZ_MAINNET_ID)
+
+        // then
+        await expect(tx).revertedWithCustomError(quoter, 'NotAvailableOnThisChain')
+      })
+
+      it('should quote', async function () {
+        // given
+        const callbackTxGasLimit = await poolRegistry.flashRepayCallbackTxGasLimit()
+
+        // when
+        await quoter.quoteFlashRepayCallbackNativeFee(LZ_OPTIMISM_ID)
+
+        // then
+        const payload = ethers.utils.defaultAbiCoder.encode(['address', 'bytes32'], [MAX_ADDRESS, MAX_BYTES32])
+
+        const adapterParams = ethers.utils.solidityPack(
+          ['uint16', 'uint256', 'uint256', 'address'],
+          [LZ_ADAPTER_PARAMS_VERSION, LZ_BASE_GAS_LIMIT.add(callbackTxGasLimit), 0, ethers.constants.AddressZero]
+        )
+
+        const lzPayload = ethers.utils.defaultAbiCoder.encode(
+          ['uint16', 'bytes', 'bytes', 'uint256', 'bytes', 'uint64'],
+          [
+            PT_SEND_AND_CALL,
+            ethers.utils.solidityPack(['address'], [owner.address]), // msg.sender
+            MAX_ADDRESS,
+            ethers.constants.MaxUint256,
+            payload,
+            callbackTxGasLimit,
+          ]
+        )
+
+        expect(lzEndpoint.estimateFees).calledWith(LZ_OPTIMISM_ID, quoter.address, lzPayload, false, adapterParams)
+      })
+    })
   })
 
-  it('getFlashRepaySwapAndCallbackLzArgs', async function () {
-    // given
-    const flashRepayCallbackNativeFee = parseEther('0.25')
-    lzEndpoint.estimateFees.returns([flashRepayCallbackNativeFee, 0])
-    const flashRepaySwapTxGasLimit = await poolRegistry.flashRepaySwapTxGasLimit()
+  describe('L2 calls', function () {
+    beforeEach(async function () {
+      await quoter.updateChainId(2)
+    })
 
-    // when
-    const lzArgs = await quoter.getFlashRepaySwapAndCallbackLzArgs(LZ_OPTIMISM_ID)
+    describe('quoteLayer2FlashRepayNativeFee', function () {
+      it('should revert if called from L1', async function () {
+        // given
+        await quoter.updateChainId(1)
+        const lzArgs = ethers.utils.defaultAbiCoder.encode(['uint256', 'uint64'], [0, 0])
 
-    // then
-    expect(lzArgs).eq(
-      ethers.utils.defaultAbiCoder.encode(
-        ['uint256', 'uint256'],
-        [flashRepayCallbackNativeFee, flashRepaySwapTxGasLimit]
-      )
-    )
-  })
+        // when
+        const tx = quoter.quoteLayer2FlashRepayNativeFee(layer2ProxyOFT.address, lzArgs)
 
-  it('quoteLeverageCallbackNativeFee', async function () {
-    // given
-    const dstGasForCall = await poolRegistry.leverageCallbackTxGasLimit()
-    const transferAndCallFullPayload = ethers.utils.solidityPack(['address', 'bytes32'], [MAX_ADDRESS, MAX_BYTES32])
+        // then
+        await expect(tx).revertedWithCustomError(quoter, 'NotAvailableOnThisChain')
+      })
 
-    // when
-    await quoter.quoteLeverageCallbackNativeFee(LZ_OPTIMISM_ID)
+      it('should quote', async function () {
+        // given
+        const swapTxGasLimit = BigNumber.from('500000')
+        const callbackTxNativeFee = parseEther('0.1')
+        const lzArgs = ethers.utils.defaultAbiCoder.encode(['uint256', 'uint64'], [callbackTxNativeFee, swapTxGasLimit])
+        const transferAndCallFullPayload = ethers.utils.solidityPack(
+          ['address', 'bytes32', 'address', 'uint256'],
+          [MAX_ADDRESS, MAX_BYTES32, MAX_ADDRESS, MAX_BYTES32]
+        )
 
-    // then
-    expect(stargateRouter.quoteLayerZeroFee).calledWith(
-      LZ_OPTIMISM_ID,
-      SG_TYPE_SWAP_REMOTE,
-      ethers.utils.solidityPack(['address'], [MAX_ADDRESS]),
-      transferAndCallFullPayload,
-      {
-        dstGasForCall,
-        dstNativeAmount: BigNumber.from(0),
-        dstNativeAddr: '0x',
-      }
-    )
-  })
+        // when
+        await quoter.quoteLayer2FlashRepayNativeFee(layer2ProxyOFT.address, lzArgs)
 
-  it('quoteFlashRepayCallbackNativeFee', async function () {
-    // given
-    const callbackTxGasLimit = await poolRegistry.flashRepayCallbackTxGasLimit()
+        // then
+        expect(stargateRouter.quoteLayerZeroFee).calledWith(
+          LZ_MAINNET_ID,
+          SG_TYPE_SWAP_REMOTE,
+          MAINNET_OFT_ADDRESS,
+          transferAndCallFullPayload,
+          {
+            dstGasForCall: swapTxGasLimit,
+            dstNativeAmount: callbackTxNativeFee,
+            dstNativeAddr: MAINNET_OFT_ADDRESS,
+          }
+        )
+      })
+    })
 
-    // when
-    await quoter.quoteFlashRepayCallbackNativeFee(LZ_OPTIMISM_ID)
+    describe('quoteLayer2LeverageNativeFee', function () {
+      it('should revert if called from L1', async function () {
+        // given
+        await quoter.updateChainId(1)
+        const lzArgs = ethers.utils.defaultAbiCoder.encode(['uint256', 'uint64'], [0, 0])
 
-    // then
-    const payload = ethers.utils.defaultAbiCoder.encode(['address', 'bytes32'], [MAX_ADDRESS, MAX_BYTES32])
+        // when
+        const tx = quoter.quoteLayer2LeverageNativeFee(layer2ProxyOFT.address, lzArgs)
 
-    const adapterParams = ethers.utils.solidityPack(
-      ['uint16', 'uint256', 'uint256', 'address'],
-      [LZ_ADAPTER_PARAMS_VERSION, LZ_BASE_GAS_LIMIT.add(callbackTxGasLimit), 0, ethers.constants.AddressZero]
-    )
+        // then
+        await expect(tx).revertedWithCustomError(quoter, 'NotAvailableOnThisChain')
+      })
 
-    const lzPayload = ethers.utils.defaultAbiCoder.encode(
-      ['uint16', 'bytes', 'bytes', 'uint256', 'bytes', 'uint64'],
-      [
-        PT_SEND_AND_CALL,
-        ethers.utils.solidityPack(['address'], [owner.address]), // msg.sender
-        MAX_ADDRESS,
-        ethers.constants.MaxUint256,
-        payload,
-        callbackTxGasLimit,
-      ]
-    )
+      it('should quote', async function () {
+        // given
+        const swapTxGasLimit_ = BigNumber.from('500000')
+        const callbackTxNativeFee = parseEther('0.1')
+        const lzArgs = ethers.utils.defaultAbiCoder.encode(
+          ['uint256', 'uint64'],
+          [callbackTxNativeFee, swapTxGasLimit_]
+        )
+        const transferAndCallFullPayload = ethers.utils.defaultAbiCoder.encode(
+          ['address', 'bytes32', 'uint256', 'address', 'uint256'],
+          [MAX_ADDRESS, MAX_BYTES32, MAX_BYTES32, MAX_ADDRESS, MAX_BYTES32]
+        )
 
-    expect(lzEndpoint.estimateFees).calledWith(LZ_OPTIMISM_ID, quoter.address, lzPayload, false, adapterParams)
-  })
+        // when
+        await quoter.quoteLayer2LeverageNativeFee(layer2ProxyOFT.address, lzArgs)
 
-  it('quoteLayer2FlashRepayNativeFee', async function () {
-    // given
-    const swapTxGasLimit = BigNumber.from('500000')
-    const callbackTxNativeFee = parseEther('0.1')
-    const lzArgs = ethers.utils.defaultAbiCoder.encode(['uint256', 'uint64'], [callbackTxNativeFee, swapTxGasLimit])
-    const transferAndCallFullPayload = ethers.utils.solidityPack(
-      ['address', 'bytes32', 'address', 'uint256'],
-      [MAX_ADDRESS, MAX_BYTES32, MAX_ADDRESS, MAX_BYTES32]
-    )
+        // then
+        const adapterParams = ethers.utils.solidityPack(
+          ['uint16', 'uint256', 'uint256', 'address'],
+          [LZ_ADAPTER_PARAMS_VERSION, LZ_BASE_GAS_LIMIT.add(swapTxGasLimit_), callbackTxNativeFee, MAINNET_OFT_ADDRESS]
+        )
 
-    // when
-    await quoter.quoteLayer2FlashRepayNativeFee(layer2ProxyOFT.address, lzArgs)
+        const lzPayload = ethers.utils.defaultAbiCoder.encode(
+          ['uint16', 'bytes', 'bytes', 'uint256', 'bytes', 'uint64'],
+          [
+            PT_SEND_AND_CALL,
+            ethers.utils.solidityPack(['address'], [quoter.address]), // msg.sender
+            ethers.utils.solidityPack(['address'], [MAINNET_OFT_ADDRESS]), // toAddress
+            ethers.constants.MaxUint256,
+            transferAndCallFullPayload,
+            swapTxGasLimit_,
+          ]
+        )
 
-    // then
-    expect(stargateRouter.quoteLayerZeroFee).calledWith(
-      LZ_MAINNET_ID,
-      SG_TYPE_SWAP_REMOTE,
-      MAINNET_OFT_ADDRESS,
-      transferAndCallFullPayload,
-      {
-        dstGasForCall: swapTxGasLimit,
-        dstNativeAmount: callbackTxNativeFee,
-        dstNativeAddr: MAINNET_OFT_ADDRESS,
-      }
-    )
-  })
-
-  it('quoteLayer2LeverageNativeFee', async function () {
-    // given
-    const swapTxGasLimit_ = BigNumber.from('500000')
-    const callbackTxNativeFee = parseEther('0.1')
-    const lzArgs = ethers.utils.defaultAbiCoder.encode(['uint256', 'uint64'], [callbackTxNativeFee, swapTxGasLimit_])
-    const transferAndCallFullPayload = ethers.utils.defaultAbiCoder.encode(
-      ['address', 'bytes32', 'uint256', 'address', 'uint256'],
-      [MAX_ADDRESS, MAX_BYTES32, MAX_BYTES32, MAX_ADDRESS, MAX_BYTES32]
-    )
-
-    // when
-    await quoter.quoteLayer2LeverageNativeFee(layer2ProxyOFT.address, lzArgs)
-
-    // then
-    const adapterParams = ethers.utils.solidityPack(
-      ['uint16', 'uint256', 'uint256', 'address'],
-      [LZ_ADAPTER_PARAMS_VERSION, LZ_BASE_GAS_LIMIT.add(swapTxGasLimit_), callbackTxNativeFee, MAINNET_OFT_ADDRESS]
-    )
-
-    const lzPayload = ethers.utils.defaultAbiCoder.encode(
-      ['uint16', 'bytes', 'bytes', 'uint256', 'bytes', 'uint64'],
-      [
-        PT_SEND_AND_CALL,
-        ethers.utils.solidityPack(['address'], [quoter.address]), // msg.sender
-        ethers.utils.solidityPack(['address'], [MAINNET_OFT_ADDRESS]), // toAddress
-        ethers.constants.MaxUint256,
-        transferAndCallFullPayload,
-        swapTxGasLimit_,
-      ]
-    )
-
-    expect(lzEndpoint.estimateFees).calledWith(LZ_MAINNET_ID, layer2ProxyOFT.address, lzPayload, false, adapterParams)
+        expect(lzEndpoint.estimateFees).calledWith(
+          LZ_MAINNET_ID,
+          layer2ProxyOFT.address,
+          lzPayload,
+          false,
+          adapterParams
+        )
+      })
+    })
   })
 })

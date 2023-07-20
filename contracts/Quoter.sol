@@ -3,44 +3,38 @@
 pragma solidity 0.8.9;
 
 import "./dependencies/openzeppelin-upgradeable/proxy/utils/Initializable.sol";
-import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import "./dependencies/@layerzerolabs/solidity-examples/util/BytesLib.sol";
-import "./dependencies/@layerzerolabs/solidity-examples/contracts-upgradeable/interfaces/ILayerZeroEndpointUpgradeable.sol";
-import "./interfaces/IPoolRegistry.sol";
-import "./interfaces/ISyntheticToken.sol";
 import "./storage/QuoterStorage.sol";
 import "./interfaces/external/IStargateBridge.sol";
 
-error AddressIsNull();
-error SenderIsNotGovernor();
-error NewValueIsSameAsCurrent();
+error NotAvailableOnThisChain();
 
 /**
  * @title Quoter contract
  */
 contract Quoter is Initializable, QuoterStorageV1 {
     using BytesLib for bytes;
-    using SafeERC20 for IERC20;
 
-    /// @notice Emitted when Pool Registry contract is updated
-    event PoolRegistryUpdated(IPoolRegistry oldPoolRegistry, IPoolRegistry newPoolRegistry);
+    /**
+     * @dev LayerZero adapter param version
+     * See more: https://layerzero.gitbook.io/docs/evm-guides/advanced/relayer-adapter-parameters
+     */
+    uint16 public constant LZ_ADAPTER_PARAMS_VERSION = 2;
 
-    modifier onlyGovernor() {
-        if (msg.sender != poolRegistry.governor()) revert SenderIsNotGovernor();
-        _;
-    }
+    /**
+     * @dev Stargate swap function type
+     * See more: https://stargateprotocol.gitbook.io/stargate/developers/function-types
+     */
+    uint8 public constant SG_TYPE_SWAP_REMOTE = 1;
+
+    /**
+     * @dev OFT packet type
+     */
+    uint16 public constant PT_SEND_AND_CALL = 1;
 
     function initialize(IPoolRegistry poolRegistry_) external initializer {
         poolRegistry = poolRegistry_;
     }
-
-    // See more: https://layerzero.gitbook.io/docs/evm-guides/advanced/relayer-adapter-parameters
-    uint16 public constant LZ_ADAPTER_PARAMS_VERSION = 2;
-
-    // See more: https://stargateprotocol.gitbook.io/stargate/developers/function-types
-    uint8 public constant SG_TYPE_SWAP_REMOTE = 1;
-
-    uint16 public constant PT_SEND_AND_CALL = 1;
 
     function getLeverageSwapAndCallbackLzArgs(uint16 dstChainId_) external view returns (bytes memory _lzArgs) {
         return abi.encode(quoteLeverageCallbackNativeFee(dstChainId_), poolRegistry.leverageSwapTxGasLimit());
@@ -51,6 +45,8 @@ contract Quoter is Initializable, QuoterStorageV1 {
     }
 
     function quoteLeverageCallbackNativeFee(uint16 dstChainId_) public view returns (uint256 _callbackTxNativeFee) {
+        if (_chainId() != 1) revert NotAvailableOnThisChain();
+
         IPoolRegistry _poolRegistry = poolRegistry;
         (_callbackTxNativeFee, ) = _poolRegistry.stargateRouter().quoteLayerZeroFee({
             _dstChainId: dstChainId_,
@@ -69,6 +65,8 @@ contract Quoter is Initializable, QuoterStorageV1 {
     }
 
     function quoteFlashRepayCallbackNativeFee(uint16 dstChainId_) public view returns (uint256 _callbackTxNativeFee) {
+        if (_chainId() != 1) revert NotAvailableOnThisChain();
+
         IPoolRegistry _poolRegistry = poolRegistry;
         uint64 _callbackTxGasLimit = _poolRegistry.flashRepayCallbackTxGasLimit();
 
@@ -84,20 +82,20 @@ contract Quoter is Initializable, QuoterStorageV1 {
             _callbackTxGasLimit
         );
 
-        ILayerZeroEndpoint _lzEndpoint = IStargateBridge(_poolRegistry.stargateRouter().bridge()).layerZeroEndpoint();
-
-        (_callbackTxNativeFee, ) = _lzEndpoint.estimateFees(
-            dstChainId_,
-            address(this),
-            _lzPayload,
-            false,
-            abi.encodePacked(
-                LZ_ADAPTER_PARAMS_VERSION,
-                uint256(_poolRegistry.lzBaseGasLimit() + _callbackTxGasLimit),
-                uint256(0),
-                address(0)
-            )
-        );
+        (_callbackTxNativeFee, ) = IStargateBridge(_poolRegistry.stargateRouter().bridge())
+            .layerZeroEndpoint()
+            .estimateFees(
+                dstChainId_,
+                address(this),
+                _lzPayload,
+                false,
+                abi.encodePacked(
+                    LZ_ADAPTER_PARAMS_VERSION,
+                    uint256(_poolRegistry.lzBaseGasLimit() + _callbackTxGasLimit),
+                    uint256(0),
+                    address(0)
+                )
+            );
     }
 
     /**
@@ -109,6 +107,8 @@ contract Quoter is Initializable, QuoterStorageV1 {
         IProxyOFT proxyOFT,
         bytes calldata lzArgs_
     ) external view returns (uint256 _nativeFee) {
+        if (_chainId() == 1) revert NotAvailableOnThisChain();
+
         IPoolRegistry _poolRegistry = poolRegistry;
         uint16 _lzMainnetChainId = _poolRegistry.lzMainnetChainId();
         bytes memory _mainnetOFT = abi.encodePacked(proxyOFT.getProxyOFTOf(_lzMainnetChainId));
@@ -137,6 +137,8 @@ contract Quoter is Initializable, QuoterStorageV1 {
         IProxyOFT proxyOFT_,
         bytes calldata lzArgs_
     ) public view returns (uint256 _nativeFee) {
+        if (_chainId() == 1) revert NotAvailableOnThisChain();
+
         IPoolRegistry _poolRegistry = poolRegistry;
         uint16 _lzMainnetChainId = _poolRegistry.lzMainnetChainId();
         address _mainnetOFT = proxyOFT_.getProxyOFTOf(_lzMainnetChainId);
@@ -172,5 +174,13 @@ contract Quoter is Initializable, QuoterStorageV1 {
             _useZro: false,
             _adapterParams: _adapterParams
         });
+    }
+
+    /**
+     * @dev Encapsulates chainId call for better tests fit
+     * Refs: https://github.com/NomicFoundation/hardhat/issues/3074
+     */
+    function _chainId() internal view virtual returns (uint256) {
+        return block.chainid;
     }
 }

@@ -7,8 +7,8 @@ import "./dependencies/@layerzerolabs/solidity-examples/contracts-upgradeable/to
 import "./dependencies/stargate-protocol/interfaces/IStargateReceiver.sol";
 import "./interfaces/IProxyOFT.sol";
 import "./storage/ProxyOFTStorage.sol";
-import "./Quoter.sol";
 
+error AddressIsNull();
 error SenderIsNotTheOwner();
 error InvalidFromAddress();
 error InvalidMsgSender();
