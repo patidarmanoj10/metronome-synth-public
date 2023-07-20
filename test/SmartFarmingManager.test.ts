@@ -1168,10 +1168,10 @@ describe('SmartFarmingManager', function () {
 
     it('should revert if swapAmountOut slippage is too high', async function () {
       // given
-      const {depositAmountMin, tokenInAmountIn} = await smartFarmingManager.layer2Leverages(id)
+      const {depositAmountMin, underlyingAmountIn} = await smartFarmingManager.layer2Leverages(id)
 
       // when
-      const swapAmountOut = depositAmountMin.sub(tokenInAmountIn).sub('1')
+      const swapAmountOut = depositAmountMin.sub(underlyingAmountIn).sub('1')
       const tx = smartFarmingManager.connect(proxyOFT_msUSD.wallet).layer2LeverageCallback(id, swapAmountOut)
 
       // then

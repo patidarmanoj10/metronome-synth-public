@@ -123,7 +123,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         onlyIfSyntheticTokenExists(syntheticToken_)
         returns (uint256 _withdrawn, uint256 _repaid)
     {
-        if (block.chainid != 1) revert NotAvailableOnThisChain();
+        if (_chainId() != 1) revert NotAvailableOnThisChain();
         if (withdrawAmount_ == 0) revert AmountIsZero();
         if (withdrawAmount_ > depositToken_.balanceOf(msg.sender)) revert AmountIsTooHigh();
         IPool _pool = pool;
@@ -133,8 +133,8 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         // 1. withdraw collateral
         (_withdrawn, ) = depositToken_.flashWithdraw(msg.sender, withdrawAmount_);
 
-        // 2. swap for synth
-        uint256 _amountToRepay = _swap(swapper(), depositToken_.underlying(), syntheticToken_, _withdrawn, 0);
+        // 2. swap it for synth
+        uint256 _amountToRepay = _swap(swapper(), _collateralOf(depositToken_), syntheticToken_, _withdrawn, 0);
 
         // 3. repay debt
         (_repaid, ) = _debtToken.repay(msg.sender, _amountToRepay);
@@ -172,7 +172,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         onlyIfSyntheticTokenExists(syntheticToken_)
         returns (uint256 _deposited, uint256 _issued)
     {
-        if (block.chainid != 1) revert NotAvailableOnThisChain();
+        if (_chainId() != 1) revert NotAvailableOnThisChain();
         if (amountIn_ == 0) revert AmountIsZero();
         if (leverage_ <= 1e18) revert LeverageTooLow();
         if (leverage_ > uint256(1e18).wadDiv(1e18 - depositToken_.collateralFactor())) revert LeverageTooHigh();
@@ -180,8 +180,13 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         ISwapper _swapper = swapper();
 
         // 1. transfer collateral
-        IERC20 _collateral = depositToken_.underlying();
-        amountIn_ = _collateralTransferFrom(msg.sender, _swapper, tokenIn_, _collateral, amountIn_);
+        IERC20 _collateral = _collateralOf(depositToken_);
+        if (address(tokenIn_) == address(0)) tokenIn_ = _collateral;
+        amountIn_ = _safeTransferFrom(tokenIn_, msg.sender, amountIn_);
+        if (tokenIn_ != _collateral) {
+            // Note: `amountOutMin_` is `0` because slippage will be checked later on
+            amountIn_ = _swap(_swapper, tokenIn_, _collateral, amountIn_, 0);
+        }
 
         {
             // 2. mint synth + debt
@@ -237,27 +242,32 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
     {
         if (_chainId() == 1) revert NotAvailableOnThisChain();
         if (withdrawAmount_ == 0) revert AmountIsZero();
-        if (repayAmountMin_ > pool.debtTokenOf(syntheticToken_).balanceOf(msg.sender)) revert AmountIsTooHigh();
 
         address _proxyOFT;
+        {
+            IDebtToken _debtToken = pool.debtTokenOf(syntheticToken_);
+            _debtToken.accrueInterest();
+            if (repayAmountMin_ > _debtToken.balanceOf(msg.sender)) revert AmountIsTooHigh();
+
+            _proxyOFT = address(syntheticToken_.proxyOFT());
+        }
+
         uint256 _amountIn;
         {
-            _proxyOFT = address(syntheticToken_.proxyOFT());
-
             // 1. withdraw collateral
             // Note: No need to check healthy because this function ensures withdrawing only from unlocked balance
             (uint256 _withdrawn, ) = depositToken_.withdrawFrom(msg.sender, withdrawAmount_, address(this));
 
             // 2. swap collateral for its underlying
             // Note: Swap to `proxyOFT` to save transfer gas
-            _amountIn = _swap(
-                swapper(),
-                depositToken_.underlying(),
-                underlying_,
-                _withdrawn,
-                underlyingAmountMin_,
-                _proxyOFT
-            );
+            _amountIn = _swap({
+                swapper_: swapper(),
+                tokenIn_: _collateralOf(depositToken_),
+                tokenOut_: underlying_,
+                amountIn_: _withdrawn,
+                amountOutMin_: underlyingAmountMin_,
+                to_: _proxyOFT
+            });
         }
 
         // 3. store request
@@ -306,8 +316,8 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         // 1. update state
         layer2FlashRepays[id_].finished = true;
 
-        // 2. transfer synthetic token (swapAmountOut)
-        _request.syntheticToken.safeTransferFrom(msg.sender, address(this), swapAmountOut_);
+        // 2. transfer synthetic token
+        swapAmountOut_ = _safeTransferFrom(_request.syntheticToken, msg.sender, swapAmountOut_);
 
         // 3. repay debt
         (_repaid, ) = _pool.debtTokenOf(_request.syntheticToken).repay(_request.account, swapAmountOut_);
@@ -352,9 +362,8 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         if (leverage_ > uint256(1e18).wadDiv(1e18 - depositToken_.collateralFactor())) revert LeverageTooHigh();
         if (address(_underlying) == address(0)) revert TokenInIsNull();
 
-        // 1. transfer collateral
-        // Note: Using underlying instead of collateral because it's preferable to do cross-chain operations using "naked tokens"
-        _underlying.safeTransferFrom(msg.sender, address(this), amountIn_);
+        // 1. transfer underlying
+        amountIn_ = _safeTransferFrom(_underlying, msg.sender, amountIn_);
 
         // 2. mint synth
         // Note: Issue to `proxyOFT` to save transfer gas
@@ -371,7 +380,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
             depositToken: depositToken_,
             syntheticToken: syntheticToken_,
             depositAmountMin: depositAmountMin_,
-            tokenInAmountIn: amountIn_,
+            underlyingAmountIn: amountIn_,
             syntheticTokenIssued: _issued,
             account: msg.sender,
             finished: false
@@ -403,37 +412,37 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
     ) external override nonReentrant onlyIfProxyOFT returns (uint256 _deposited) {
         if (_chainId() == 1) revert NotAvailableOnThisChain();
 
-        Layer2Leverage memory _leverage = layer2Leverages[id_];
+        Layer2Leverage memory _request = layer2Leverages[id_];
         IPool _pool = pool;
 
-        if (_leverage.account == address(0)) revert Layer2RequestInvalidKey();
-        if (msg.sender != address(_leverage.syntheticToken.proxyOFT())) revert SenderIsNotProxyOFT();
-        if (_leverage.finished) revert Layer2RequestCompletedAlready();
-        IERC20 _collateral = _leverage.depositToken.underlying();
+        if (_request.account == address(0)) revert Layer2RequestInvalidKey();
+        if (msg.sender != address(_request.syntheticToken.proxyOFT())) revert SenderIsNotProxyOFT();
+        if (_request.finished) revert Layer2RequestCompletedAlready();
+        IERC20 _collateral = _collateralOf(_request.depositToken);
 
-        // 1. transfer underlying (swapAmountOut)
-        _leverage.underlying.safeTransferFrom(msg.sender, address(this), swapAmountOut_);
+        // 1. transfer underlying
+        swapAmountOut_ = _safeTransferFrom(_request.underlying, msg.sender, swapAmountOut_);
 
-        // 2. swap tokenIn for collateral if they aren't the same
-        uint256 _tokenInAmount = _leverage.tokenInAmountIn + swapAmountOut_;
-        uint256 _depositAmount = _leverage.underlying == _collateral
-            ? _tokenInAmount
-            : _swap(swapper(), _leverage.underlying, _collateral, _tokenInAmount, 0);
-        if (_depositAmount < _leverage.depositAmountMin) revert LeverageSlippageTooHigh();
+        // 2. swap underlying for collateral if needed
+        uint256 _underlyingAmount = _request.underlyingAmountIn + swapAmountOut_;
+        uint256 _depositAmount = _request.underlying == _collateral
+            ? _underlyingAmount
+            : _swap(swapper(), _request.underlying, _collateral, _underlyingAmount, 0);
+        if (_depositAmount < _request.depositAmountMin) revert LeverageSlippageTooHigh();
 
         // 3. update state
         layer2Leverages[id_].finished = true;
 
         // 4. deposit collateral
-        _collateral.safeApprove(address(_leverage.depositToken), 0);
-        _collateral.safeApprove(address(_leverage.depositToken), _depositAmount);
-        (_deposited, ) = _leverage.depositToken.deposit(_depositAmount, _leverage.account);
+        _collateral.safeApprove(address(_request.depositToken), 0);
+        _collateral.safeApprove(address(_request.depositToken), _depositAmount);
+        (_deposited, ) = _request.depositToken.deposit(_depositAmount, _request.account);
 
         // 5. mint debt
-        _pool.debtTokenOf(_leverage.syntheticToken).mint(_leverage.account, _leverage.syntheticTokenIssued);
+        _pool.debtTokenOf(_request.syntheticToken).mint(_request.account, _request.syntheticTokenIssued);
 
         // 6. check the health of the outcome position
-        (bool _isHealthy, , , , ) = _pool.debtPositionOf(_leverage.account);
+        (bool _isHealthy, , , , ) = _pool.debtPositionOf(_request.account);
         if (!_isHealthy) revert PositionIsNotHealthy();
 
         emit Layer2LeverageFinished(id_);
@@ -522,24 +531,34 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
 
     /**
      * @notice Calculate debt to issue for a leverage operation
-     * @param _collateral The collateral to deposit
+     * @param collateral_ The collateral to deposit
      * @param syntheticToken_ The msAsset to mint
      * @param amountIn_ The amount to deposit
      * @param leverage_ The leverage X param (e.g. 1.5e18 for 1.5X)
      * @return _debtAmount The debt issue
      */
     function _calculateLeverageDebtAmount(
-        IERC20 _collateral,
+        IERC20 collateral_,
         ISyntheticToken syntheticToken_,
         uint256 amountIn_,
         uint256 leverage_
     ) private view returns (uint256 _debtAmount) {
         return
             pool.masterOracle().quote(
-                address(_collateral),
+                address(collateral_),
                 address(syntheticToken_),
                 (leverage_ - 1e18).wadMul(amountIn_)
             );
+    }
+
+    /**
+     * @dev Get collateral from a deposit token
+     * This is used to avoid misunderstanding what these names mean
+     * For example: The msdVaDAI's collateral is `vaDAI` and it's underlying is `DAI`
+     * See more: https://github.com/autonomoussoftware/metronome-synth/issues/905
+     */
+    function _collateralOf(IDepositToken depositToken_) private view returns (IERC20) {
+        return depositToken_.underlying();
     }
 
     /**
@@ -551,29 +570,16 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
     }
 
     /**
-     * @notice Get collateral from user
-     * @dev If `tokenIn` isn't the collateral, perform a swap
+     * @notice Transfer token and check actual amount transferred
+     * @param token_ The token to transfer
      * @param from_ The account to get tokens from
-     * @param swapper_ The Swapper contract
-     * @param tokenIn_ The token to transfer from user
-     * @param collateral_ The collateral token to get
-     * @param amountIn_ The token in amount
-     * @return _transferredAmount The collateral output amount
+     * @param amount_ The amount to transfer
+     * @return _transferred The actual transferred amount
      */
-    function _collateralTransferFrom(
-        address from_,
-        ISwapper swapper_,
-        IERC20 tokenIn_,
-        IERC20 collateral_,
-        uint256 amountIn_
-    ) private returns (uint256 _transferredAmount) {
-        if (address(tokenIn_) == address(0)) tokenIn_ = collateral_;
-        tokenIn_.safeTransferFrom(from_, address(this), amountIn_);
-        if (tokenIn_ != collateral_) {
-            // Note: `amountOutMin_` is `0` because slippage will be checked later on
-            return _swap(swapper_, tokenIn_, collateral_, amountIn_, 0);
-        }
-        return amountIn_;
+    function _safeTransferFrom(IERC20 token_, address from_, uint256 amount_) private returns (uint256 _transferred) {
+        uint256 _before = token_.balanceOf(address(this));
+        token_.safeTransferFrom(from_, address(this), amount_);
+        return token_.balanceOf(address(this)) - _before;
     }
 
     /**

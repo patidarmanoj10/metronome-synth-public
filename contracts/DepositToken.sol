@@ -217,7 +217,7 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
     }
 
     /**
-     * @notice Burn msdTOKEN, withdraw collateral and transfer to `msg.sender` (i.e. Pool)
+     * @notice Burn msdTOKEN, withdraw collateral and transfer to `msg.sender` (i.e. SmartFarmingManager)
      * @param account_ The account where deposit token will be burnt from
      * @param amount_ The amount of collateral to withdraw
      * @return _withdrawn The amount withdrawn after fees
@@ -389,7 +389,7 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
 
     /**
      * @notice Burn msdTOKEN and withdraw collateral from a given account
-     * @param amount_ The amount of collateral to withdraw
+     * @param from_ The account to withdraw from
      * @param amount_ The amount of collateral to withdraw
      * @param to_ The account that will receive withdrawn collateral
      * @return _withdrawn The amount withdrawn after fees

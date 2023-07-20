@@ -19,10 +19,12 @@ contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT {
         __ProxyOFT_init(_lzEndpoint, syntheticToken_);
     }
 
-    function _revertIfNotSmartFarmingManager() private view {
+    function _revertIfSenderIsNotSmartFarmingManager() private view {
         IPool _pool = IManageable(msg.sender).pool();
-        if (!syntheticToken.poolRegistry().isPoolRegistered(address(_pool))) revert InvalidMsgSender();
-        if (msg.sender != address(_pool.smartFarmingManager())) revert InvalidMsgSender();
+        if (
+            !syntheticToken.poolRegistry().isPoolRegistered(address(_pool)) ||
+            msg.sender != address(_pool.smartFarmingManager())
+        ) revert InvalidMsgSender();
     }
 
     /***
@@ -42,7 +44,7 @@ contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT {
         uint256 amountOutMin_,
         bytes calldata lzArgs_
     ) external payable override {
-        _revertIfNotSmartFarmingManager();
+        _revertIfSenderIsNotSmartFarmingManager();
         IPoolRegistry _poolRegistry = syntheticToken.poolRegistry();
         _revertIfBridgingIsPaused(_poolRegistry);
 
@@ -83,7 +85,7 @@ contract Layer2ProxyOFT is ILayer2ProxyOFT, ProxyOFT {
         uint256 amountOutMin_,
         bytes calldata lzArgs_
     ) external payable override {
-        _revertIfNotSmartFarmingManager();
+        _revertIfSenderIsNotSmartFarmingManager();
 
         IPoolRegistry _poolRegistry = syntheticToken.poolRegistry();
 

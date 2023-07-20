@@ -33,8 +33,8 @@ contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
         uint amount_,
         bytes calldata payload_
     ) external override {
-        if (from_.toAddress(0) != getProxyOFTOf(srcChainId_)) revert InvalidFromAddress();
         if (msg.sender != address(this)) revert InvalidMsgSender();
+        if (from_.toAddress(0) != getProxyOFTOf(srcChainId_)) revert InvalidFromAddress();
 
         IPoolRegistry _poolRegistry = syntheticToken.poolRegistry();
 
@@ -137,36 +137,6 @@ contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
         );
     }
 
-    function _swap(
-        IPoolRegistry poolRegistry_,
-        uint256 requestId_,
-        address tokenIn_,
-        address tokenOut_,
-        uint256 amountIn_,
-        uint256 amountOutMin_
-    ) private returns (uint256 _amountOut) {
-        // 1. Use updated slippage if exist
-        uint256 _storedAmountOutMin = swapAmountOutMin[requestId_];
-
-        if (_storedAmountOutMin > 0) {
-            amountOutMin_ = _storedAmountOutMin;
-        }
-
-        // 2. Perform swap
-        ISwapper _swapper = poolRegistry_.swapper();
-        _safeApprove(IERC20(tokenIn_), address(_swapper), amountIn_);
-        _amountOut = _swapper.swapExactInput({
-            tokenIn_: tokenIn_,
-            tokenOut_: tokenOut_,
-            amountIn_: amountIn_,
-            amountOutMin_: amountOutMin_,
-            receiver_: address(this)
-        });
-
-        // 3. Clear stored slippage if swap succeeds
-        swapAmountOutMin[requestId_] = 0;
-    }
-
     /**
      * @notice Retry swap and trigger callback.
      * @param srcChainId_ srcChainId
@@ -183,7 +153,7 @@ contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
         uint amount_,
         bytes calldata payload_,
         uint256 newAmountOutMin_
-    ) public {
+    ) external {
         (, uint256 _requestId, , address _account, ) = abi.decode(
             payload_,
             (address, uint256, uint256, address, uint256)
@@ -192,7 +162,7 @@ contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
 
         swapAmountOutMin[_requestId] = newAmountOutMin_;
 
-        // Note: `retryOFTReceived` has checks to ensure that the args are consistent
+        // Note: `retryOFTReceived()` has checks to ensure that the args are consistent
         bytes memory _from = abi.encodePacked(getProxyOFTOf(srcChainId_));
         this.retryOFTReceived(srcChainId_, srcAddress_, nonce_, _from, address(this), amount_, payload_);
     }
@@ -209,7 +179,7 @@ contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
         bytes calldata srcAddress_,
         uint256 nonce_,
         uint256 newAmountOutMin_
-    ) public {
+    ) external {
         IStargateRouter _stargateRouter = syntheticToken.poolRegistry().stargateRouter();
 
         (, , , bytes memory _payload) = _stargateRouter.cachedSwapLookup(srcChainId_, srcAddress_, nonce_);
@@ -220,5 +190,37 @@ contract Layer1ProxyOFT is ProxyOFT, Layer1ProxyOFTStorage {
         swapAmountOutMin[_requestId] = newAmountOutMin_;
 
         _stargateRouter.clearCachedSwap(srcChainId_, srcAddress_, nonce_);
+    }
+
+    /**
+     * @dev Perform a swap considering slippage param from user
+     */
+    function _swap(
+        IPoolRegistry poolRegistry_,
+        uint256 requestId_,
+        address tokenIn_,
+        address tokenOut_,
+        uint256 amountIn_,
+        uint256 amountOutMin_
+    ) private returns (uint256 _amountOut) {
+        // 1. Use updated slippage if exist
+        uint256 _storedAmountOutMin = swapAmountOutMin[requestId_];
+
+        if (_storedAmountOutMin > 0) {
+            // Use stored slippage and clear it
+            amountOutMin_ = _storedAmountOutMin;
+            swapAmountOutMin[requestId_] = 0;
+        }
+
+        // 2. Perform swap
+        ISwapper _swapper = poolRegistry_.swapper();
+        _safeApprove(IERC20(tokenIn_), address(_swapper), amountIn_);
+        _amountOut = _swapper.swapExactInput({
+            tokenIn_: tokenIn_,
+            tokenOut_: tokenOut_,
+            amountIn_: amountIn_,
+            amountOutMin_: amountOutMin_,
+            receiver_: address(this)
+        });
     }
 }

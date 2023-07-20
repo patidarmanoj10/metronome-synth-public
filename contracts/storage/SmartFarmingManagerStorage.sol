@@ -13,7 +13,7 @@ abstract contract SmartFarmingManagerV1 is ISmartFarmingManager {
         IERC20 underlying; // e.g. USDC is vaUSDC's underlying
         IDepositToken depositToken;
         ISyntheticToken syntheticToken;
-        uint256 tokenInAmountIn;
+        uint256 underlyingAmountIn;
         uint256 depositAmountMin;
         uint256 syntheticTokenIssued;
         address account;
