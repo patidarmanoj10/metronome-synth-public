@@ -993,44 +993,6 @@ describe('SmartFarmingManager', function () {
       await expect(tx).revertedWithCustomError(smartFarmingManager, 'TokenInIsNull')
     })
 
-    // TODO: Should we allow unhealthy position to call leverage?
-    it.skip('should revert if position is unhealthy', async function () {
-      // given
-      await dai.connect(alice).approve(msdDAI.address, ethers.constants.MaxUint256)
-      await msdDAI.connect(alice).deposit(parseEther('10'), alice.address)
-      await msUsdDebtToken.connect(alice).issue(parseEther('5'), alice.address)
-      await masterOracle.updatePrice(msUSD.address, parseEther('2'))
-      const {_isHealthy} = await pool.debtPositionOf(alice.address)
-      expect(_isHealthy).false
-
-      // when
-      const fee = parseEther('0.1')
-      const underlying = dai.address
-      const depositToken = msdVaDAI.address
-      const syntheticToken = msUSD.address
-      const amountIn = parseEther('10')
-      const leverage = parseEther('1.5')
-      const layer1SwapAmountOutMin = parseEther('9.5')
-      const depositAmountMin = parseEther('9')
-      const lzArgs = '0x'
-      const tx = smartFarmingManager
-        .connect(alice)
-        .layer2Leverage(
-          underlying,
-          depositToken,
-          syntheticToken,
-          amountIn,
-          leverage,
-          layer1SwapAmountOutMin,
-          depositAmountMin,
-          lzArgs,
-          {value: fee}
-        )
-
-      // then
-      await expect(tx).revertedWithCustomError(smartFarmingManager, 'PositionIsNotHealthy')
-    })
-
     it('should start L2 leverage flow', async function () {
       // given
       expect(await smartFarmingManager.layer2RequestId()).eq(0)
