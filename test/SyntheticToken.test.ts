@@ -130,7 +130,7 @@ describe('SyntheticToken', function () {
       const proxyOFT = await smock.fake('IProxyOFT')
       await setBalance(proxyOFT.address, parseEther('10'))
       await msUSD.connect(governor).updateProxyOFT(proxyOFT.address)
-      await msUSD.connect(governor).updateMaxBridgingBalance(parseEther('500'))
+      await msUSD.connect(governor).updateMaxBridgedInSupply(parseEther('500'))
       const amount = parseEther('100')
       expect(await msUSD.totalBridgedIn()).eq(0)
 
@@ -141,12 +141,12 @@ describe('SyntheticToken', function () {
       expect(await msUSD.totalBridgedIn()).eq(amount)
     })
 
-    it('should revert when maxBridgedCirculatingSupply is met', async function () {
+    it('should revert when maxBridgedInSupply is reached', async function () {
       // given
       const proxyOFT = await smock.fake('IProxyOFT')
       await setBalance(proxyOFT.address, parseEther('10'))
       await msUSD.connect(governor).updateProxyOFT(proxyOFT.address)
-      await msUSD.connect(governor).updateMaxBridgingBalance(parseEther('500'))
+      await msUSD.connect(governor).updateMaxBridgedInSupply(parseEther('500'))
       const amount = parseEther('550')
       expect(await msUSD.totalBridgedIn()).eq(0)
 
@@ -154,7 +154,7 @@ describe('SyntheticToken', function () {
       const tx = msUSD.connect(proxyOFT.wallet).mint(user.address, amount)
 
       // then
-      await expect(tx).revertedWithCustomError(msUSD, 'SurpassMaxBridgingBalance')
+      await expect(tx).revertedWithCustomError(msUSD, 'SurpassMaxBridgingSupply')
     })
 
     it('should revert if not authorized', async function () {
@@ -203,7 +203,7 @@ describe('SyntheticToken', function () {
       const proxyOFT = await smock.fake('IProxyOFT')
       await setBalance(proxyOFT.address, parseEther('10'))
       await msUSD.connect(governor).updateProxyOFT(proxyOFT.address)
-      await msUSD.connect(governor).updateMaxBridgingBalance(parseEther('500'))
+      await msUSD.connect(governor).updateMaxBridgedOutSupply(parseEther('500'))
       expect(await msUSD.totalBridgedOut()).eq(0)
 
       // when
@@ -211,6 +211,21 @@ describe('SyntheticToken', function () {
 
       // then
       expect(await msUSD.totalBridgedOut()).eq(amount)
+    })
+
+    it('should revert when maxBridgedOutSupply is reached', async function () {
+      // given
+      const proxyOFT = await smock.fake('IProxyOFT')
+      await setBalance(proxyOFT.address, parseEther('10'))
+      await msUSD.connect(governor).updateProxyOFT(proxyOFT.address)
+      await msUSD.connect(governor).updateMaxBridgedOutSupply(parseEther('500'))
+      expect(await msUSD.totalBridgedOut()).eq(0)
+
+      // when
+      const tx = msUSD.connect(proxyOFT.wallet).burn(user.address, parseEther('550'))
+
+      // then
+      await expect(tx).revertedWithCustomError(msUSD, 'SurpassMaxBridgingSupply')
     })
 
     it('should revert if not authorized', async function () {
@@ -254,23 +269,44 @@ describe('SyntheticToken', function () {
     })
   })
 
-  describe('updateMaxBridgingBalance', function () {
-    it('should update maxBridgedCirculatingSupply', async function () {
-      const before = await msUSD.maxBridgedCirculatingSupply()
+  describe('updateMaxBridgedInSupply', function () {
+    it('should update maxBridgedInSupply', async function () {
+      const before = await msUSD.maxBridgedInSupply()
       const after = parseEther('500') // 500 synths
-      const tx = msUSD.connect(governor).updateMaxBridgingBalance(after)
-      await expect(tx).emit(msUSD, 'MaxBridgingBalanceUpdated').withArgs(before, after)
-      expect(await msUSD.maxBridgedCirculatingSupply()).eq(after)
+      const tx = msUSD.connect(governor).updateMaxBridgedInSupply(after)
+      await expect(tx).emit(msUSD, 'MaxBridgedInSupplyUpdated').withArgs(before, after)
+      expect(await msUSD.maxBridgedInSupply()).eq(after)
     })
 
     it('should revert if using the current value', async function () {
-      const currentMaxBridgingBalance = await msUSD.maxBridgedCirculatingSupply()
-      const tx = msUSD.connect(governor).updateMaxBridgingBalance(currentMaxBridgingBalance)
+      const currentMaxBridgingBalance = await msUSD.maxBridgedInSupply()
+      const tx = msUSD.connect(governor).updateMaxBridgedInSupply(currentMaxBridgingBalance)
       await expect(tx).revertedWithCustomError(msUSD, 'NewValueIsSameAsCurrent')
     })
 
     it('should revert if not governor', async function () {
-      const tx = msUSD.connect(user).updateMaxBridgingBalance(parseEther('500'))
+      const tx = msUSD.connect(user).updateMaxBridgedInSupply(parseEther('500'))
+      await expect(tx).revertedWithCustomError(msUSD, 'SenderIsNotGovernor')
+    })
+  })
+
+  describe('updateMaxBridgedOutSupply', function () {
+    it('should update maxBridgedOutSupply', async function () {
+      const before = await msUSD.maxBridgedOutSupply()
+      const after = parseEther('500') // 500 synths
+      const tx = msUSD.connect(governor).updateMaxBridgedOutSupply(after)
+      await expect(tx).emit(msUSD, 'MaxBridgedOutSupplyUpdated').withArgs(before, after)
+      expect(await msUSD.maxBridgedOutSupply()).eq(after)
+    })
+
+    it('should revert if using the current value', async function () {
+      const currentMaxBridgingBalance = await msUSD.maxBridgedOutSupply()
+      const tx = msUSD.connect(governor).updateMaxBridgedOutSupply(currentMaxBridgingBalance)
+      await expect(tx).revertedWithCustomError(msUSD, 'NewValueIsSameAsCurrent')
+    })
+
+    it('should revert if not governor', async function () {
+      const tx = msUSD.connect(user).updateMaxBridgedOutSupply(parseEther('500'))
       await expect(tx).revertedWithCustomError(msUSD, 'SenderIsNotGovernor')
     })
   })

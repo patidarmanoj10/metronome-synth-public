@@ -24,7 +24,7 @@ error ApproveToTheZeroAddress();
 error BurnFromTheZeroAddress();
 error BurnAmountExceedsBalance();
 error MintToTheZeroAddress();
-error SurpassMaxBridgingBalance();
+error SurpassMaxBridgingSupply();
 error SurpassMaxSynthSupply();
 error TransferFromTheZeroAddress();
 error TransferToTheZeroAddress();
@@ -46,8 +46,11 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
     /// @notice Emitted when max total supply is updated
     event MaxTotalSupplyUpdated(uint256 oldMaxTotalSupply, uint256 newMaxTotalSupply);
 
-    /// @notice Emitted when max Bridging Balance is updated
-    event MaxBridgingBalanceUpdated(uint256 oldMaxBridgingBalance, uint256 newMaxBridgingBalance);
+    /// @notice Emitted when max bridged-in supply is updated
+    event MaxBridgedInSupplyUpdated(uint256 oldMaxBridgedInSupply, uint256 newMaxBridgedInSupply);
+
+    /// @notice Emitted when max bridged-out supply is updated
+    event MaxBridgedOutSupplyUpdated(uint256 oldMaxBridgedOutSupply, uint256 newMaxBridgedOutSupply);
 
     /// @notice Emitted when proxyOFT is updated
     event ProxyOFTUpdated(IProxyOFT oldProxyOFT, IProxyOFT newProxyOFT);
@@ -120,15 +123,28 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
     }
 
     /**
-     * @notice Get bridged circulating supply
-     * @dev The supply is calculated using `_totalBridgedIn - _totalBridgedOut` or `0` if it's negative
+     * @notice Get bridged-in circulating supply
+     * @dev The supply is calculated using `totalBridgedIn - totalBridgedOut` or `0` if it's negative
      */
-    function bridgedCirculatingSupply() public view returns (uint256 _supply) {
+    function bridgedInSupply() public view returns (uint256 _supply) {
         uint256 _totalBridgedIn = totalBridgedIn;
         uint256 _totalBridgedOut = totalBridgedOut;
 
         if (_totalBridgedIn > _totalBridgedOut) {
             return _totalBridgedIn - _totalBridgedOut;
+        }
+    }
+
+    /**
+     * @notice Get bridged-out circulating supply
+     * @dev The supply is calculated using `totalBridgedOut - totalBridgedIn` or `0` if it's negative
+     */
+    function bridgedOutSupply() public view returns (uint256 _supply) {
+        uint256 _totalBridgedIn = totalBridgedIn;
+        uint256 _totalBridgedOut = totalBridgedOut;
+
+        if (_totalBridgedOut > _totalBridgedIn) {
+            return _totalBridgedOut - _totalBridgedIn;
         }
     }
 
@@ -222,6 +238,7 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
 
         if (_isMsgSenderProxyOFT()) {
             totalBridgedOut += amount_;
+            if (bridgedOutSupply() > maxBridgedOutSupply) revert SurpassMaxBridgingSupply();
         }
 
         uint256 _currentBalance = balanceOf[account_];
@@ -269,8 +286,7 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
 
         if (_isMsgSenderProxyOFT()) {
             totalBridgedIn += amount_;
-
-            if (bridgedCirculatingSupply() > maxBridgedCirculatingSupply) revert SurpassMaxBridgingBalance();
+            if (bridgedInSupply() > maxBridgedInSupply) revert SurpassMaxBridgingSupply();
         }
 
         totalSupply += amount_;
@@ -317,14 +333,23 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
     }
 
     /**
-     * @notice Update max bridging balance
-     * @param newMaxBridgingBalance_  New value for Max Bridging Balance
+     * @notice Update max bridged-in supply
      */
-    function updateMaxBridgingBalance(uint256 newMaxBridgingBalance_) external override onlyGovernor {
-        uint256 _currentMaxBridgingBalance = maxBridgedCirculatingSupply;
-        if (newMaxBridgingBalance_ == _currentMaxBridgingBalance) revert NewValueIsSameAsCurrent();
-        emit MaxBridgingBalanceUpdated(_currentMaxBridgingBalance, newMaxBridgingBalance_);
-        maxBridgedCirculatingSupply = newMaxBridgingBalance_;
+    function updateMaxBridgedInSupply(uint256 maxBridgedInSupply_) external onlyGovernor {
+        uint256 _currentMaxBridgedInBalance = maxBridgedInSupply;
+        if (maxBridgedInSupply_ == _currentMaxBridgedInBalance) revert NewValueIsSameAsCurrent();
+        emit MaxBridgedInSupplyUpdated(_currentMaxBridgedInBalance, maxBridgedInSupply_);
+        maxBridgedInSupply = maxBridgedInSupply_;
+    }
+
+    /**
+     * @notice Update max bridged-out supply
+     */
+    function updateMaxBridgedOutSupply(uint256 maxBridgedOutSupply_) external onlyGovernor {
+        uint256 _currentMaxBridgedOutBalance = maxBridgedOutSupply;
+        if (maxBridgedOutSupply_ == _currentMaxBridgedOutBalance) revert NewValueIsSameAsCurrent();
+        emit MaxBridgedOutSupplyUpdated(_currentMaxBridgedOutBalance, maxBridgedOutSupply_);
+        maxBridgedOutSupply = maxBridgedOutSupply_;
     }
 
     /**

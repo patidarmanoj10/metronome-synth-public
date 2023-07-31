@@ -112,7 +112,7 @@ contract Layer2Leverage_Test is CrossChains_Test {
         //
         vm.selectFork(mainnetFork);
         // It will make mainnet's bridge minting to fail
-        msUSD_mainnet.updateMaxBridgingBalance(0);
+        msUSD_mainnet.updateMaxBridgedInSupply(0);
 
         //
         // when
@@ -127,7 +127,7 @@ contract Layer2Leverage_Test is CrossChains_Test {
         (Vm.Log memory MessageFailed, ) = _getOftTransferErrorEvents();
         (uint16 _srcChainId, bytes memory _srcAddress, uint64 _nonce, bytes memory _payload, bytes memory reason) = abi
             .decode(MessageFailed.data, (uint16, bytes, uint64, bytes, bytes));
-        assertEq(reason, abi.encodeWithSignature("SurpassMaxBridgingBalance()"));
+        assertEq(reason, abi.encodeWithSignature("SurpassMaxBridgingSupply()"));
 
         // tx2 - fail
         // Same state, retry will fail too
@@ -136,7 +136,7 @@ contract Layer2Leverage_Test is CrossChains_Test {
 
         // tx2
         // Retry will work after amending state
-        msUSD_mainnet.updateMaxBridgingBalance(type(uint256).max);
+        msUSD_mainnet.updateMaxBridgedInSupply(type(uint256).max);
         proxyOFT_msUSD_mainnet.retryMessage(_srcChainId, _srcAddress, _nonce, _payload);
         (Vm.Log memory Swap, Vm.Log memory PacketEventTx2, Vm.Log memory RelayerParamsTx2) = _getSgSwapEvents();
 

@@ -67,8 +67,12 @@ abstract contract SyntheticTokenStorageV1 is ISyntheticToken {
     uint256 public totalBridgedOut;
 
     /**
-     * @notice Set cap for bridging amount
-     * @dev New bridging-in transfers (i.e. mintings) will fail if `totalBridgedIn - totalBridgedOut > maxBridgedCirculatingSupply`
+     * @notice Maximum allowed bridged-in (mint-related) supply
      */
-    uint256 public maxBridgedCirculatingSupply;
+    uint256 public maxBridgedInSupply;
+
+    /**
+     * @notice Maximum allowed bridged-out (burn-related) supply
+     */
+    uint256 public maxBridgedOutSupply;
 }

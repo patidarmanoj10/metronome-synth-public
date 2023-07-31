@@ -192,7 +192,8 @@ abstract contract CrossChains_Test is Test {
         proxyOFT_msUSD_optimism.setUseCustomAdapterParams(true);
         proxyOFT_msUSD_optimism.setMinDstGas(LZ_MAINNET_CHAIN_ID, proxyOFT_msUSD_optimism.PT_SEND(), 200_000);
         msUSD_optimism.updateProxyOFT(proxyOFT_msUSD_optimism);
-        msUSD_optimism.updateMaxBridgingBalance(type(uint256).max);
+        msUSD_optimism.updateMaxBridgedInSupply(type(uint256).max);
+        msUSD_optimism.updateMaxBridgedOutSupply(type(uint256).max);
         swapper_optimism.updateRate(1e18);
 
         //
@@ -260,7 +261,8 @@ abstract contract CrossChains_Test is Test {
         proxyOFT_msUSD_mainnet.setUseCustomAdapterParams(true);
         proxyOFT_msUSD_mainnet.setMinDstGas(LZ_OP_CHAIN_ID, proxyOFT_msUSD_mainnet.PT_SEND(), 200_000);
         msUSD_mainnet.updateProxyOFT(proxyOFT_msUSD_mainnet);
-        msUSD_mainnet.updateMaxBridgingBalance(type(uint256).max);
+        msUSD_mainnet.updateMaxBridgedInSupply(type(uint256).max);
+        msUSD_mainnet.updateMaxBridgedOutSupply(type(uint256).max);
         swapper_mainnet.updateRate(1e18);
 
         // Labels

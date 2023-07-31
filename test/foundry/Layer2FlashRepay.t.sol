@@ -215,7 +215,7 @@ contract Layer2FlashRepay_Test is CrossChains_Test {
 
         // It will make OP's bridge minting to fail
         vm.selectFork(optimismFork);
-        msUSD_optimism.updateMaxBridgingBalance(0);
+        msUSD_optimism.updateMaxBridgedInSupply(0);
 
         _depositAndIssue({depositAmount_: 2000e18, issueAmount_: 500e18});
 
@@ -240,7 +240,7 @@ contract Layer2FlashRepay_Test is CrossChains_Test {
         (Vm.Log memory MessageFailed, ) = _getOftTransferErrorEvents();
         (uint16 _srcChainId, bytes memory _srcAddress, uint64 _nonce, bytes memory _payload, bytes memory reason) = abi
             .decode(MessageFailed.data, (uint16, bytes, uint64, bytes, bytes));
-        assertEq(reason, abi.encodeWithSignature("SurpassMaxBridgingBalance()"));
+        assertEq(reason, abi.encodeWithSignature("SurpassMaxBridgingSupply()"));
 
         // tx3 - fail
         // Same state, retry will fail too
@@ -249,7 +249,7 @@ contract Layer2FlashRepay_Test is CrossChains_Test {
 
         // tx3
         // Retry will work after amending state
-        msUSD_optimism.updateMaxBridgingBalance(type(uint256).max);
+        msUSD_optimism.updateMaxBridgedInSupply(type(uint256).max);
         proxyOFT_msUSD_optimism.retryMessage(_srcChainId, _srcAddress, _nonce, _payload);
 
         //
