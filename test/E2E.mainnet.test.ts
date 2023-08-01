@@ -171,6 +171,10 @@ describe('E2E tests', function () {
       masterOracleGovernor
     )
     await defaultOracle.updateDefaultStalePeriod(ethers.constants.MaxUint256)
+
+    // TODO: Remove this after unpausing
+    await pool.connect(governor).open()
+    await pool.connect(governor).unpause()
   }
 
   beforeEach(async function () {
@@ -573,8 +577,8 @@ describe('E2E tests', function () {
 
       it('should leverage vaETH->msETH', async function () {
         // when
-        const amountIn = parseUnits('1', 18)
-        const amountInUsd = parseUnits('1,900', 18) // approx.
+        const amountIn = parseUnits('0.1', 18)
+        const amountInUsd = parseUnits('190', 18) // approx.
         const leverage = parseEther('1.5')
         await vaETH.connect(alice).approve(pool.address, MaxUint256)
         const tx = await pool.leverage(vaETH.address, msdVaETH.address, msETH.address, amountIn, leverage, 0)
@@ -583,17 +587,17 @@ describe('E2E tests', function () {
         const {gasUsed} = await tx.wait()
         expect(gasUsed.lt(1.4e6))
         const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
-        expect(_depositInUsd).closeTo(amountInUsd.mul(leverage).div(parseEther('1')), parseEther('100')) // ~$2,850
+        expect(_depositInUsd).closeTo(amountInUsd.mul(leverage).div(parseEther('1')), parseEther('100')) // ~$285
         expect(_debtInUsd).closeTo(
           amountInUsd.mul(leverage.sub(parseEther('1'))).div(parseEther('1')),
           parseEther('100')
-        ) // ~$950
+        ) // ~$95
       })
 
       it('should leverage varETH->msETH', async function () {
         // when
-        const amountIn = parseUnits('1', 18)
-        const amountInUsd = parseUnits('2,040', 18) // approx.
+        const amountIn = parseUnits('0.1', 18)
+        const amountInUsd = parseUnits('204', 18) // approx.
         const leverage = parseEther('1.5')
         await vaRETH.connect(alice).approve(pool.address, MaxUint256)
         const tx = await pool.leverage(vaRETH.address, msdVaRETH.address, msETH.address, amountIn, leverage, 0)
@@ -602,17 +606,17 @@ describe('E2E tests', function () {
         const {gasUsed} = await tx.wait()
         expect(gasUsed.lt(1.4e6))
         const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
-        expect(_depositInUsd).closeTo(amountInUsd.mul(leverage).div(parseEther('1')), parseEther('100')) // ~$2,925
+        expect(_depositInUsd).closeTo(amountInUsd.mul(leverage).div(parseEther('1')), parseEther('100')) // ~$292
         expect(_debtInUsd).closeTo(
           amountInUsd.mul(leverage.sub(parseEther('1'))).div(parseEther('1')),
           parseEther('100')
-        ) // ~$975
+        ) // ~$97
       })
 
       it('should leverage vastETH->msETH', async function () {
         // when
-        const amountIn = parseUnits('1', 18)
-        const amountInUsd = parseUnits('1,950', 18) // approx.
+        const amountIn = parseUnits('0.1', 18)
+        const amountInUsd = parseUnits('195', 18) // approx.
         const leverage = parseEther('1.5')
         await vaSTETH.connect(alice).approve(pool.address, MaxUint256)
         const tx = await pool.leverage(vaSTETH.address, msdVaSTETH.address, msETH.address, amountIn, leverage, 0)
@@ -621,17 +625,17 @@ describe('E2E tests', function () {
         const {gasUsed} = await tx.wait()
         expect(gasUsed.lt(1.4e6))
         const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
-        expect(_depositInUsd).closeTo(amountInUsd.mul(leverage).div(parseEther('1')), parseEther('100')) // ~$2,925
+        expect(_depositInUsd).closeTo(amountInUsd.mul(leverage).div(parseEther('1')), parseEther('100')) // ~$292
         expect(_debtInUsd).closeTo(
           amountInUsd.mul(leverage.sub(parseEther('1'))).div(parseEther('1')),
           parseEther('100')
-        ) // ~$975
+        ) // ~$97
       })
 
       it('should leverage vacbETH->msETH', async function () {
         // when
-        const amountIn = parseUnits('1', 18)
-        const amountInUsd = parseUnits('1,975', 18) // approx.
+        const amountIn = parseUnits('0.1', 18)
+        const amountInUsd = parseUnits('197', 18) // approx.
         const leverage = parseEther('1.5')
         await vaCBETH.connect(alice).approve(pool.address, MaxUint256)
         const tx = await pool.leverage(vaCBETH.address, msdVaCBETH.address, msETH.address, amountIn, leverage, 0)
@@ -640,11 +644,11 @@ describe('E2E tests', function () {
         const {gasUsed} = await tx.wait()
         expect(gasUsed.lt(1.4e6))
         const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
-        expect(_depositInUsd).closeTo(amountInUsd.mul(leverage).div(parseEther('1')), parseEther('100')) // ~$2,850
+        expect(_depositInUsd).closeTo(amountInUsd.mul(leverage).div(parseEther('1')), parseEther('100')) // ~$285
         expect(_debtInUsd).closeTo(
           amountInUsd.mul(leverage.sub(parseEther('1'))).div(parseEther('1')),
           parseEther('100')
-        ) // ~$950
+        ) // ~$95
       })
     })
 
@@ -661,7 +665,7 @@ describe('E2E tests', function () {
 
       it('should flash repay msUSD debt using vaUSDC', async function () {
         // when
-        const withdrawAmount = parseEther('49')
+        const withdrawAmount = parseEther('45')
         const tx = await pool.flashRepay(msUSD.address, msdVaUSDC.address, withdrawAmount, 0)
 
         // then
