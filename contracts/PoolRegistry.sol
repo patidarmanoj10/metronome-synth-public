@@ -28,9 +28,6 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV2 {
     /// @notice Emitted when fee collector is updated
     event FeeCollectorUpdated(address indexed oldFeeCollector, address indexed newFeeCollector);
 
-    /// @notice Emitted when Lz base gas limit updated
-    event LzBaseGasLimitUpdated(uint256 oldLzBaseGasLimit, uint256 newLzBaseGasLimit);
-
     /// @notice Emitted when master oracle contract is updated
     event MasterOracleUpdated(IMasterOracle indexed oldOracle, IMasterOracle indexed newOracle);
 
@@ -43,38 +40,17 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV2 {
     /// @notice Emitted when a pool is unregistered
     event PoolUnregistered(uint256 indexed id, address indexed pool);
 
-    /// @notice Emitted when Stargate router is updated
-    event StargateRouterUpdated(IStargateRouter oldStargateRouter, IStargateRouter newStargateRouter);
-
-    /// @notice Emitted when Stargate pool id is updated
-    event StargatePoolIdUpdated(address indexed token, uint256 oldPoolId, uint256 newPoolId);
-
-    /// @notice Emitted when Stargate slippage is updated
-    event StargateSlippageUpdated(uint256 oldStargateSlippage, uint256 newStargateSlippage);
-
     /// @notice Emitted when Swapper contract is updated
     event SwapperUpdated(ISwapper oldSwapFee, ISwapper newSwapFee);
 
     /// @notice Emitted when Quoter contract is updated
     event QuoterUpdated(IQuoter oldQuoter, IQuoter newQuoter);
 
-    /// @notice Emitted when LZ mainnet chain id is updated
-    event LzMainnetChainIdUpdated(uint16 oldLzMainnetChainId, uint16 newLzMainnetChainId);
-
-    /// @notice Emitted when synth->underlying L1 swap gas limit is updated
-    event LeverageSwapTxGasLimitUpdated(uint64 oldSwapTxGasLimit, uint64 newSwapTxGasLimit);
-
-    /// @notice Emitted when leverage callback gas limit is updated
-    event LeverageCallbackTxGasLimitUpdated(uint64 oldCallbackTxGasLimit, uint64 newCallbackTxGasLimit);
-
-    /// @notice Emitted when underlying->synth L1 swap gas limit is updated
-    event FlashRepaySwapTxGasLimitUpdated(uint64 oldSwapTxGasLimit, uint64 newSwapTxGasLimit);
-
-    /// @notice Emitted when flash repay callback gas limit is updated
-    event FlashRepayCallbackTxGasLimitUpdated(uint64 oldCallbackTxGasLimit, uint64 newCallbackTxGasLimit);
-
-    /// @notice Emitted when flag for pause bridge transfer is toggled
-    event BridgingIsActiveUpdated(bool newIsActive);
+    /// @notice Emitted when Cross-chain dispatcher contract is updated
+    event CrossChainDispatcherUpdated(
+        ICrossChainDispatcher oldCrossChainDispatcher,
+        ICrossChainDispatcher newCrossChainDispatcher
+    );
 
     function initialize(IMasterOracle masterOracle_, address feeCollector_) external initializer {
         if (address(masterOracle_) == address(0)) revert OracleIsNull();
@@ -87,13 +63,6 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV2 {
         feeCollector = feeCollector_;
 
         nextPoolId = 1;
-        stargateSlippage = 10; // 0.1%
-        lzBaseGasLimit = 200_00;
-        flashRepayCallbackTxGasLimit = 750_000;
-        flashRepaySwapTxGasLimit = 500_000;
-        leverageCallbackTxGasLimit = 750_000;
-        leverageSwapTxGasLimit = 650_000;
-        lzMainnetChainId = 101;
     }
 
     /**
@@ -148,59 +117,6 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV2 {
     }
 
     /**
-     * @notice Update flash repay callback tx gas limit
-     */
-    function updateFlashRepayCallbackTxGasLimit(uint64 newFlashRepayCallbackTxGasLimit_) external onlyGovernor {
-        uint64 _currentFlashRepayCallbackTxGasLimit = flashRepayCallbackTxGasLimit;
-        if (newFlashRepayCallbackTxGasLimit_ == _currentFlashRepayCallbackTxGasLimit) revert NewValueIsSameAsCurrent();
-        emit FlashRepayCallbackTxGasLimitUpdated(
-            _currentFlashRepayCallbackTxGasLimit,
-            newFlashRepayCallbackTxGasLimit_
-        );
-        flashRepayCallbackTxGasLimit = newFlashRepayCallbackTxGasLimit_;
-    }
-
-    /**
-     * @notice Update flash repay swap tx gas limit
-     */
-    function updateFlashRepaySwapTxGasLimit(uint64 newFlashRepaySwapTxGasLimit_) external onlyGovernor {
-        uint64 _currentFlashRepaySwapTxGasLimit = flashRepaySwapTxGasLimit;
-        if (newFlashRepaySwapTxGasLimit_ == _currentFlashRepaySwapTxGasLimit) revert NewValueIsSameAsCurrent();
-        emit FlashRepaySwapTxGasLimitUpdated(_currentFlashRepaySwapTxGasLimit, newFlashRepaySwapTxGasLimit_);
-        flashRepaySwapTxGasLimit = newFlashRepaySwapTxGasLimit_;
-    }
-
-    /**
-     * @notice Update leverage callback tx gas limit
-     */
-    function updateLeverageCallbackTxGasLimit(uint64 newLeverageCallbackTxGasLimit_) external onlyGovernor {
-        uint64 _currentLeverageCallbackTxGasLimit = leverageCallbackTxGasLimit;
-        if (newLeverageCallbackTxGasLimit_ == _currentLeverageCallbackTxGasLimit) revert NewValueIsSameAsCurrent();
-        emit LeverageCallbackTxGasLimitUpdated(_currentLeverageCallbackTxGasLimit, newLeverageCallbackTxGasLimit_);
-        leverageCallbackTxGasLimit = newLeverageCallbackTxGasLimit_;
-    }
-
-    /**
-     * @notice Update leverage swap tx gas limit
-     */
-    function updateLeverageSwapTxGasLimit(uint64 newLeverageSwapTxGasLimit_) external onlyGovernor {
-        uint64 _currentSwapTxGasLimit = leverageSwapTxGasLimit;
-        if (newLeverageSwapTxGasLimit_ == _currentSwapTxGasLimit) revert NewValueIsSameAsCurrent();
-        emit LeverageSwapTxGasLimitUpdated(_currentSwapTxGasLimit, newLeverageSwapTxGasLimit_);
-        leverageSwapTxGasLimit = newLeverageSwapTxGasLimit_;
-    }
-
-    /**
-     * @notice Update Lz base gas limit
-     */
-    function updateLzBaseGasLimit(uint256 newLzBaseGasLimit_) external onlyGovernor {
-        uint256 _currentBaseGasLimit = lzBaseGasLimit;
-        if (newLzBaseGasLimit_ == _currentBaseGasLimit) revert NewValueIsSameAsCurrent();
-        emit LzBaseGasLimitUpdated(_currentBaseGasLimit, newLzBaseGasLimit_);
-        lzBaseGasLimit = newLzBaseGasLimit_;
-    }
-
-    /**
      * @notice Update master oracle contract
      */
     function updateMasterOracle(IMasterOracle newMasterOracle_) external onlyGovernor {
@@ -220,37 +136,6 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV2 {
         if (newGateway_ == _currentGateway) revert NewValueIsSameAsCurrent();
         emit NativeTokenGatewayUpdated(_currentGateway, newGateway_);
         nativeTokenGateway = newGateway_;
-    }
-
-    /**
-     * @notice Update Stargate pool id of token.
-     * @dev Use LZ ids (https://stargateprotocol.gitbook.io/stargate/developers/pool-ids)
-     */
-    function updateStargatePoolIdOf(address token_, uint256 newPoolId_) external onlyGovernor {
-        uint256 _currentPoolId = stargatePoolIdOf[token_];
-        if (newPoolId_ == _currentPoolId) revert NewValueIsSameAsCurrent();
-        emit StargatePoolIdUpdated(token_, _currentPoolId, newPoolId_);
-        stargatePoolIdOf[token_] = newPoolId_;
-    }
-
-    /**
-     * @notice Update Stargate slippage
-     */
-    function updateStargateSlippage(uint256 newStargateSlippage_) external onlyGovernor {
-        uint256 _currentStargateSlippage = stargateSlippage;
-        if (newStargateSlippage_ == _currentStargateSlippage) revert NewValueIsSameAsCurrent();
-        emit StargateSlippageUpdated(_currentStargateSlippage, newStargateSlippage_);
-        stargateSlippage = newStargateSlippage_;
-    }
-
-    /**
-     * @notice Update StargateRouter
-     */
-    function updateStargateRouter(IStargateRouter newStargateRouter_) external onlyGovernor {
-        IStargateRouter _currentStargateRouter = stargateRouter;
-        if (newStargateRouter_ == _currentStargateRouter) revert NewValueIsSameAsCurrent();
-        emit StargateRouterUpdated(_currentStargateRouter, newStargateRouter_);
-        stargateRouter = newStargateRouter_;
     }
 
     /**
@@ -278,21 +163,14 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV2 {
     }
 
     /**
-     * @notice Update LZ mainnet chain id
+     * @notice Update Cross-chain dispatcher contract
      */
-    function updateLzMainnetChainId(uint16 newLzMainnetChainId_) external onlyGovernor {
-        uint16 _currentLzMainnetChainId = lzMainnetChainId;
-        if (newLzMainnetChainId_ == _currentLzMainnetChainId) revert NewValueIsSameAsCurrent();
-        emit LzMainnetChainIdUpdated(_currentLzMainnetChainId, newLzMainnetChainId_);
-        lzMainnetChainId = newLzMainnetChainId_;
-    }
+    function updateCrossChainDispatcher(ICrossChainDispatcher crossChainDispatcher_) external onlyGovernor {
+        if (address(crossChainDispatcher_) == address(0)) revert AddressIsNull();
+        ICrossChainDispatcher _current = crossChainDispatcher;
+        if (crossChainDispatcher_ == _current) revert NewValueIsSameAsCurrent();
 
-    /**
-     * @notice Pause/Unpause bridge transfers
-     */
-    function toggleBridgingIsActive() external onlyGovernor {
-        bool _newIsBridgingActive = !isBridgingActive;
-        emit BridgingIsActiveUpdated(_newIsBridgingActive);
-        isBridgingActive = _newIsBridgingActive;
+        emit CrossChainDispatcherUpdated(_current, crossChainDispatcher_);
+        crossChainDispatcher = crossChainDispatcher_;
     }
 }

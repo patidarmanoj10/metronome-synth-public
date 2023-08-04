@@ -6,6 +6,7 @@ import "./dependencies/openzeppelin-upgradeable/proxy/utils/Initializable.sol";
 import "./dependencies/@layerzerolabs/solidity-examples/util/BytesLib.sol";
 import "./storage/QuoterStorage.sol";
 import "./interfaces/external/IStargateBridge.sol";
+import "./lib/CrossChainLib.sol";
 
 error NotAvailableOnThisChain();
 
@@ -36,28 +37,46 @@ contract Quoter is Initializable, QuoterStorageV1 {
         poolRegistry = poolRegistry_;
     }
 
-    function getLeverageSwapAndCallbackLzArgs(uint16 dstChainId_) external view returns (bytes memory _lzArgs) {
-        return abi.encode(quoteLeverageCallbackNativeFee(dstChainId_), poolRegistry.leverageSwapTxGasLimit());
+    function crossChainDispatcher() private view returns (ICrossChainDispatcher) {
+        return poolRegistry.crossChainDispatcher();
     }
 
-    function getFlashRepaySwapAndCallbackLzArgs(uint16 dstChainId_) external view returns (bytes memory _lzArgs) {
-        return abi.encode(quoteFlashRepayCallbackNativeFee(dstChainId_), poolRegistry.flashRepaySwapTxGasLimit());
+    function getLeverageSwapAndCallbackLzArgs(
+        uint16 positionChainId_,
+        uint16 liquidityChainId_
+    ) external view returns (bytes memory _lzArgs) {
+        return
+            CrossChainLib.encodeLzArgs({
+                dstChainId_: liquidityChainId_,
+                callbackNativeFee_: quoteLeverageCallbackNativeFee(positionChainId_),
+                swapTxGasLimit_: crossChainDispatcher().leverageSwapTxGasLimit()
+            });
+    }
+
+    function getFlashRepaySwapAndCallbackLzArgs(
+        uint16 positionChainId_,
+        uint16 liquidityChainId_
+    ) external view returns (bytes memory _lzArgs) {
+        return
+            CrossChainLib.encodeLzArgs({
+                dstChainId_: liquidityChainId_,
+                callbackNativeFee_: quoteFlashRepayCallbackNativeFee(positionChainId_),
+                swapTxGasLimit_: crossChainDispatcher().flashRepaySwapTxGasLimit()
+            });
     }
 
     function quoteLeverageCallbackNativeFee(uint16 dstChainId_) public view returns (uint256 _callbackTxNativeFee) {
-        if (_chainId() != 1) revert NotAvailableOnThisChain();
-
-        IPoolRegistry _poolRegistry = poolRegistry;
-        (_callbackTxNativeFee, ) = _poolRegistry.stargateRouter().quoteLayerZeroFee({
+        ICrossChainDispatcher _crossChainDispatcher = crossChainDispatcher();
+        (_callbackTxNativeFee, ) = _crossChainDispatcher.stargateRouter().quoteLayerZeroFee({
             _dstChainId: dstChainId_,
             _functionType: SG_TYPE_SWAP_REMOTE,
             _toAddress: abi.encodePacked(address(type(uint160).max)),
-            _transferAndCallPayload: abi.encodePacked(
-                address(type(uint160).max), // smart farming manager
-                bytes32(type(uint256).max) // requestId
+            _transferAndCallPayload: CrossChainLib.encodeLeverageCallbackPayload(
+                address(type(uint160).max),
+                type(uint256).max
             ),
             _lzTxParams: IStargateRouter.lzTxObj({
-                dstGasForCall: _poolRegistry.leverageCallbackTxGasLimit(),
+                dstGasForCall: _crossChainDispatcher.leverageCallbackTxGasLimit(),
                 dstNativeAmount: 0,
                 dstNativeAddr: ""
             })
@@ -65,24 +84,23 @@ contract Quoter is Initializable, QuoterStorageV1 {
     }
 
     function quoteFlashRepayCallbackNativeFee(uint16 dstChainId_) public view returns (uint256 _callbackTxNativeFee) {
-        if (_chainId() != 1) revert NotAvailableOnThisChain();
-
-        IPoolRegistry _poolRegistry = poolRegistry;
-        uint64 _callbackTxGasLimit = _poolRegistry.flashRepayCallbackTxGasLimit();
+        ICrossChainDispatcher _crossChainDispatcher = crossChainDispatcher();
+        uint64 _callbackTxGasLimit = _crossChainDispatcher.flashRepayCallbackTxGasLimit();
 
         bytes memory _lzPayload = abi.encode(
             PT_SEND_AND_CALL,
             abi.encodePacked(msg.sender),
             abi.encodePacked(address(type(uint160).max)),
             type(uint256).max,
-            abi.encode(
-                address(type(uint160).max), // smart farming manager
-                bytes32(type(uint256).max) // requestId
+            CrossChainLib.encodeFlashRepayCallbackPayload(
+                address(type(uint160).max),
+                address(type(uint160).max),
+                type(uint256).max
             ),
             _callbackTxGasLimit
         );
 
-        (_callbackTxNativeFee, ) = IStargateBridge(_poolRegistry.stargateRouter().bridge())
+        (_callbackTxNativeFee, ) = IStargateBridge(_crossChainDispatcher.stargateRouter().bridge())
             .layerZeroEndpoint()
             .estimateFees(
                 dstChainId_,
@@ -91,7 +109,7 @@ contract Quoter is Initializable, QuoterStorageV1 {
                 false,
                 abi.encodePacked(
                     LZ_ADAPTER_PARAMS_VERSION,
-                    uint256(_poolRegistry.lzBaseGasLimit() + _callbackTxGasLimit),
+                    uint256(_crossChainDispatcher.lzBaseGasLimit() + _callbackTxGasLimit),
                     uint256(0),
                     address(0)
                 )
@@ -103,84 +121,76 @@ contract Quoter is Initializable, QuoterStorageV1 {
      * @param lzArgs_ The LZ args for L1 transaction
      * @return _nativeFee The fee in native coin
      */
-    function quoteLayer2FlashRepayNativeFee(
+    function quoteCrossChainFlashRepayNativeFee(
         IProxyOFT proxyOFT,
         bytes calldata lzArgs_
     ) external view returns (uint256 _nativeFee) {
-        if (_chainId() == 1) revert NotAvailableOnThisChain();
+        (uint16 _dstChainId, uint256 _callbackTxNativeFee, uint64 _swapTxGasLimit_) = CrossChainLib.decodeLzArgs(
+            lzArgs_
+        );
 
-        IPoolRegistry _poolRegistry = poolRegistry;
-        uint16 _lzMainnetChainId = _poolRegistry.lzMainnetChainId();
-        bytes memory _mainnetOFT = abi.encodePacked(proxyOFT.getProxyOFTOf(_lzMainnetChainId));
+        bytes memory _destinationProxyOFT = abi.encodePacked(proxyOFT.getProxyOFTOf(_dstChainId));
 
-        (uint256 _callbackTxNativeFee, uint64 _swapTxGasLimit_) = abi.decode(lzArgs_, (uint256, uint64));
-
-        (_nativeFee, ) = _poolRegistry.stargateRouter().quoteLayerZeroFee({
-            _dstChainId: _lzMainnetChainId,
+        (_nativeFee, ) = crossChainDispatcher().stargateRouter().quoteLayerZeroFee({
+            _dstChainId: _dstChainId,
             _functionType: SG_TYPE_SWAP_REMOTE,
-            _toAddress: _mainnetOFT,
-            _transferAndCallPayload: abi.encodePacked(
-                address(type(uint160).max), // L2 smart farming manager
-                bytes32(type(uint256).max), // requestId
-                address(type(uint160).max), // account
-                type(uint256).max // amountOutMin_
+            _toAddress: _destinationProxyOFT,
+            _transferAndCallPayload: CrossChainLib.encodeFlashRepaySwapPayload(
+                address(type(uint160).max),
+                address(type(uint160).max),
+                type(uint256).max,
+                address(type(uint160).max),
+                type(uint256).max
             ),
             _lzTxParams: IStargateRouter.lzTxObj({
                 dstGasForCall: _swapTxGasLimit_,
                 dstNativeAmount: _callbackTxNativeFee,
-                dstNativeAddr: _mainnetOFT
+                dstNativeAddr: _destinationProxyOFT
             })
         });
     }
 
-    function quoteLayer2LeverageNativeFee(
+    function quoteCrossChainLeverageNativeFee(
         IProxyOFT proxyOFT_,
         bytes calldata lzArgs_
     ) public view returns (uint256 _nativeFee) {
-        if (_chainId() == 1) revert NotAvailableOnThisChain();
-
-        IPoolRegistry _poolRegistry = poolRegistry;
-        uint16 _lzMainnetChainId = _poolRegistry.lzMainnetChainId();
-        address _mainnetOFT = proxyOFT_.getProxyOFTOf(_lzMainnetChainId);
+        uint16 _dstChainId;
+        address _destinationProxyOFT;
         bytes memory _payload;
         bytes memory _adapterParams;
         uint64 _swapTxGasLimit;
+
         {
-            _payload = abi.encode(
-                address(type(uint160).max), // L2 smart farming manager
-                bytes32(type(uint256).max), // requestId
-                type(uint256).max, // sgPoolId
-                address(type(uint160).max), // account
-                type(uint256).max // amountOutMin_
+            _payload = CrossChainLib.encodeLeverageSwapPayload(
+                address(type(uint160).max),
+                address(type(uint160).max),
+                type(uint256).max,
+                type(uint256).max,
+                address(type(uint160).max),
+                type(uint256).max
             );
 
             uint256 _callbackTxNativeFee;
-            (_callbackTxNativeFee, _swapTxGasLimit) = abi.decode(lzArgs_, (uint256, uint64));
+            (_dstChainId, _callbackTxNativeFee, _swapTxGasLimit) = CrossChainLib.decodeLzArgs(lzArgs_);
+
+            _destinationProxyOFT = proxyOFT_.getProxyOFTOf(_dstChainId);
 
             _adapterParams = abi.encodePacked(
                 LZ_ADAPTER_PARAMS_VERSION,
-                uint256(_poolRegistry.lzBaseGasLimit() + _swapTxGasLimit),
+                uint256(crossChainDispatcher().lzBaseGasLimit() + _swapTxGasLimit),
                 _callbackTxNativeFee,
-                _mainnetOFT
+                _destinationProxyOFT
             );
         }
 
         (_nativeFee, ) = proxyOFT_.estimateSendAndCallFee({
-            _dstChainId: _lzMainnetChainId,
-            _toAddress: abi.encodePacked(_mainnetOFT),
+            _dstChainId: _dstChainId,
+            _toAddress: abi.encodePacked(_destinationProxyOFT),
             _amount: type(uint256).max,
             _payload: _payload,
             _dstGasForCall: _swapTxGasLimit,
             _useZro: false,
             _adapterParams: _adapterParams
         });
-    }
-
-    /**
-     * @dev Encapsulates chainId call for better tests fit
-     * Refs: https://github.com/NomicFoundation/hardhat/issues/3074
-     */
-    function _chainId() internal view virtual returns (uint256) {
-        return block.chainid;
     }
 }

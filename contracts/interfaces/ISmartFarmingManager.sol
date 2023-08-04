@@ -17,31 +17,31 @@ interface ISmartFarmingManager {
         uint256 repayAmountMin_
     ) external returns (uint256 _withdrawn, uint256 _repaid);
 
-    function layer2FlashRepay(
+    function crossChainFlashRepay(
         ISyntheticToken syntheticToken_,
         IDepositToken depositToken_,
         uint256 withdrawAmount_,
         IERC20 underlying_,
         uint256 underlyingAmountMin_,
-        uint256 layer1SwapAmountOutMin_,
+        uint256 swapAmountOutMin_,
         uint256 repayAmountMin_,
         bytes calldata lzArgs_
     ) external payable;
 
-    function layer2Leverage(
+    function crossChainLeverage(
         IERC20 underlying_,
         IDepositToken depositToken_,
         ISyntheticToken syntheticToken_,
         uint256 amountIn_,
         uint256 leverage_,
-        uint256 layer1SwapAmountOutMin_,
+        uint256 swapAmountOutMin_,
         uint256 depositAmountMin_,
         bytes calldata lzArgs_
     ) external payable;
 
-    function layer2LeverageCallback(uint256 id_, uint256 swapAmountOut_) external returns (uint256 _deposited);
+    function crossChainLeverageCallback(uint256 id_, uint256 swapAmountOut_) external returns (uint256 _deposited);
 
-    function layer2FlashRepayCallback(uint256 id_, uint256 swapAmountOut_) external returns (uint256 _repaid);
+    function crossChainFlashRepayCallback(uint256 id_, uint256 swapAmountOut_) external returns (uint256 _repaid);
 
     function leverage(
         IERC20 tokenIn_,

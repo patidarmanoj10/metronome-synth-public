@@ -14,16 +14,16 @@ import {Treasury} from "../../contracts/Treasury.sol";
 import {DepositToken} from "../../contracts/DepositToken.sol";
 import {DebtToken} from "../../contracts/DebtToken.sol";
 import {SyntheticToken} from "../../contracts/SyntheticToken.sol";
-import {IProxyOFT, BridgingIsPaused} from "../../contracts/ProxyOFT.sol";
-import {Layer1ProxyOFT} from "../../contracts/Layer1ProxyOFT.sol";
-import {Layer2ProxyOFT} from "../../contracts/Layer2ProxyOFT.sol";
+import {ProxyOFT, IProxyOFT, BridgingIsPaused} from "../../contracts/ProxyOFT.sol";
 import {FeeProvider, FeeProviderStorageV1, TiersNotOrderedByMin} from "../../contracts/FeeProvider.sol";
 import {ERC20Mock} from "../../contracts/mock/ERC20Mock.sol";
 import {MasterOracleMock} from "../../contracts/mock/MasterOracleMock.sol";
 import {SwapperMock, ISwapper} from "../../contracts/mock/SwapperMock.sol";
 import {IESMET} from "../../contracts/interfaces/external/IESMET.sol";
 import {Quoter, IQuoter} from "../../contracts/Quoter.sol";
+import {CrossChainDispatcher} from "../../contracts/CrossChainDispatcher.sol";
 import {WadRayMath} from "../../contracts/lib/WadRayMath.sol";
+import {CrossChainLib} from "../../contracts/lib/CrossChainLib.sol";
 
 interface ILayerZeroEndpointExtended is ILayerZeroEndpoint {
     function defaultReceiveLibraryAddress() external view returns (address);
@@ -79,12 +79,13 @@ abstract contract CrossChains_Test is Test {
     FeeProvider feeProvider_optimism;
     Pool pool_optimism;
     SmartFarmingManager smartFarmingManager_optimism;
+    CrossChainDispatcher crossChainDispatcher_optimism;
     Treasury treasury_optimism;
     SyntheticToken msUSD_optimism;
     DebtToken msUSDDebt_optimism;
     DepositToken msdUSDC_optimism;
     DepositToken msdVaUSDC_optimism;
-    Layer2ProxyOFT proxyOFT_msUSD_optimism;
+    ProxyOFT proxyOFT_msUSD_optimism;
     Quoter quoter_optimism;
 
     // Mainnet
@@ -99,17 +100,18 @@ abstract contract CrossChains_Test is Test {
     FeeProvider feeProvider_mainnet;
     Pool pool_mainnet;
     SmartFarmingManager smartFarmingManager_mainnet;
+    CrossChainDispatcher crossChainDispatcher_mainnet;
     SyntheticToken msUSD_mainnet;
     DebtToken msUSDDebt_mainnet;
     DepositToken msdUSDC_mainnet;
-    Layer1ProxyOFT proxyOFT_msUSD_mainnet;
+    ProxyOFT proxyOFT_msUSD_mainnet;
     Quoter quoter_mainnet;
 
     function setUp() public virtual {
         // TODO: Get from .env
         // Refs: https://github.com/autonomoussoftware/metronome-synth/issues/874
-        // mainnetFork = vm.createSelectFork("https://eth.connect.bloq.cloud/v1/peace-blood-actress");
-        mainnetFork = vm.createSelectFork("https://eth-mainnet.alchemyapi.io/v2/NbZ2px662CNSwdw3ZxdaZNe31yZbyddK");
+        mainnetFork = vm.createSelectFork("https://eth.connect.bloq.cloud/v1/peace-blood-actress");
+        // mainnetFork = vm.createSelectFork("https://eth-mainnet.alchemyapi.io/v2/NbZ2px662CNSwdw3ZxdaZNe31yZbyddK");
         vm.rollFork(mainnetFork, 17635570);
         optimismFork = vm.createSelectFork("https://optimism-mainnet.infura.io/v3/9989c2cf77a24bddaa43103463cb8047");
         vm.rollFork(optimismFork, 106528550);
@@ -126,18 +128,21 @@ abstract contract CrossChains_Test is Test {
         treasury_optimism = new Treasury();
         pool_optimism = new Pool();
         smartFarmingManager_optimism = new SmartFarmingManager();
+        crossChainDispatcher_optimism = new CrossChainDispatcher();
         msUSD_optimism = new SyntheticToken();
         msUSDDebt_optimism = new DebtToken();
         msdUSDC_optimism = new DepositToken();
         msdVaUSDC_optimism = new DepositToken();
-        proxyOFT_msUSD_optimism = new Layer2ProxyOFT();
+        proxyOFT_msUSD_optimism = new ProxyOFT();
         quoter_optimism = new Quoter();
         proxyOFT_msUSD_optimism.initialize(address(lzEndpoint_optimism), msUSD_optimism);
         poolRegistry_optimism.initialize({masterOracle_: masterOracle_optimism, feeCollector_: feeCollector});
         poolRegistry_optimism.updateQuoter(quoter_optimism);
-        poolRegistry_optimism.toggleBridgingIsActive();
+        poolRegistry_optimism.updateCrossChainDispatcher(crossChainDispatcher_optimism);
         feeProvider_optimism.initialize({poolRegistry_: poolRegistry_optimism, esMET_: IESMET(address(0))});
         pool_optimism.initialize(poolRegistry_optimism);
+        crossChainDispatcher_optimism.initialize(poolRegistry_optimism);
+        crossChainDispatcher_optimism.toggleBridgingIsActive();
         smartFarmingManager_optimism.initialize(pool_optimism);
         treasury_optimism.initialize(pool_optimism);
         quoter_optimism.initialize(poolRegistry_optimism);
@@ -188,7 +193,7 @@ abstract contract CrossChains_Test is Test {
         masterOracle_optimism.updatePrice(address(usdc_optimism), 1e18);
         masterOracle_optimism.updatePrice(address(vaUSDC_optimism), 1e18);
         masterOracle_optimism.updatePrice(address(msUSD_optimism), 1e18);
-        poolRegistry_optimism.updateStargateRouter(IStargateRouter(sgRouter_optimism));
+        crossChainDispatcher_optimism.updateStargateRouter(IStargateRouter(sgRouter_optimism));
         proxyOFT_msUSD_optimism.setUseCustomAdapterParams(true);
         proxyOFT_msUSD_optimism.setMinDstGas(LZ_MAINNET_CHAIN_ID, proxyOFT_msUSD_optimism.PT_SEND(), 200_000);
         msUSD_optimism.updateProxyOFT(proxyOFT_msUSD_optimism);
@@ -208,18 +213,21 @@ abstract contract CrossChains_Test is Test {
         treasury_mainnet = new Treasury();
         pool_mainnet = new Pool();
         smartFarmingManager_mainnet = new SmartFarmingManager();
+        crossChainDispatcher_mainnet = new CrossChainDispatcher();
         msUSD_mainnet = new SyntheticToken();
         msUSDDebt_mainnet = new DebtToken();
         msdUSDC_mainnet = new DepositToken();
-        proxyOFT_msUSD_mainnet = new Layer1ProxyOFT();
+        proxyOFT_msUSD_mainnet = new ProxyOFT();
         quoter_mainnet = new Quoter();
         proxyOFT_msUSD_mainnet.initialize(address(lzEndpoint_mainnet), msUSD_mainnet);
         poolRegistry_mainnet.initialize({masterOracle_: masterOracle_mainnet, feeCollector_: feeCollector});
         poolRegistry_mainnet.updateQuoter(quoter_mainnet);
-        poolRegistry_mainnet.toggleBridgingIsActive();
+        poolRegistry_mainnet.updateCrossChainDispatcher(crossChainDispatcher_mainnet);
         feeProvider_mainnet.initialize({poolRegistry_: poolRegistry_mainnet, esMET_: IESMET(address(0))});
         pool_mainnet.initialize(poolRegistry_mainnet);
         treasury_mainnet.initialize(pool_mainnet);
+        crossChainDispatcher_mainnet.initialize(poolRegistry_mainnet);
+        crossChainDispatcher_mainnet.toggleBridgingIsActive();
         smartFarmingManager_mainnet.initialize(pool_mainnet);
         quoter_mainnet.initialize(poolRegistry_mainnet);
 
@@ -250,7 +258,7 @@ abstract contract CrossChains_Test is Test {
 
         poolRegistry_mainnet.registerPool(address(pool_mainnet));
         poolRegistry_mainnet.updateSwapper(swapper_mainnet);
-        poolRegistry_mainnet.updateStargateRouter(IStargateRouter(sgRouter_mainnet));
+        crossChainDispatcher_mainnet.updateStargateRouter(IStargateRouter(sgRouter_mainnet));
         pool_mainnet.updateFeeProvider(feeProvider_mainnet);
         pool_mainnet.updateSmartFarmingManager(smartFarmingManager_mainnet);
         pool_mainnet.addDepositToken(address(msdUSDC_mainnet));
@@ -287,8 +295,16 @@ abstract contract CrossChains_Test is Test {
             LZ_MAINNET_CHAIN_ID,
             abi.encodePacked(address(proxyOFT_msUSD_mainnet), address(proxyOFT_msUSD_optimism))
         );
+        // proxyOFT_msUSD_optimism.setTrustedRemote(
+        //     LZ_MAINNET_CHAIN_ID,
+        //     abi.encodePacked(address(crossChainDispatcher_mainnet), address(proxyOFT_msUSD_optimism))
+        // );
+        crossChainDispatcher_optimism.updateCrossChainDispatcherOf(
+            LZ_MAINNET_CHAIN_ID,
+            address(crossChainDispatcher_mainnet)
+        );
 
-        poolRegistry_optimism.updateStargatePoolIdOf(address(usdc_optimism), SG_USDC_POOL_ID);
+        crossChainDispatcher_optimism.updateStargatePoolIdOf(address(usdc_optimism), SG_USDC_POOL_ID);
 
         deal(address(usdc_optimism), address(swapper_optimism), 1000000000000000e6);
         deal(address(vaUSDC_optimism), address(swapper_optimism), 1000000000000000e18);
@@ -299,8 +315,16 @@ abstract contract CrossChains_Test is Test {
             LZ_OP_CHAIN_ID,
             abi.encodePacked(address(proxyOFT_msUSD_optimism), address(proxyOFT_msUSD_mainnet))
         );
+        // proxyOFT_msUSD_mainnet.setTrustedRemote(
+        //     LZ_OP_CHAIN_ID,
+        //     abi.encodePacked(address(crossChainDispatcher_optimism), address(proxyOFT_msUSD_mainnet))
+        // );
+        crossChainDispatcher_mainnet.updateCrossChainDispatcherOf(
+            LZ_OP_CHAIN_ID,
+            address(crossChainDispatcher_optimism)
+        );
 
-        poolRegistry_mainnet.updateStargatePoolIdOf(address(usdc_mainnet), SG_USDC_POOL_ID);
+        crossChainDispatcher_mainnet.updateStargatePoolIdOf(address(usdc_mainnet), SG_USDC_POOL_ID);
 
         deal(address(usdc_mainnet), address(swapper_mainnet), 1000000000e6);
         deal(address(msUSD_mainnet), address(swapper_mainnet), 1000000000e18);
@@ -341,12 +365,12 @@ abstract contract CrossChains_Test is Test {
             fork = mainnetFork;
             lz = lzEndpoint_mainnet;
             sg = sgRouter_mainnet;
-            to = address(proxyOFT_msUSD_mainnet);
+            to = address(crossChainDispatcher_mainnet);
         } else {
             fork = optimismFork;
             lz = lzEndpoint_optimism;
             sg = sgRouter_optimism;
-            to = address(proxyOFT_msUSD_optimism);
+            to = address(crossChainDispatcher_optimism);
         }
 
         vm.selectFork(fork);
@@ -373,18 +397,26 @@ abstract contract CrossChains_Test is Test {
         Vm.Log memory Packet,
         Vm.Log memory RelayerParams
     ) internal {
-        (uint16 _dstChainId, address from, address to) = _decodeSendToChainEvent(SendToChain);
+        // TODO get from/to from trusted path
+        // (uint16 _dstChainId, address from, address to) = _decodeSendToChainEvent(SendToChain);
+        (uint16 _dstChainId, , ) = _decodeSendToChainEvent(SendToChain);
         (uint64 _dstGasForCall, bytes memory payload) = _decodeOftPacketEvent(Packet);
 
         uint256 fork;
         uint16 _srcChainId;
         ILayerZeroEndpointExtended lz;
+        address from;
+        address to;
 
         if (_dstChainId == LZ_MAINNET_CHAIN_ID) {
+            from = address(proxyOFT_msUSD_optimism);
+            to = address(proxyOFT_msUSD_mainnet);
             fork = mainnetFork;
             _srcChainId = LZ_OP_CHAIN_ID;
             lz = lzEndpoint_mainnet;
         } else {
+            from = address(proxyOFT_msUSD_mainnet);
+            to = address(proxyOFT_msUSD_optimism);
             fork = optimismFork;
             _srcChainId = LZ_MAINNET_CHAIN_ID;
             lz = lzEndpoint_optimism;

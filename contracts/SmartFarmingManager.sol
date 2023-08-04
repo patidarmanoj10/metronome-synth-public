@@ -4,10 +4,11 @@ pragma solidity 0.8.9;
 
 import "./utils/ReentrancyGuard.sol";
 import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
-import "./interfaces/ILayer2ProxyOFT.sol";
+import "./interfaces/ICrossChainDispatcher.sol";
 import "./access/Manageable.sol";
 import "./storage/SmartFarmingManagerStorage.sol";
 import "./lib/WadRayMath.sol";
+import "./lib/CrossChainLib.sol";
 
 error SyntheticDoesNotExist();
 error PoolIsNull();
@@ -21,10 +22,9 @@ error AmountIsTooHigh();
 error DepositTokenDoesNotExist();
 error AddressIsNull();
 error NewValueIsSameAsCurrent();
-error Layer2RequestInvalidKey();
-error SenderIsNotProxyOFT();
-error NotAvailableOnThisChain();
-error Layer2RequestCompletedAlready();
+error CrossChainRequestInvalidKey();
+error SenderIsNotCrossChainDispatcher();
+error CrossChainRequestCompletedAlready();
 error TokenInIsNull();
 error SenderIsNotAccount();
 
@@ -38,17 +38,17 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
 
     string public constant VERSION = "1.2.0";
 
-    /// @notice Emitted when a L2 leverage request is finalized
-    event Layer2LeverageFinished(uint256 indexed id);
+    /// @notice Emitted when a cross-chain leverage request is finalized
+    event CrossChainLeverageFinished(uint256 indexed id);
 
-    /// @notice Emitted when a L2 leverage request is created
-    event Layer2LeverageStarted(uint256 indexed id);
+    /// @notice Emitted when a cross-chain leverage request is created
+    event CrossChainLeverageStarted(uint256 indexed id);
 
-    /// @notice Emitted when a L2 flash repay request is finalized
-    event Layer2FlashRepayFinished(uint256 indexed id);
+    /// @notice Emitted when a cross-chain flash repay request is finalized
+    event CrossChainFlashRepayFinished(uint256 indexed id);
 
-    /// @notice Emitted when a L2 flash repay request is created
-    event Layer2FlashRepayStarted(uint256 indexed id);
+    /// @notice Emitted when a cross-chain flash repay request is created
+    event CrossChainFlashRepayStarted(uint256 indexed id);
 
     /// @notice Emitted when debt is flash repaid
     event FlashRepaid(
@@ -72,11 +72,8 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
     /**
      * @dev Throws if sender isn't a valid ProxyOFT contract
      */
-    modifier onlyIfProxyOFT() {
-        ISyntheticToken _syntheticToken = ISyntheticToken(ILayer2ProxyOFT(msg.sender).token());
-        if (!pool.doesSyntheticTokenExist(_syntheticToken) || address(_syntheticToken.proxyOFT()) != msg.sender) {
-            revert SenderIsNotProxyOFT();
-        }
+    modifier onlyIfCrossChainDispatcher() {
+        if (msg.sender != address(crossChainDispatcher())) revert SenderIsNotCrossChainDispatcher();
         _;
     }
 
@@ -211,25 +208,25 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
     }
 
     /***
-     * @notice Flash debt repayment for L2 chains
+     * @notice Cross-chain flash debt repayment
      * @param syntheticToken_ The debt token to repay
      * @param depositToken_ The collateral to withdraw
      * @param withdrawAmount_ The amount to withdraw
      * @param underlying_ The underlying asset (e.g. USDC is vaUSDC's underlying)
      * @param underlyingAmountMin_ The minimum amount out for collateral->underlying swap (slippage check)
-     * @param layer1SwapAmountOutMin_ The minimum amount out for underlying->msAsset swap (slippage check)
+     * @param swapAmountOutMin_ The minimum amount out for underlying->msAsset swap (slippage check)
      * @param repayAmountMin_ The minimum amount to repay (slippage check)
-     * @param layer1LzArgs_ The LayerZero params (See: `Quoter.getFlashRepaySwapAndCallbackLzArgs()`)
+     * @param lzArgs_ The LayerZero params (See: `Quoter.getFlashRepaySwapAndCallbackLzArgs()`)
      */
-    function layer2FlashRepay(
+    function crossChainFlashRepay(
         ISyntheticToken syntheticToken_,
         IDepositToken depositToken_,
         uint256 withdrawAmount_,
         IERC20 underlying_,
         uint256 underlyingAmountMin_,
-        uint256 layer1SwapAmountOutMin_,
+        uint256 swapAmountOutMin_,
         uint256 repayAmountMin_,
-        bytes calldata layer1LzArgs_
+        bytes calldata lzArgs_
     )
         external
         payable
@@ -238,7 +235,6 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         onlyIfDepositTokenExists(depositToken_)
         onlyIfSyntheticTokenExists(syntheticToken_)
     {
-        if (_chainId() == 1) revert NotAvailableOnThisChain();
         if (withdrawAmount_ == 0) revert AmountIsZero();
 
         address _proxyOFT;
@@ -257,21 +253,42 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
             (uint256 _withdrawn, ) = depositToken_.withdrawFrom(msg.sender, withdrawAmount_, address(this));
 
             // 2. swap collateral for its underlying
-            // Note: Swap to `proxyOFT` to save transfer gas
+            // Note: Swap to `crossChainDispatcher` to save transfer gas
             _amountIn = _swap({
                 swapper_: swapper(),
                 tokenIn_: _collateralOf(depositToken_),
                 tokenOut_: underlying_,
                 amountIn_: _withdrawn,
                 amountOutMin_: underlyingAmountMin_,
-                to_: _proxyOFT
+                to_: address(crossChainDispatcher())
             });
         }
 
-        // 3. store request
-        uint256 _id = ++layer2RequestId;
+        _triggerFlashRepaySwap({
+            syntheticToken_: syntheticToken_,
+            underlying_: underlying_,
+            amountIn_: _amountIn,
+            swapAmountOutMin_: swapAmountOutMin_,
+            repayAmountMin_: repayAmountMin_,
+            lzArgs_: lzArgs_
+        });
+    }
 
-        layer2FlashRepays[_id] = Layer2FlashRepay({
+    function _triggerFlashRepaySwap(
+        ISyntheticToken syntheticToken_,
+        IERC20 underlying_,
+        uint256 amountIn_,
+        uint256 swapAmountOutMin_,
+        uint256 repayAmountMin_,
+        bytes calldata lzArgs_
+    ) private {
+        // 3. store request
+        uint256 _id = _nextCrossChainRequestId();
+
+        (uint16 _dstChainId, , ) = CrossChainLib.decodeLzArgs(lzArgs_);
+
+        crossChainFlashRepays[_id] = CrossChainFlashRepay({
+            dstChainId: _dstChainId,
             syntheticToken: syntheticToken_,
             repayAmountMin: repayAmountMin_,
             account: msg.sender,
@@ -279,40 +296,39 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         });
 
         // 4. trigger L1 swap
-        ILayer2ProxyOFT(_proxyOFT).triggerFlashRepaySwap{value: msg.value}({
+        crossChainDispatcher().triggerFlashRepaySwap{value: msg.value}({
+            proxyOFT_: syntheticToken_.proxyOFT(),
             id_: _id,
             account_: payable(msg.sender),
             tokenIn_: address(underlying_),
-            amountIn_: _amountIn,
-            amountOutMin_: layer1SwapAmountOutMin_,
-            lzArgs_: layer1LzArgs_
+            amountIn_: amountIn_,
+            amountOutMin_: swapAmountOutMin_,
+            lzArgs_: lzArgs_
         });
 
-        emit Layer2FlashRepayStarted(_id);
+        emit CrossChainFlashRepayStarted(_id);
     }
 
     /**
-     * @notice Finalize L2 flash debt repayment process
+     * @notice Finalize cross-chain flash debt repayment process
      * @dev Receives msAsset from L1 and use it to repay
      * @param id_ The id of the request
      * @param swapAmountOut_ The msAsset amount received from L1 swap
      * @return _repaid The debt amount repaid
      */
-    function layer2FlashRepayCallback(
+    function crossChainFlashRepayCallback(
         uint256 id_,
         uint256 swapAmountOut_
-    ) external override whenNotShutdown nonReentrant onlyIfProxyOFT returns (uint256 _repaid) {
-        if (_chainId() == 1) revert NotAvailableOnThisChain();
-
+    ) external override whenNotShutdown nonReentrant onlyIfCrossChainDispatcher returns (uint256 _repaid) {
         IPool _pool = pool;
-        Layer2FlashRepay memory _request = layer2FlashRepays[id_];
+        CrossChainFlashRepay memory _request = crossChainFlashRepays[id_];
 
-        if (_request.account == address(0)) revert Layer2RequestInvalidKey();
-        if (msg.sender != address(_request.syntheticToken.proxyOFT())) revert SenderIsNotProxyOFT();
-        if (_request.finished) revert Layer2RequestCompletedAlready();
+        if (_request.account == address(0)) revert CrossChainRequestInvalidKey();
+        if (msg.sender != address(crossChainDispatcher())) revert SenderIsNotCrossChainDispatcher();
+        if (_request.finished) revert CrossChainRequestCompletedAlready();
 
         // 1. update state
-        layer2FlashRepays[id_].finished = true;
+        crossChainFlashRepays[id_].finished = true;
 
         // 2. transfer synthetic token
         swapAmountOut_ = _safeTransferFrom(_request.syntheticToken, msg.sender, swapAmountOut_);
@@ -321,29 +337,29 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         (_repaid, ) = _pool.debtTokenOf(_request.syntheticToken).repay(_request.account, swapAmountOut_);
         if (_repaid < _request.repayAmountMin) revert FlashRepaySlippageTooHigh();
 
-        emit Layer2FlashRepayFinished(id_);
+        emit CrossChainFlashRepayFinished(id_);
     }
 
     /***
-     * @notice Leverage for L2 chains
+     * @notice Cross-chain Leverage
      * @param underlying_ The underlying asset (e.g. USDC is vaUSDC's underlying)
      * @param depositToken_ The collateral to deposit
      * @param syntheticToken_ The msAsset to mint
      * @param amountIn_ The amount to deposit
      * @param leverage_ The leverage X param (e.g. 1.5e18 for 1.5X)
-     * @param layer1SwapAmountOutMin_ The minimum amount out for msAsset->underlying swap (slippage check)
+     * @param swapAmountOutMin_ The minimum amount out for msAsset->underlying swap (slippage check)
      * @param depositAmountMin_ The minimum amount to deposit (slippage check)
-     * @param layer1LzArgs_ The LayerZero params (See: `Quoter.getLeverageSwapAndCallbackLzArgs()`)
+     * @param lzArgs_ The LayerZero params (See: `Quoter.getLeverageSwapAndCallbackLzArgs()`)
      */
-    function layer2Leverage(
+    function crossChainLeverage(
         IERC20 underlying_,
         IDepositToken depositToken_,
         ISyntheticToken syntheticToken_,
         uint256 amountIn_,
         uint256 leverage_,
-        uint256 layer1SwapAmountOutMin_,
+        uint256 swapAmountOutMin_,
         uint256 depositAmountMin_,
-        bytes calldata layer1LzArgs_
+        bytes calldata lzArgs_
     )
         external
         payable
@@ -352,8 +368,6 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         onlyIfDepositTokenExists(depositToken_)
         onlyIfSyntheticTokenExists(syntheticToken_)
     {
-        if (_chainId() == 1) revert NotAvailableOnThisChain();
-
         IERC20 _underlying = underlying_; // stack too deep
 
         if (leverage_ <= 1e18) revert LeverageTooLow();
@@ -364,58 +378,85 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         amountIn_ = _safeTransferFrom(_underlying, msg.sender, amountIn_);
 
         // 2. mint synth
-        // Note: Issue to `proxyOFT` to save transfer gas
+        // Note: Issue to `crossChainDispatcher` to save transfer gas
         (uint256 _issued, ) = pool.debtTokenOf(syntheticToken_).flashIssue(
-            address(syntheticToken_.proxyOFT()),
+            address(crossChainDispatcher()),
             _calculateLeverageDebtAmount(_underlying, syntheticToken_, amountIn_, leverage_)
         );
 
-        // 3. store request
-        uint256 _id = ++layer2RequestId;
-
-        layer2Leverages[_id] = Layer2Leverage({
-            underlying: _underlying,
-            depositToken: depositToken_,
-            syntheticToken: syntheticToken_,
-            depositAmountMin: depositAmountMin_,
-            underlyingAmountIn: amountIn_,
-            syntheticTokenIssued: _issued,
-            account: msg.sender,
-            finished: false
+        _triggerLeverageSwap({
+            underlying_: underlying_,
+            depositToken_: depositToken_,
+            syntheticToken_: syntheticToken_,
+            amountIn_: amountIn_,
+            swapAmountOutMin_: swapAmountOutMin_,
+            depositAmountMin_: depositAmountMin_,
+            lzArgs_: lzArgs_,
+            issued_: _issued
         });
+    }
+
+    function _triggerLeverageSwap(
+        IERC20 underlying_,
+        IDepositToken depositToken_,
+        ISyntheticToken syntheticToken_,
+        uint256 amountIn_,
+        uint256 swapAmountOutMin_,
+        uint256 depositAmountMin_,
+        bytes calldata lzArgs_,
+        uint256 issued_
+    ) private {
+        // 3. store request
+        uint256 _id = _nextCrossChainRequestId();
+
+        {
+            // TODO: Move dstChain as function arg?
+            (uint16 _dstChainId, , ) = CrossChainLib.decodeLzArgs(lzArgs_);
+
+            crossChainLeverages[_id] = CrossChainLeverage({
+                dstChainId: _dstChainId,
+                underlying: underlying_,
+                depositToken: depositToken_,
+                syntheticToken: syntheticToken_,
+                depositAmountMin: depositAmountMin_,
+                underlyingAmountIn: amountIn_,
+                syntheticTokenIssued: issued_,
+                account: msg.sender,
+                finished: false
+            });
+        }
 
         // 4. trigger L1 swap
-        ILayer2ProxyOFT(address(syntheticToken_.proxyOFT())).triggerLeverageSwap{value: msg.value}({
+        crossChainDispatcher().triggerLeverageSwap{value: msg.value}({
+            proxyOFT_: syntheticToken_.proxyOFT(),
             id_: _id,
             account_: payable(msg.sender),
-            tokenOut_: address(_underlying),
-            amountIn_: _issued,
-            amountOutMin: layer1SwapAmountOutMin_,
-            lzArgs_: layer1LzArgs_
+            tokenOut_: address(underlying_),
+            amountIn_: issued_,
+            amountOutMin: swapAmountOutMin_,
+            lzArgs_: lzArgs_
         });
 
-        emit Layer2LeverageStarted(_id);
+        emit CrossChainLeverageStarted(_id);
     }
 
     /**
-     * @notice Finalize L2 leverage process
+     * @notice Finalize cross-chain leverage process
      * @dev Receives underlying from L1 and use it to deposit
      * @param id_ The id of the request
      * @param swapAmountOut_ The underlying amount received from L1 swap
      * @return _deposited The amount deposited
      */
-    function layer2LeverageCallback(
+    function crossChainLeverageCallback(
         uint256 id_,
         uint256 swapAmountOut_
-    ) external override nonReentrant onlyIfProxyOFT returns (uint256 _deposited) {
-        if (_chainId() == 1) revert NotAvailableOnThisChain();
-
-        Layer2Leverage memory _request = layer2Leverages[id_];
+    ) external override nonReentrant onlyIfCrossChainDispatcher returns (uint256 _deposited) {
+        CrossChainLeverage memory _request = crossChainLeverages[id_];
         IPool _pool = pool;
 
-        if (_request.account == address(0)) revert Layer2RequestInvalidKey();
-        if (msg.sender != address(_request.syntheticToken.proxyOFT())) revert SenderIsNotProxyOFT();
-        if (_request.finished) revert Layer2RequestCompletedAlready();
+        if (_request.account == address(0)) revert CrossChainRequestInvalidKey();
+        if (msg.sender != address(crossChainDispatcher())) revert SenderIsNotCrossChainDispatcher();
+        if (_request.finished) revert CrossChainRequestCompletedAlready();
         IERC20 _collateral = _collateralOf(_request.depositToken);
 
         // 1. transfer underlying
@@ -429,7 +470,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         if (_depositAmount < _request.depositAmountMin) revert LeverageSlippageTooHigh();
 
         // 3. update state
-        layer2Leverages[id_].finished = true;
+        crossChainLeverages[id_].finished = true;
 
         // 4. deposit collateral
         _collateral.safeApprove(address(_request.depositToken), 0);
@@ -443,11 +484,11 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         (bool _isHealthy, , , , ) = _pool.debtPositionOf(_request.account);
         if (!_isHealthy) revert PositionIsNotHealthy();
 
-        emit Layer2LeverageFinished(id_);
+        emit CrossChainLeverageFinished(id_);
     }
 
     /**
-     * @notice Retry L2 flash repay callback
+     * @notice Retry cross-chain flash repay callback
      * @dev This function is used to recover from callback failures due to slippage
      * @param id_ The id of the request
      * @param newRepayAmountMin_ Updated slippage check param
@@ -457,7 +498,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
      * @param amount_ The amount of failed tx
      * @param payload_ The payload of failed tx
      */
-    function retryLayer2FlashRepayCallback(
+    function retryCrossChainFlashRepayCallback(
         uint256 id_,
         uint256 newRepayAmountMin_,
         uint16 srcChainId_,
@@ -466,33 +507,32 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         uint amount_,
         bytes calldata payload_
     ) external {
-        if (_chainId() == 1) revert NotAvailableOnThisChain();
+        CrossChainFlashRepay memory _request = crossChainFlashRepays[id_];
 
-        Layer2FlashRepay memory _request = layer2FlashRepays[id_];
-
-        if (_request.account == address(0)) revert Layer2RequestInvalidKey();
+        if (_request.account == address(0)) revert CrossChainRequestInvalidKey();
         if (msg.sender != _request.account) revert SenderIsNotAccount();
-        if (_request.finished) revert Layer2RequestCompletedAlready();
+        if (_request.finished) revert CrossChainRequestCompletedAlready();
 
-        layer2FlashRepays[id_].repayAmountMin = newRepayAmountMin_;
+        crossChainFlashRepays[id_].repayAmountMin = newRepayAmountMin_;
 
         IProxyOFT _proxyOFT = _request.syntheticToken.proxyOFT();
 
-        bytes memory _from = abi.encodePacked(_proxyOFT.getProxyOFTOf(srcChainId_));
+        ICrossChainDispatcher _crossChainDispatcher = crossChainDispatcher();
+        bytes memory _from = abi.encodePacked(_crossChainDispatcher.crossChainDispatcherOf(srcChainId_));
 
         _proxyOFT.retryOFTReceived({
             _srcChainId: srcChainId_,
             _srcAddress: srcAddress_,
             _nonce: nonce_,
             _from: _from,
-            _to: address(_proxyOFT),
+            _to: address(_crossChainDispatcher),
             _amount: amount_,
             _payload: payload_
         });
     }
 
     /**
-     * @notice Retry L2 leverage callback
+     * @notice Retry cross-chain leverage callback
      * @dev This function is used to recover from callback failures due to slippage
      * @param id_ The id of the request
      * @param newDepositAmountMin_ Updated slippage check param
@@ -500,24 +540,22 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
      * @param srcAddress_ The source path of failed tx
      * @param nonce_ The nonce of failed tx
      */
-    function retryLayer2LeverageCallback(
+    function retryCrossChainLeverageCallback(
         uint256 id_,
         uint256 newDepositAmountMin_,
         uint16 srcChainId_,
         bytes calldata srcAddress_,
         uint256 nonce_
     ) external {
-        if (_chainId() == 1) revert NotAvailableOnThisChain();
+        CrossChainLeverage memory _request = crossChainLeverages[id_];
 
-        Layer2Leverage memory _request = layer2Leverages[id_];
-
-        if (_request.account == address(0)) revert Layer2RequestInvalidKey();
+        if (_request.account == address(0)) revert CrossChainRequestInvalidKey();
         if (msg.sender != _request.account) revert SenderIsNotAccount();
-        if (_request.finished) revert Layer2RequestCompletedAlready();
+        if (_request.finished) revert CrossChainRequestCompletedAlready();
 
-        layer2Leverages[id_].depositAmountMin = newDepositAmountMin_;
+        crossChainLeverages[id_].depositAmountMin = newDepositAmountMin_;
 
-        _request.syntheticToken.poolRegistry().stargateRouter().clearCachedSwap(srcChainId_, srcAddress_, nonce_);
+        crossChainDispatcher().stargateRouter().clearCachedSwap(srcChainId_, srcAddress_, nonce_);
     }
 
     /**
@@ -525,6 +563,10 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
      */
     function swapper() public view returns (ISwapper _swapper) {
         return pool.poolRegistry().swapper();
+    }
+
+    function crossChainDispatcher() public view returns (ICrossChainDispatcher _crossChainDispatcher) {
+        return pool.poolRegistry().crossChainDispatcher();
     }
 
     /**
@@ -557,14 +599,6 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
      */
     function _collateralOf(IDepositToken depositToken_) private view returns (IERC20) {
         return depositToken_.underlying();
-    }
-
-    /**
-     * @dev Encapsulates chainId call for better tests fit
-     * Refs: https://github.com/NomicFoundation/hardhat/issues/3074
-     */
-    function _chainId() internal view virtual returns (uint256) {
-        return block.chainid;
     }
 
     /**
@@ -623,5 +657,9 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         uint256 _tokenOutBefore = tokenOut_.balanceOf(to_);
         swapper_.swapExactInput(address(tokenIn_), address(tokenOut_), amountIn_, amountOutMin_, to_);
         return tokenOut_.balanceOf(to_) - _tokenOutBefore;
+    }
+
+    function _nextCrossChainRequestId() private returns (uint256 _id) {
+        _id = uint256(keccak256(abi.encode(block.chainid, ++crossChainRequestId)));
     }
 }

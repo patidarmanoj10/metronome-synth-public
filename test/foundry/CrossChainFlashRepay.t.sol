@@ -3,7 +3,7 @@ pragma solidity ^0.8.9;
 
 import "./CrossChains.t.sol";
 
-contract Layer2FlashRepay_Test is CrossChains_Test {
+contract CrossChainFlashRepay_Test is CrossChains_Test {
     using stdStorage for StdStorage;
     using WadRayMath for uint256;
     using BytesLib for bytes;
@@ -18,31 +18,37 @@ contract Layer2FlashRepay_Test is CrossChains_Test {
         msUSDDebt_optimism.issue(issueAmount_, alice);
     }
 
-    function _layer2FlashRepay(
+    function _crossChainFlashRepay(
         uint256 withdrawAmount_,
-        uint256 layer1SwapAmountOutMin_,
+        uint256 swapAmountOutMin_,
         uint256 repayAmountMin_
     ) private {
         vm.recordLogs();
 
         vm.selectFork(mainnetFork);
-        bytes memory _lzArgs = poolRegistry_mainnet.quoter().getFlashRepaySwapAndCallbackLzArgs(LZ_OP_CHAIN_ID);
+        bytes memory _lzArgs = poolRegistry_mainnet.quoter().getFlashRepaySwapAndCallbackLzArgs({
+            positionChainId_: LZ_OP_CHAIN_ID,
+            liquidityChainId_: LZ_MAINNET_CHAIN_ID
+        });
 
         vm.selectFork(optimismFork);
-        uint256 fee = poolRegistry_optimism.quoter().quoteLayer2FlashRepayNativeFee(proxyOFT_msUSD_optimism, _lzArgs);
+        uint256 fee = poolRegistry_optimism.quoter().quoteCrossChainFlashRepayNativeFee(
+            proxyOFT_msUSD_optimism,
+            _lzArgs
+        );
         deal(alice, fee);
 
         vm.startPrank(alice);
         usdc_optimism.approve(address(pool_optimism), type(uint256).max);
-        smartFarmingManager_optimism.layer2FlashRepay{value: fee}({
+        smartFarmingManager_optimism.crossChainFlashRepay{value: fee}({
             syntheticToken_: msUSD_optimism,
             depositToken_: msdVaUSDC_optimism,
             withdrawAmount_: withdrawAmount_,
             underlying_: usdc_optimism,
             underlyingAmountMin_: 0,
             repayAmountMin_: repayAmountMin_,
-            layer1SwapAmountOutMin_: layer1SwapAmountOutMin_,
-            layer1LzArgs_: _lzArgs
+            swapAmountOutMin_: swapAmountOutMin_,
+            lzArgs_: _lzArgs
         });
         vm.stopPrank();
 
@@ -61,7 +67,7 @@ contract Layer2FlashRepay_Test is CrossChains_Test {
         _executeOftTransferArrivalTx(SendToChain, Packet, RelayerParams);
     }
 
-    function test_layer2FlashRepay() external {
+    function test_crossChainFlashRepay() external {
         //
         // given
         //
@@ -75,7 +81,7 @@ contract Layer2FlashRepay_Test is CrossChains_Test {
         //
 
         // tx1
-        _layer2FlashRepay({withdrawAmount_: 500e18, layer1SwapAmountOutMin_: 0, repayAmountMin_: 0});
+        _crossChainFlashRepay({withdrawAmount_: 500e18, swapAmountOutMin_: 0, repayAmountMin_: 0});
         (Vm.Log memory Swap, Vm.Log memory Packet, Vm.Log memory RelayerParams) = _getSgSwapEvents();
 
         // tx2
@@ -122,7 +128,7 @@ contract Layer2FlashRepay_Test is CrossChains_Test {
         //
 
         // tx1
-        _layer2FlashRepay({withdrawAmount_: amountInVaUSDC / 5, layer1SwapAmountOutMin_: 0, repayAmountMin_: 0});
+        _crossChainFlashRepay({withdrawAmount_: amountInVaUSDC / 5, swapAmountOutMin_: 0, repayAmountMin_: 0});
         (Vm.Log memory Swap, Vm.Log memory Packet, Vm.Log memory RelayerParams) = _getSgSwapEvents();
 
         // tx2 - fail
@@ -172,8 +178,8 @@ contract Layer2FlashRepay_Test is CrossChains_Test {
         //
 
         // tx1
-        // `layer1SwapAmountOutMin_` too high
-        _layer2FlashRepay({withdrawAmount_: 500e18, layer1SwapAmountOutMin_: 500e18, repayAmountMin_: 0});
+        // `swapAmountOutMin_` too high
+        _crossChainFlashRepay({withdrawAmount_: 500e18, swapAmountOutMin_: 500e18, repayAmountMin_: 0});
         (Vm.Log memory Swap, Vm.Log memory Packet, Vm.Log memory RelayerParams) = _getSgSwapEvents();
 
         // tx2 - fail
@@ -187,7 +193,7 @@ contract Layer2FlashRepay_Test is CrossChains_Test {
         // tx2
         // Retry will work after amending slippage
         vm.prank(alice);
-        proxyOFT_msUSD_mainnet.retrySwapUnderlyingAndTriggerCallback(
+        crossChainDispatcher_mainnet.retrySwapAndTriggerFlashRepayCallback(
             chainId,
             srcAddress,
             nonce,
@@ -205,7 +211,7 @@ contract Layer2FlashRepay_Test is CrossChains_Test {
         (, uint256 _depositInUsdAfter, uint256 _debtInUsdAfter, , ) = pool_optimism.debtPositionOf(alice);
         assertApproxEqAbs(_depositInUsdAfter, 1500e18, 1e18);
         assertApproxEqAbs(_debtInUsdAfter, 0, 1e18);
-        assertEq(address(proxyOFT_msUSD_mainnet).balance, 0, "fee-estimation-is-not-accurate");
+        assertEq(address(crossChainDispatcher_mainnet).balance, 0, "fee-estimation-is-not-accurate");
     }
 
     function test_failedTx3_whenSynthTransferReverted() external {
@@ -224,7 +230,7 @@ contract Layer2FlashRepay_Test is CrossChains_Test {
         //
 
         // tx1
-        _layer2FlashRepay({withdrawAmount_: 500e18, layer1SwapAmountOutMin_: 0, repayAmountMin_: 0});
+        _crossChainFlashRepay({withdrawAmount_: 500e18, swapAmountOutMin_: 0, repayAmountMin_: 0});
         (Vm.Log memory Swap, Vm.Log memory Packet, Vm.Log memory RelayerParams) = _getSgSwapEvents();
 
         // tx2
@@ -270,7 +276,7 @@ contract Layer2FlashRepay_Test is CrossChains_Test {
 
         // tx1
         // Using too high `repayAmountMin_`
-        _layer2FlashRepay({withdrawAmount_: 500e18, layer1SwapAmountOutMin_: 0, repayAmountMin_: 500e18});
+        _crossChainFlashRepay({withdrawAmount_: 500e18, swapAmountOutMin_: 0, repayAmountMin_: 500e18});
         (Vm.Log memory Swap, Vm.Log memory Packet, Vm.Log memory RelayerParams) = _getSgSwapEvents();
 
         // tx2
@@ -305,9 +311,9 @@ contract Layer2FlashRepay_Test is CrossChains_Test {
         // tx3
         // Retry will work after fix slippage
         vm.prank(alice);
-        smartFarmingManager_optimism.retryLayer2FlashRepayCallback(
-            1, // request id
-            490e18, // right `repayAmountMin_`
+        smartFarmingManager_optimism.retryCrossChainFlashRepayCallback(
+            uint256(keccak256(abi.encode(10, 1))), // request id
+            490e18, // correct `repayAmountMin_`
             srcChainId,
             srcAddress,
             nonce,

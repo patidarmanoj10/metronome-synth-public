@@ -17,7 +17,7 @@ import {
   SwapperMock,
   VPoolMock,
   FeeProvider,
-  SmartFarmingManagerMock,
+  SmartFarmingManager,
 } from '../typechain'
 import {FakeContract, smock} from '@defi-wonderland/smock'
 import {toUSD} from '../helpers'
@@ -34,7 +34,9 @@ const msUsdPrice = toUSD('1')
 const msEthPrice = toUSD('1')
 const interestRate = parseEther('0')
 
-describe('SmartFarmingManager', function () {
+const LZ_MAINNET_ID = 101
+
+describe.only('SmartFarmingManager', function () {
   let deployer: SignerWithAddress
   let alice: SignerWithAddress
   let bob: SignerWithAddress
@@ -52,7 +54,7 @@ describe('SmartFarmingManager', function () {
   let msdDAI: DepositToken
   let msdVaDAI: DepositToken
   let masterOracle: MasterOracleMock
-  let smartFarmingManager: SmartFarmingManagerMock
+  let smartFarmingManager: SmartFarmingManager
   let pool: Pool
   let poolRegistryMock: FakeContract
   let feeProvider: FeeProvider
@@ -122,7 +124,7 @@ describe('SmartFarmingManager', function () {
     pool = await poolFactory.deploy()
     await pool.deployed()
 
-    const smartFarmingManagerFactory = await ethers.getContractFactory('SmartFarmingManagerMock', deployer)
+    const smartFarmingManagerFactory = await ethers.getContractFactory('SmartFarmingManager', deployer)
     smartFarmingManager = await smartFarmingManagerFactory.deploy()
     await smartFarmingManager.deployed()
 
@@ -167,12 +169,12 @@ describe('SmartFarmingManager', function () {
     await pool.addDebtToken(msUsdDebtToken.address)
     await pool.addDebtToken(msEthDebtToken.address)
 
-    proxyOFT_msUSD = await smock.fake('Layer2ProxyOFT')
+    proxyOFT_msUSD = await smock.fake('ProxyOFT')
     proxyOFT_msUSD.token.returns(msUSD.address)
     msUSD.updateProxyOFT(proxyOFT_msUSD.address)
     await setBalance(proxyOFT_msUSD.address, parseEther('10'))
 
-    proxyOFT_msETH = await smock.fake('Layer2ProxyOFT')
+    proxyOFT_msETH = await smock.fake('ProxyOFT')
     proxyOFT_msETH.token.returns(msETH.address)
     msETH.updateProxyOFT(proxyOFT_msETH.address)
     await setBalance(proxyOFT_msETH.address, parseEther('10'))
@@ -430,15 +432,13 @@ describe('SmartFarmingManager', function () {
     })
   })
 
-  describe('layer2FlashRepay', function () {
+  describe('crossChainFlashRepay', function () {
     beforeEach('leverage vaDAI->msUSD', async function () {
       const amountIn = parseUnits('100', 18)
       const leverage = parseEther('1.5')
       await smartFarmingManager
         .connect(alice)
         .leverage(vaDAI.address, msdVaDAI.address, msUSD.address, amountIn, leverage, 0)
-
-      await smartFarmingManager.updateChainId(2)
     })
 
     it('should revert if deposit token is invalid', async function () {
@@ -450,7 +450,7 @@ describe('SmartFarmingManager', function () {
       const layer1SwapAmountOutMin = parseEther('9.5')
       const repayAmountMin = parseEther('9')
       const lzArgs = '0x'
-      const tx = smartFarmingManager.connect(alice).layer2FlashRepay(
+      const tx = smartFarmingManager.connect(alice).crossChainFlashRepay(
         syntheticToken,
         alice.address, // invalid msdToken
         withdrawAmount,
@@ -477,7 +477,7 @@ describe('SmartFarmingManager', function () {
       const lzArgs = '0x'
       const tx = smartFarmingManager
         .connect(alice)
-        .layer2FlashRepay(
+        .crossChainFlashRepay(
           syntheticToken,
           msdVaDAI.address,
           withdrawAmount,
@@ -507,7 +507,7 @@ describe('SmartFarmingManager', function () {
       const lzArgs = '0x'
       const tx = smartFarmingManager
         .connect(alice)
-        .layer2FlashRepay(
+        .crossChainFlashRepay(
           syntheticToken,
           msdVaDAI.address,
           withdrawAmount,
@@ -534,7 +534,7 @@ describe('SmartFarmingManager', function () {
       const lzArgs = '0x'
       const tx = smartFarmingManager
         .connect(alice)
-        .layer2FlashRepay(
+        .crossChainFlashRepay(
           syntheticToken,
           msdVaDAI.address,
           withdrawAmount,
@@ -561,7 +561,7 @@ describe('SmartFarmingManager', function () {
       const lzArgs = '0x'
       const tx = smartFarmingManager
         .connect(alice)
-        .layer2FlashRepay(
+        .crossChainFlashRepay(
           syntheticToken,
           msdVaDAI.address,
           withdrawAmount,
@@ -588,7 +588,7 @@ describe('SmartFarmingManager', function () {
       const lzArgs = '0x'
       const tx = smartFarmingManager
         .connect(alice)
-        .layer2FlashRepay(
+        .crossChainFlashRepay(
           syntheticToken,
           msdVaDAI.address,
           withdrawAmount,
@@ -606,7 +606,7 @@ describe('SmartFarmingManager', function () {
 
     it('should revert if swap slippage is too high', async function () {
       // given
-      expect(await smartFarmingManager.layer2RequestId()).eq(0)
+      expect(await smartFarmingManager.crossChainRequestId()).eq(0)
 
       // when
       const fee = parseEther('0.1')
@@ -618,7 +618,7 @@ describe('SmartFarmingManager', function () {
       const lzArgs = '0x'
       const tx = smartFarmingManager
         .connect(alice)
-        .layer2FlashRepay(
+        .crossChainFlashRepay(
           syntheticToken,
           msdVaDAI.address,
           withdrawAmount,
@@ -648,7 +648,7 @@ describe('SmartFarmingManager', function () {
       const lzArgs = '0x'
       const tx = smartFarmingManager
         .connect(alice)
-        .layer2FlashRepay(
+        .crossChainFlashRepay(
           syntheticToken,
           msdVaDAI.address,
           withdrawAmount,
@@ -675,7 +675,7 @@ describe('SmartFarmingManager', function () {
       const lzArgs = '0x'
       const tx = smartFarmingManager
         .connect(alice)
-        .layer2FlashRepay(
+        .crossChainFlashRepay(
           syntheticToken,
           msdVaDAI.address,
           withdrawAmount,
@@ -693,7 +693,7 @@ describe('SmartFarmingManager', function () {
 
     it('should start L2 flash repay flow', async function () {
       // given
-      expect(await smartFarmingManager.layer2RequestId()).eq(0)
+      expect(await smartFarmingManager.crossChainRequestId()).eq(0)
 
       // when
       const fee = parseEther('0.1')
@@ -705,7 +705,7 @@ describe('SmartFarmingManager', function () {
       const lzArgs = '0x'
       const tx = smartFarmingManager
         .connect(alice)
-        .layer2FlashRepay(
+        .crossChainFlashRepay(
           syntheticToken,
           msdVaDAI.address,
           withdrawAmount,
@@ -723,19 +723,19 @@ describe('SmartFarmingManager', function () {
         .changeTokenBalance(dai, proxyOFT_msUSD.address, withdrawAmount)
 
       const id = 1
-      expect(await smartFarmingManager.layer2RequestId()).eq(id)
-      const request = await smartFarmingManager.layer2FlashRepays(id)
+      expect(await smartFarmingManager.crossChainRequestId()).eq(id)
+      const request = await smartFarmingManager.crossChainFlashRepays(id)
       expect(request.syntheticToken).eq(syntheticToken)
       expect(request.repayAmountMin).eq(repayAmountMin)
       expect(request.account).eq(alice.address)
       expect(request.finished).eq(false)
       expect(proxyOFT_msUSD.triggerFlashRepaySwap)
-        .calledWith(id, alice.address, dai.address, parseEther('10'), layer1SwapAmountOutMin, lzArgs)
+        .calledWith(LZ_MAINNET_ID, id, alice.address, dai.address, parseEther('10'), layer1SwapAmountOutMin, lzArgs)
         .calledWithValue(fee)
     })
   })
 
-  describe('layer2FlashRepayCallback', function () {
+  describe('crossChainFlashRepayCallback', function () {
     const id = 1
 
     beforeEach(async function () {
@@ -745,8 +745,6 @@ describe('SmartFarmingManager', function () {
       await smartFarmingManager
         .connect(alice)
         .leverage(vaDAI.address, msdVaDAI.address, msUSD.address, amountIn, leverage, 0)
-
-      await smartFarmingManager.updateChainId(2)
 
       // Start flash repay
       const fee = parseEther('0.1')
@@ -758,7 +756,7 @@ describe('SmartFarmingManager', function () {
       const lzArgs = '0x'
       await smartFarmingManager
         .connect(alice)
-        .layer2FlashRepay(
+        .crossChainFlashRepay(
           syntheticToken,
           msdVaDAI.address,
           withdrawAmount,
@@ -770,7 +768,7 @@ describe('SmartFarmingManager', function () {
           {value: fee}
         )
 
-      expect(await smartFarmingManager.layer2RequestId()).eq(id)
+      expect(await smartFarmingManager.crossChainRequestId()).eq(id)
 
       await dai.mint(proxyOFT_msUSD.address, parseEther('10000'))
       await dai.connect(proxyOFT_msUSD.wallet).approve(smartFarmingManager.address, ethers.constants.MaxUint256)
@@ -786,7 +784,7 @@ describe('SmartFarmingManager', function () {
       await pool.shutdown()
 
       // when
-      const tx = smartFarmingManager.connect(proxyOFT_msUSD.wallet).layer2FlashRepayCallback(id, parseEther('10'))
+      const tx = smartFarmingManager.connect(proxyOFT_msUSD.wallet).crossChainFlashRepayCallback(id, parseEther('10'))
 
       // then
       await expect(tx).revertedWithCustomError(smartFarmingManager, 'IsShutdown')
@@ -794,12 +792,12 @@ describe('SmartFarmingManager', function () {
 
     it('should revert if caller is not a proxyOFT', async function () {
       // given
-      const fakeOFT = await smock.fake('Layer2ProxyOFT')
+      const fakeOFT = await smock.fake('ProxyOFT')
       fakeOFT.token.returns(msUSD.address)
       await setBalance(fakeOFT.address, parseEther('10'))
 
       // when
-      const tx = smartFarmingManager.connect(fakeOFT.wallet).layer2FlashRepayCallback(id, parseEther('10'))
+      const tx = smartFarmingManager.connect(fakeOFT.wallet).crossChainFlashRepayCallback(id, parseEther('10'))
 
       // then
       await expect(tx).revertedWithCustomError(smartFarmingManager, 'SenderIsNotProxyOFT')
@@ -807,7 +805,7 @@ describe('SmartFarmingManager', function () {
 
     it('should revert if caller is not the same proxyOFT as request', async function () {
       // when
-      const tx = smartFarmingManager.connect(proxyOFT_msETH.wallet).layer2FlashRepayCallback(id, parseEther('10'))
+      const tx = smartFarmingManager.connect(proxyOFT_msETH.wallet).crossChainFlashRepayCallback(id, parseEther('10'))
 
       // then
       await expect(tx).revertedWithCustomError(smartFarmingManager, 'SenderIsNotProxyOFT')
@@ -820,32 +818,32 @@ describe('SmartFarmingManager', function () {
       // when
       const tx = smartFarmingManager
         .connect(proxyOFT_msUSD.wallet)
-        .layer2FlashRepayCallback(invalidId, parseEther('10'))
+        .crossChainFlashRepayCallback(invalidId, parseEther('10'))
 
       // then
-      await expect(tx).revertedWithCustomError(smartFarmingManager, 'Layer2RequestInvalidKey')
+      await expect(tx).revertedWithCustomError(smartFarmingManager, 'CrossChainRequestInvalidKey')
     })
 
     it('should revert if request already finished', async function () {
       // given
       const swapAmountOut = parseEther('10')
-      await smartFarmingManager.connect(proxyOFT_msUSD.wallet).layer2FlashRepayCallback(id, swapAmountOut)
+      await smartFarmingManager.connect(proxyOFT_msUSD.wallet).crossChainFlashRepayCallback(id, swapAmountOut)
 
       // when
-      const tx = smartFarmingManager.connect(proxyOFT_msUSD.wallet).layer2FlashRepayCallback(id, swapAmountOut)
+      const tx = smartFarmingManager.connect(proxyOFT_msUSD.wallet).crossChainFlashRepayCallback(id, swapAmountOut)
 
       // then
-      await expect(tx).revertedWithCustomError(smartFarmingManager, 'Layer2RequestCompletedAlready')
+      await expect(tx).revertedWithCustomError(smartFarmingManager, 'CrossChainRequestCompletedAlready')
     })
 
     it('should revert if swapAmountOut slippage is too high', async function () {
       // given
-      const {repayAmountMin} = await smartFarmingManager.layer2FlashRepays(id)
+      const {repayAmountMin} = await smartFarmingManager.crossChainFlashRepays(id)
 
       // when
       const tx = smartFarmingManager
         .connect(proxyOFT_msUSD.wallet)
-        .layer2FlashRepayCallback(id, repayAmountMin.sub('1'))
+        .crossChainFlashRepayCallback(id, repayAmountMin.sub('1'))
 
       // then
       await expect(tx).revertedWithCustomError(smartFarmingManager, 'FlashRepaySlippageTooHigh')
@@ -856,21 +854,19 @@ describe('SmartFarmingManager', function () {
       const swapAmountOut = parseEther('10')
 
       // when
-      const tx = smartFarmingManager.connect(proxyOFT_msUSD.wallet).layer2FlashRepayCallback(id, swapAmountOut)
+      const tx = smartFarmingManager.connect(proxyOFT_msUSD.wallet).crossChainFlashRepayCallback(id, swapAmountOut)
 
       // then
       await expect(tx)
         .changeTokenBalance(msUSD, proxyOFT_msUSD.address, swapAmountOut.mul('-1'))
         .changeTokenBalance(msUsdDebtToken, alice.address, swapAmountOut.mul('-1'))
-      const {finished} = await smartFarmingManager.layer2FlashRepays(id)
+      const {finished} = await smartFarmingManager.crossChainFlashRepays(id)
       expect(finished).true
     })
   })
 
-  describe('layer2Leverage', function () {
+  describe('crossChainLeverage', function () {
     beforeEach(async function () {
-      await smartFarmingManager.updateChainId(2)
-
       await dai.connect(alice).approve(smartFarmingManager.address, ethers.constants.MaxUint256)
     })
 
@@ -890,7 +886,7 @@ describe('SmartFarmingManager', function () {
       const lzArgs = '0x'
       const tx = smartFarmingManager
         .connect(alice)
-        .layer2Leverage(
+        .crossChainLeverage(
           underlying,
           depositToken,
           syntheticToken,
@@ -919,7 +915,7 @@ describe('SmartFarmingManager', function () {
       const lzArgs = '0x'
       const tx = smartFarmingManager
         .connect(alice)
-        .layer2Leverage(
+        .crossChainLeverage(
           underlying,
           depositToken,
           syntheticToken,
@@ -948,7 +944,7 @@ describe('SmartFarmingManager', function () {
       const lzArgs = '0x'
       const tx = smartFarmingManager
         .connect(alice)
-        .layer2Leverage(
+        .crossChainLeverage(
           underlying,
           depositToken,
           syntheticToken,
@@ -977,7 +973,7 @@ describe('SmartFarmingManager', function () {
       const lzArgs = '0x'
       const tx = smartFarmingManager
         .connect(alice)
-        .layer2Leverage(
+        .crossChainLeverage(
           underlying,
           depositToken,
           syntheticToken,
@@ -995,7 +991,7 @@ describe('SmartFarmingManager', function () {
 
     it('should start L2 leverage flow', async function () {
       // given
-      expect(await smartFarmingManager.layer2RequestId()).eq(0)
+      expect(await smartFarmingManager.crossChainRequestId()).eq(0)
 
       // when
       const fee = parseEther('0.1')
@@ -1010,7 +1006,7 @@ describe('SmartFarmingManager', function () {
       const expectedToIssue = parseEther('5')
       const tx = smartFarmingManager
         .connect(alice)
-        .layer2Leverage(
+        .crossChainLeverage(
           underlying,
           depositToken,
           syntheticToken,
@@ -1028,8 +1024,8 @@ describe('SmartFarmingManager', function () {
         .changeTokenBalance(msUSD, proxyOFT_msUSD.address, expectedToIssue)
 
       const id = 1
-      expect(await smartFarmingManager.layer2RequestId()).eq(id)
-      const request = await smartFarmingManager.layer2Leverages(id)
+      expect(await smartFarmingManager.crossChainRequestId()).eq(id)
+      const request = await smartFarmingManager.crossChainLeverages(id)
       expect(request.underlying).eq(underlying)
       expect(request.depositToken).eq(depositToken)
       expect(request.syntheticToken).eq(syntheticToken)
@@ -1038,17 +1034,15 @@ describe('SmartFarmingManager', function () {
       expect(request.account).eq(alice.address)
       expect(request.finished).eq(false)
       expect(proxyOFT_msUSD.triggerLeverageSwap)
-        .calledWith(id, alice.address, dai.address, expectedToIssue, layer1SwapAmountOutMin, lzArgs)
+        .calledWith(LZ_MAINNET_ID, id, alice.address, dai.address, expectedToIssue, layer1SwapAmountOutMin, lzArgs)
         .calledWithValue(fee)
     })
   })
 
-  describe('layer2LeverageCallback', function () {
+  describe('crossChainLeverageCallback', function () {
     const id = 1
 
     beforeEach(async function () {
-      await smartFarmingManager.updateChainId(2)
-
       await dai.connect(alice).approve(smartFarmingManager.address, ethers.constants.MaxUint256)
 
       const fee = parseEther('0.1')
@@ -1062,7 +1056,7 @@ describe('SmartFarmingManager', function () {
       const lzArgs = '0x'
       await smartFarmingManager
         .connect(alice)
-        .layer2Leverage(
+        .crossChainLeverage(
           underlying,
           depositToken,
           syntheticToken,
@@ -1074,7 +1068,7 @@ describe('SmartFarmingManager', function () {
           {value: fee}
         )
 
-      expect(await smartFarmingManager.layer2RequestId()).eq(id)
+      expect(await smartFarmingManager.crossChainRequestId()).eq(id)
 
       await dai.mint(proxyOFT_msUSD.address, parseEther('10000'))
       await dai.connect(proxyOFT_msUSD.wallet).approve(smartFarmingManager.address, ethers.constants.MaxUint256)
@@ -1082,12 +1076,12 @@ describe('SmartFarmingManager', function () {
 
     it('should revert if caller is not a proxyOFT', async function () {
       // given
-      const fakeOFT = await smock.fake('Layer2ProxyOFT')
+      const fakeOFT = await smock.fake('ProxyOFT')
       fakeOFT.token.returns(msUSD.address)
       await setBalance(fakeOFT.address, parseEther('10'))
 
       // when
-      const tx = smartFarmingManager.connect(fakeOFT.wallet).layer2LeverageCallback(id, parseEther('10'))
+      const tx = smartFarmingManager.connect(fakeOFT.wallet).crossChainLeverageCallback(id, parseEther('10'))
 
       // then
       await expect(tx).revertedWithCustomError(smartFarmingManager, 'SenderIsNotProxyOFT')
@@ -1098,7 +1092,7 @@ describe('SmartFarmingManager', function () {
       await pool.shutdown()
 
       // when
-      const tx = smartFarmingManager.connect(proxyOFT_msUSD.wallet).layer2LeverageCallback(id, parseEther('10'))
+      const tx = smartFarmingManager.connect(proxyOFT_msUSD.wallet).crossChainLeverageCallback(id, parseEther('10'))
 
       // then
       await expect(tx).revertedWithCustomError(msdVaDAI, 'IsPaused')
@@ -1106,7 +1100,7 @@ describe('SmartFarmingManager', function () {
 
     it('should revert if caller is not the same proxyOFT as request', async function () {
       // when
-      const tx = smartFarmingManager.connect(proxyOFT_msETH.wallet).layer2LeverageCallback(id, parseEther('10'))
+      const tx = smartFarmingManager.connect(proxyOFT_msETH.wallet).crossChainLeverageCallback(id, parseEther('10'))
 
       // then
       await expect(tx).revertedWithCustomError(smartFarmingManager, 'SenderIsNotProxyOFT')
@@ -1117,31 +1111,33 @@ describe('SmartFarmingManager', function () {
       const invalidId = 2
 
       // when
-      const tx = smartFarmingManager.connect(proxyOFT_msUSD.wallet).layer2LeverageCallback(invalidId, parseEther('10'))
+      const tx = smartFarmingManager
+        .connect(proxyOFT_msUSD.wallet)
+        .crossChainLeverageCallback(invalidId, parseEther('10'))
 
       // then
-      await expect(tx).revertedWithCustomError(smartFarmingManager, 'Layer2RequestInvalidKey')
+      await expect(tx).revertedWithCustomError(smartFarmingManager, 'CrossChainRequestInvalidKey')
     })
 
     it('should revert if request already finished', async function () {
       // given
       const swapAmountOut = parseEther('10')
-      await smartFarmingManager.connect(proxyOFT_msUSD.wallet).layer2LeverageCallback(id, swapAmountOut)
+      await smartFarmingManager.connect(proxyOFT_msUSD.wallet).crossChainLeverageCallback(id, swapAmountOut)
 
       // when
-      const tx = smartFarmingManager.connect(proxyOFT_msUSD.wallet).layer2LeverageCallback(id, swapAmountOut)
+      const tx = smartFarmingManager.connect(proxyOFT_msUSD.wallet).crossChainLeverageCallback(id, swapAmountOut)
 
       // then
-      await expect(tx).revertedWithCustomError(smartFarmingManager, 'Layer2RequestCompletedAlready')
+      await expect(tx).revertedWithCustomError(smartFarmingManager, 'CrossChainRequestCompletedAlready')
     })
 
     it('should revert if swapAmountOut slippage is too high', async function () {
       // given
-      const {depositAmountMin, underlyingAmountIn} = await smartFarmingManager.layer2Leverages(id)
+      const {depositAmountMin, underlyingAmountIn} = await smartFarmingManager.crossChainLeverages(id)
 
       // when
       const swapAmountOut = depositAmountMin.sub(underlyingAmountIn).sub('1')
-      const tx = smartFarmingManager.connect(proxyOFT_msUSD.wallet).layer2LeverageCallback(id, swapAmountOut)
+      const tx = smartFarmingManager.connect(proxyOFT_msUSD.wallet).crossChainLeverageCallback(id, swapAmountOut)
 
       // then
       await expect(tx).revertedWithCustomError(smartFarmingManager, 'LeverageSlippageTooHigh')
@@ -1153,7 +1149,7 @@ describe('SmartFarmingManager', function () {
 
       // when
       const swapAmountOut = parseEther('4.1')
-      const tx = smartFarmingManager.connect(proxyOFT_msUSD.wallet).layer2LeverageCallback(id, swapAmountOut)
+      const tx = smartFarmingManager.connect(proxyOFT_msUSD.wallet).crossChainLeverageCallback(id, swapAmountOut)
 
       // then
       await expect(tx).revertedWithCustomError(smartFarmingManager, 'PositionIsNotHealthy')
@@ -1161,22 +1157,22 @@ describe('SmartFarmingManager', function () {
 
     it('should finish L2 leverage flow', async function () {
       // given
-      const {syntheticTokenIssued} = await smartFarmingManager.layer2Leverages(id)
+      const {syntheticTokenIssued} = await smartFarmingManager.crossChainLeverages(id)
 
       // when
       const swapAmountOut = parseEther('4.1')
-      const tx = smartFarmingManager.connect(proxyOFT_msUSD.wallet).layer2LeverageCallback(id, swapAmountOut)
+      const tx = smartFarmingManager.connect(proxyOFT_msUSD.wallet).crossChainLeverageCallback(id, swapAmountOut)
 
       // then
       await expect(tx)
         .changeTokenBalance(dai, proxyOFT_msUSD.address, swapAmountOut.mul('-1'))
         .changeTokenBalance(msUsdDebtToken, alice.address, syntheticTokenIssued)
-      const {finished} = await smartFarmingManager.layer2Leverages(id)
+      const {finished} = await smartFarmingManager.crossChainLeverages(id)
       expect(finished).true
     })
   })
 
-  describe('retryLayer2FlashRepayCallback', function () {
+  describe('retryCrossChainFlashRepayCallback', function () {
     const id = 1
     const newRepayAmountMin = 1
     const srcChainId = 101
@@ -1193,8 +1189,6 @@ describe('SmartFarmingManager', function () {
         .connect(alice)
         .leverage(vaDAI.address, msdVaDAI.address, msUSD.address, amountIn, leverage, 0)
 
-      await smartFarmingManager.updateChainId(2)
-
       // Start flash repay
       const fee = parseEther('0.1')
       const syntheticToken = msUSD.address
@@ -1205,7 +1199,7 @@ describe('SmartFarmingManager', function () {
       const lzArgs = '0x'
       await smartFarmingManager
         .connect(alice)
-        .layer2FlashRepay(
+        .crossChainFlashRepay(
           syntheticToken,
           msdVaDAI.address,
           withdrawAmount,
@@ -1217,7 +1211,7 @@ describe('SmartFarmingManager', function () {
           {value: fee}
         )
 
-      expect(await smartFarmingManager.layer2RequestId()).eq(id)
+      expect(await smartFarmingManager.crossChainRequestId()).eq(id)
 
       await dai.mint(proxyOFT_msUSD.address, parseEther('10000'))
       await dai.connect(proxyOFT_msUSD.wallet).approve(smartFarmingManager.address, ethers.constants.MaxUint256)
@@ -1233,7 +1227,7 @@ describe('SmartFarmingManager', function () {
       const invalidId = 2
 
       // when
-      const tx = smartFarmingManager.retryLayer2FlashRepayCallback(
+      const tx = smartFarmingManager.retryCrossChainFlashRepayCallback(
         invalidId,
         newRepayAmountMin,
         srcChainId,
@@ -1244,14 +1238,14 @@ describe('SmartFarmingManager', function () {
       )
 
       // then
-      await expect(tx).revertedWithCustomError(smartFarmingManager, 'Layer2RequestInvalidKey')
+      await expect(tx).revertedWithCustomError(smartFarmingManager, 'CrossChainRequestInvalidKey')
     })
 
     it('should revert if caller is not the correct account', async function () {
       // when
       const tx = smartFarmingManager
         .connect(bob)
-        .retryLayer2FlashRepayCallback(id, newRepayAmountMin, srcChainId, srcAddress, nonce, amount, payload)
+        .retryCrossChainFlashRepayCallback(id, newRepayAmountMin, srcChainId, srcAddress, nonce, amount, payload)
 
       // then
       await expect(tx).revertedWithCustomError(smartFarmingManager, 'SenderIsNotAccount')
@@ -1260,32 +1254,32 @@ describe('SmartFarmingManager', function () {
     it('should revert if request already finished', async function () {
       // given
       const swapAmountOut = parseEther('10')
-      await smartFarmingManager.connect(proxyOFT_msUSD.wallet).layer2FlashRepayCallback(id, swapAmountOut)
-      const {finished} = await smartFarmingManager.layer2FlashRepays(id)
+      await smartFarmingManager.connect(proxyOFT_msUSD.wallet).crossChainFlashRepayCallback(id, swapAmountOut)
+      const {finished} = await smartFarmingManager.crossChainFlashRepays(id)
       expect(finished).true
 
       // when
       const tx = smartFarmingManager
         .connect(alice)
-        .retryLayer2FlashRepayCallback(id, newRepayAmountMin, srcChainId, srcAddress, nonce, amount, payload)
+        .retryCrossChainFlashRepayCallback(id, newRepayAmountMin, srcChainId, srcAddress, nonce, amount, payload)
 
       // then
-      await expect(tx).revertedWithCustomError(smartFarmingManager, 'Layer2RequestCompletedAlready')
+      await expect(tx).revertedWithCustomError(smartFarmingManager, 'CrossChainRequestCompletedAlready')
     })
 
     it('should update repayAmountMin and retry', async function () {
       // given
-      const {repayAmountMin: before} = await smartFarmingManager.layer2FlashRepays(id)
+      const {repayAmountMin: before} = await smartFarmingManager.crossChainFlashRepays(id)
       const from = '0x0000000000000000000000000000000000000002'
       proxyOFT_msUSD.getProxyOFTOf.returns(from)
 
       // when
       await smartFarmingManager
         .connect(alice)
-        .retryLayer2FlashRepayCallback(id, newRepayAmountMin, srcChainId, srcAddress, nonce, amount, payload)
+        .retryCrossChainFlashRepayCallback(id, newRepayAmountMin, srcChainId, srcAddress, nonce, amount, payload)
 
       // then
-      const {repayAmountMin: after} = await smartFarmingManager.layer2FlashRepays(id)
+      const {repayAmountMin: after} = await smartFarmingManager.crossChainFlashRepays(id)
       expect(after).not.eq(before)
       expect(proxyOFT_msUSD.retryOFTReceived).calledWith(
         srcChainId,
@@ -1299,7 +1293,7 @@ describe('SmartFarmingManager', function () {
     })
   })
 
-  describe('retryLayer2LeverageCallback', function () {
+  describe('retryCrossChainLeverageCallback', function () {
     const id = 1
     const newDepositAmountMin = 1
     const srcChainId = 101
@@ -1307,8 +1301,6 @@ describe('SmartFarmingManager', function () {
     const nonce = 123
 
     beforeEach(async function () {
-      await smartFarmingManager.updateChainId(2)
-
       await dai.connect(alice).approve(smartFarmingManager.address, ethers.constants.MaxUint256)
 
       const fee = parseEther('0.1')
@@ -1322,7 +1314,7 @@ describe('SmartFarmingManager', function () {
       const lzArgs = '0x'
       await smartFarmingManager
         .connect(alice)
-        .layer2Leverage(
+        .crossChainLeverage(
           underlying,
           depositToken,
           syntheticToken,
@@ -1334,7 +1326,7 @@ describe('SmartFarmingManager', function () {
           {value: fee}
         )
 
-      expect(await smartFarmingManager.layer2RequestId()).eq(id)
+      expect(await smartFarmingManager.crossChainRequestId()).eq(id)
 
       await dai.mint(proxyOFT_msUSD.address, parseEther('10000'))
       await dai.connect(proxyOFT_msUSD.wallet).approve(smartFarmingManager.address, ethers.constants.MaxUint256)
@@ -1345,7 +1337,7 @@ describe('SmartFarmingManager', function () {
       const invalidId = 2
 
       // when
-      const tx = smartFarmingManager.retryLayer2LeverageCallback(
+      const tx = smartFarmingManager.retryCrossChainLeverageCallback(
         invalidId,
         newDepositAmountMin,
         srcChainId,
@@ -1354,14 +1346,14 @@ describe('SmartFarmingManager', function () {
       )
 
       // then
-      await expect(tx).revertedWithCustomError(smartFarmingManager, 'Layer2RequestInvalidKey')
+      await expect(tx).revertedWithCustomError(smartFarmingManager, 'CrossChainRequestInvalidKey')
     })
 
     it('should revert if caller is not the correct account', async function () {
       // when
       const tx = smartFarmingManager
         .connect(bob)
-        .retryLayer2LeverageCallback(id, newDepositAmountMin, srcChainId, srcAddress, nonce)
+        .retryCrossChainLeverageCallback(id, newDepositAmountMin, srcChainId, srcAddress, nonce)
 
       // then
       await expect(tx).revertedWithCustomError(smartFarmingManager, 'SenderIsNotAccount')
@@ -1370,32 +1362,32 @@ describe('SmartFarmingManager', function () {
     it('should revert if request already finished', async function () {
       // given
       const swapAmountOut = parseEther('10')
-      await smartFarmingManager.connect(proxyOFT_msUSD.wallet).layer2LeverageCallback(id, swapAmountOut)
-      const {finished} = await smartFarmingManager.layer2Leverages(id)
+      await smartFarmingManager.connect(proxyOFT_msUSD.wallet).crossChainLeverageCallback(id, swapAmountOut)
+      const {finished} = await smartFarmingManager.crossChainLeverages(id)
       expect(finished).true
 
       // when
       const tx = smartFarmingManager
         .connect(alice)
-        .retryLayer2LeverageCallback(id, newDepositAmountMin, srcChainId, srcAddress, nonce)
+        .retryCrossChainLeverageCallback(id, newDepositAmountMin, srcChainId, srcAddress, nonce)
 
       // then
-      await expect(tx).revertedWithCustomError(smartFarmingManager, 'Layer2RequestCompletedAlready')
+      await expect(tx).revertedWithCustomError(smartFarmingManager, 'CrossChainRequestCompletedAlready')
     })
 
     it('should update depositAmountMin and retry', async function () {
       // given
       const stargateRouter = await smock.fake('IStargateRouter')
       poolRegistryMock.stargateRouter.returns(stargateRouter.address)
-      const {depositAmountMin: before} = await smartFarmingManager.layer2Leverages(id)
+      const {depositAmountMin: before} = await smartFarmingManager.crossChainLeverages(id)
 
       // when
       await smartFarmingManager
         .connect(alice)
-        .retryLayer2LeverageCallback(id, newDepositAmountMin, srcChainId, srcAddress, nonce)
+        .retryCrossChainLeverageCallback(id, newDepositAmountMin, srcChainId, srcAddress, nonce)
 
       // then
-      const {depositAmountMin: after} = await smartFarmingManager.layer2Leverages(id)
+      const {depositAmountMin: after} = await smartFarmingManager.crossChainLeverages(id)
       expect(after).not.eq(before)
       expect(stargateRouter.clearCachedSwap).calledWith(srcChainId, srcAddress, nonce)
     })

@@ -53,6 +53,7 @@ const config: HardhatUserConfig = {
       saveDeployments: true,
       accounts,
       chainId,
+      allowUnlimitedContractSize: true,
     },
     mainnet: {
       url: process.env.NODE_URL,

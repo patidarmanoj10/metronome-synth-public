@@ -3,9 +3,7 @@
 pragma solidity 0.8.9;
 
 import "../dependencies/openzeppelin/utils/structs/EnumerableSet.sol";
-import "../dependencies/stargate-protocol/interfaces/IStargateRouter.sol";
 import "../interfaces/IPoolRegistry.sol";
-import "../interfaces/external/IMasterOracle.sol";
 
 abstract contract PoolRegistryStorageV1 is IPoolRegistry {
     /**
@@ -46,58 +44,12 @@ abstract contract PoolRegistryStorageV1 is IPoolRegistry {
 
 abstract contract PoolRegistryStorageV2 is PoolRegistryStorageV1 {
     /**
-     * @notice The base gas to pay for cross-chain calls
-     * @dev This limit covers basic token transfer LZ cost
-     */
-    uint256 public lzBaseGasLimit;
-
-    /**
-     * @notice The slippage we're willing to accept for SG like:like transfers
-     */
-    uint256 public stargateSlippage;
-
-    /**
-     * @notice The gas limit to cover `Layer2ProxyOFT.onOFTReceived()` call
-     */
-    uint64 public flashRepayCallbackTxGasLimit;
-
-    /**
-     * @notice The gas limit to cover `Layer1ProxyOFT.sgReceive()` call
-     */
-    uint64 public flashRepaySwapTxGasLimit;
-
-    /**
-     * @notice The gas limit to cover `Layer2ProxyOFT.sgReceive()` call
-     */
-    uint64 public leverageCallbackTxGasLimit;
-
-    /**
-     * @notice The gas limit to cover `Layer1ProxyOFT.onOFTReceived()` call
-     */
-    uint64 public leverageSwapTxGasLimit;
-
-    /**
-     * @notice The LZ Ethereum mainnet Id
-     */
-    uint16 public lzMainnetChainId;
-
-    /**
-     * @notice Flag that pause/unpause all cross-chain activities
-     */
-    bool public isBridgingActive;
-
-    /**
-     * @notice The Stargate Router contract
-     */
-    IStargateRouter public stargateRouter;
-
-    /**
      * @notice The Quoter contract
      */
     IQuoter public quoter;
 
     /**
-     * @notice Maps Stargate's token pools
+     * @notice The Cross-chain dispatcher contract
      */
-    mapping(address => uint256) public stargatePoolIdOf;
+    ICrossChainDispatcher public crossChainDispatcher;
 }
