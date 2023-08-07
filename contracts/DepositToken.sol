@@ -391,13 +391,11 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
      * @notice Burn msdTOKEN and withdraw collateral from a given account
      * @param from_ The account to withdraw from
      * @param amount_ The amount of collateral to withdraw
-     * @param to_ The account that will receive withdrawn collateral
      * @return _withdrawn The amount withdrawn after fees
      */
     function withdrawFrom(
         address from_,
-        uint256 amount_,
-        address to_
+        uint256 amount_
     )
         external
         override
@@ -405,8 +403,7 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
         onlyIfUnlocked(from_, amount_)
         returns (uint256 _withdrawn, uint256 _fee)
     {
-        if (to_ == address(0)) revert RecipientIsNull();
-        return _withdraw({account_: from_, amount_: amount_, to_: to_});
+        return _withdraw({account_: from_, amount_: amount_, to_: msg.sender});
     }
 
     /**

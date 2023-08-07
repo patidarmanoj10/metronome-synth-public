@@ -3,19 +3,17 @@
 pragma solidity 0.8.9;
 
 import "./dependencies/openzeppelin-upgradeable/proxy/utils/Initializable.sol";
-import "./dependencies/@layerzerolabs/solidity-examples/util/BytesLib.sol";
 import "./storage/QuoterStorage.sol";
 import "./interfaces/external/IStargateBridge.sol";
 import "./lib/CrossChainLib.sol";
 
+error AddressIsNull();
 error NotAvailableOnThisChain();
 
 /**
  * @title Quoter contract
  */
 contract Quoter is Initializable, QuoterStorageV1 {
-    using BytesLib for bytes;
-
     /**
      * @dev LayerZero adapter param version
      * See more: https://layerzero.gitbook.io/docs/evm-guides/advanced/relayer-adapter-parameters
@@ -34,41 +32,55 @@ contract Quoter is Initializable, QuoterStorageV1 {
     uint16 public constant PT_SEND_AND_CALL = 1;
 
     function initialize(IPoolRegistry poolRegistry_) external initializer {
+        if (address(poolRegistry_) == address(0)) revert AddressIsNull();
         poolRegistry = poolRegistry_;
     }
 
-    function crossChainDispatcher() private view returns (ICrossChainDispatcher) {
-        return poolRegistry.crossChainDispatcher();
-    }
-
-    function getLeverageSwapAndCallbackLzArgs(
-        uint16 positionChainId_,
-        uint16 liquidityChainId_
-    ) external view returns (bytes memory _lzArgs) {
-        return
-            CrossChainLib.encodeLzArgs({
-                dstChainId_: liquidityChainId_,
-                callbackNativeFee_: quoteLeverageCallbackNativeFee(positionChainId_),
-                swapTxGasLimit_: crossChainDispatcher().leverageSwapTxGasLimit()
-            });
-    }
-
+    /**
+     * @notice Get LZ args for the swap and callback's trigger execution
+     * @dev Must be called on the chain where the swap will be executed (a.k.a. destination chain)
+     * @param srcChainId_ Source chain's LZ id (i.e. user-facing chain)
+     * @param dstChainId_ Destination chain's LZ id (i.e. chain used for swap)
+     */
     function getFlashRepaySwapAndCallbackLzArgs(
-        uint16 positionChainId_,
-        uint16 liquidityChainId_
+        uint16 srcChainId_,
+        uint16 dstChainId_
     ) external view returns (bytes memory _lzArgs) {
         return
             CrossChainLib.encodeLzArgs({
-                dstChainId_: liquidityChainId_,
-                callbackNativeFee_: quoteFlashRepayCallbackNativeFee(positionChainId_),
-                swapTxGasLimit_: crossChainDispatcher().flashRepaySwapTxGasLimit()
+                dstChainId_: dstChainId_,
+                callbackNativeFee_: quoteFlashRepayCallbackNativeFee(srcChainId_),
+                swapTxGasLimit_: _getCrossChainDispatcher().flashRepaySwapTxGasLimit()
             });
     }
 
-    function quoteLeverageCallbackNativeFee(uint16 dstChainId_) public view returns (uint256 _callbackTxNativeFee) {
-        ICrossChainDispatcher _crossChainDispatcher = crossChainDispatcher();
+    /**
+     * @notice Get LZ args for the swap and callback's trigger execution
+     * @dev Must be called on the chain where the swap will be executed (a.k.a. destination chain)
+     * @param srcChainId_ Source chain's LZ id (i.e. user-facing chain)
+     * @param dstChainId_ Destination chain's LZ id (i.e. chain used for swap)
+     */
+    function getLeverageSwapAndCallbackLzArgs(
+        uint16 srcChainId_,
+        uint16 dstChainId_
+    ) external view returns (bytes memory _lzArgs) {
+        return
+            CrossChainLib.encodeLzArgs({
+                dstChainId_: dstChainId_,
+                callbackNativeFee_: quoteLeverageCallbackNativeFee(srcChainId_),
+                swapTxGasLimit_: _getCrossChainDispatcher().leverageSwapTxGasLimit()
+            });
+    }
+
+    /**
+     * @notice Get the LZ (native) fee for the `crossChainLeverageCallback()` call
+     * @param srcChainId_ Source chain's LZ id (i.e. user-facing chain)
+     * @return _callbackTxNativeFee The fee in native coin
+     */
+    function quoteLeverageCallbackNativeFee(uint16 srcChainId_) public view returns (uint256 _callbackTxNativeFee) {
+        ICrossChainDispatcher _crossChainDispatcher = _getCrossChainDispatcher();
         (_callbackTxNativeFee, ) = _crossChainDispatcher.stargateRouter().quoteLayerZeroFee({
-            _dstChainId: dstChainId_,
+            _dstChainId: srcChainId_,
             _functionType: SG_TYPE_SWAP_REMOTE,
             _toAddress: abi.encodePacked(address(type(uint160).max)),
             _transferAndCallPayload: CrossChainLib.encodeLeverageCallbackPayload(
@@ -83,8 +95,13 @@ contract Quoter is Initializable, QuoterStorageV1 {
         });
     }
 
-    function quoteFlashRepayCallbackNativeFee(uint16 dstChainId_) public view returns (uint256 _callbackTxNativeFee) {
-        ICrossChainDispatcher _crossChainDispatcher = crossChainDispatcher();
+    /**
+     * @notice Get the LZ (native) fee for the `crossChainFlashRepayCallback()` call
+     * @param srcChainId_ Source chain's LZ id (i.e. user-facing chain)
+     * @return _callbackTxNativeFee The fee in native coin
+     */
+    function quoteFlashRepayCallbackNativeFee(uint16 srcChainId_) public view returns (uint256 _callbackTxNativeFee) {
+        ICrossChainDispatcher _crossChainDispatcher = _getCrossChainDispatcher();
         uint64 _callbackTxGasLimit = _crossChainDispatcher.flashRepayCallbackTxGasLimit();
 
         bytes memory _lzPayload = abi.encode(
@@ -103,7 +120,7 @@ contract Quoter is Initializable, QuoterStorageV1 {
         (_callbackTxNativeFee, ) = IStargateBridge(_crossChainDispatcher.stargateRouter().bridge())
             .layerZeroEndpoint()
             .estimateFees(
-                dstChainId_,
+                srcChainId_,
                 address(this),
                 _lzPayload,
                 false,
@@ -118,23 +135,24 @@ contract Quoter is Initializable, QuoterStorageV1 {
 
     /**
      * @notice Get the LZ (native) fee for the `triggerFlashRepay()` call
-     * @param lzArgs_ The LZ args for L1 transaction
+     * @param proxyOFT_ The synthetic token's Proxy OFT contract
+     * @param lzArgs_ The LZ args for swap transaction (See: `getFlashRepaySwapAndCallbackLzArgs()`)
      * @return _nativeFee The fee in native coin
      */
     function quoteCrossChainFlashRepayNativeFee(
-        IProxyOFT proxyOFT,
+        IProxyOFT proxyOFT_,
         bytes calldata lzArgs_
     ) external view returns (uint256 _nativeFee) {
         (uint16 _dstChainId, uint256 _callbackTxNativeFee, uint64 _swapTxGasLimit_) = CrossChainLib.decodeLzArgs(
             lzArgs_
         );
 
-        bytes memory _destinationProxyOFT = abi.encodePacked(proxyOFT.getProxyOFTOf(_dstChainId));
+        bytes memory _dstProxyOFT = abi.encodePacked(proxyOFT_.getProxyOFTOf(_dstChainId));
 
-        (_nativeFee, ) = crossChainDispatcher().stargateRouter().quoteLayerZeroFee({
+        (_nativeFee, ) = _getCrossChainDispatcher().stargateRouter().quoteLayerZeroFee({
             _dstChainId: _dstChainId,
             _functionType: SG_TYPE_SWAP_REMOTE,
-            _toAddress: _destinationProxyOFT,
+            _toAddress: _dstProxyOFT,
             _transferAndCallPayload: CrossChainLib.encodeFlashRepaySwapPayload(
                 address(type(uint160).max),
                 address(type(uint160).max),
@@ -145,21 +163,26 @@ contract Quoter is Initializable, QuoterStorageV1 {
             _lzTxParams: IStargateRouter.lzTxObj({
                 dstGasForCall: _swapTxGasLimit_,
                 dstNativeAmount: _callbackTxNativeFee,
-                dstNativeAddr: _destinationProxyOFT
+                dstNativeAddr: _dstProxyOFT
             })
         });
     }
 
+    /**
+     * @notice Get the LZ (native) fee for the `triggerFlashRepay()` call
+     * @param proxyOFT_ The synthetic token's Proxy OFT contract
+     * @param lzArgs_ The LZ args for swap transaction (See: `getLeverageSwapAndCallbackLzArgs()`)
+     * @return _nativeFee The fee in native coin
+     */
     function quoteCrossChainLeverageNativeFee(
         IProxyOFT proxyOFT_,
         bytes calldata lzArgs_
     ) public view returns (uint256 _nativeFee) {
         uint16 _dstChainId;
-        address _destinationProxyOFT;
+        address _dstProxyOFT;
         bytes memory _payload;
         bytes memory _adapterParams;
         uint64 _swapTxGasLimit;
-
         {
             _payload = CrossChainLib.encodeLeverageSwapPayload(
                 address(type(uint160).max),
@@ -173,24 +196,28 @@ contract Quoter is Initializable, QuoterStorageV1 {
             uint256 _callbackTxNativeFee;
             (_dstChainId, _callbackTxNativeFee, _swapTxGasLimit) = CrossChainLib.decodeLzArgs(lzArgs_);
 
-            _destinationProxyOFT = proxyOFT_.getProxyOFTOf(_dstChainId);
+            _dstProxyOFT = proxyOFT_.getProxyOFTOf(_dstChainId);
 
             _adapterParams = abi.encodePacked(
                 LZ_ADAPTER_PARAMS_VERSION,
-                uint256(crossChainDispatcher().lzBaseGasLimit() + _swapTxGasLimit),
+                uint256(_getCrossChainDispatcher().lzBaseGasLimit() + _swapTxGasLimit),
                 _callbackTxNativeFee,
-                _destinationProxyOFT
+                _dstProxyOFT
             );
         }
 
         (_nativeFee, ) = proxyOFT_.estimateSendAndCallFee({
             _dstChainId: _dstChainId,
-            _toAddress: abi.encodePacked(_destinationProxyOFT),
+            _toAddress: abi.encodePacked(_dstProxyOFT),
             _amount: type(uint256).max,
             _payload: _payload,
             _dstGasForCall: _swapTxGasLimit,
             _useZro: false,
             _adapterParams: _adapterParams
         });
+    }
+
+    function _getCrossChainDispatcher() private view returns (ICrossChainDispatcher) {
+        return poolRegistry.crossChainDispatcher();
     }
 }

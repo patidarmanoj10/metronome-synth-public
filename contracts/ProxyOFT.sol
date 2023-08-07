@@ -3,9 +3,7 @@
 pragma solidity 0.8.9;
 
 import "./dependencies/@layerzerolabs/solidity-examples/contracts-upgradeable/token/oft/composable/ComposableOFTCoreUpgradeable.sol";
-import "./interfaces/IProxyOFT.sol";
 import "./storage/ProxyOFTStorage.sol";
-import "./lib/CrossChainLib.sol";
 
 error AddressIsNull();
 error SenderIsNotTheOwner();
@@ -18,72 +16,81 @@ error SenderIsNotCrossChainDispatcher();
 contract ProxyOFT is ComposableOFTCoreUpgradeable, ProxyOFTStorageV1 {
     using BytesLib for bytes;
 
-    function initialize(address _lzEndpoint, ISyntheticToken syntheticToken_) external initializer {
+    function initialize(address lzEndpoint_, ISyntheticToken syntheticToken_) external initializer {
         if (address(syntheticToken_) == address(0)) revert AddressIsNull();
-        if (address(_lzEndpoint) == address(0)) revert AddressIsNull();
+        if (address(lzEndpoint_) == address(0)) revert AddressIsNull();
 
-        __ComposableOFTCoreUpgradeable_init(_lzEndpoint);
+        __ComposableOFTCoreUpgradeable_init(lzEndpoint_);
 
         syntheticToken = syntheticToken_;
     }
 
+    /// @inheritdoc IOFTCoreUpgradeable
     function circulatingSupply() public view override returns (uint) {
         return syntheticToken.totalSupply();
     }
 
-    function token() public view override returns (address) {
-        return address(syntheticToken);
-    }
-
-    function _debitFrom(
-        address from_,
-        uint16 /*dstChainId_*/,
-        bytes memory /*toAddress_*/,
-        uint _amount
-    ) internal override returns (uint256 _sent) {
-        if (!syntheticToken.poolRegistry().crossChainDispatcher().isBridgingActive()) revert BridgingIsPaused();
-        if (_msgSender() != from_) revert SenderIsNotTheOwner();
-        syntheticToken.burn(from_, _amount);
-        return _amount;
-    }
-
-    function _creditTo(
-        uint16 /*srcChainId_*/,
-        address toAddress_,
-        uint _amount
-    ) internal override returns (uint256 _received) {
-        syntheticToken.mint(toAddress_, _amount);
-        return _amount;
-    }
-
+    /**
+     * @notice Get other chains Proxy OFT contracts
+     * @param chainId_ the chain to get contract from
+     */
     function getProxyOFTOf(uint16 chainId_) public view returns (address _proxyOFT) {
         return trustedRemoteLookup[chainId_].toAddress(0);
     }
 
+    /// @inheritdoc IOFTCoreUpgradeable
+    function token() public view override returns (address) {
+        return address(syntheticToken);
+    }
+
+    /// @inheritdoc OFTCoreUpgradeable
+    function _debitFrom(
+        address from_,
+        uint16 /*dstChainId_*/,
+        bytes memory /*toAddress_*/,
+        uint amount_
+    ) internal override returns (uint256 _sent) {
+        if (!syntheticToken.poolRegistry().crossChainDispatcher().isBridgingActive()) revert BridgingIsPaused();
+        if (msg.sender != from_) revert SenderIsNotTheOwner();
+        syntheticToken.burn(from_, amount_);
+        return amount_;
+    }
+
+    /// @inheritdoc OFTCoreUpgradeable
+    function _creditTo(
+        uint16 /*srcChainId_*/,
+        address toAddress_,
+        uint amount_
+    ) internal override returns (uint256 _received) {
+        syntheticToken.mint(toAddress_, amount_);
+        return amount_;
+    }
+
+    /// @inheritdoc ComposableOFTCoreUpgradeable
     function sendAndCall(
-        address _from,
-        uint16 _dstChainId,
-        bytes calldata _toAddress,
-        uint _amount,
-        bytes calldata _payload,
-        uint64 _dstGasForCall,
-        address payable _refundAddress,
-        address _zroPaymentAddress,
-        bytes calldata _adapterParams
+        address from_,
+        uint16 dstChainId_,
+        bytes calldata toAddress_,
+        uint amount_,
+        bytes calldata payload_,
+        uint64 dstGasForCall_,
+        address payable refundAddress_,
+        address zroPaymentAddress_,
+        bytes calldata adapterParams_
     ) public payable override(ComposableOFTCoreUpgradeable, IComposableOFTCoreUpgradeable) {
         if (msg.sender != address(syntheticToken.poolRegistry().crossChainDispatcher()))
             revert SenderIsNotCrossChainDispatcher();
 
         _sendAndCall(
-            _from,
-            _dstChainId,
-            _toAddress,
-            _amount,
-            _payload,
-            _dstGasForCall,
-            _refundAddress,
-            _zroPaymentAddress,
-            _adapterParams
+            from_,
+            dstChainId_,
+            toAddress_,
+            amount_,
+            payload_,
+            dstGasForCall_,
+            refundAddress_,
+            zroPaymentAddress_,
+            adapterParams_
         );
     }
 }

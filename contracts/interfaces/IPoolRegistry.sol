@@ -36,4 +36,6 @@ interface IPoolRegistry is IPauseable, IGovernable {
     function quoter() external view returns (IQuoter);
 
     function crossChainDispatcher() external view returns (ICrossChainDispatcher);
+
+    function doesSyntheticTokenExist(ISyntheticToken syntheticToken_) external view returns (bool _exists);
 }

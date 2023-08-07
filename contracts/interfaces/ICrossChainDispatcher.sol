@@ -11,19 +11,19 @@ interface ICrossChainDispatcher is IStargateReceiver, IOFTReceiverUpgradeable {
     function crossChainDispatcherOf(uint16 chainId_) external view returns (address);
 
     function triggerFlashRepaySwap(
-        IProxyOFT proxyOFT_,
         uint256 id_,
         address payable account_,
         address tokenIn_,
+        address tokenOut_,
         uint256 amountIn_,
         uint256 amountOutMin_,
         bytes calldata lzArgs_
     ) external payable;
 
     function triggerLeverageSwap(
-        IProxyOFT proxyOFT_,
         uint256 id_,
         address payable account_,
+        address tokenIn_,
         address tokenOut_,
         uint256 amountIn_,
         uint256 amountOutMin,

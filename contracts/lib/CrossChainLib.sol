@@ -2,7 +2,6 @@
 
 pragma solidity 0.8.9;
 
-// TODO: Since SFM is singleton, do we need to add it to the payload?
 library CrossChainLib {
     /**
      * @notice Supported cross-chain operations
@@ -10,50 +9,51 @@ library CrossChainLib {
     uint8 public constant LEVERAGE = 1;
     uint8 public constant FLASH_REPAY = 2;
 
-    // TODO: Review naming
-    function getOperationType(bytes memory payload_) internal pure returns (uint8) {
-        (uint8 _op, ) = abi.decode(payload_, (uint8, bytes));
-        return _op;
+    function getOperationType(bytes memory payload_) internal pure returns (uint8 _op) {
+        (_op, ) = abi.decode(payload_, (uint8, bytes));
     }
 
     function encodeLeverageCallbackPayload(
-        address smartFarmingManager_,
+        address srcSmartFarmingManager_,
         uint256 requestId_
     ) internal pure returns (bytes memory _payload) {
-        return abi.encode(LEVERAGE, abi.encode(smartFarmingManager_, requestId_));
+        return abi.encode(LEVERAGE, abi.encode(srcSmartFarmingManager_, requestId_));
     }
 
     function decodeLeverageCallbackPayload(
         bytes memory payload_
-    ) internal pure returns (address _smartFarmingManager, uint256 _requestId) {
+    ) internal pure returns (address _srcSmartFarmingManager, uint256 _requestId) {
         (, payload_) = abi.decode(payload_, (uint8, bytes));
         return abi.decode(payload_, (address, uint256));
     }
 
     function encodeFlashRepayCallbackPayload(
-        address proxyOFT_,
-        address smartFarmingManager_,
+        address srcProxyOFT_,
+        address srcSmartFarmingManager_,
         uint256 requestId_
     ) internal pure returns (bytes memory _payload) {
-        return abi.encode(FLASH_REPAY, abi.encode(proxyOFT_, smartFarmingManager_, requestId_));
+        return abi.encode(FLASH_REPAY, abi.encode(srcProxyOFT_, srcSmartFarmingManager_, requestId_));
     }
 
     function decodeFlashRepayCallbackPayload(
         bytes memory payload_
-    ) internal pure returns (address proxyOFT_, address _smartFarmingManager, uint256 _requestId) {
+    ) internal pure returns (address srcProxyOFT_, address _srcSmartFarmingManager, uint256 _requestId) {
         (, payload_) = abi.decode(payload_, (uint8, bytes));
         return abi.decode(payload_, (address, address, uint256));
     }
 
     function encodeFlashRepaySwapPayload(
-        address proxyOFT_,
-        address smartFarmingManager_,
+        address srcSmartFarmingManager_,
+        address dstProxyOFT_,
         uint256 requestId_,
         address account_,
         uint256 amountOutMin_
     ) internal pure returns (bytes memory _payload) {
         return
-            abi.encode(FLASH_REPAY, abi.encode(proxyOFT_, smartFarmingManager_, requestId_, account_, amountOutMin_));
+            abi.encode(
+                FLASH_REPAY,
+                abi.encode(srcSmartFarmingManager_, dstProxyOFT_, requestId_, account_, amountOutMin_)
+            );
     }
 
     function decodeFlashRepaySwapPayload(
@@ -62,8 +62,8 @@ library CrossChainLib {
         internal
         pure
         returns (
-            address proxyOFT_,
-            address smartFarmingManager_,
+            address srcSmartFarmingManager_,
+            address dstProxyOFT_,
             uint256 requestId_,
             address account_,
             uint256 amountOutMin_
@@ -74,8 +74,8 @@ library CrossChainLib {
     }
 
     function encodeLeverageSwapPayload(
-        address proxyOFT_,
-        address smartFarmingManager_,
+        address srcSmartFarmingManager_,
+        address dstProxyOFT_,
         uint256 requestId_,
         uint256 sgPoolId_,
         address account_,
@@ -84,7 +84,7 @@ library CrossChainLib {
         return
             abi.encode(
                 LEVERAGE,
-                abi.encode(proxyOFT_, smartFarmingManager_, requestId_, sgPoolId_, account_, amountOutMin_)
+                abi.encode(srcSmartFarmingManager_, dstProxyOFT_, requestId_, sgPoolId_, account_, amountOutMin_)
             );
     }
 
@@ -94,8 +94,8 @@ library CrossChainLib {
         internal
         pure
         returns (
-            address proxyOFT_,
-            address smartFarmingManager_,
+            address srcSmartFarmingManager_,
+            address dstProxyOFT_,
             uint256 requestId_,
             uint256 sgPoolId_,
             address account_,

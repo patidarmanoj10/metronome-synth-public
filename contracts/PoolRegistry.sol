@@ -66,6 +66,20 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV2 {
     }
 
     /**
+     * @notice Check if any pool has the token as part of its offerings
+     * @param syntheticToken_ Asset to check
+     * @return _exists Return true if exists
+     */
+    function doesSyntheticTokenExist(ISyntheticToken syntheticToken_) external view returns (bool _exists) {
+        uint256 _length = pools.length();
+        for (uint256 i; i < _length; ++i) {
+            if (IPool(pools.at(i)).doesSyntheticTokenExist(syntheticToken_)) {
+                return true;
+            }
+        }
+    }
+
+    /**
      * @notice Get all pools
      * @dev WARNING: This operation will copy the entire storage to memory, which can be quite expensive. This is designed
      * to mostly be used by view accessors that are queried without any gas fees.

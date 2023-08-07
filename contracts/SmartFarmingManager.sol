@@ -4,7 +4,6 @@ pragma solidity 0.8.9;
 
 import "./utils/ReentrancyGuard.sol";
 import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
-import "./interfaces/ICrossChainDispatcher.sol";
 import "./access/Manageable.sol";
 import "./storage/SmartFarmingManagerStorage.sol";
 import "./lib/WadRayMath.sol";
@@ -97,6 +96,301 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         if (address(pool_) == address(0)) revert PoolIsNull();
         __ReentrancyGuard_init();
         __Manageable_init(pool_);
+    }
+
+    /**
+     * @notice Get the Cross-chain dispatcher contract
+     */
+    function crossChainDispatcher() public view returns (ICrossChainDispatcher _crossChainDispatcher) {
+        return pool.poolRegistry().crossChainDispatcher();
+    }
+
+    /***
+     * @notice Cross-chain flash debt repayment
+     * @param syntheticToken_ The debt token to repay
+     * @param depositToken_ The collateral to withdraw
+     * @param withdrawAmount_ The amount to withdraw
+     * @param underlying_ The underlying asset (e.g. USDC is vaUSDC's underlying)
+     * @param underlyingAmountMin_ The minimum amount out for collateral->underlying swap (slippage check)
+     * @param swapAmountOutMin_ The minimum amount out for underlying->msAsset swap (slippage check)
+     * @param repayAmountMin_ The minimum amount to repay (slippage check)
+     * @param lzArgs_ The LayerZero params (See: `Quoter.getFlashRepaySwapAndCallbackLzArgs()`)
+     */
+    function crossChainFlashRepay(
+        ISyntheticToken syntheticToken_,
+        IDepositToken depositToken_,
+        uint256 withdrawAmount_,
+        IERC20 underlying_,
+        uint256 underlyingAmountMin_,
+        uint256 swapAmountOutMin_,
+        uint256 repayAmountMin_,
+        bytes calldata lzArgs_
+    )
+        external
+        payable
+        override
+        nonReentrant
+        onlyIfDepositTokenExists(depositToken_)
+        onlyIfSyntheticTokenExists(syntheticToken_)
+    {
+        if (withdrawAmount_ == 0) revert AmountIsZero();
+
+        ICrossChainDispatcher _crossChainDispatcher;
+        {
+            IDebtToken _debtToken = pool.debtTokenOf(syntheticToken_);
+            _debtToken.accrueInterest();
+            if (repayAmountMin_ > _debtToken.balanceOf(msg.sender)) revert AmountIsTooHigh();
+
+            _crossChainDispatcher = crossChainDispatcher();
+        }
+
+        uint256 _amountIn;
+        {
+            // 1. withdraw collateral
+            // Note: No need to check healthy because this function ensures withdrawing only from unlocked balance
+            (uint256 _withdrawn, ) = depositToken_.withdrawFrom(msg.sender, withdrawAmount_);
+
+            // 2. swap collateral for its underlying
+            // Note: Swap to `crossChainDispatcher` to save transfer gas
+            _amountIn = _swap({
+                swapper_: swapper(),
+                tokenIn_: _collateralOf(depositToken_),
+                tokenOut_: underlying_,
+                amountIn_: _withdrawn,
+                amountOutMin_: underlyingAmountMin_,
+                to_: address(_crossChainDispatcher)
+            });
+        }
+
+        // 3. store request and trigger swap
+        _triggerFlashRepaySwap({
+            crossChainDispatcher_: _crossChainDispatcher,
+            underlying_: underlying_,
+            syntheticToken_: syntheticToken_,
+            amountIn_: _amountIn,
+            swapAmountOutMin_: swapAmountOutMin_,
+            repayAmountMin_: repayAmountMin_,
+            lzArgs_: lzArgs_
+        });
+    }
+
+    /**
+     * @dev Stores flash repay cross-chain request and triggers swap on the destination chain
+     */
+    function _triggerFlashRepaySwap(
+        ICrossChainDispatcher crossChainDispatcher_,
+        IERC20 underlying_,
+        ISyntheticToken syntheticToken_,
+        uint256 amountIn_,
+        uint256 swapAmountOutMin_,
+        uint256 repayAmountMin_,
+        bytes calldata lzArgs_
+    ) private {
+        uint256 _id = _nextCrossChainRequestId();
+
+        (uint16 _dstChainId, , ) = CrossChainLib.decodeLzArgs(lzArgs_);
+
+        crossChainFlashRepays[_id] = CrossChainFlashRepay({
+            dstChainId: _dstChainId,
+            syntheticToken: syntheticToken_,
+            repayAmountMin: repayAmountMin_,
+            account: msg.sender,
+            finished: false
+        });
+
+        crossChainDispatcher_.triggerFlashRepaySwap{value: msg.value}({
+            id_: _id,
+            account_: payable(msg.sender),
+            tokenIn_: address(underlying_),
+            tokenOut_: address(syntheticToken_),
+            amountIn_: amountIn_,
+            amountOutMin_: swapAmountOutMin_,
+            lzArgs_: lzArgs_
+        });
+
+        emit CrossChainFlashRepayStarted(_id);
+    }
+
+    /**
+     * @notice Finalize cross-chain flash debt repayment process
+     * @dev Receives msAsset from L1 and use it to repay
+     * @param id_ The id of the request
+     * @param swapAmountOut_ The msAsset amount received from L1 swap
+     * @return _repaid The debt amount repaid
+     */
+    function crossChainFlashRepayCallback(
+        uint256 id_,
+        uint256 swapAmountOut_
+    ) external override whenNotShutdown nonReentrant onlyIfCrossChainDispatcher returns (uint256 _repaid) {
+        CrossChainFlashRepay memory _request = crossChainFlashRepays[id_];
+
+        if (_request.account == address(0)) revert CrossChainRequestInvalidKey();
+        if (msg.sender != address(crossChainDispatcher())) revert SenderIsNotCrossChainDispatcher();
+        if (_request.finished) revert CrossChainRequestCompletedAlready();
+
+        // 1. update state
+        crossChainFlashRepays[id_].finished = true;
+
+        // 2. transfer synthetic token
+        swapAmountOut_ = _safeTransferFrom(_request.syntheticToken, msg.sender, swapAmountOut_);
+
+        // 3. repay debt
+        (_repaid, ) = pool.debtTokenOf(_request.syntheticToken).repay(_request.account, swapAmountOut_);
+        if (_repaid < _request.repayAmountMin) revert FlashRepaySlippageTooHigh();
+
+        emit CrossChainFlashRepayFinished(id_);
+    }
+
+    /***
+     * @notice Cross-chain Leverage
+     * @param underlying_ The underlying asset (e.g. USDC is vaUSDC's underlying)
+     * @param depositToken_ The collateral to deposit
+     * @param syntheticToken_ The msAsset to mint
+     * @param amountIn_ The amount to deposit
+     * @param leverage_ The leverage X param (e.g. 1.5e18 for 1.5X)
+     * @param swapAmountOutMin_ The minimum amount out for msAsset->underlying swap (slippage check)
+     * @param depositAmountMin_ The minimum amount to deposit (slippage check)
+     * @param lzArgs_ The LayerZero params (See: `Quoter.getLeverageSwapAndCallbackLzArgs()`)
+     */
+    function crossChainLeverage(
+        IERC20 underlying_,
+        IDepositToken depositToken_,
+        ISyntheticToken syntheticToken_,
+        uint256 amountIn_,
+        uint256 leverage_,
+        uint256 swapAmountOutMin_,
+        uint256 depositAmountMin_,
+        bytes calldata lzArgs_
+    )
+        external
+        payable
+        override
+        nonReentrant
+        onlyIfDepositTokenExists(depositToken_)
+        onlyIfSyntheticTokenExists(syntheticToken_)
+    {
+        IERC20 _underlying = underlying_; // stack too deep
+
+        if (leverage_ <= 1e18) revert LeverageTooLow();
+        if (leverage_ > uint256(1e18).wadDiv(1e18 - depositToken_.collateralFactor())) revert LeverageTooHigh();
+        if (address(_underlying) == address(0)) revert TokenInIsNull();
+
+        ICrossChainDispatcher _crossChainDispatcher = crossChainDispatcher();
+        uint256 _issued;
+        {
+            // 1. transfer underlying
+            amountIn_ = _safeTransferFrom(_underlying, msg.sender, amountIn_);
+
+            // 2. mint synth
+            uint256 _amount = _calculateLeverageDebtAmount(_underlying, syntheticToken_, amountIn_, leverage_);
+            // Note: Issue to `crossChainDispatcher` to save transfer gas
+            (_issued, ) = pool.debtTokenOf(syntheticToken_).flashIssue(address(_crossChainDispatcher), _amount);
+        }
+
+        // 3. store request and trigger swap
+        _triggerCrossChainLeverageSwap({
+            crossChainDispatcher_: _crossChainDispatcher,
+            underlying_: underlying_,
+            depositToken_: depositToken_,
+            syntheticToken_: syntheticToken_,
+            amountIn_: amountIn_,
+            swapAmountOutMin_: swapAmountOutMin_,
+            depositAmountMin_: depositAmountMin_,
+            lzArgs_: lzArgs_,
+            issued_: _issued
+        });
+    }
+
+    /**
+     * @dev Stores leverage cross-chain request and triggers swap on the destination chain
+     */
+    function _triggerCrossChainLeverageSwap(
+        ICrossChainDispatcher crossChainDispatcher_,
+        IERC20 underlying_,
+        IDepositToken depositToken_,
+        ISyntheticToken syntheticToken_,
+        uint256 amountIn_,
+        uint256 swapAmountOutMin_,
+        uint256 depositAmountMin_,
+        bytes calldata lzArgs_,
+        uint256 issued_
+    ) private {
+        uint256 _id = _nextCrossChainRequestId();
+
+        {
+            (uint16 _dstChainId, , ) = CrossChainLib.decodeLzArgs(lzArgs_);
+
+            crossChainLeverages[_id] = CrossChainLeverage({
+                dstChainId: _dstChainId,
+                underlying: underlying_,
+                depositToken: depositToken_,
+                syntheticToken: syntheticToken_,
+                depositAmountMin: depositAmountMin_,
+                underlyingAmountIn: amountIn_,
+                syntheticTokenIssued: issued_,
+                account: msg.sender,
+                finished: false
+            });
+        }
+
+        crossChainDispatcher_.triggerLeverageSwap{value: msg.value}({
+            id_: _id,
+            account_: payable(msg.sender),
+            tokenIn_: address(syntheticToken_),
+            tokenOut_: address(underlying_),
+            amountIn_: issued_,
+            amountOutMin: swapAmountOutMin_,
+            lzArgs_: lzArgs_
+        });
+
+        emit CrossChainLeverageStarted(_id);
+    }
+
+    /**
+     * @notice Finalize cross-chain leverage process
+     * @dev Receives underlying from L1 and use it to deposit
+     * @param id_ The id of the request
+     * @param swapAmountOut_ The underlying amount received from L1 swap
+     * @return _deposited The amount deposited
+     */
+    function crossChainLeverageCallback(
+        uint256 id_,
+        uint256 swapAmountOut_
+    ) external override nonReentrant onlyIfCrossChainDispatcher returns (uint256 _deposited) {
+        CrossChainLeverage memory _request = crossChainLeverages[id_];
+
+        if (_request.account == address(0)) revert CrossChainRequestInvalidKey();
+        if (msg.sender != address(crossChainDispatcher())) revert SenderIsNotCrossChainDispatcher();
+        if (_request.finished) revert CrossChainRequestCompletedAlready();
+        IERC20 _collateral = _collateralOf(_request.depositToken);
+
+        // 1. update state
+        crossChainLeverages[id_].finished = true;
+
+        // 2. transfer underlying
+        swapAmountOut_ = _safeTransferFrom(_request.underlying, msg.sender, swapAmountOut_);
+
+        // 3. swap underlying for collateral if needed
+        uint256 _underlyingAmount = _request.underlyingAmountIn + swapAmountOut_;
+        uint256 _depositAmount = _request.underlying == _collateral
+            ? _underlyingAmount
+            : _swap(swapper(), _request.underlying, _collateral, _underlyingAmount, 0);
+        if (_depositAmount < _request.depositAmountMin) revert LeverageSlippageTooHigh();
+
+        // 4. deposit collateral
+        _collateral.safeApprove(address(_request.depositToken), 0);
+        _collateral.safeApprove(address(_request.depositToken), _depositAmount);
+        (_deposited, ) = _request.depositToken.deposit(_depositAmount, _request.account);
+
+        // 5. mint debt
+        IPool _pool = pool;
+        _pool.debtTokenOf(_request.syntheticToken).mint(_request.account, _request.syntheticTokenIssued);
+
+        // 6. check the health of the outcome position
+        (bool _isHealthy, , , , ) = _pool.debtPositionOf(_request.account);
+        if (!_isHealthy) revert PositionIsNotHealthy();
+
+        emit CrossChainLeverageFinished(id_);
     }
 
     /**
@@ -207,286 +501,6 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         emit Leveraged(tokenIn_, depositToken_, syntheticToken_, leverage_, amountIn_, _issued, _deposited);
     }
 
-    /***
-     * @notice Cross-chain flash debt repayment
-     * @param syntheticToken_ The debt token to repay
-     * @param depositToken_ The collateral to withdraw
-     * @param withdrawAmount_ The amount to withdraw
-     * @param underlying_ The underlying asset (e.g. USDC is vaUSDC's underlying)
-     * @param underlyingAmountMin_ The minimum amount out for collateral->underlying swap (slippage check)
-     * @param swapAmountOutMin_ The minimum amount out for underlying->msAsset swap (slippage check)
-     * @param repayAmountMin_ The minimum amount to repay (slippage check)
-     * @param lzArgs_ The LayerZero params (See: `Quoter.getFlashRepaySwapAndCallbackLzArgs()`)
-     */
-    function crossChainFlashRepay(
-        ISyntheticToken syntheticToken_,
-        IDepositToken depositToken_,
-        uint256 withdrawAmount_,
-        IERC20 underlying_,
-        uint256 underlyingAmountMin_,
-        uint256 swapAmountOutMin_,
-        uint256 repayAmountMin_,
-        bytes calldata lzArgs_
-    )
-        external
-        payable
-        override
-        nonReentrant
-        onlyIfDepositTokenExists(depositToken_)
-        onlyIfSyntheticTokenExists(syntheticToken_)
-    {
-        if (withdrawAmount_ == 0) revert AmountIsZero();
-
-        address _proxyOFT;
-        {
-            IDebtToken _debtToken = pool.debtTokenOf(syntheticToken_);
-            _debtToken.accrueInterest();
-            if (repayAmountMin_ > _debtToken.balanceOf(msg.sender)) revert AmountIsTooHigh();
-
-            _proxyOFT = address(syntheticToken_.proxyOFT());
-        }
-
-        uint256 _amountIn;
-        {
-            // 1. withdraw collateral
-            // Note: No need to check healthy because this function ensures withdrawing only from unlocked balance
-            (uint256 _withdrawn, ) = depositToken_.withdrawFrom(msg.sender, withdrawAmount_, address(this));
-
-            // 2. swap collateral for its underlying
-            // Note: Swap to `crossChainDispatcher` to save transfer gas
-            _amountIn = _swap({
-                swapper_: swapper(),
-                tokenIn_: _collateralOf(depositToken_),
-                tokenOut_: underlying_,
-                amountIn_: _withdrawn,
-                amountOutMin_: underlyingAmountMin_,
-                to_: address(crossChainDispatcher())
-            });
-        }
-
-        _triggerFlashRepaySwap({
-            syntheticToken_: syntheticToken_,
-            underlying_: underlying_,
-            amountIn_: _amountIn,
-            swapAmountOutMin_: swapAmountOutMin_,
-            repayAmountMin_: repayAmountMin_,
-            lzArgs_: lzArgs_
-        });
-    }
-
-    function _triggerFlashRepaySwap(
-        ISyntheticToken syntheticToken_,
-        IERC20 underlying_,
-        uint256 amountIn_,
-        uint256 swapAmountOutMin_,
-        uint256 repayAmountMin_,
-        bytes calldata lzArgs_
-    ) private {
-        // 3. store request
-        uint256 _id = _nextCrossChainRequestId();
-
-        (uint16 _dstChainId, , ) = CrossChainLib.decodeLzArgs(lzArgs_);
-
-        crossChainFlashRepays[_id] = CrossChainFlashRepay({
-            dstChainId: _dstChainId,
-            syntheticToken: syntheticToken_,
-            repayAmountMin: repayAmountMin_,
-            account: msg.sender,
-            finished: false
-        });
-
-        // 4. trigger L1 swap
-        crossChainDispatcher().triggerFlashRepaySwap{value: msg.value}({
-            proxyOFT_: syntheticToken_.proxyOFT(),
-            id_: _id,
-            account_: payable(msg.sender),
-            tokenIn_: address(underlying_),
-            amountIn_: amountIn_,
-            amountOutMin_: swapAmountOutMin_,
-            lzArgs_: lzArgs_
-        });
-
-        emit CrossChainFlashRepayStarted(_id);
-    }
-
-    /**
-     * @notice Finalize cross-chain flash debt repayment process
-     * @dev Receives msAsset from L1 and use it to repay
-     * @param id_ The id of the request
-     * @param swapAmountOut_ The msAsset amount received from L1 swap
-     * @return _repaid The debt amount repaid
-     */
-    function crossChainFlashRepayCallback(
-        uint256 id_,
-        uint256 swapAmountOut_
-    ) external override whenNotShutdown nonReentrant onlyIfCrossChainDispatcher returns (uint256 _repaid) {
-        IPool _pool = pool;
-        CrossChainFlashRepay memory _request = crossChainFlashRepays[id_];
-
-        if (_request.account == address(0)) revert CrossChainRequestInvalidKey();
-        if (msg.sender != address(crossChainDispatcher())) revert SenderIsNotCrossChainDispatcher();
-        if (_request.finished) revert CrossChainRequestCompletedAlready();
-
-        // 1. update state
-        crossChainFlashRepays[id_].finished = true;
-
-        // 2. transfer synthetic token
-        swapAmountOut_ = _safeTransferFrom(_request.syntheticToken, msg.sender, swapAmountOut_);
-
-        // 3. repay debt
-        (_repaid, ) = _pool.debtTokenOf(_request.syntheticToken).repay(_request.account, swapAmountOut_);
-        if (_repaid < _request.repayAmountMin) revert FlashRepaySlippageTooHigh();
-
-        emit CrossChainFlashRepayFinished(id_);
-    }
-
-    /***
-     * @notice Cross-chain Leverage
-     * @param underlying_ The underlying asset (e.g. USDC is vaUSDC's underlying)
-     * @param depositToken_ The collateral to deposit
-     * @param syntheticToken_ The msAsset to mint
-     * @param amountIn_ The amount to deposit
-     * @param leverage_ The leverage X param (e.g. 1.5e18 for 1.5X)
-     * @param swapAmountOutMin_ The minimum amount out for msAsset->underlying swap (slippage check)
-     * @param depositAmountMin_ The minimum amount to deposit (slippage check)
-     * @param lzArgs_ The LayerZero params (See: `Quoter.getLeverageSwapAndCallbackLzArgs()`)
-     */
-    function crossChainLeverage(
-        IERC20 underlying_,
-        IDepositToken depositToken_,
-        ISyntheticToken syntheticToken_,
-        uint256 amountIn_,
-        uint256 leverage_,
-        uint256 swapAmountOutMin_,
-        uint256 depositAmountMin_,
-        bytes calldata lzArgs_
-    )
-        external
-        payable
-        override
-        nonReentrant
-        onlyIfDepositTokenExists(depositToken_)
-        onlyIfSyntheticTokenExists(syntheticToken_)
-    {
-        IERC20 _underlying = underlying_; // stack too deep
-
-        if (leverage_ <= 1e18) revert LeverageTooLow();
-        if (leverage_ > uint256(1e18).wadDiv(1e18 - depositToken_.collateralFactor())) revert LeverageTooHigh();
-        if (address(_underlying) == address(0)) revert TokenInIsNull();
-
-        // 1. transfer underlying
-        amountIn_ = _safeTransferFrom(_underlying, msg.sender, amountIn_);
-
-        // 2. mint synth
-        // Note: Issue to `crossChainDispatcher` to save transfer gas
-        (uint256 _issued, ) = pool.debtTokenOf(syntheticToken_).flashIssue(
-            address(crossChainDispatcher()),
-            _calculateLeverageDebtAmount(_underlying, syntheticToken_, amountIn_, leverage_)
-        );
-
-        _triggerLeverageSwap({
-            underlying_: underlying_,
-            depositToken_: depositToken_,
-            syntheticToken_: syntheticToken_,
-            amountIn_: amountIn_,
-            swapAmountOutMin_: swapAmountOutMin_,
-            depositAmountMin_: depositAmountMin_,
-            lzArgs_: lzArgs_,
-            issued_: _issued
-        });
-    }
-
-    function _triggerLeverageSwap(
-        IERC20 underlying_,
-        IDepositToken depositToken_,
-        ISyntheticToken syntheticToken_,
-        uint256 amountIn_,
-        uint256 swapAmountOutMin_,
-        uint256 depositAmountMin_,
-        bytes calldata lzArgs_,
-        uint256 issued_
-    ) private {
-        // 3. store request
-        uint256 _id = _nextCrossChainRequestId();
-
-        {
-            // TODO: Move dstChain as function arg?
-            (uint16 _dstChainId, , ) = CrossChainLib.decodeLzArgs(lzArgs_);
-
-            crossChainLeverages[_id] = CrossChainLeverage({
-                dstChainId: _dstChainId,
-                underlying: underlying_,
-                depositToken: depositToken_,
-                syntheticToken: syntheticToken_,
-                depositAmountMin: depositAmountMin_,
-                underlyingAmountIn: amountIn_,
-                syntheticTokenIssued: issued_,
-                account: msg.sender,
-                finished: false
-            });
-        }
-
-        // 4. trigger L1 swap
-        crossChainDispatcher().triggerLeverageSwap{value: msg.value}({
-            proxyOFT_: syntheticToken_.proxyOFT(),
-            id_: _id,
-            account_: payable(msg.sender),
-            tokenOut_: address(underlying_),
-            amountIn_: issued_,
-            amountOutMin: swapAmountOutMin_,
-            lzArgs_: lzArgs_
-        });
-
-        emit CrossChainLeverageStarted(_id);
-    }
-
-    /**
-     * @notice Finalize cross-chain leverage process
-     * @dev Receives underlying from L1 and use it to deposit
-     * @param id_ The id of the request
-     * @param swapAmountOut_ The underlying amount received from L1 swap
-     * @return _deposited The amount deposited
-     */
-    function crossChainLeverageCallback(
-        uint256 id_,
-        uint256 swapAmountOut_
-    ) external override nonReentrant onlyIfCrossChainDispatcher returns (uint256 _deposited) {
-        CrossChainLeverage memory _request = crossChainLeverages[id_];
-        IPool _pool = pool;
-
-        if (_request.account == address(0)) revert CrossChainRequestInvalidKey();
-        if (msg.sender != address(crossChainDispatcher())) revert SenderIsNotCrossChainDispatcher();
-        if (_request.finished) revert CrossChainRequestCompletedAlready();
-        IERC20 _collateral = _collateralOf(_request.depositToken);
-
-        // 1. transfer underlying
-        swapAmountOut_ = _safeTransferFrom(_request.underlying, msg.sender, swapAmountOut_);
-
-        // 2. swap underlying for collateral if needed
-        uint256 _underlyingAmount = _request.underlyingAmountIn + swapAmountOut_;
-        uint256 _depositAmount = _request.underlying == _collateral
-            ? _underlyingAmount
-            : _swap(swapper(), _request.underlying, _collateral, _underlyingAmount, 0);
-        if (_depositAmount < _request.depositAmountMin) revert LeverageSlippageTooHigh();
-
-        // 3. update state
-        crossChainLeverages[id_].finished = true;
-
-        // 4. deposit collateral
-        _collateral.safeApprove(address(_request.depositToken), 0);
-        _collateral.safeApprove(address(_request.depositToken), _depositAmount);
-        (_deposited, ) = _request.depositToken.deposit(_depositAmount, _request.account);
-
-        // 5. mint debt
-        _pool.debtTokenOf(_request.syntheticToken).mint(_request.account, _request.syntheticTokenIssued);
-
-        // 6. check the health of the outcome position
-        (bool _isHealthy, , , , ) = _pool.debtPositionOf(_request.account);
-        if (!_isHealthy) revert PositionIsNotHealthy();
-
-        emit CrossChainLeverageFinished(id_);
-    }
-
     /**
      * @notice Retry cross-chain flash repay callback
      * @dev This function is used to recover from callback failures due to slippage
@@ -515,12 +529,10 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
 
         crossChainFlashRepays[id_].repayAmountMin = newRepayAmountMin_;
 
-        IProxyOFT _proxyOFT = _request.syntheticToken.proxyOFT();
-
         ICrossChainDispatcher _crossChainDispatcher = crossChainDispatcher();
         bytes memory _from = abi.encodePacked(_crossChainDispatcher.crossChainDispatcherOf(srcChainId_));
 
-        _proxyOFT.retryOFTReceived({
+        _request.syntheticToken.proxyOFT().retryOFTReceived({
             _srcChainId: srcChainId_,
             _srcAddress: srcAddress_,
             _nonce: nonce_,
@@ -565,10 +577,6 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         return pool.poolRegistry().swapper();
     }
 
-    function crossChainDispatcher() public view returns (ICrossChainDispatcher _crossChainDispatcher) {
-        return pool.poolRegistry().crossChainDispatcher();
-    }
-
     /**
      * @notice Calculate debt to issue for a leverage operation
      * @param collateral_ The collateral to deposit
@@ -599,6 +607,15 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
      */
     function _collateralOf(IDepositToken depositToken_) private view returns (IERC20) {
         return depositToken_.underlying();
+    }
+
+    /**
+     * @dev Generates cross-chain request id by hashing `chainId`+`requestId` in order to avoid
+     * having same id across supported chains
+     * Note: The cross-chain code mostly uses LZ chain ids but in this case, we're using native id.
+     */
+    function _nextCrossChainRequestId() private returns (uint256 _id) {
+        return uint256(keccak256(abi.encode(block.chainid, ++crossChainRequestId)));
     }
 
     /**
@@ -657,9 +674,5 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         uint256 _tokenOutBefore = tokenOut_.balanceOf(to_);
         swapper_.swapExactInput(address(tokenIn_), address(tokenOut_), amountIn_, amountOutMin_, to_);
         return tokenOut_.balanceOf(to_) - _tokenOutBefore;
-    }
-
-    function _nextCrossChainRequestId() private returns (uint256 _id) {
-        _id = uint256(keccak256(abi.encode(block.chainid, ++crossChainRequestId)));
     }
 }
