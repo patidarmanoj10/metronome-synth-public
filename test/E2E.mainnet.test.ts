@@ -179,6 +179,10 @@ describe('E2E tests (mainnet)', function () {
     )
     await defaultOracle.updateDefaultStalePeriod(ethers.constants.MaxUint256)
 
+    // TODO: Remove this after unpausing
+    await pool.connect(governor).open()
+    await pool.connect(governor).unpause()
+
     //
     // TODO: Remove setup below after having `SmartFarmingManager` contract deployed
     //
@@ -756,7 +760,7 @@ describe('E2E tests (mainnet)', function () {
 
       it('should flash repay msUSD debt using vaUSDC', async function () {
         // when
-        const withdrawAmount = parseEther('49')
+        const withdrawAmount = parseEther('45')
         const tx = await smartFarmingManager.flashRepay(msUSD.address, msdVaUSDC.address, withdrawAmount, 0)
 
         // then
