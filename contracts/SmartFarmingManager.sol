@@ -356,7 +356,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
     function crossChainLeverageCallback(
         uint256 id_,
         uint256 swapAmountOut_
-    ) external override nonReentrant onlyIfCrossChainDispatcher returns (uint256 _deposited) {
+    ) external override whenNotShutdown nonReentrant onlyIfCrossChainDispatcher returns (uint256 _deposited) {
         CrossChainLeverage memory _request = crossChainLeverages[id_];
 
         if (_request.account == address(0)) revert CrossChainRequestInvalidKey();
@@ -615,7 +615,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
      * Note: The cross-chain code mostly uses LZ chain ids but in this case, we're using native id.
      */
     function _nextCrossChainRequestId() private returns (uint256 _id) {
-        return uint256(keccak256(abi.encode(block.chainid, ++crossChainRequestId)));
+        return uint256(keccak256(abi.encode(block.chainid, ++crossChainRequestsLength)));
     }
 
     /**

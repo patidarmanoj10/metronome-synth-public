@@ -7,7 +7,7 @@ import "../interfaces/IQuoter.sol";
 
 abstract contract QuoterStorageV1 is IQuoter {
     /**
-     * @notice The PoolRegistry contract
+     * @notice The pool registry contract
      */
     IPoolRegistry public poolRegistry;
 }

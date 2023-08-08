@@ -6,5 +6,8 @@ import "../interfaces/ISyntheticToken.sol";
 import "../interfaces/IProxyOFT.sol";
 
 abstract contract ProxyOFTStorageV1 is IProxyOFT {
+    /**
+     * @notice The synthetic token contract
+     */
     ISyntheticToken internal syntheticToken;
 }

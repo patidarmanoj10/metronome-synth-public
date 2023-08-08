@@ -33,9 +33,9 @@ abstract contract SmartFarmingManagerV1 is ISmartFarmingManager {
     }
 
     /**
-     * @notice Cross-chain requests' ids counter
+     * @notice Cross-chain requests counter
      */
-    uint256 public crossChainRequestId;
+    uint256 public crossChainRequestsLength;
 
     /**
      * @notice Cross-chain leverage requests

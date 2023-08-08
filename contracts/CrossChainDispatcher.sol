@@ -19,7 +19,7 @@ error InvalidMsgSender();
 error BridgingIsPaused();
 error InvalidFromAddress();
 error NewValueIsSameAsCurrent();
-error MsgSenderIsNotGovernor();
+error SenderIsNotGovernor();
 error DestinationChainNotAllowed();
 error InvalidOperationType();
 
@@ -80,7 +80,7 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
     event CrossChainDispatcherUpdated(uint16 chainId, address oldCrossChainDispatcher, address newCrossChainDispatcher);
 
     modifier onlyGovernor() {
-        if (msg.sender != poolRegistry.governor()) revert MsgSenderIsNotGovernor();
+        if (msg.sender != poolRegistry.governor()) revert SenderIsNotGovernor();
         _;
     }
 
@@ -223,7 +223,9 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
         uint256 amountLD_,
         bytes memory payload_
     ) external override onlyIfStargateRouter {
-        if (abi.decode(srcAddress_, (address)) != crossChainDispatcherOf[srcChainId_]) revert InvalidFromAddress();
+        address _srcAddress = abi.decode(srcAddress_, (address));
+        if (_srcAddress == address(0) || _srcAddress != crossChainDispatcherOf[srcChainId_])
+            revert InvalidFromAddress();
 
         uint8 _op = CrossChainLib.getOperationType(payload_);
 
@@ -412,7 +414,6 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
             .decodeLzArgs(lzArgs_);
 
         bytes memory _payload;
-
         {
             address _dstProxyOFT = ISyntheticToken(tokenOut_).proxyOFT().getProxyOFTOf(_dstChainId);
 
@@ -479,8 +480,8 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
             uint256 _amountOutMin = amountOutMin_; // stack too deep
 
             _payload = CrossChainLib.encodeLeverageSwapPayload({
-                dstProxyOFT_: _dstProxyOFT,
                 srcSmartFarmingManager_: msg.sender,
+                dstProxyOFT_: _dstProxyOFT,
                 requestId_: _requestId,
                 sgPoolId_: stargatePoolIdOf[_tokenOut],
                 account_: _account,
@@ -556,9 +557,9 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
             amountOutMin_ = _storedAmountOutMin;
             swapAmountOutMin[requestId_] = 0;
         }
-
         // 2. Perform swap
         ISwapper _swapper = poolRegistry.swapper();
+
         IERC20(tokenIn_).safeApprove(address(_swapper), 0);
         IERC20(tokenIn_).safeApprove(address(_swapper), amountIn_);
         _amountOut = _swapper.swapExactInput({

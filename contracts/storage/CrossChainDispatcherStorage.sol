@@ -6,10 +6,20 @@ import "../interfaces/ICrossChainDispatcher.sol";
 import "../interfaces/IPoolRegistry.sol";
 
 abstract contract CrossChainDispatcherStorageV1 is ICrossChainDispatcher {
+    /**
+     * @notice The pool registry contract
+     */
     IPoolRegistry public poolRegistry;
 
+    /**
+     * @notice Overwritten swap slippage params
+     * @dev Used by retry functions in case of swap failure due to slippage (See: `_swap()`)
+     */
     mapping(uint256 => uint256) public swapAmountOutMin;
 
+    /**
+     * @notice Maps other chains `CrossChainDispatcher` contracts
+     */
     mapping(uint16 => address) public crossChainDispatcherOf;
 
     /**

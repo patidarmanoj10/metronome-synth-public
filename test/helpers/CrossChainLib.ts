@@ -8,41 +8,61 @@ const FLASH_REPAY = 2
 // TypeScript version of `CrossChainLib.sol`
 export class CrossChainLib {
   public static encodeLeverageSwapPayload(
-    smartFarmingManager: string,
+    srcSmartFarmingManager: string,
+    dstProxyOFT: string,
     requestId: number | string,
     sgPoolId: number | string,
     account: string,
     amountOutMin: BigNumber | string
   ): string {
     const payload = ethers.utils.defaultAbiCoder.encode(
-      ['address', 'uint256', 'uint256', 'address', 'uint256'],
-      [smartFarmingManager, requestId, sgPoolId, account, amountOutMin]
+      ['address', 'address', 'uint256', 'uint256', 'address', 'uint256'],
+      [srcSmartFarmingManager, dstProxyOFT, requestId, sgPoolId, account, amountOutMin]
     )
 
     return ethers.utils.defaultAbiCoder.encode(['uint8', 'bytes'], [LEVERAGE, payload])
   }
 
   public static encodeFlashRepaySwapPayload(
-    smartFarmingManager: string,
+    srcSmartFarmingManager: string,
+    dstProxyOFT: string,
     requestId: number | string,
     account: string,
     amountOutMin: BigNumber | string
   ): string {
     const payload = ethers.utils.defaultAbiCoder.encode(
-      ['address', 'uint256', 'address', 'uint256'],
-      [smartFarmingManager, requestId, account, amountOutMin]
+      ['address', 'address', 'uint256', 'address', 'uint256'],
+      [srcSmartFarmingManager, dstProxyOFT, requestId, account, amountOutMin]
     )
 
     return ethers.utils.defaultAbiCoder.encode(['uint8', 'bytes'], [FLASH_REPAY, payload])
   }
 
-  public static encodeLeverageCallbackPayload(smartFarmingManager: string, requestId: number | string): string {
-    const payload = ethers.utils.defaultAbiCoder.encode(['address', 'uint256'], [smartFarmingManager, requestId])
+  public static encodeLeverageCallbackPayload(srcSmartFarmingManager: string, requestId: number | string): string {
+    const payload = ethers.utils.defaultAbiCoder.encode(['address', 'uint256'], [srcSmartFarmingManager, requestId])
     return ethers.utils.defaultAbiCoder.encode(['uint8', 'bytes'], [LEVERAGE, payload])
   }
 
-  public static encodeFlashRepayCallbackPayload(smartFarmingManager: string, requestId: number | string): string {
-    const payload = ethers.utils.defaultAbiCoder.encode(['address', 'uint256'], [smartFarmingManager, requestId])
+  public static encodeFlashRepayCallbackPayload(
+    srcProxyOFT: string,
+    srcSmartFarmingManager: string,
+    requestId: number | string
+  ): string {
+    const payload = ethers.utils.defaultAbiCoder.encode(
+      ['address', 'address', 'uint256'],
+      [srcProxyOFT, srcSmartFarmingManager, requestId]
+    )
     return ethers.utils.defaultAbiCoder.encode(['uint8', 'bytes'], [FLASH_REPAY, payload])
+  }
+
+  public static encodeLzArgs(
+    dstChainId: number | string,
+    callbackNativeFee: BigNumber | string,
+    swapTxGasLimit_: BigNumber | string
+  ): string {
+    return ethers.utils.defaultAbiCoder.encode(
+      ['uint16', 'uint256', 'uint64'],
+      [dstChainId, callbackNativeFee, swapTxGasLimit_]
+    )
   }
 }
