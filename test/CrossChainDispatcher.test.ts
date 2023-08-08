@@ -16,7 +16,6 @@ import {
   ERC20,
   SyntheticToken,
   CrossChainDispatcher,
-  MasterOracleMock,
 } from '../typechain'
 import {FakeContract, smock} from '@defi-wonderland/smock'
 import {CrossChainLib} from './helpers/CrossChainLib'
@@ -104,6 +103,7 @@ describe('CrossChainDispatcher', function () {
     await crossChainDispatcher.updateStargateRouter(stargateRouter.address)
     await crossChainDispatcher.updateStargateSlippage(0)
     await crossChainDispatcher.updateLzBaseGasLimit(LZ_BASE_GAS_LIMIT)
+    await crossChainDispatcher.toggleDestinationChainIsActive(LZ_MAINNET_ID)
 
     poolRegistry.crossChainDispatcher.returns(crossChainDispatcher.address)
 
@@ -339,9 +339,23 @@ describe('CrossChainDispatcher', function () {
       await expect(tx).revertedWithCustomError(crossChainDispatcher, 'BridgingIsPaused')
     })
 
-    it('should revert if destination chain is not supported', async function () {
+    it('should revert if destination proxyOFT is null', async function () {
       // given
       proxyOFT.getProxyOFTOf.returns(ethers.constants.AddressZero)
+
+      // when
+      const tx = crossChainDispatcher
+        .connect(smartFarmingManager.wallet)
+        .triggerFlashRepaySwap(1, alice.address, usdc.address, msUSD.address, parseEther('10'), 0, EMPTY_LZ_ARGS)
+
+      // then
+      await expect(tx).revertedWithCustomError(crossChainDispatcher, 'AddressIsNull')
+      proxyOFT.getProxyOFTOf.returns(proxyOFT.address)
+    })
+
+    it('should revert if destination chain is not supported', async function () {
+      // given
+      await crossChainDispatcher.toggleDestinationChainIsActive(LZ_MAINNET_ID)
 
       // when
       const tx = crossChainDispatcher
@@ -430,9 +444,23 @@ describe('CrossChainDispatcher', function () {
       await expect(tx).revertedWithCustomError(crossChainDispatcher, 'BridgingIsPaused')
     })
 
-    it('should revert if destination chain is not supported', async function () {
+    it('should revert if destination proxyOFT is null', async function () {
       // given
       proxyOFT.getProxyOFTOf.returns(ethers.constants.AddressZero)
+
+      // when
+      const tx = crossChainDispatcher
+        .connect(smartFarmingManager.wallet)
+        .triggerLeverageSwap(1, alice.address, msUSD.address, usdc.address, parseEther('10'), 0, EMPTY_LZ_ARGS)
+
+      // then
+      await expect(tx).revertedWithCustomError(crossChainDispatcher, 'AddressIsNull')
+      proxyOFT.getProxyOFTOf.returns(proxyOFT.address)
+    })
+
+    it('should revert if destination chain is not supported', async function () {
+      // given
+      await crossChainDispatcher.toggleDestinationChainIsActive(LZ_MAINNET_ID)
 
       // when
       const tx = crossChainDispatcher

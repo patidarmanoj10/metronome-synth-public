@@ -143,6 +143,7 @@ abstract contract CrossChains_Test is Test {
         pool_optimism.initialize(poolRegistry_optimism);
         crossChainDispatcher_optimism.initialize(poolRegistry_optimism);
         crossChainDispatcher_optimism.toggleBridgingIsActive();
+        crossChainDispatcher_optimism.toggleDestinationChainIsActive(LZ_MAINNET_CHAIN_ID);
         smartFarmingManager_optimism.initialize(pool_optimism);
         treasury_optimism.initialize(pool_optimism);
         quoter_optimism.initialize(poolRegistry_optimism);
@@ -228,6 +229,7 @@ abstract contract CrossChains_Test is Test {
         treasury_mainnet.initialize(pool_mainnet);
         crossChainDispatcher_mainnet.initialize(poolRegistry_mainnet);
         crossChainDispatcher_mainnet.toggleBridgingIsActive();
+        crossChainDispatcher_mainnet.toggleDestinationChainIsActive(LZ_OP_CHAIN_ID);
         smartFarmingManager_mainnet.initialize(pool_mainnet);
         quoter_mainnet.initialize(poolRegistry_mainnet);
 

@@ -79,6 +79,9 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
     /// @notice Emitted when a Cross-chain dispatcher mapping is updated
     event CrossChainDispatcherUpdated(uint16 chainId, address oldCrossChainDispatcher, address newCrossChainDispatcher);
 
+    /// @notice Emitted when flag for support chain is toggled
+    event DestinationChainIsSupportedUpdated(uint16 chainId, bool newIsSupported);
+
     modifier onlyGovernor() {
         if (msg.sender != poolRegistry.governor()) revert SenderIsNotGovernor();
         _;
@@ -417,7 +420,8 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
         {
             address _dstProxyOFT = ISyntheticToken(tokenOut_).proxyOFT().getProxyOFTOf(_dstChainId);
 
-            if (_dstProxyOFT == address(0)) revert DestinationChainNotAllowed();
+            if (_dstProxyOFT == address(0)) revert AddressIsNull();
+            if (!isDestinationChainSupported[_dstChainId]) revert DestinationChainNotAllowed();
 
             uint256 _requestId = requestId_; // stack too deep
 
@@ -473,7 +477,8 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
         {
             address _dstProxyOFT = ISyntheticToken(tokenIn_).proxyOFT().getProxyOFTOf(_dstChainId);
 
-            if (_dstProxyOFT == address(0)) revert DestinationChainNotAllowed();
+            if (_dstProxyOFT == address(0)) revert AddressIsNull();
+            if (!isDestinationChainSupported[_dstChainId]) revert DestinationChainNotAllowed();
 
             uint256 _requestId = requestId_; // stack too deep
             address _tokenOut = tokenOut_; // stack too deep
@@ -672,5 +677,15 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
         if (crossChainDispatcher_ == _current) revert NewValueIsSameAsCurrent();
         emit CrossChainDispatcherUpdated(chainId_, _current, crossChainDispatcher_);
         crossChainDispatcherOf[chainId_] = crossChainDispatcher_;
+    }
+
+    /**
+     * @notice Allow/Disallow destination chain
+     * @dev Use LZ chain id
+     */
+    function toggleDestinationChainIsActive(uint16 chainId_) external onlyGovernor {
+        bool _isDestinationChainSupported = !isDestinationChainSupported[chainId_];
+        emit BridgingIsActiveUpdated(_isDestinationChainSupported);
+        isDestinationChainSupported[chainId_] = _isDestinationChainSupported;
     }
 }

@@ -67,4 +67,9 @@ abstract contract CrossChainDispatcherStorageV1 is ICrossChainDispatcher {
      * @notice Maps Stargate's token pools
      */
     mapping(address => uint256) public stargatePoolIdOf;
+
+    /**
+     * @notice Maps supported cross-chain routes (i.e. which chains are allowed to be used as source of liquidity)
+     */
+    mapping(uint16 => bool) public isDestinationChainSupported;
 }
