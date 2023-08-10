@@ -32,7 +32,7 @@ contract PoolUpgraderV2 is PoolUpgrader {
     constructor(address _owner) PoolUpgrader(_owner) {}
 
     /// @inheritdoc UpgraderBase
-    function _calls() internal pure override returns (bytes[] memory _callsList) {
+    function _calls() internal pure virtual override returns (bytes[] memory _callsList) {
         _callsList = new bytes[](6);
         _callsList[0] = abi.encodeWithSignature("debtFloorInUsd()");
         _callsList[1] = abi.encodeWithSignature("maxLiquidable()");
@@ -40,7 +40,23 @@ contract PoolUpgraderV2 is PoolUpgrader {
         _callsList[3] = abi.encodeWithSignature("poolRegistry()");
         _callsList[4] = abi.encodeWithSignature("isSwapActive()");
         _callsList[5] = abi.encodeWithSignature("governor()");
-        // TODO: Add to V3 after V2 was deployed
-        // _callsList[6] = abi.encodeWithSignature("swapper()");
+    }
+}
+
+contract PoolUpgraderV3 is PoolUpgraderV2 {
+    // solhint-disable-next-line no-empty-blocks
+    constructor(address _owner) PoolUpgraderV2(_owner) {}
+
+    /// @inheritdoc UpgraderBase
+    function _calls() internal pure virtual override returns (bytes[] memory _callsList) {
+        _callsList = new bytes[](8);
+        _callsList[0] = abi.encodeWithSignature("governor()");
+        _callsList[1] = abi.encodeWithSignature("debtFloorInUsd()");
+        _callsList[2] = abi.encodeWithSignature("maxLiquidable()");
+        _callsList[3] = abi.encodeWithSignature("poolRegistry()");
+        _callsList[4] = abi.encodeWithSignature("isSwapActive()");
+        _callsList[5] = abi.encodeWithSignature("treasury()");
+        _callsList[6] = abi.encodeWithSignature("feeProvider()");
+        _callsList[7] = abi.encodeWithSignature("smartFarmingManager()");
     }
 }

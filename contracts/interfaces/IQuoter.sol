@@ -21,12 +21,12 @@ interface IQuoter {
     function quoteFlashRepayCallbackNativeFee(uint16 dstChainId_) external view returns (uint256 _callbackTxNativeFee);
 
     function getFlashRepaySwapAndCallbackLzArgs(
-        uint16 positionChainId_,
-        uint16 liquidityChainId_
+        uint16 srcChainId_,
+        uint16 dstChainId_
     ) external view returns (bytes memory lzArgs_);
 
     function getLeverageSwapAndCallbackLzArgs(
-        uint16 positionChainId_,
-        uint16 liquidityChainId_
+        uint16 srcChainId_,
+        uint16 dstChainId_
     ) external view returns (bytes memory lzArgs_);
 }

@@ -52,6 +52,19 @@ describe('ProxyOFT', function () {
     stargateBridge = await smock.fake('IStargateBridge')
     crossChainDispatcher = await smock.fake('CrossChainDispatcher')
 
+    stargateRouter.bridge.returns(stargateBridge.address)
+    stargateBridge.layerZeroEndpoint.returns(lzEndpoint.address)
+    poolRegistry.crossChainDispatcher.returns(crossChainDispatcher.address)
+    poolRegistry.governor.returns(deployer.address)
+    msUSD.poolRegistry.returns(poolRegistry.address)
+    crossChainDispatcher.stargateRouter.returns(stargateRouter.address)
+    crossChainDispatcher.lzBaseGasLimit.returns(LZ_BASE_GAS_LIMIT)
+    crossChainDispatcher.flashRepayCallbackTxGasLimit.returns(100000)
+    crossChainDispatcher.leverageCallbackTxGasLimit.returns(200000)
+    crossChainDispatcher.leverageSwapTxGasLimit.returns(300000)
+    crossChainDispatcher.flashRepaySwapTxGasLimit.returns(400000)
+    crossChainDispatcher.isBridgingActive.returns(true)
+
     const proxyOFTFactory = await ethers.getContractFactory('ProxyOFT', deployer)
     proxyOFT = await proxyOFTFactory.deploy()
     await proxyOFT.initialize(lzEndpoint.address, msUSD.address)
@@ -63,18 +76,6 @@ describe('ProxyOFT', function () {
     await proxyOFT.setUseCustomAdapterParams(true)
     await proxyOFT.setMinDstGas(LZ_MAINNET_ID, PT_SEND, LZ_BASE_GAS_LIMIT)
     await proxyOFT.setMinDstGas(LZ_MAINNET_ID, PT_SEND_AND_CALL, LZ_BASE_GAS_LIMIT)
-
-    stargateRouter.bridge.returns(stargateBridge.address)
-    stargateBridge.layerZeroEndpoint.returns(lzEndpoint.address)
-    poolRegistry.crossChainDispatcher.returns(crossChainDispatcher.address)
-    msUSD.poolRegistry.returns(poolRegistry.address)
-    crossChainDispatcher.stargateRouter.returns(stargateRouter.address)
-    crossChainDispatcher.lzBaseGasLimit.returns(LZ_BASE_GAS_LIMIT)
-    crossChainDispatcher.flashRepayCallbackTxGasLimit.returns(100000)
-    crossChainDispatcher.leverageCallbackTxGasLimit.returns(200000)
-    crossChainDispatcher.leverageSwapTxGasLimit.returns(300000)
-    crossChainDispatcher.flashRepaySwapTxGasLimit.returns(400000)
-    crossChainDispatcher.isBridgingActive.returns(true)
   }
 
   beforeEach(async function () {

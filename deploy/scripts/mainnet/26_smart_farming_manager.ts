@@ -4,29 +4,29 @@ import {UpgradableContracts, deployUpgradable, updateParamIfNeeded} from '../../
 
 const {
   Pool: {alias: Pool},
-  Treasury: {alias: Treasury},
+  SmartFarmingManager: {alias: SmartFarmingManager},
 } = UpgradableContracts
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {deployments} = hre
   const {get} = deployments
 
-  const pool = await get(Pool)
+  const {address: poolAddress} = await get(Pool)
 
-  const {address: treasuryAddress} = await deployUpgradable({
+  const {address: smartFarmingManagerAddress} = await deployUpgradable({
     hre,
-    contractConfig: UpgradableContracts.Treasury,
-    initializeArgs: [pool.address],
+    contractConfig: UpgradableContracts.SmartFarmingManager,
+    initializeArgs: [poolAddress],
   })
 
   await updateParamIfNeeded(hre, {
     contract: Pool,
-    readMethod: 'treasury',
-    writeMethod: 'updateTreasury',
-    newValue: treasuryAddress,
+    readMethod: 'smartFarmingManager',
+    writeMethod: 'updateSmartFarmingManager',
+    newValue: smartFarmingManagerAddress,
   })
 }
 
 export default func
-func.tags = [Treasury]
+func.tags = [SmartFarmingManager]
 func.dependencies = [Pool]

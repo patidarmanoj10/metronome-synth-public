@@ -5,7 +5,7 @@ pragma solidity 0.8.9;
 import "../interfaces/ISmartFarmingManager.sol";
 
 // solhint-disable var-name-mixedcase, max-states-count
-abstract contract SmartFarmingManagerV1 is ISmartFarmingManager {
+abstract contract SmartFarmingManagerStorageV1 is ISmartFarmingManager {
     /**
      * @notice Cross-chain Leverage request data
      */

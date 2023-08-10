@@ -1,10 +1,13 @@
 import {BigNumber} from 'ethers'
+import chalk from 'chalk'
 import {DeployFunction} from 'hardhat-deploy/types'
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import Address from '../../helpers/address'
 import {executeUsingMultiSig, saveForMultiSigBatchExecution} from './multisig-helpers'
 
 const {GNOSIS_SAFE_ADDRESS} = Address
+
+const {log} = console
 
 interface ContractConfig {
   alias: string
@@ -22,6 +25,10 @@ interface UpgradableContractsConfig {
   MetRewardsDistributor: ContractConfig
   OpRewardsDistributor: ContractConfig
   FeeProvider: ContractConfig
+  ProxyOFT: ContractConfig
+  SmartFarmingManager: ContractConfig
+  Quoter: ContractConfig
+  CrossChainDispatcher: ContractConfig
 }
 
 interface SyntheticDeployFunctionProps {
@@ -67,6 +74,18 @@ export const UpgradableContracts: UpgradableContractsConfig = {
     adminContract: 'RewardsDistributorUpgrader',
   },
   FeeProvider: {alias: 'FeeProvider', contract: 'FeeProvider', adminContract: 'FeeProviderUpgrader'},
+  ProxyOFT: {alias: '', contract: 'ProxyOFT', adminContract: 'ProxyOFTUpgrader'},
+  SmartFarmingManager: {
+    alias: 'SmartFarmingManager',
+    contract: 'SmartFarmingManager',
+    adminContract: 'SmartFarmingManagerUpgrader',
+  },
+  Quoter: {alias: 'Quoter', contract: 'Quoter', adminContract: 'QuoterUpgrader'},
+  CrossChainDispatcher: {
+    alias: 'CrossChainDispatcher',
+    contract: 'CrossChainDispatcher',
+    adminContract: 'CrossChainDispatcherUpgrader',
+  },
 }
 
 const {
@@ -267,4 +286,55 @@ export const buildDepositDeployFunction = ({
   deployFunction.dependencies = [Pool]
 
   return deployFunction
+}
+
+export const updateParamIfNeeded = async (
+  hre: HardhatRuntimeEnvironment,
+  {
+    contract,
+    readMethod,
+    readArg,
+    writeMethod,
+    newValue,
+    // Note: Usually we have getter and setter functions to check if a param needs to be updated or not
+    // but there are edge cases where it isn't true, e.g,: `function isPoolRegistered(address) view returns (bool)`
+    // This function is used on such cases where comparison isn't straightforward
+    // eslint-disable-next-line no-shadow, @typescript-eslint/no-explicit-any
+    isCurrentValueUpdated = (currentValue: any, newValue: any) => currentValue === newValue,
+  }: {
+    contract: string
+    readMethod: string
+    readArg?: string
+    writeMethod: string
+    newValue: string
+    // eslint-disable-next-line no-shadow, @typescript-eslint/no-explicit-any
+    isCurrentValueUpdated?: (currentValue: any, newValue: any) => boolean
+  }
+): Promise<void> => {
+  const {deployments} = hre
+  const {read, execute, catchUnknownSigner} = deployments
+
+  try {
+    const currentValue = await read(contract, readMethod, readArg)
+
+    if (!isCurrentValueUpdated(currentValue, newValue)) {
+      // Note: Assumes all governable contracts have the same governor as `PoolRegistry`
+      const governor = await read(PoolRegistry, 'governor')
+
+      const multiSigTx = await catchUnknownSigner(
+        execute(contract, {from: governor, log: true}, writeMethod, newValue),
+        {
+          log: true,
+        }
+      )
+
+      if (multiSigTx) {
+        await saveForMultiSigBatchExecution(multiSigTx)
+      }
+    }
+  } catch (e) {
+    log(chalk.red(`The function ${contract}.${writeMethod}() failed.`))
+    log(chalk.red('It is probably due to calling a newly implemented function'))
+    log(chalk.red('If it is the case, run deployment scripts again after having the contracts upgraded'))
+  }
 }
