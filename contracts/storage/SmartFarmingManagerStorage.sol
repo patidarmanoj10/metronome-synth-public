@@ -7,9 +7,10 @@ import "../interfaces/ISmartFarmingManager.sol";
 // solhint-disable var-name-mixedcase, max-states-count
 abstract contract SmartFarmingManagerV1 is ISmartFarmingManager {
     /**
-     * @notice L2 Leverage request data
+     * @notice Cross-chain Leverage request data
      */
-    struct Layer2Leverage {
+    struct CrossChainLeverage {
+        uint16 dstChainId;
         IERC20 underlying; // e.g. USDC is vaUSDC's underlying
         IDepositToken depositToken;
         ISyntheticToken syntheticToken;
@@ -21,9 +22,10 @@ abstract contract SmartFarmingManagerV1 is ISmartFarmingManager {
     }
 
     /**
-     * @notice L2 Flash repay request data
+     * @notice Cross-chain Flash repay request data
      */
-    struct Layer2FlashRepay {
+    struct CrossChainFlashRepay {
+        uint16 dstChainId;
         ISyntheticToken syntheticToken;
         uint256 repayAmountMin;
         address account;
@@ -31,17 +33,17 @@ abstract contract SmartFarmingManagerV1 is ISmartFarmingManager {
     }
 
     /**
-     * @notice L2 requests' ids counter
+     * @notice Cross-chain requests counter
      */
-    uint256 public layer2RequestId;
+    uint256 public crossChainRequestsLength;
 
     /**
-     * @notice L2 leverage requests
+     * @notice Cross-chain leverage requests
      */
-    mapping(uint256 => Layer2Leverage) public layer2Leverages;
+    mapping(uint256 => CrossChainLeverage) public crossChainLeverages;
 
     /**
-     * @notice L2 flash repay requests
+     * @notice Cross-chain flash repay requests
      */
-    mapping(uint256 => Layer2FlashRepay) public layer2FlashRepays;
+    mapping(uint256 => CrossChainFlashRepay) public crossChainFlashRepays;
 }

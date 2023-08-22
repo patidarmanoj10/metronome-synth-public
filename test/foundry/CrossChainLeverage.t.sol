@@ -3,42 +3,45 @@ pragma solidity ^0.8.9;
 
 import "./CrossChains.t.sol";
 
-contract Layer2Leverage_Test is CrossChains_Test {
+contract CrossChainLeverage_Test is CrossChains_Test {
     using stdStorage for StdStorage;
     using WadRayMath for uint256;
     using BytesLib for bytes;
 
-    function _layer2Leverage(
+    function _crossChainLeverage(
         uint256 amountIn_,
-        uint256 layer1SwapAmountOutMin_,
+        uint256 swapAmountOutMin_,
         uint256 leverage_,
         uint256 depositAmountMin_
     ) private {
         vm.selectFork(mainnetFork);
-        bytes memory _lzArgs = poolRegistry_mainnet.quoter().getLeverageSwapAndCallbackLzArgs(LZ_OP_CHAIN_ID);
+        bytes memory _lzArgs = poolRegistry_mainnet.quoter().getLeverageSwapAndCallbackLzArgs({
+            positionChainId_: LZ_OP_CHAIN_ID,
+            liquidityChainId_: LZ_MAINNET_CHAIN_ID
+        });
 
-        _layer2Leverage({
+        _crossChainLeverage({
             amountIn_: amountIn_,
-            layer1SwapAmountOutMin_: layer1SwapAmountOutMin_,
+            swapAmountOutMin_: swapAmountOutMin_,
             leverage_: leverage_,
             depositAmountMin_: depositAmountMin_,
-            layer1LzArgs_: _lzArgs
+            lzArgs_: _lzArgs
         });
     }
 
-    function _layer2Leverage(
+    function _crossChainLeverage(
         uint256 amountIn_,
-        uint256 layer1SwapAmountOutMin_,
+        uint256 swapAmountOutMin_,
         uint256 leverage_,
         uint256 depositAmountMin_,
-        bytes memory layer1LzArgs_
+        bytes memory lzArgs_
     ) private {
         vm.recordLogs();
 
         vm.selectFork(optimismFork);
-        uint256 fee = poolRegistry_optimism.quoter().quoteLayer2LeverageNativeFee({
+        uint256 fee = poolRegistry_optimism.quoter().quoteCrossChainLeverageNativeFee({
             proxyOFT_: proxyOFT_msUSD_optimism,
-            lzArgs_: layer1LzArgs_
+            lzArgs_: lzArgs_
         });
 
         deal(alice, fee);
@@ -46,15 +49,15 @@ contract Layer2Leverage_Test is CrossChains_Test {
 
         vm.startPrank(alice);
         usdc_optimism.approve(address(smartFarmingManager_optimism), type(uint256).max);
-        smartFarmingManager_optimism.layer2Leverage{value: fee}({
+        smartFarmingManager_optimism.crossChainLeverage{value: fee}({
             underlying_: usdc_optimism,
             depositToken_: msdVaUSDC_optimism,
             syntheticToken_: msUSD_optimism,
             amountIn_: amountIn_,
             leverage_: leverage_,
             depositAmountMin_: depositAmountMin_,
-            layer1SwapAmountOutMin_: layer1SwapAmountOutMin_,
-            layer1LzArgs_: layer1LzArgs_
+            swapAmountOutMin_: swapAmountOutMin_,
+            lzArgs_: lzArgs_
         });
         vm.stopPrank();
 
@@ -73,7 +76,7 @@ contract Layer2Leverage_Test is CrossChains_Test {
         _executeSgSwapArrivalTx(Swap, Packet, RelayerParams);
     }
 
-    function test_layer2Leverage() external {
+    function test_crossChainLeverage() external {
         //
         // given
         //
@@ -87,7 +90,7 @@ contract Layer2Leverage_Test is CrossChains_Test {
         //
 
         // tx1
-        _layer2Leverage({amountIn_: 1000e6, layer1SwapAmountOutMin_: 0, leverage_: 1.5e18, depositAmountMin_: 1450e18});
+        _crossChainLeverage({amountIn_: 1000e6, swapAmountOutMin_: 0, leverage_: 1.5e18, depositAmountMin_: 1450e18});
         (Vm.Log memory SendToChain, Vm.Log memory Packet, Vm.Log memory RelayerParams) = _getOftTransferEvents();
 
         // tx2
@@ -119,7 +122,7 @@ contract Layer2Leverage_Test is CrossChains_Test {
         //
 
         // tx1
-        _layer2Leverage({amountIn_: 1000e6, layer1SwapAmountOutMin_: 0, leverage_: 1.5e18, depositAmountMin_: 1450e18});
+        _crossChainLeverage({amountIn_: 1000e6, swapAmountOutMin_: 0, leverage_: 1.5e18, depositAmountMin_: 1450e18});
         (Vm.Log memory SendToChain, Vm.Log memory Packet, Vm.Log memory RelayerParams) = _getOftTransferEvents();
 
         // tx2 - fail
@@ -157,9 +160,9 @@ contract Layer2Leverage_Test is CrossChains_Test {
         //
 
         // tx1
-        _layer2Leverage({
+        _crossChainLeverage({
             amountIn_: 1000e6,
-            layer1SwapAmountOutMin_: 501e6, // Wrong slippage
+            swapAmountOutMin_: 501e6, // Wrong slippage
             leverage_: 1.5e18,
             depositAmountMin_: 1450e18
         });
@@ -188,7 +191,7 @@ contract Layer2Leverage_Test is CrossChains_Test {
         // tx2
         // Retry will work with right slippage
         vm.prank(alice);
-        proxyOFT_msUSD_mainnet.retrySwapSynthAndTriggerCallback(
+        crossChainDispatcher_mainnet.retrySwapAndTriggerLeverageCallback(
             srcChainId,
             srcAddress,
             nonce,
@@ -227,7 +230,7 @@ contract Layer2Leverage_Test is CrossChains_Test {
         //
 
         // tx1
-        _layer2Leverage({amountIn_: amountIn, layer1SwapAmountOutMin_: 0, leverage_: 1.5e18, depositAmountMin_: 0});
+        _crossChainLeverage({amountIn_: amountIn, swapAmountOutMin_: 0, leverage_: 1.5e18, depositAmountMin_: 0});
         (Vm.Log memory SendToChain, Vm.Log memory Packet, Vm.Log memory RelayerParams) = _getOftTransferEvents();
 
         // tx2
@@ -271,9 +274,9 @@ contract Layer2Leverage_Test is CrossChains_Test {
         //
 
         // tx1
-        _layer2Leverage({
+        _crossChainLeverage({
             amountIn_: 1000e6,
-            layer1SwapAmountOutMin_: 500e6,
+            swapAmountOutMin_: 500e6,
             leverage_: 1.5e18,
             depositAmountMin_: 9999e18 // Wrong slippage
         });
@@ -290,7 +293,7 @@ contract Layer2Leverage_Test is CrossChains_Test {
             .decode(CachedSwapSaved.data, (uint16, bytes, uint256, address, uint256, address, bytes, bytes));
         assertEq(reason, abi.encodeWithSignature("LeverageSlippageTooHigh()"));
         // Even if `sgReceive` fails, the collateral amount is sent
-        assertGt(usdc_optimism.balanceOf(address(proxyOFT_msUSD_optimism)), 0);
+        assertGt(usdc_optimism.balanceOf(address(crossChainDispatcher_optimism)), 0);
 
         // tx3 - fail
         // Same state, retry will fail too
@@ -299,10 +302,10 @@ contract Layer2Leverage_Test is CrossChains_Test {
 
         // tx3
         // Retry will work with right slippage
-        (, uint256 _layer2LeverageId) = abi.decode(payload, (address, uint256));
+        (, uint256 _requestId) = CrossChainLib.decodeLeverageCallbackPayload(payload);
         vm.prank(alice);
-        smartFarmingManager_optimism.retryLayer2LeverageCallback(
-            _layer2LeverageId,
+        smartFarmingManager_optimism.retryCrossChainLeverageCallback(
+            _requestId,
             1450e18, // Correct slippage
             chainId,
             srcAddress,
@@ -329,24 +332,32 @@ contract Layer2Leverage_Test is CrossChains_Test {
         // when
         //
         vm.selectFork(mainnetFork);
-        bytes memory _lzArgs = poolRegistry_mainnet.quoter().getLeverageSwapAndCallbackLzArgs(LZ_OP_CHAIN_ID);
+        bytes memory _lzArgs = poolRegistry_mainnet.quoter().getLeverageSwapAndCallbackLzArgs({
+            positionChainId_: LZ_OP_CHAIN_ID,
+            liquidityChainId_: LZ_MAINNET_CHAIN_ID
+        });
 
         uint256 missingFee = 0.001e18;
 
         {
-            (uint256 _callbackTxNativeFee, uint64 _leverageSwapTxGasLimit) = abi.decode(_lzArgs, (uint256, uint64));
+            (uint16 _dstChainId, uint256 _callbackTxNativeFee, uint64 _leverageSwapTxGasLimit) = CrossChainLib
+                .decodeLzArgs(_lzArgs);
 
             // Setting lower fee than the needed
-            _lzArgs = abi.encode(_callbackTxNativeFee - missingFee, _leverageSwapTxGasLimit);
+            _lzArgs = CrossChainLib.encodeLzArgs(
+                _dstChainId,
+                _callbackTxNativeFee - missingFee,
+                _leverageSwapTxGasLimit
+            );
         }
 
         // tx1
-        _layer2Leverage({
+        _crossChainLeverage({
             amountIn_: 1000e6,
-            layer1SwapAmountOutMin_: 0,
+            swapAmountOutMin_: 0,
             leverage_: 1.5e18,
             depositAmountMin_: 1450e18,
-            layer1LzArgs_: _lzArgs
+            lzArgs_: _lzArgs
         });
         (Vm.Log memory SendToChain, Vm.Log memory Packet, Vm.Log memory RelayerParams) = _getOftTransferEvents();
 
@@ -368,9 +379,9 @@ contract Layer2Leverage_Test is CrossChains_Test {
 
         // tx2
         // Works after top-up with enough ether
-        deal(address(proxyOFT_msUSD_mainnet), address(proxyOFT_msUSD_mainnet).balance + (2 * missingFee)); // Sending more than needed
+        deal(address(crossChainDispatcher_mainnet), address(crossChainDispatcher_mainnet).balance + (2 * missingFee)); // Sending more than needed
         proxyOFT_msUSD_mainnet.retryOFTReceived(srcChainId, srcAddress, nonce, from, to, amount, payload);
-        assertEq(address(proxyOFT_msUSD_mainnet).balance, missingFee); // Should refund excess
+        assertEq(address(crossChainDispatcher_mainnet).balance, missingFee); // Should refund excess
 
         (Vm.Log memory Swap, Vm.Log memory Packet_Tx2, Vm.Log memory RelayerParams_Tx2) = _getSgSwapEvents();
 
@@ -390,14 +401,14 @@ contract Layer2Leverage_Test is CrossChains_Test {
         //
         vm.selectFork(mainnetFork);
         // It will make mainnet's stargate call to fail
-        poolRegistry_mainnet.updateStargateSlippage(0);
+        crossChainDispatcher_mainnet.updateStargateSlippage(0);
 
         //
         // when
         //
 
         // tx1
-        _layer2Leverage({amountIn_: 1000e6, layer1SwapAmountOutMin_: 0, leverage_: 1.5e18, depositAmountMin_: 1450e18});
+        _crossChainLeverage({amountIn_: 1000e6, swapAmountOutMin_: 0, leverage_: 1.5e18, depositAmountMin_: 1450e18});
         (Vm.Log memory SendToChain, Vm.Log memory Packet, Vm.Log memory RelayerParams) = _getOftTransferEvents();
 
         // tx2 - fail
@@ -417,9 +428,9 @@ contract Layer2Leverage_Test is CrossChains_Test {
 
         // tx2
         // Retry will work after amending state
-        poolRegistry_mainnet.updateStargateSlippage(20);
+        crossChainDispatcher_mainnet.updateStargateSlippage(20);
         vm.prank(alice);
-        proxyOFT_msUSD_mainnet.retrySwapSynthAndTriggerCallback(
+        crossChainDispatcher_mainnet.retrySwapAndTriggerLeverageCallback(
             srcChainId,
             srcAddress,
             nonce,

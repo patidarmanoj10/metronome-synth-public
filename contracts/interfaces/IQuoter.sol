@@ -6,12 +6,12 @@ import "./IPoolRegistry.sol";
 import "./IProxyOFT.sol";
 
 interface IQuoter {
-    function quoteLayer2FlashRepayNativeFee(
+    function quoteCrossChainFlashRepayNativeFee(
         IProxyOFT proxyOFT_,
         bytes calldata lzArgs_
     ) external view returns (uint256 _nativeFee);
 
-    function quoteLayer2LeverageNativeFee(
+    function quoteCrossChainLeverageNativeFee(
         IProxyOFT proxyOFT_,
         bytes calldata lzArgs_
     ) external view returns (uint256 _nativeFee);
@@ -20,7 +20,13 @@ interface IQuoter {
 
     function quoteFlashRepayCallbackNativeFee(uint16 dstChainId_) external view returns (uint256 _callbackTxNativeFee);
 
-    function getFlashRepaySwapAndCallbackLzArgs(uint16 dstChainId_) external view returns (bytes memory lzArgs_);
+    function getFlashRepaySwapAndCallbackLzArgs(
+        uint16 positionChainId_,
+        uint16 liquidityChainId_
+    ) external view returns (bytes memory lzArgs_);
 
-    function getLeverageSwapAndCallbackLzArgs(uint16 dstChainId_) external view returns (bytes memory lzArgs_);
+    function getLeverageSwapAndCallbackLzArgs(
+        uint16 positionChainId_,
+        uint16 liquidityChainId_
+    ) external view returns (bytes memory lzArgs_);
 }

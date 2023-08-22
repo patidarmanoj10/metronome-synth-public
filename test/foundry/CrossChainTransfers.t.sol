@@ -115,7 +115,7 @@ contract CrossChainTransfers_Test is CrossChains_Test {
         //
         // when
         //
-        poolRegistry_mainnet.toggleBridgingIsActive();
+        crossChainDispatcher_mainnet.toggleBridgingIsActive();
 
         //
         // then
@@ -216,7 +216,7 @@ contract CrossChainTransfers_Test is CrossChains_Test {
         //
         // when
         //
-        poolRegistry_optimism.toggleBridgingIsActive();
+        crossChainDispatcher_optimism.toggleBridgingIsActive();
 
         //
         // then
