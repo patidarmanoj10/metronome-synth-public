@@ -21,32 +21,32 @@ import {
   Quoter,
   ProxyOFT,
 } from '../typechain'
-import {address as POOL_REGISTRY_ADDRESS} from '../deployments/localhost/PoolRegistry.json'
-import {address as USDC_DEPOSIT_ADDRESS} from '../deployments/localhost/USDCDepositToken.json'
-import {address as DAI_DEPOSIT_ADDRESS} from '../deployments/localhost/DAIDepositToken.json'
-import {address as WBTC_DEPOSIT_ADDRESS} from '../deployments/localhost/WBTCDepositToken.json'
-import {address as FRAX_DEPOSIT_ADDRESS} from '../deployments/localhost/FRAXDepositToken.json'
-import {address as WETH_DEPOSIT_ADDRESS} from '../deployments/localhost/WETHDepositToken.json'
-import {address as VAFRAX_DEPOSIT_ADDRESS} from '../deployments/localhost/vaFRAXDepositToken.json'
-import {address as VAUSDC_DEPOSIT_ADDRESS} from '../deployments/localhost/vaUSDCDepositToken.json'
-import {address as VAETH_DEPOSIT_ADDRESS} from '../deployments/localhost/vaETHDepositToken.json'
-import {address as MSUSD_DEBT_ADDRESS} from '../deployments/localhost/MsUSDDebt.json'
-import {address as MSBTC_DEBT_ADDRESS} from '../deployments/localhost/MsBTCDebt.json'
-import {address as MSETH_DEBT_ADDRESS} from '../deployments/localhost/MsETHDebt.json'
-import {address as MSUSD_SYNTHETIC_ADDRESS} from '../deployments/localhost/MsUSDSynthetic.json'
-import {address as MSBTC_SYNTHETIC_ADDRESS} from '../deployments/localhost/MsBTCSynthetic.json'
-import {address as MSETH_SYNTHETIC_ADDRESS} from '../deployments/localhost/MsETHSynthetic.json'
-import {address as NATIVE_TOKEN_GATEWAY_ADDRESS} from '../deployments/localhost/NativeTokenGateway.json'
-import {address as SRFXETH_DEPOSIT_ADDRESS} from '../deployments/localhost/sfrxETHDepositToken.json'
-import {address as VASTETH_DEPOSIT_ADDRESS} from '../deployments/localhost/vaSTETHDepositToken.json'
-import {address as VARETH_DEPOSIT_ADDRESS} from '../deployments/localhost/vaRETHDepositToken.json'
-import {address as VACBETH_DEPOSIT_ADDRESS} from '../deployments/localhost/vaCBETHDepositToken.json'
-import {address as QUOTER_ADDRESS} from '../deployments/localhost/Quoter.json'
-import {address as MSUSD_PROXYOFT_ADDRESS} from '../deployments/localhost/MsUSDProxyOFT.json'
-import {address as MSETH_PROXYOFT_ADDRESS} from '../deployments/localhost/MsETHProxyOFT.json'
-import {address as MSBTC_PROXYOFT_ADDRESS} from '../deployments/localhost/MsBTCProxyOFT.json'
-import {address as SMART_FARMING_MANAGER_ADDRESS} from '../deployments/localhost/SmartFarmingManager.json'
-import {address as CROSS_CHAIN_DISPATCHER_ADDRESS} from '../deployments/localhost/CrossChainDispatcher.json'
+let POOL_REGISTRY_ADDRESS: string
+let USDC_DEPOSIT_ADDRESS: string
+let DAI_DEPOSIT_ADDRESS: string
+let WBTC_DEPOSIT_ADDRESS: string
+let FRAX_DEPOSIT_ADDRESS: string
+let WETH_DEPOSIT_ADDRESS: string
+let VAFRAX_DEPOSIT_ADDRESS: string
+let VAUSDC_DEPOSIT_ADDRESS: string
+let VAETH_DEPOSIT_ADDRESS: string
+let MSUSD_DEBT_ADDRESS: string
+let MSBTC_DEBT_ADDRESS: string
+let MSETH_DEBT_ADDRESS: string
+let MSUSD_SYNTHETIC_ADDRESS: string
+let MSBTC_SYNTHETIC_ADDRESS: string
+let MSETH_SYNTHETIC_ADDRESS: string
+let NATIVE_TOKEN_GATEWAY_ADDRESS: string
+let SRFXETH_DEPOSIT_ADDRESS: string
+let VASTETH_DEPOSIT_ADDRESS: string
+let VARETH_DEPOSIT_ADDRESS: string
+let VACBETH_DEPOSIT_ADDRESS: string
+let QUOTER_ADDRESS: string
+let MSUSD_PROXYOFT_ADDRESS: string
+let MSETH_PROXYOFT_ADDRESS: string
+let MSBTC_PROXYOFT_ADDRESS: string
+let SMART_FARMING_MANAGER_ADDRESS: string
+let CROSS_CHAIN_DISPATCHER_ADDRESS: string
 
 const {MaxUint256} = ethers.constants
 const dust = toUSD('5')
@@ -107,6 +107,34 @@ describe.skip('E2E tests (localhost)', function () {
   let msETHProxyOFT: ProxyOFT
 
   async function fixture() {
+    // Note: Using dynamic import otherwise test will fail when `/deployments/localhost` doesn't exist
+    POOL_REGISTRY_ADDRESS = await import('../deployments/localhost/PoolRegistry.json')
+    USDC_DEPOSIT_ADDRESS = await import('../deployments/localhost/USDCDepositToken.json')
+    DAI_DEPOSIT_ADDRESS = await import('../deployments/localhost/DAIDepositToken.json')
+    WBTC_DEPOSIT_ADDRESS = await import('../deployments/localhost/WBTCDepositToken.json')
+    FRAX_DEPOSIT_ADDRESS = await import('../deployments/localhost/FRAXDepositToken.json')
+    WETH_DEPOSIT_ADDRESS = await import('../deployments/localhost/WETHDepositToken.json')
+    VAFRAX_DEPOSIT_ADDRESS = await import('../deployments/localhost/vaFRAXDepositToken.json')
+    VAUSDC_DEPOSIT_ADDRESS = await import('../deployments/localhost/vaUSDCDepositToken.json')
+    VAETH_DEPOSIT_ADDRESS = await import('../deployments/localhost/vaETHDepositToken.json')
+    MSUSD_DEBT_ADDRESS = await import('../deployments/localhost/MsUSDDebt.json')
+    MSBTC_DEBT_ADDRESS = await import('../deployments/localhost/MsBTCDebt.json')
+    MSETH_DEBT_ADDRESS = await import('../deployments/localhost/MsETHDebt.json')
+    MSUSD_SYNTHETIC_ADDRESS = await import('../deployments/localhost/MsUSDSynthetic.json')
+    MSBTC_SYNTHETIC_ADDRESS = await import('../deployments/localhost/MsBTCSynthetic.json')
+    MSETH_SYNTHETIC_ADDRESS = await import('../deployments/localhost/MsETHSynthetic.json')
+    NATIVE_TOKEN_GATEWAY_ADDRESS = await import('../deployments/localhost/NativeTokenGateway.json')
+    SRFXETH_DEPOSIT_ADDRESS = await import('../deployments/localhost/sfrxETHDepositToken.json')
+    VASTETH_DEPOSIT_ADDRESS = await import('../deployments/localhost/vaSTETHDepositToken.json')
+    VARETH_DEPOSIT_ADDRESS = await import('../deployments/localhost/vaRETHDepositToken.json')
+    VACBETH_DEPOSIT_ADDRESS = await import('../deployments/localhost/vaCBETHDepositToken.json')
+    QUOTER_ADDRESS = await import('../deployments/localhost/Quoter.json')
+    MSUSD_PROXYOFT_ADDRESS = await import('../deployments/localhost/MsUSDProxyOFT.json')
+    MSETH_PROXYOFT_ADDRESS = await import('../deployments/localhost/MsETHProxyOFT.json')
+    MSBTC_PROXYOFT_ADDRESS = await import('../deployments/localhost/MsBTCProxyOFT.json')
+    SMART_FARMING_MANAGER_ADDRESS = await import('../deployments/localhost/SmartFarmingManager.json')
+    CROSS_CHAIN_DISPATCHER_ADDRESS = await import('../deployments/localhost/CrossChainDispatcher.json')
+
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[, alice, bob] = await ethers.getSigners()
     usdc = await ethers.getContractAt('ERC20', Address.USDC_ADDRESS, alice)
