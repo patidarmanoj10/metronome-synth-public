@@ -78,11 +78,18 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
     }
 
     /**
+     * @dev Throws if debt token isn't enabled
+     */
+    modifier onlyIfDebtTokenIsActive() {
+        if (!isActive) revert DebtTokenInactive();
+        _;
+    }
+
+    /**
      * @dev Throws if synthetic token isn't enabled
      */
     modifier onlyIfSyntheticTokenIsActive() {
         if (!syntheticToken.isActive()) revert SyntheticIsInactive();
-        if (!isActive) revert DebtTokenInactive();
         _;
     }
 
@@ -218,7 +225,6 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
         whenNotShutdown
         nonReentrant
         onlyIfSyntheticTokenExists
-        onlyIfSyntheticTokenIsActive
         returns (uint256 _issued, uint256 _fee)
     {
         if (amount_ == 0) revert AmountIsZero();
@@ -265,7 +271,7 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
         whenNotShutdown
         nonReentrant
         onlyIfSyntheticTokenExists
-        onlyIfSyntheticTokenIsActive
+        onlyIfDebtTokenIsActive
         returns (uint256 _issued, uint256 _fee)
     {
         if (amount_ == 0) revert AmountIsZero();
@@ -540,7 +546,7 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
         IMasterOracle masterOracle_,
         address account_,
         uint256 amount_
-    ) private updateRewardsBeforeMintOrBurn(account_) {
+    ) private onlyIfDebtTokenIsActive updateRewardsBeforeMintOrBurn(account_) {
         if (account_ == address(0)) revert MintToNullAddress();
 
         uint256 _debtFloorInUsd = pool_.debtFloorInUsd();
