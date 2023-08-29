@@ -271,6 +271,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
     {
         IERC20 _underlying = underlying_; // stack too deep
 
+        if (amountIn_ == 0) revert AmountIsZero();
         if (leverage_ <= 1e18) revert LeverageTooLow();
         if (leverage_ > uint256(1e18).wadDiv(1e18 - depositToken_.collateralFactor())) revert LeverageTooHigh();
         if (address(_underlying) == address(0)) revert TokenInIsNull();
