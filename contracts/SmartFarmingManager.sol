@@ -107,6 +107,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
 
     /***
      * @notice Cross-chain flash debt repayment
+     * @dev Not calling `whenNotShutdown` here because nested function already does it
      * @param syntheticToken_ The debt token to repay
      * @param depositToken_ The collateral to withdraw
      * @param withdrawAmount_ The amount to withdraw
@@ -243,6 +244,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
 
     /***
      * @notice Cross-chain Leverage
+     * @dev Not calling `whenNotShutdown` here because nested function already does it
      * @param underlying_ The underlying asset (e.g. USDC is vaUSDC's underlying)
      * @param depositToken_ The collateral to deposit
      * @param syntheticToken_ The msAsset to mint
