@@ -1,7 +1,6 @@
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
-import {UpgradableContracts, deployUpgradable} from '../../helpers'
-import {saveForMultiSigBatchExecution} from '../../helpers/multisig-helpers'
+import {UpgradableContracts, deployUpgradable, updateParamIfNeeded} from '../../helpers'
 import Address from '../../../helpers/address'
 
 const {
@@ -12,7 +11,7 @@ const MsUSDProxyOFT = 'MsUSDProxyOFT'
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {deployments} = hre
-  const {get, execute, read, catchUnknownSigner} = deployments
+  const {get} = deployments
 
   const {address: msUsdAddress} = await get(MsUSDSynthetic)
 
@@ -25,20 +24,20 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     initializeArgs: [Address.LZ_ENDPOINT, msUsdAddress],
   })
 
-  const currentProxyOFT = await read(MsUSDSynthetic, 'proxyOFT')
+  await updateParamIfNeeded(hre, {
+    contract: MsUSDSynthetic,
+    readMethod: 'proxyOFT',
+    writeMethod: 'updateProxyOFT',
+    newValue: proxyOFTAddress,
+  })
 
-  if (currentProxyOFT !== proxyOFTAddress) {
-    const governor = await read(Pool, 'governor')
-
-    const multiSigTx = await catchUnknownSigner(
-      execute(MsUSDSynthetic, {from: governor, log: true}, 'updateProxyOFT', proxyOFTAddress),
-      {log: true}
-    )
-
-    if (multiSigTx) {
-      await saveForMultiSigBatchExecution(multiSigTx)
-    }
-  }
+  await updateParamIfNeeded(hre, {
+    contract: MsUSDProxyOFT,
+    readMethod: 'useCustomAdapterParams',
+    writeMethod: 'setUseCustomAdapterParams',
+    newValue: 'true',
+    isCurrentValueUpdated: (currentValue: boolean) => currentValue,
+  })
 }
 
 export default func

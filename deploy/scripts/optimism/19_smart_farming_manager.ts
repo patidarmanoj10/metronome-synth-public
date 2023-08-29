@@ -1,7 +1,6 @@
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
-import {UpgradableContracts, deployUpgradable} from '../../helpers'
-import {saveForMultiSigBatchExecution} from '../../helpers/multisig-helpers'
+import {UpgradableContracts, deployUpgradable, updateParamIfNeeded} from '../../helpers'
 
 const {
   Pool: {alias: Pool},
@@ -10,7 +9,7 @@ const {
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {deployments} = hre
-  const {get, execute, read, catchUnknownSigner} = deployments
+  const {get} = deployments
 
   const {address: poolAddress} = await get(Pool)
 
@@ -20,20 +19,12 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     initializeArgs: [poolAddress],
   })
 
-  const currentSmartFarmingManager = await read(Pool, 'smartFarmingManager')
-
-  if (currentSmartFarmingManager !== smartFarmingManagerAddress) {
-    const governor = await read(Pool, 'governor')
-
-    const multiSigTx = await catchUnknownSigner(
-      execute(Pool, {from: governor, log: true}, 'updateSmartFarmingManager', smartFarmingManagerAddress),
-      {log: true}
-    )
-
-    if (multiSigTx) {
-      await saveForMultiSigBatchExecution(multiSigTx)
-    }
-  }
+  await updateParamIfNeeded(hre, {
+    contract: Pool,
+    readMethod: 'smartFarmingManager',
+    writeMethod: 'updateSmartFarmingManager',
+    newValue: smartFarmingManagerAddress,
+  })
 }
 
 export default func

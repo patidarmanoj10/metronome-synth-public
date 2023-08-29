@@ -13,7 +13,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {deployments} = hre
   const {get} = deployments
 
-  const {address: msUsdAddress} = await get(MsETHSynthetic)
+  const {address: msEthAddress} = await get(MsETHSynthetic)
 
   const {address: proxyOFTAddress} = await deployUpgradable({
     hre,
@@ -21,7 +21,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
       ...UpgradableContracts.ProxyOFT,
       alias: MsETHProxyOFT,
     },
-    initializeArgs: [Address.LZ_ENDPOINT, msUsdAddress],
+    initializeArgs: [Address.LZ_ENDPOINT, msEthAddress],
   })
 
   await updateParamIfNeeded(hre, {

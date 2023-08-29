@@ -1,17 +1,16 @@
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
-import {UpgradableContracts, deployUpgradable} from '../../helpers'
-import {saveForMultiSigBatchExecution} from '../../helpers/multisig-helpers'
+import {UpgradableContracts, deployUpgradable, updateParamIfNeeded} from '../../helpers'
+import Address from '../../../helpers/address'
 
 const {
-  Pool: {alias: Pool},
   CrossChainDispatcher: {alias: CrossChainDispatcher},
   PoolRegistry: {alias: PoolRegistry},
 } = UpgradableContracts
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {deployments} = hre
-  const {get, execute, read, catchUnknownSigner} = deployments
+  const {get} = deployments
 
   const {address: poolRegistryAddress} = await get(PoolRegistry)
 
@@ -21,20 +20,19 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     initializeArgs: [poolRegistryAddress],
   })
 
-  const currentCrossChainDispatcher = await read(PoolRegistry, 'crossChainDispatcher')
+  await updateParamIfNeeded(hre, {
+    contract: PoolRegistry,
+    readMethod: 'crossChainDispatcher',
+    writeMethod: 'updateCrossChainDispatcher',
+    newValue: crossChainDispatcherAddress,
+  })
 
-  if (currentCrossChainDispatcher !== crossChainDispatcherAddress) {
-    const governor = await read(Pool, 'governor')
-
-    const multiSigTx = await catchUnknownSigner(
-      execute(PoolRegistry, {from: governor, log: true}, 'updateCrossChainDispatcher', crossChainDispatcherAddress),
-      {log: true}
-    )
-
-    if (multiSigTx) {
-      await saveForMultiSigBatchExecution(multiSigTx)
-    }
-  }
+  await updateParamIfNeeded(hre, {
+    contract: CrossChainDispatcher,
+    readMethod: 'stargateRouter',
+    writeMethod: 'updateStargateRouter',
+    newValue: Address.STARGATE_ROUTER,
+  })
 }
 
 export default func

@@ -1,7 +1,6 @@
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
-import {UpgradableContracts, deployUpgradable} from '../../helpers'
-import {saveForMultiSigBatchExecution} from '../../helpers/multisig-helpers'
+import {UpgradableContracts, deployUpgradable, updateParamIfNeeded} from '../../helpers'
 import Address from '../../../helpers/address'
 
 const {
@@ -12,9 +11,9 @@ const MsETHProxyOFT = 'MsETHProxyOFT'
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {deployments} = hre
-  const {get, execute, read, catchUnknownSigner} = deployments
+  const {get} = deployments
 
-  const {address: msUsdAddress} = await get(MsETHSynthetic)
+  const {address: msEthAddress} = await get(MsETHSynthetic)
 
   const {address: proxyOFTAddress} = await deployUpgradable({
     hre,
@@ -22,23 +21,23 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
       ...UpgradableContracts.ProxyOFT,
       alias: MsETHProxyOFT,
     },
-    initializeArgs: [Address.LZ_ENDPOINT, msUsdAddress],
+    initializeArgs: [Address.LZ_ENDPOINT, msEthAddress],
   })
 
-  const currentProxyOFT = await read(MsETHSynthetic, 'proxyOFT')
+  await updateParamIfNeeded(hre, {
+    contract: MsETHSynthetic,
+    readMethod: 'proxyOFT',
+    writeMethod: 'updateProxyOFT',
+    newValue: proxyOFTAddress,
+  })
 
-  if (currentProxyOFT !== proxyOFTAddress) {
-    const governor = await read(Pool, 'governor')
-
-    const multiSigTx = await catchUnknownSigner(
-      execute(MsETHSynthetic, {from: governor, log: true}, 'updateProxyOFT', proxyOFTAddress),
-      {log: true}
-    )
-
-    if (multiSigTx) {
-      await saveForMultiSigBatchExecution(multiSigTx)
-    }
-  }
+  await updateParamIfNeeded(hre, {
+    contract: MsETHSynthetic,
+    readMethod: 'useCustomAdapterParams',
+    writeMethod: 'setUseCustomAdapterParams',
+    newValue: 'true',
+    isCurrentValueUpdated: (currentValue: boolean) => currentValue,
+  })
 }
 
 export default func
