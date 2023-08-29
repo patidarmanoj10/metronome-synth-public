@@ -52,6 +52,10 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV2 {
         ICrossChainDispatcher newCrossChainDispatcher
     );
 
+    constructor() {
+        _disableInitializers();
+    }
+
     function initialize(IMasterOracle masterOracle_, address feeCollector_) external initializer {
         if (address(masterOracle_) == address(0)) revert OracleIsNull();
         if (feeCollector_ == address(0)) revert FeeCollectorIsNull();

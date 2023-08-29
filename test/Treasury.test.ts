@@ -4,7 +4,7 @@ import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
 import {ERC20Mock, PoolRewardsMock, Treasury} from '../typechain'
-import {setBalance} from '@nomicfoundation/hardhat-network-helpers'
+import {setBalance, setStorageAt} from '@nomicfoundation/hardhat-network-helpers'
 
 describe('Treasury', function () {
   let deployer: SignerWithAddress
@@ -33,6 +33,7 @@ describe('Treasury', function () {
     const treasuryFactory = await ethers.getContractFactory('Treasury', deployer)
     treasury = await treasuryFactory.deploy()
     await treasury.deployed()
+    await setStorageAt(treasury.address, 0, 0) // Undo initialization made by constructor
     await treasury.initialize(poolMock.address)
 
     await met.mint(deployer.address, parseEther('1000'))

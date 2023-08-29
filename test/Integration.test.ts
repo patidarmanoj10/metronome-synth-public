@@ -1,7 +1,7 @@
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
-import {loadFixture} from '@nomicfoundation/hardhat-network-helpers'
+import {loadFixture, setStorageAt} from '@nomicfoundation/hardhat-network-helpers'
 import {toUSD, parseEther, parseUnits} from '../helpers'
 import {disableForking, enableForking, setTokenBalance} from './helpers'
 import Address from '../helpers/address'
@@ -40,9 +40,11 @@ async function fixture() {
 
   const poolRegistry = await poolRegistryFactory.deploy()
   await poolRegistry.deployed()
+  await setStorageAt(poolRegistry.address, 0, 0) // Undo initialization made by constructor
 
   const feeProvider = await feeProviderFactory.deploy()
   await feeProvider.deployed()
+  await setStorageAt(feeProvider.address, 0, 0) // Undo initialization made by constructor
   await feeProvider.initialize(poolRegistry.address, Address.ESMET)
 
   // Set fee discount tiers
@@ -54,47 +56,61 @@ async function fixture() {
 
   const msETH = await syntheticTokenFactory.deploy()
   await msETH.deployed()
+  await setStorageAt(msETH.address, 0, 0) // Undo initialization made by constructor
 
   const msDOGE = await syntheticTokenFactory.deploy()
   await msDOGE.deployed()
+  await setStorageAt(msDOGE.address, 0, 0) // Undo initialization made by constructor
 
   const msUSD = await syntheticTokenFactory.deploy()
   await msUSD.deployed()
+  await setStorageAt(msUSD.address, 0, 0) // Undo initialization made by constructor
 
   // Pool A: Deposit [MET,DAI], Mint [msETH,msDOGE,msUSD]
   const poolA = await poolFactory.deploy()
   await poolA.deployed()
+  await setStorageAt(poolA.address, 0, 0) // Undo initialization made by constructor
 
   const treasuryA = await treasuryFactory.deploy()
   await treasuryA.deployed()
+  await setStorageAt(treasuryA.address, 0, 0) // Undo initialization made by constructor
 
   const msdMET_A = await depositTokenFactory.deploy()
   await msdMET_A.deployed()
+  await setStorageAt(msdMET_A.address, 0, 0) // Undo initialization made by constructor
 
   const msdDAI_A = await depositTokenFactory.deploy()
   await msdDAI_A.deployed()
+  await setStorageAt(msdDAI_A.address, 0, 0) // Undo initialization made by constructor
 
   const msETH_Debt_A = await debtTokenFactory.deploy()
   await msETH_Debt_A.deployed()
+  await setStorageAt(msETH_Debt_A.address, 0, 0) // Undo initialization made by constructor
 
   const msDOGE_Debt_A = await debtTokenFactory.deploy()
   await msDOGE_Debt_A.deployed()
+  await setStorageAt(msDOGE_Debt_A.address, 0, 0) // Undo initialization made by constructor
 
   const msUSD_Debt_A = await debtTokenFactory.deploy()
   await msUSD_Debt_A.deployed()
+  await setStorageAt(msUSD_Debt_A.address, 0, 0) // Undo initialization made by constructor
 
   // Pool B: Deposit [DAI], Mint [msUSD]
   const poolB = await poolFactory.deploy()
   await poolB.deployed()
+  await setStorageAt(poolB.address, 0, 0) // Undo initialization made by constructor
 
   const treasuryB = await treasuryFactory.deploy()
   await treasuryB.deployed()
+  await setStorageAt(treasuryB.address, 0, 0) // Undo initialization made by constructor
 
   const msdDAI_B = await depositTokenFactory.deploy()
   await msdDAI_B.deployed()
+  await setStorageAt(msdDAI_B.address, 0, 0) // Undo initialization made by constructor
 
   const msUSD_Debt_B = await debtTokenFactory.deploy()
   await msUSD_Debt_B.deployed()
+  await setStorageAt(msUSD_Debt_B.address, 0, 0) // Undo initialization made by constructor
 
   await poolRegistry.initialize(masterOracle.address, feeCollector.address)
   await msUSD.initialize('Metronome Synth USD', 'msUSD', 18, poolRegistry.address)

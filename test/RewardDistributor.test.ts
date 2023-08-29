@@ -4,7 +4,7 @@ import chai, {expect} from 'chai'
 import {ethers} from 'hardhat'
 import {RewardsDistributor, ERC20Mock} from '../typechain'
 import {FakeContract, smock} from '@defi-wonderland/smock'
-import {mine} from '@nomicfoundation/hardhat-network-helpers'
+import {mine, setStorageAt} from '@nomicfoundation/hardhat-network-helpers'
 import {increaseTimeOfNextBlock} from './helpers'
 import {BigNumber} from 'ethers'
 
@@ -43,6 +43,7 @@ describe('RewardDistributor', function () {
     const rewardDistributorFactory = await ethers.getContractFactory('RewardsDistributor', deployer)
     rewardDistributor = await rewardDistributorFactory.deploy()
     rewardDistributor.deployed()
+    await setStorageAt(rewardDistributor.address, 0, 0) // Undo initialization made by constructor
 
     // Setup
     await rewardDistributor.initialize(pool.address, vsp.address)

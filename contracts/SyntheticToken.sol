@@ -95,6 +95,10 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
         _;
     }
 
+    constructor() {
+        _disableInitializers();
+    }
+
     function initialize(
         string calldata name_,
         string calldata symbol_,

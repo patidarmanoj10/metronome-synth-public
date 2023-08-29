@@ -4,6 +4,7 @@ import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
 import {FeeProvider, PoolRegistry} from '../typechain'
+import {setStorageAt} from '@nomicfoundation/hardhat-network-helpers'
 
 describe('FeeProvider', function () {
   let deployer: SignerWithAddress
@@ -23,6 +24,7 @@ describe('FeeProvider', function () {
     const feeProviderFactory = await ethers.getContractFactory('FeeProvider', deployer)
     feeProvider = await feeProviderFactory.deploy()
     await feeProvider.deployed()
+    await setStorageAt(feeProvider.address, 0, 0) // Undo initialization made by constructor
     await feeProvider.initialize(poolMockRegistry.address, esMET.address)
   })
 

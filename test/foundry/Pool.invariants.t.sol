@@ -41,18 +41,22 @@ contract PoolInvariant_Test is Test {
         swapper = new SwapperMock(masterOracle);
 
         poolRegistry = new PoolRegistry();
+        vm.store(address(poolRegistry), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
         poolRegistry.initialize({masterOracle_: masterOracle, feeCollector_: feeCollector});
 
         ERC20Mock esMET = new ERC20Mock("esMET", "esMET", 18);
         feeProvider = new FeeProvider();
+        vm.store(address(feeProvider), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
         feeProvider.initialize({poolRegistry_: poolRegistry, esMET_: IESMET(address(esMET))});
 
         pool = new Pool();
+        vm.store(address(pool), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
         pool.initialize(poolRegistry);
         pool.updateFeeProvider(feeProvider);
         poolRegistry.registerPool(address(pool));
 
         treasury = new Treasury();
+        vm.store(address(treasury), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
         treasury.initialize(pool);
         pool.updateTreasury(treasury);
 
@@ -64,6 +68,7 @@ contract PoolInvariant_Test is Test {
             masterOracle.updatePrice(address(underlying), 1e18);
 
             DepositToken depositToken = new DepositToken();
+            vm.store(address(depositToken), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
             depositToken.initialize({
                 underlying_: underlying,
                 pool_: pool,
@@ -89,6 +94,7 @@ contract PoolInvariant_Test is Test {
 
         for (uint256 i; i < numOfSynths; ++i) {
             SyntheticToken syntheticToken = new SyntheticToken();
+            vm.store(address(syntheticToken), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
             masterOracle.updatePrice(address(syntheticToken), 1e18);
 
             syntheticToken.initialize({
@@ -106,6 +112,7 @@ contract PoolInvariant_Test is Test {
             syntheticTokenHandlers.push(syntheticTokenHandler);
 
             DebtToken debtToken = new DebtToken();
+            vm.store(address(debtToken), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
             debtToken.initialize({
                 name_: "msToken-Debt",
                 symbol_: "msToken-Debt",

@@ -13,7 +13,7 @@ import {
 } from '../typechain'
 import {FakeContract, smock} from '@defi-wonderland/smock'
 import {parseEther} from '../helpers'
-import {loadFixture} from '@nomicfoundation/hardhat-network-helpers'
+import {loadFixture, setStorageAt} from '@nomicfoundation/hardhat-network-helpers'
 import {BigNumber} from 'ethers'
 import {CrossChainLib} from './helpers/CrossChainLib'
 
@@ -56,6 +56,7 @@ describe('Quoter', function () {
     const quoterFactory = await ethers.getContractFactory('Quoter')
     quoter = await quoterFactory.deploy()
     await quoter.deployed()
+    await setStorageAt(quoter.address, 0, 0) // Undo initialization made by constructor
     await quoter.initialize(poolRegistry.address)
 
     proxyOFT.getProxyOFTOf.returns(MAINNET_OFT_ADDRESS)

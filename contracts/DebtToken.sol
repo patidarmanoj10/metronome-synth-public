@@ -100,6 +100,10 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
         _;
     }
 
+    constructor() {
+        _disableInitializers();
+    }
+
     function initialize(
         string calldata name_,
         string calldata symbol_,

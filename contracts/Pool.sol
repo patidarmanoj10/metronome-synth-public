@@ -153,6 +153,10 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
         _;
     }
 
+    constructor() {
+        _disableInitializers();
+    }
+
     function initialize(IPoolRegistry poolRegistry_) public initializer {
         if (address(poolRegistry_) == address(0)) revert PoolRegistryIsNull();
         __ReentrancyGuard_init();

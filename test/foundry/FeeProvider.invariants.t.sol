@@ -21,9 +21,11 @@ contract FeeProviderInvariant_Test is Test {
         esMET = new ERC20Mock("esMET", "esMET", 18);
 
         poolRegistry = new PoolRegistry();
+        vm.store(address(poolRegistry), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
         poolRegistry.initialize({masterOracle_: IMasterOracle(address(1)), feeCollector_: address(2)});
 
         feeProvider = new FeeProvider();
+        vm.store(address(feeProvider), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
         feeProvider.initialize({poolRegistry_: poolRegistry, esMET_: IESMET(address(esMET))});
 
         handler = new FeeProviderHandler(feeProvider);
