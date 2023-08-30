@@ -30,7 +30,7 @@ error SenderIsNotAccount();
 /**
  * @title SmartFarmingManager contract
  */
-contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManagerV1 {
+contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManagerStorageV1 {
     using SafeERC20 for IERC20;
     using SafeERC20 for ISyntheticToken;
     using WadRayMath for uint256;

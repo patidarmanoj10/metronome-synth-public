@@ -16,8 +16,8 @@ contract CrossChainLeverage_Test is CrossChains_Test {
     ) private {
         vm.selectFork(mainnetFork);
         bytes memory _lzArgs = poolRegistry_mainnet.quoter().getLeverageSwapAndCallbackLzArgs({
-            positionChainId_: LZ_OP_CHAIN_ID,
-            liquidityChainId_: LZ_MAINNET_CHAIN_ID
+            srcChainId_: LZ_OP_CHAIN_ID,
+            dstChainId_: LZ_MAINNET_CHAIN_ID
         });
 
         _crossChainLeverage({
@@ -333,8 +333,8 @@ contract CrossChainLeverage_Test is CrossChains_Test {
         //
         vm.selectFork(mainnetFork);
         bytes memory _lzArgs = poolRegistry_mainnet.quoter().getLeverageSwapAndCallbackLzArgs({
-            positionChainId_: LZ_OP_CHAIN_ID,
-            liquidityChainId_: LZ_MAINNET_CHAIN_ID
+            srcChainId_: LZ_OP_CHAIN_ID,
+            dstChainId_: LZ_MAINNET_CHAIN_ID
         });
 
         uint256 missingFee = 0.001e18;

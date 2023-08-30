@@ -3,7 +3,7 @@ import {DeployFunction} from 'hardhat-deploy/types'
 import {UpgradableContracts, deployUpgradable, updateParamIfNeeded} from '../../helpers'
 
 const {
-  Pool: {alias: Pool},
+  Quoter: {alias: Quoter},
   PoolRegistry: {alias: PoolRegistry},
 } = UpgradableContracts
 
@@ -11,24 +11,22 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {deployments} = hre
   const {get} = deployments
 
-  const poolRegistry = await get(PoolRegistry)
+  const {address: poolRegistryAddress} = await get(PoolRegistry)
 
-  const {address: poolAddress} = await deployUpgradable({
+  const {address: quoterAddress} = await deployUpgradable({
     hre,
-    contractConfig: UpgradableContracts.Pool,
-    initializeArgs: [poolRegistry.address],
-    forceUpgrade: true,
+    contractConfig: UpgradableContracts.Quoter,
+    initializeArgs: [poolRegistryAddress],
   })
 
   await updateParamIfNeeded(hre, {
     contract: PoolRegistry,
-    readMethod: 'isPoolRegistered',
-    readArg: poolAddress,
-    writeMethod: 'registerPool',
-    newValue: poolAddress,
-    isCurrentValueUpdated: (currentValue: boolean) => currentValue,
+    readMethod: 'quoter',
+    writeMethod: 'updateQuoter',
+    newValue: quoterAddress,
   })
 }
 
 export default func
-func.tags = [Pool]
+func.tags = [Quoter]
+func.dependencies = [PoolRegistry]

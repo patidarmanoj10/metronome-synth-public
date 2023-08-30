@@ -297,10 +297,6 @@ abstract contract CrossChains_Test is Test {
             LZ_MAINNET_CHAIN_ID,
             abi.encodePacked(address(proxyOFT_msUSD_mainnet), address(proxyOFT_msUSD_optimism))
         );
-        // proxyOFT_msUSD_optimism.setTrustedRemote(
-        //     LZ_MAINNET_CHAIN_ID,
-        //     abi.encodePacked(address(crossChainDispatcher_mainnet), address(proxyOFT_msUSD_optimism))
-        // );
         crossChainDispatcher_optimism.updateCrossChainDispatcherOf(
             LZ_MAINNET_CHAIN_ID,
             address(crossChainDispatcher_mainnet)
@@ -317,10 +313,6 @@ abstract contract CrossChains_Test is Test {
             LZ_OP_CHAIN_ID,
             abi.encodePacked(address(proxyOFT_msUSD_optimism), address(proxyOFT_msUSD_mainnet))
         );
-        // proxyOFT_msUSD_mainnet.setTrustedRemote(
-        //     LZ_OP_CHAIN_ID,
-        //     abi.encodePacked(address(crossChainDispatcher_optimism), address(proxyOFT_msUSD_mainnet))
-        // );
         crossChainDispatcher_mainnet.updateCrossChainDispatcherOf(
             LZ_OP_CHAIN_ID,
             address(crossChainDispatcher_optimism)

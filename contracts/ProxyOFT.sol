@@ -93,4 +93,8 @@ contract ProxyOFT is ComposableOFTCoreUpgradeable, ProxyOFTStorageV1 {
             adapterParams_
         );
     }
+
+    function owner() public view override returns (address) {
+        return syntheticToken.poolRegistry().governor();
+    }
 }

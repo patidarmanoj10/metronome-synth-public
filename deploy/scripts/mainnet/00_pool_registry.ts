@@ -1,6 +1,6 @@
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
-import {UpgradableContracts, deployUpgradable} from '../../helpers'
+import {UpgradableContracts, deployUpgradable, updateParamIfNeeded} from '../../helpers'
 import Address from '../../../helpers/address'
 
 const {
@@ -12,6 +12,13 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     hre,
     contractConfig: UpgradableContracts.PoolRegistry,
     initializeArgs: [Address.MASTER_ORACLE_ADDRESS, Address.FEE_COLLECTOR],
+  })
+
+  await updateParamIfNeeded(hre, {
+    contract: PoolRegistry,
+    readMethod: 'swapper',
+    writeMethod: 'updateSwapper',
+    newValue: Address.SWAPPER,
   })
 }
 
