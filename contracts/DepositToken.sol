@@ -138,6 +138,10 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
         _;
     }
 
+    constructor() {
+        _disableInitializers();
+    }
+
     function initialize(
         IERC20 underlying_,
         IPool pool_,

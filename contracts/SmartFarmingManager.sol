@@ -92,6 +92,10 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         _;
     }
 
+    constructor() {
+        _disableInitializers();
+    }
+
     function initialize(IPool pool_) public initializer {
         if (address(pool_) == address(0)) revert PoolIsNull();
         __ReentrancyGuard_init();

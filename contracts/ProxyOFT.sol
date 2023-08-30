@@ -16,6 +16,10 @@ error SenderIsNotCrossChainDispatcher();
 contract ProxyOFT is ComposableOFTCoreUpgradeable, ProxyOFTStorageV1 {
     using BytesLib for bytes;
 
+    constructor() {
+        _disableInitializers();
+    }
+
     function initialize(address lzEndpoint_, ISyntheticToken syntheticToken_) external initializer {
         if (address(syntheticToken_) == address(0)) revert AddressIsNull();
         if (address(lzEndpoint_) == address(0)) revert AddressIsNull();

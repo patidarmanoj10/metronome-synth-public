@@ -85,6 +85,10 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
         _;
     }
 
+    constructor() {
+        _disableInitializers();
+    }
+
     function initialize(IPool pool_, IERC20 rewardToken_) external initializer {
         if (address(rewardToken_) == address(0)) revert RewardTokenIsNull();
 

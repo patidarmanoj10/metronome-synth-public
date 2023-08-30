@@ -123,18 +123,43 @@ abstract contract CrossChains_Test is Test {
 
         masterOracle_optimism = new MasterOracleMock();
         swapper_optimism = new SwapperMock(masterOracle_optimism);
+
         poolRegistry_optimism = new PoolRegistry();
+        vm.store(address(poolRegistry_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
+
         feeProvider_optimism = new FeeProvider();
+        vm.store(address(feeProvider_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
+
         treasury_optimism = new Treasury();
+        vm.store(address(treasury_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
+
         pool_optimism = new Pool();
+        vm.store(address(pool_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
+
         smartFarmingManager_optimism = new SmartFarmingManager();
+        vm.store(address(smartFarmingManager_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
+
         crossChainDispatcher_optimism = new CrossChainDispatcher();
+        vm.store(address(crossChainDispatcher_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
+
         msUSD_optimism = new SyntheticToken();
+        vm.store(address(msUSD_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
+
         msUSDDebt_optimism = new DebtToken();
+        vm.store(address(msUSDDebt_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
+
         msdUSDC_optimism = new DepositToken();
+        vm.store(address(msdUSDC_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
+
         msdVaUSDC_optimism = new DepositToken();
+        vm.store(address(msdVaUSDC_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
+
         proxyOFT_msUSD_optimism = new ProxyOFT();
+        vm.store(address(proxyOFT_msUSD_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
+
         quoter_optimism = new Quoter();
+        vm.store(address(quoter_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
+
         proxyOFT_msUSD_optimism.initialize(address(lzEndpoint_optimism), msUSD_optimism);
         poolRegistry_optimism.initialize({masterOracle_: masterOracle_optimism, feeCollector_: feeCollector});
         poolRegistry_optimism.updateQuoter(quoter_optimism);
@@ -209,17 +234,40 @@ abstract contract CrossChains_Test is Test {
 
         masterOracle_mainnet = new MasterOracleMock();
         swapper_mainnet = new SwapperMock(masterOracle_mainnet);
+
         poolRegistry_mainnet = new PoolRegistry();
+        vm.store(address(poolRegistry_mainnet), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
+
         feeProvider_mainnet = new FeeProvider();
+        vm.store(address(feeProvider_mainnet), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
+
         treasury_mainnet = new Treasury();
+        vm.store(address(treasury_mainnet), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
+
         pool_mainnet = new Pool();
+        vm.store(address(pool_mainnet), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
+
         smartFarmingManager_mainnet = new SmartFarmingManager();
+        vm.store(address(smartFarmingManager_mainnet), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
+
         crossChainDispatcher_mainnet = new CrossChainDispatcher();
+        vm.store(address(crossChainDispatcher_mainnet), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
+
         msUSD_mainnet = new SyntheticToken();
+        vm.store(address(msUSD_mainnet), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
+
         msUSDDebt_mainnet = new DebtToken();
+        vm.store(address(msUSDDebt_mainnet), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
+
         msdUSDC_mainnet = new DepositToken();
+        vm.store(address(msdUSDC_mainnet), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
+
         proxyOFT_msUSD_mainnet = new ProxyOFT();
+        vm.store(address(proxyOFT_msUSD_mainnet), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
+
         quoter_mainnet = new Quoter();
+        vm.store(address(quoter_mainnet), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
+
         proxyOFT_msUSD_mainnet.initialize(address(lzEndpoint_mainnet), msUSD_mainnet);
         poolRegistry_mainnet.initialize({masterOracle_: masterOracle_mainnet, feeCollector_: feeCollector});
         poolRegistry_mainnet.updateQuoter(quoter_mainnet);

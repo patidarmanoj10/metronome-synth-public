@@ -111,6 +111,10 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
         _;
     }
 
+    constructor() {
+        _disableInitializers();
+    }
+
     function initialize(IPoolRegistry poolRegistry_) external initializer {
         if (address(poolRegistry_) == address(0)) revert AddressIsNull();
 

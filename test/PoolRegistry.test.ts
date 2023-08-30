@@ -3,6 +3,7 @@ import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
 import {MasterOracleMock, PoolRegistry, SwapperMock} from '../typechain'
+import {setStorageAt} from '@nomicfoundation/hardhat-network-helpers'
 
 describe('PoolRegistry', function () {
   let deployer: SignerWithAddress
@@ -31,6 +32,7 @@ describe('PoolRegistry', function () {
     const poolRegistryFactory = await ethers.getContractFactory('PoolRegistry', deployer)
     poolRegistry = await poolRegistryFactory.deploy()
     await poolRegistry.deployed()
+    await setStorageAt(poolRegistry.address, 0, 0) // Undo initialization made by constructor
     await poolRegistry.initialize(masterOracleMock.address, feeCollector.address)
     await poolRegistry.updateSwapper(swapper.address)
   })

@@ -56,6 +56,10 @@ contract FeeProvider is Initializable, FeeProviderStorageV1 {
         _;
     }
 
+    constructor() {
+        _disableInitializers();
+    }
+
     function initialize(IPoolRegistry poolRegistry_, IESMET esMET_) public initializer {
         if (address(poolRegistry_) == address(0)) revert PoolRegistryIsNull();
 

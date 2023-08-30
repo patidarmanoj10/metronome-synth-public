@@ -3,7 +3,7 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import {parseEther} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
-import {loadFixture, setBalance, setCode} from '@nomicfoundation/hardhat-network-helpers'
+import {loadFixture, setBalance, setCode, setStorageAt} from '@nomicfoundation/hardhat-network-helpers'
 import chai, {expect} from 'chai'
 import {ethers} from 'hardhat'
 import {
@@ -93,46 +93,57 @@ describe('SmartFarmingManager', function () {
     const treasuryFactory = await ethers.getContractFactory('Treasury', deployer)
     treasury = await treasuryFactory.deploy()
     await treasury.deployed()
+    await setStorageAt(treasury.address, 0, 0) // Undo initialization made by constructor
 
     const depositTokenFactory = await ethers.getContractFactory('DepositToken', deployer)
     msdMET = await depositTokenFactory.deploy()
     await msdMET.deployed()
+    await setStorageAt(msdMET.address, 0, 0) // Undo initialization made by constructor
 
     msdDAI = await depositTokenFactory.deploy()
     await msdDAI.deployed()
+    await setStorageAt(msdDAI.address, 0, 0) // Undo initialization made by constructor
 
     msdVaDAI = await depositTokenFactory.deploy()
     await msdVaDAI.deployed()
+    await setStorageAt(msdVaDAI.address, 0, 0) // Undo initialization made by constructor
 
     const debtTokenFactory = await ethers.getContractFactory('DebtToken', deployer)
 
     msUsdDebtToken = await debtTokenFactory.deploy()
     await msUsdDebtToken.deployed()
+    await setStorageAt(msUsdDebtToken.address, 0, 0) // Undo initialization made by constructor
 
     msEthDebtToken = await debtTokenFactory.deploy()
     await msEthDebtToken.deployed()
+    await setStorageAt(msEthDebtToken.address, 0, 0) // Undo initialization made by constructor
 
     const syntheticTokenFactory = await ethers.getContractFactory('SyntheticToken', deployer)
 
     msUSD = await syntheticTokenFactory.deploy()
     await msUSD.deployed()
+    await setStorageAt(msUSD.address, 0, 0) // Undo initialization made by constructor
 
     msETH = await syntheticTokenFactory.deploy()
     await msETH.deployed()
+    await setStorageAt(msETH.address, 0, 0) // Undo initialization made by constructor
 
     const feeProviderFactory = await ethers.getContractFactory('FeeProvider', deployer)
     feeProvider = await feeProviderFactory.deploy()
     await feeProvider.deployed()
+    await setStorageAt(feeProvider.address, 0, 0) // Undo initialization made by constructor
 
     const poolFactory = await ethers.getContractFactory('contracts/Pool.sol:Pool', deployer)
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     pool = await poolFactory.deploy()
     await pool.deployed()
+    await setStorageAt(pool.address, 0, 0) // Undo initialization made by constructor
 
     const smartFarmingManagerFactory = await ethers.getContractFactory('SmartFarmingManager', deployer)
     smartFarmingManager = await smartFarmingManagerFactory.deploy()
     await smartFarmingManager.deployed()
+    await setStorageAt(smartFarmingManager.address, 0, 0) // Undo initialization made by constructor
 
     const stargateFactory = await smock.fake('IStargateFactory')
     const stargatePool = await smock.fake('IStargatePool')
@@ -150,6 +161,8 @@ describe('SmartFarmingManager', function () {
 
     const poolRegistryFactory = await ethers.getContractFactory('PoolRegistry', deployer)
     poolRegistry = await poolRegistryFactory.deploy()
+    await poolRegistry.deployed()
+    await setStorageAt(poolRegistry.address, 0, 0) // Undo initialization made by constructor
     await poolRegistry.initialize(masterOracle.address, feeCollector.address)
     await poolRegistry.registerPool(pool.address)
     await poolRegistry.updateSwapper(swapper.address)

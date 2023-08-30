@@ -2,7 +2,7 @@
 import {parseEther} from '@ethersproject/units'
 import {BigNumber} from 'ethers'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
-import {loadFixture, setBalance, setCode} from '@nomicfoundation/hardhat-network-helpers'
+import {loadFixture, setBalance, setCode, setStorageAt} from '@nomicfoundation/hardhat-network-helpers'
 import chai, {expect} from 'chai'
 import {ethers} from 'hardhat'
 import {
@@ -96,6 +96,7 @@ describe('CrossChainDispatcher', function () {
 
     const crossChainDispatcherFactory = await ethers.getContractFactory('CrossChainDispatcher', deployer)
     crossChainDispatcher = await crossChainDispatcherFactory.deploy()
+    await setStorageAt(crossChainDispatcher.address, 0, 0) // Undo initialization made by constructor
     await crossChainDispatcher.initialize(poolRegistry.address)
     await crossChainDispatcher.toggleBridgingIsActive()
     await crossChainDispatcher.updateStargatePoolIdOf(usdc.address, SG_USDC_POOL_ID)

@@ -31,6 +31,10 @@ contract Quoter is Initializable, QuoterStorageV1 {
      */
     uint16 public constant PT_SEND_AND_CALL = 1;
 
+    constructor() {
+        _disableInitializers();
+    }
+
     function initialize(IPoolRegistry poolRegistry_) external initializer {
         if (address(poolRegistry_) == address(0)) revert AddressIsNull();
         poolRegistry = poolRegistry_;

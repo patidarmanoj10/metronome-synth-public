@@ -15,7 +15,7 @@ import {
 } from '../typechain'
 import {toUSD} from '../helpers'
 import {FakeContract, MockContract, smock} from '@defi-wonderland/smock'
-import {setBalance} from '@nomicfoundation/hardhat-network-helpers'
+import {setBalance, setStorageAt} from '@nomicfoundation/hardhat-network-helpers'
 
 const {MaxUint256, AddressZero} = ethers.constants
 
@@ -57,20 +57,24 @@ describe('SyntheticToken', function () {
     const depositTokenFactory = await ethers.getContractFactory('DepositToken', deployer)
     msdMET = await depositTokenFactory.deploy()
     await msdMET.deployed()
+    await setStorageAt(msdMET.address, 0, 0) // Undo initialization made by constructor
 
     const debtTokenFactory = await ethers.getContractFactory('DebtToken', deployer)
     msUSDDebt = await debtTokenFactory.deploy()
     await msUSDDebt.deployed()
+    await setStorageAt(msUSDDebt.address, 0, 0) // Undo initialization made by constructor
 
     const syntheticTokenFactory = await ethers.getContractFactory('SyntheticToken', deployer)
     msUSD = await syntheticTokenFactory.deploy()
     await msUSD.deployed()
+    await setStorageAt(msUSD.address, 0, 0) // Undo initialization made by constructor
 
     const esMET = await smock.fake('IESMET')
 
     const feeProviderFactory = await ethers.getContractFactory('FeeProvider', deployer)
     feeProvider = await feeProviderFactory.deploy()
     await feeProvider.deployed()
+    await setStorageAt(feeProvider.address, 0, 0) // Undo initialization made by constructor
     await feeProvider.initialize(poolRegistryMock.address, esMET.address)
 
     const poolMockFactory = await smock.mock<PoolMock__factory>('PoolMock')

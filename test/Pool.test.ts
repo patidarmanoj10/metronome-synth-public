@@ -18,7 +18,7 @@ import {
   FeeProvider,
 } from '../typechain'
 import {getMinLiquidationAmountInUsd} from './helpers'
-import {setBalance, setCode} from '@nomicfoundation/hardhat-network-helpers'
+import {setBalance, setCode, setStorageAt} from '@nomicfoundation/hardhat-network-helpers'
 import {FakeContract, smock} from '@defi-wonderland/smock'
 import {toUSD} from '../helpers'
 
@@ -86,46 +86,58 @@ describe('Pool', function () {
     const treasuryFactory = await ethers.getContractFactory('Treasury', deployer)
     treasury = await treasuryFactory.deploy()
     await treasury.deployed()
+    await setStorageAt(treasury.address, 0, 0) // Undo initialization made by constructor
 
     const depositTokenFactory = await ethers.getContractFactory('DepositToken', deployer)
     msdMET = await depositTokenFactory.deploy()
     await msdMET.deployed()
+    await setStorageAt(msdMET.address, 0, 0) // Undo initialization made by constructor
 
     msdDAI = await depositTokenFactory.deploy()
     await msdDAI.deployed()
+    await setStorageAt(msdDAI.address, 0, 0) // Undo initialization made by constructor
 
     msdVaDAI = await depositTokenFactory.deploy()
     await msdVaDAI.deployed()
+    await setStorageAt(msdVaDAI.address, 0, 0) // Undo initialization made by constructor
 
     const debtTokenFactory = await ethers.getContractFactory('DebtToken', deployer)
 
     msEthDebtToken = await debtTokenFactory.deploy()
     await msEthDebtToken.deployed()
+    await setStorageAt(msEthDebtToken.address, 0, 0) // Undo initialization made by constructor
 
     msDogeDebtToken = await debtTokenFactory.deploy()
     await msDogeDebtToken.deployed()
+    await setStorageAt(msDogeDebtToken.address, 0, 0) // Undo initialization made by constructor
 
     msUsdDebtToken = await debtTokenFactory.deploy()
     await msUsdDebtToken.deployed()
+    await setStorageAt(msUsdDebtToken.address, 0, 0) // Undo initialization made by constructor
 
     const syntheticTokenFactory = await ethers.getContractFactory('SyntheticToken', deployer)
 
     msEth = await syntheticTokenFactory.deploy()
     await msEth.deployed()
+    await setStorageAt(msEth.address, 0, 0) // Undo initialization made by constructor
 
     msDoge = await syntheticTokenFactory.deploy()
     await msDoge.deployed()
+    await setStorageAt(msDoge.address, 0, 0) // Undo initialization made by constructor
 
     msUSD = await syntheticTokenFactory.deploy()
     await msUSD.deployed()
+    await setStorageAt(msUSD.address, 0, 0) // Undo initialization made by constructor
 
     const feeProviderFactory = await ethers.getContractFactory('FeeProvider', deployer)
     feeProvider = await feeProviderFactory.deploy()
     await feeProvider.deployed()
+    await setStorageAt(feeProvider.address, 0, 0) // Undo initialization made by constructor
 
     const poolFactory = await ethers.getContractFactory('contracts/Pool.sol:Pool', deployer)
     pool = await poolFactory.deploy()
     await pool.deployed()
+    await setStorageAt(pool.address, 0, 0) // Undo initialization made by constructor
 
     poolRegistryMock = await smock.fake('PoolRegistry')
     poolRegistryMock.governor.returns(deployer.address)
@@ -1314,6 +1326,7 @@ describe('Pool', function () {
       const treasuryFactory = await ethers.getContractFactory('Treasury', deployer)
       const newTreasury = await treasuryFactory.deploy()
       await newTreasury.deployed()
+      await setStorageAt(newTreasury.address, 0, 0) // Undo initialization made by constructor
       await newTreasury.initialize(pool.address)
 
       // given

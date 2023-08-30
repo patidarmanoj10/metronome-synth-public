@@ -1,6 +1,6 @@
 import {BigNumber} from 'ethers'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
-import {loadFixture} from '@nomicfoundation/hardhat-network-helpers'
+import {loadFixture, setStorageAt} from '@nomicfoundation/hardhat-network-helpers'
 import chai, {expect} from 'chai'
 import {ethers} from 'hardhat'
 import {
@@ -67,6 +67,8 @@ describe('ProxyOFT', function () {
 
     const proxyOFTFactory = await ethers.getContractFactory('ProxyOFT', deployer)
     proxyOFT = await proxyOFTFactory.deploy()
+    await proxyOFT.deployed()
+    await setStorageAt(proxyOFT.address, 0, 0) // Undo initialization made by constructor
     await proxyOFT.initialize(lzEndpoint.address, msUSD.address)
     await proxyOFT.setUseCustomAdapterParams(true)
     await proxyOFT.setTrustedRemote(

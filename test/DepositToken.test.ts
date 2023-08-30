@@ -13,7 +13,7 @@ import {
   PoolRegistry,
   SmartFarmingManager,
 } from '../typechain'
-import {setBalance} from '@nomicfoundation/hardhat-network-helpers'
+import {setBalance, setStorageAt, setCode} from '@nomicfoundation/hardhat-network-helpers'
 import {FakeContract, MockContract, smock} from '@defi-wonderland/smock'
 import {BigNumber} from 'ethers'
 import {toUSD} from '../helpers'
@@ -56,20 +56,24 @@ describe('DepositToken', function () {
     const treasuryFactory = await ethers.getContractFactory('Treasury', deployer)
     treasury = await treasuryFactory.deploy()
     await treasury.deployed()
+    await setStorageAt(treasury.address, 0, 0) // Undo initialization made by constructor
 
     const esMET = await smock.fake('IESMET')
 
     const poolMockRegistry = await smock.fake<PoolRegistry>('PoolRegistry')
     poolMockRegistry.governor.returns(governor.address)
+    await setCode(poolMockRegistry.address, '0x01') // Workaround "function call to a non-contract account" error
 
     const feeProviderFactory = await ethers.getContractFactory('FeeProvider', deployer)
     feeProvider = await feeProviderFactory.deploy()
     await feeProvider.deployed()
+    await setStorageAt(feeProvider.address, 0, 0) // Undo initialization made by constructor
     await feeProvider.initialize(poolMockRegistry.address, esMET.address)
 
     const depositTokenFactory = await ethers.getContractFactory('DepositToken', deployer)
     metDepositToken = await depositTokenFactory.deploy()
     await metDepositToken.deployed()
+    await setStorageAt(metDepositToken.address, 0, 0) // Undo initialization made by constructor
 
     smartFarmingManagerMock = await smock.fake<SmartFarmingManager>('SmartFarmingManager')
     await setBalance(smartFarmingManagerMock.address, parseEther('10'))
