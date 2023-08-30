@@ -661,7 +661,7 @@ describe('DepositToken', function () {
         const currentCollateralFactor = await metDepositToken.collateralFactor()
 
         // when
-        const newCollateralFactor = currentCollateralFactor.mul('2')
+        const newCollateralFactor = currentCollateralFactor.add('1')
         const tx = metDepositToken.updateCollateralFactor(newCollateralFactor)
 
         // then
@@ -687,12 +687,20 @@ describe('DepositToken', function () {
         await expect(tx).revertedWithCustomError(metDepositToken, 'SenderIsNotGovernor')
       })
 
-      it('should revert if > 100%', async function () {
+      it('should revert if it is too high', async function () {
         // when
-        const tx = metDepositToken.updateCollateralFactor(parseEther('1').add('1'))
+        const tx = metDepositToken.updateCollateralFactor(parseEther('1'))
 
         // then
         await expect(tx).revertedWithCustomError(metDepositToken, 'CollateralFactorTooHigh')
+      })
+
+      it('should revert if it is too low', async function () {
+        // when
+        const tx = metDepositToken.updateCollateralFactor(0)
+
+        // then
+        await expect(tx).revertedWithCustomError(metDepositToken, 'CollateralFactorTooLow')
       })
     })
 
