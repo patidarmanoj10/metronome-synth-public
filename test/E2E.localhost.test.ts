@@ -108,32 +108,32 @@ describe.skip('E2E tests (localhost)', function () {
 
   async function fixture() {
     // Note: Using dynamic import otherwise test will fail when `/deployments/localhost` doesn't exist
-    POOL_REGISTRY_ADDRESS = await import('../deployments/localhost/PoolRegistry.json')
-    USDC_DEPOSIT_ADDRESS = await import('../deployments/localhost/USDCDepositToken.json')
-    DAI_DEPOSIT_ADDRESS = await import('../deployments/localhost/DAIDepositToken.json')
-    WBTC_DEPOSIT_ADDRESS = await import('../deployments/localhost/WBTCDepositToken.json')
-    FRAX_DEPOSIT_ADDRESS = await import('../deployments/localhost/FRAXDepositToken.json')
-    WETH_DEPOSIT_ADDRESS = await import('../deployments/localhost/WETHDepositToken.json')
-    VAFRAX_DEPOSIT_ADDRESS = await import('../deployments/localhost/vaFRAXDepositToken.json')
-    VAUSDC_DEPOSIT_ADDRESS = await import('../deployments/localhost/vaUSDCDepositToken.json')
-    VAETH_DEPOSIT_ADDRESS = await import('../deployments/localhost/vaETHDepositToken.json')
-    MSUSD_DEBT_ADDRESS = await import('../deployments/localhost/MsUSDDebt.json')
-    MSBTC_DEBT_ADDRESS = await import('../deployments/localhost/MsBTCDebt.json')
-    MSETH_DEBT_ADDRESS = await import('../deployments/localhost/MsETHDebt.json')
-    MSUSD_SYNTHETIC_ADDRESS = await import('../deployments/localhost/MsUSDSynthetic.json')
-    MSBTC_SYNTHETIC_ADDRESS = await import('../deployments/localhost/MsBTCSynthetic.json')
-    MSETH_SYNTHETIC_ADDRESS = await import('../deployments/localhost/MsETHSynthetic.json')
-    NATIVE_TOKEN_GATEWAY_ADDRESS = await import('../deployments/localhost/NativeTokenGateway.json')
-    SRFXETH_DEPOSIT_ADDRESS = await import('../deployments/localhost/sfrxETHDepositToken.json')
-    VASTETH_DEPOSIT_ADDRESS = await import('../deployments/localhost/vaSTETHDepositToken.json')
-    VARETH_DEPOSIT_ADDRESS = await import('../deployments/localhost/vaRETHDepositToken.json')
-    VACBETH_DEPOSIT_ADDRESS = await import('../deployments/localhost/vaCBETHDepositToken.json')
-    QUOTER_ADDRESS = await import('../deployments/localhost/Quoter.json')
-    MSUSD_PROXYOFT_ADDRESS = await import('../deployments/localhost/MsUSDProxyOFT.json')
-    MSETH_PROXYOFT_ADDRESS = await import('../deployments/localhost/MsETHProxyOFT.json')
-    MSBTC_PROXYOFT_ADDRESS = await import('../deployments/localhost/MsBTCProxyOFT.json')
-    SMART_FARMING_MANAGER_ADDRESS = await import('../deployments/localhost/SmartFarmingManager.json')
-    CROSS_CHAIN_DISPATCHER_ADDRESS = await import('../deployments/localhost/CrossChainDispatcher.json')
+    ;({address: POOL_REGISTRY_ADDRESS} = await import('../deployments/localhost/PoolRegistry.json'))
+    ;({address: USDC_DEPOSIT_ADDRESS} = await import('../deployments/localhost/USDCDepositToken.json'))
+    ;({address: DAI_DEPOSIT_ADDRESS} = await import('../deployments/localhost/DAIDepositToken.json'))
+    ;({address: WBTC_DEPOSIT_ADDRESS} = await import('../deployments/localhost/WBTCDepositToken.json'))
+    ;({address: FRAX_DEPOSIT_ADDRESS} = await import('../deployments/localhost/FRAXDepositToken.json'))
+    ;({address: WETH_DEPOSIT_ADDRESS} = await import('../deployments/localhost/WETHDepositToken.json'))
+    ;({address: VAFRAX_DEPOSIT_ADDRESS} = await import('../deployments/localhost/vaFRAXDepositToken.json'))
+    ;({address: VAUSDC_DEPOSIT_ADDRESS} = await import('../deployments/localhost/vaUSDCDepositToken.json'))
+    ;({address: VAETH_DEPOSIT_ADDRESS} = await import('../deployments/localhost/vaETHDepositToken.json'))
+    ;({address: MSUSD_DEBT_ADDRESS} = await import('../deployments/localhost/MsUSDDebt.json'))
+    ;({address: MSBTC_DEBT_ADDRESS} = await import('../deployments/localhost/MsBTCDebt.json'))
+    ;({address: MSETH_DEBT_ADDRESS} = await import('../deployments/localhost/MsETHDebt.json'))
+    ;({address: MSUSD_SYNTHETIC_ADDRESS} = await import('../deployments/localhost/MsUSDSynthetic.json'))
+    ;({address: MSBTC_SYNTHETIC_ADDRESS} = await import('../deployments/localhost/MsBTCSynthetic.json'))
+    ;({address: MSETH_SYNTHETIC_ADDRESS} = await import('../deployments/localhost/MsETHSynthetic.json'))
+    ;({address: NATIVE_TOKEN_GATEWAY_ADDRESS} = await import('../deployments/localhost/NativeTokenGateway.json'))
+    ;({address: SRFXETH_DEPOSIT_ADDRESS} = await import('../deployments/localhost/sfrxETHDepositToken.json'))
+    ;({address: VASTETH_DEPOSIT_ADDRESS} = await import('../deployments/localhost/vaSTETHDepositToken.json'))
+    ;({address: VARETH_DEPOSIT_ADDRESS} = await import('../deployments/localhost/vaRETHDepositToken.json'))
+    ;({address: VACBETH_DEPOSIT_ADDRESS} = await import('../deployments/localhost/vaCBETHDepositToken.json'))
+    ;({address: QUOTER_ADDRESS} = await import('../deployments/localhost/Quoter.json'))
+    ;({address: MSUSD_PROXYOFT_ADDRESS} = await import('../deployments/localhost/MsUSDProxyOFT.json'))
+    ;({address: MSETH_PROXYOFT_ADDRESS} = await import('../deployments/localhost/MsETHProxyOFT.json'))
+    ;({address: MSBTC_PROXYOFT_ADDRESS} = await import('../deployments/localhost/MsBTCProxyOFT.json'))
+    ;({address: SMART_FARMING_MANAGER_ADDRESS} = await import('../deployments/localhost/SmartFarmingManager.json'))
+    ;({address: CROSS_CHAIN_DISPATCHER_ADDRESS} = await import('../deployments/localhost/CrossChainDispatcher.json'))
 
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[, alice, bob] = await ethers.getSigners()
@@ -781,7 +781,7 @@ describe.skip('E2E tests (localhost)', function () {
       })
     })
 
-    describe('crossChainLeverage', function () {
+    describe('cross-chain operations', function () {
       const LZ_MAINNET_ID = 101
       const LZ_OP_ID = 110
       const SG_USDC_POOL_ID = 1
@@ -827,7 +827,7 @@ describe.skip('E2E tests (localhost)', function () {
         }
       })
 
-      it('should initiate cross-chain leverage', async function () {
+      it('crossChainLeverage', async function () {
         // given
         expect(await smartFarmingManager.crossChainRequestsLength()).eq(0)
 
@@ -853,6 +853,59 @@ describe.skip('E2E tests (localhost)', function () {
 
         // then
         expect(await smartFarmingManager.crossChainRequestsLength()).eq(1)
+      })
+
+      describe('crossChainFlashRepay', function () {
+        beforeEach(async function () {
+          const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
+          expect(_debtInUsd).eq(0)
+          expect(_depositInUsd).eq(0)
+          const amountIn = parseUnits('100', 18)
+          const leverage = parseEther('1.5')
+          await vaUSDC.connect(alice).approve(smartFarmingManager.address, MaxUint256)
+          await smartFarmingManager.leverage(vaUSDC.address, msdVaUSDC.address, msUSD.address, amountIn, leverage, 0)
+
+          // Note: Adds vaUSDC->USDC routing
+          // TODO: Remove after having this step done on Swapper side
+          const swapper = new ethers.Contract(
+            await poolRegistry.swapper(),
+            ['function setExactInputRouting(address,address,bytes)'],
+            governor
+          )
+          await swapper.setExactInputRouting(
+            vaUSDC.address,
+            usdc.address,
+            '0x000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000020000000000000000000000000639C9e4563A0CA81a1FeE7d6B48128DAF2Cf9531000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000002451cff8d9000000000000000000000000a8b607aa09b6a2e306f93e74c282fb13f6a8045200000000000000000000000000000000000000000000000000000000'
+          )
+        })
+
+        it('crossChainFlashRepay', async function () {
+          // given
+          expect(await smartFarmingManager.crossChainRequestsLength()).eq(0)
+
+          // when
+          const withdrawAmount = parseUnits('30', 18)
+          const underlyingAmountOutMin = 0
+          const swapAmountOutMin = 0
+          const repayAmountOutMin = 0
+          const lzArgs = await quoter.getFlashRepaySwapAndCallbackLzArgs(LZ_MAINNET_ID, LZ_OP_ID)
+          const fee = parseEther('0.5')
+
+          await smartFarmingManager.crossChainFlashRepay(
+            msUSD.address,
+            msdVaUSDC.address,
+            withdrawAmount,
+            usdc.address,
+            underlyingAmountOutMin,
+            swapAmountOutMin,
+            repayAmountOutMin,
+            lzArgs,
+            {value: fee}
+          )
+
+          // then
+          expect(await smartFarmingManager.crossChainRequestsLength()).eq(1)
+        })
       })
     })
   })

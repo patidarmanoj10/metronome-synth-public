@@ -1,6 +1,8 @@
 #
 # Table with errors' signatures for debugging help (useful for E2E tests)
 #
+# Note: Use this table for the case https://openchain.xyz/signatures isn't helping
+#
 # Steps to update this file:
 #
 # 1) Generate array with all errors
@@ -9,14 +11,14 @@
 # 2) Create script to print signatures
 # ```js
 # const Web3 = require("web3")
-# const web3 = new Web3("localhost")
+# const web3 = new Web3()
 # const errors = [<paste from step above>]
 # for (const e of errors) {
 #   console.log(`${e} -> ${web3.eth.abi.encodeFunctionSignature(e)}`)
 # }
 # ```
 # 3) Clean output and save file
-# npx ts-node errors-scripts.js | sort | uniq > custom-errors.txt
+# node errors-scripts.js | sort | uniq > custom-errors.txt
 #
 
 AddressIsNull() -> 0xfb7566d7
