@@ -17,6 +17,7 @@ error PoolIsNull();
 error SymbolIsNull();
 error DecimalsIsNull();
 error CollateralFactorTooHigh();
+error CollateralFactorTooLow();
 error DecreasedAllowanceBelowZero();
 error AmountIsZero();
 error BeneficiaryIsNull();
@@ -547,7 +548,8 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
      * @param newCollateralFactor_ The new CF value
      */
     function updateCollateralFactor(uint128 newCollateralFactor_) external override onlyGovernor {
-        if (newCollateralFactor_ > 1e18) revert CollateralFactorTooHigh();
+        if (newCollateralFactor_ == 0) revert CollateralFactorTooLow();
+        if (newCollateralFactor_ >= 1e18) revert CollateralFactorTooHigh();
         uint256 _currentCollateralFactor = collateralFactor;
         if (newCollateralFactor_ == _currentCollateralFactor) revert NewValueIsSameAsCurrent();
         emit CollateralFactorUpdated(_currentCollateralFactor, newCollateralFactor_);
