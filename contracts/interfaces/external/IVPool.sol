@@ -10,4 +10,6 @@ interface IVPool is IERC20 {
     function deposit(uint256 _amount) external;
 
     function withdraw(uint256 _shares) external;
+
+    function poolRewards() external view returns (address);
 }

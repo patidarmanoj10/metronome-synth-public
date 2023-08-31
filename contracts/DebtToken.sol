@@ -37,7 +37,7 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
     uint256 public constant SECONDS_PER_YEAR = 365.25 days;
     uint256 private constant HUNDRED_PERCENT = 1e18;
 
-    string public constant VERSION = "1.1.0";
+    string public constant VERSION = "1.2.0";
 
     /// @notice Emitted when synthetic's debt is repaid
     event DebtRepaid(address indexed payer, address indexed account, uint256 amount, uint256 repaid, uint256 fee);
@@ -146,11 +146,10 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
             totalSupply_ += _interestAmountAccrued;
             debtIndex = _debtIndex;
 
-            if (syntheticToken.isActive()) {
-                // Note: We could save gas by just increase `pendingInterestFee` here
-                syntheticToken.mint(pool.feeCollector(), _interestAmountAccrued + pendingInterestFee);
+            // Note: Address states where minting will fail (e.g. the token is inactive, it reached max supply, etc)
+            try syntheticToken.mint(pool.feeCollector(), _interestAmountAccrued + pendingInterestFee) {
                 pendingInterestFee = 0;
-            } else {
+            } catch {
                 pendingInterestFee += _interestAmountAccrued;
             }
         }

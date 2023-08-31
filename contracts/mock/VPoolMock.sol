@@ -25,4 +25,8 @@ contract VPoolMock is IVPool, ERC20 {
     function mint(address to_, uint256 amount_) external {
         _mint(to_, amount_);
     }
+
+    function poolRewards() external pure returns (address) {
+        revert("mock-does-not-implement");
+    }
 }

@@ -19,7 +19,6 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     hre,
     contractConfig: UpgradableContracts.Pool,
     initializeArgs: [poolRegistry.address],
-    forceUpgrade: true,
   })
 
   const isRegistered = await read(PoolRegistry, 'isPoolRegistered', poolAddress)

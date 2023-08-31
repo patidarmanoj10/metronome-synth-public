@@ -1,9 +1,8 @@
-/* eslint-disable camelcase */
 import {parseEther} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
-import {TokenHolderMock__factory, TokenHolderMock, ERC20Mock, ERC20Mock__factory} from '../../typechain'
+import {TokenHolderMock, ERC20Mock} from '../../typechain'
 
 describe('TokenHolder', function () {
   let deployer: SignerWithAddress
@@ -15,10 +14,10 @@ describe('TokenHolder', function () {
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[deployer, sweeper, user] = await ethers.getSigners()
-    const tokenHolderFactory = new TokenHolderMock__factory(deployer)
+    const tokenHolderFactory = await ethers.getContractFactory('TokenHolderMock', deployer)
     tokenHolder = await tokenHolderFactory.deploy(sweeper.address)
 
-    const erc20MockFactory = new ERC20Mock__factory(deployer)
+    const erc20MockFactory = await ethers.getContractFactory('ERC20Mock', deployer)
     tokenMock = await erc20MockFactory.deploy('Name', 'SYMBOL', 18)
     await tokenMock.deployed()
   })

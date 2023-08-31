@@ -1,9 +1,8 @@
-/* eslint-disable camelcase */
 import {parseEther} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import chai, {expect} from 'chai'
 import {ethers} from 'hardhat'
-import {RewardsDistributor__factory, RewardsDistributor, ERC20Mock__factory, ERC20Mock} from '../typechain'
+import {RewardsDistributor, ERC20Mock} from '../typechain'
 import {FakeContract, smock} from '@defi-wonderland/smock'
 import {mine} from '@nomicfoundation/hardhat-network-helpers'
 import {increaseTimeOfNextBlock} from './helpers'
@@ -24,12 +23,14 @@ describe('RewardDistributor', function () {
   let debtToken2: FakeContract
   let msdTOKEN2: FakeContract
   let rewardDistributor: RewardsDistributor
+  let vPool: FakeContract
+  let poolRewards: FakeContract
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[deployer, alice, bob] = await ethers.getSigners()
 
-    const erc20MockFactory = new ERC20Mock__factory(deployer)
+    const erc20MockFactory = await ethers.getContractFactory('ERC20Mock', deployer)
     vsp = await erc20MockFactory.deploy('VesperToken', 'VSP', 18)
     await vsp.deployed()
 
@@ -39,7 +40,7 @@ describe('RewardDistributor', function () {
     debtToken2 = await smock.fake('DebtToken')
     msdTOKEN2 = await smock.fake('DepositToken')
 
-    const rewardDistributorFactory = new RewardsDistributor__factory(deployer)
+    const rewardDistributorFactory = await ethers.getContractFactory('RewardsDistributor', deployer)
     rewardDistributor = await rewardDistributorFactory.deploy()
     rewardDistributor.deployed()
 
@@ -56,6 +57,48 @@ describe('RewardDistributor', function () {
     pool.doesSyntheticTokenExist.returns(true)
     pool.governor.returns(deployer.address)
     pool.getRewardsDistributors.returns([rewardDistributor.address])
+  })
+
+  describe('syncTokenSpeed', function () {
+    const rewardRates = parseEther('3')
+    const treasuryBalance = parseEther('100')
+    const totalSupply = parseEther('200')
+    beforeEach(async function () {
+      vPool = await smock.fake('IVPool')
+      poolRewards = await smock.fake('IPoolRewardsExt')
+
+      msdTOKEN1.underlying.returns(vPool.address)
+      vPool.poolRewards.returns(poolRewards.address)
+      vPool.balanceOf.returns(treasuryBalance)
+      vPool.totalSupply.returns(totalSupply)
+      poolRewards.rewardRates.returns(rewardRates)
+    })
+
+    it('should revert if not keeper', async function () {
+      // given
+      await rewardDistributor.updateTokenSpeedKeeper(alice.address)
+
+      // when
+      const tx = rewardDistributor.connect(bob).syncTokenSpeed(msdTOKEN1.address)
+
+      // then
+      await expect(tx).revertedWithCustomError(rewardDistributor, 'NotTokenSpeedKeeper')
+    })
+
+    it('should sync speed', async function () {
+      // given
+      await rewardDistributor.updateTokenSpeedKeeper(alice.address)
+      const before = parseEther('1')
+      await rewardDistributor.updateTokenSpeed(msdTOKEN1.address, before)
+
+      // when
+      await rewardDistributor.connect(alice).syncTokenSpeed(msdTOKEN1.address)
+
+      // then
+      const newSpeed = rewardRates.mul(treasuryBalance).div(totalSupply)
+      const after = await rewardDistributor.tokenSpeeds(msdTOKEN1.address)
+      expect(after).eq(newSpeed)
+    })
   })
 
   describe('updateTokenSpeed', function () {
@@ -543,6 +586,29 @@ describe('RewardDistributor', function () {
 
         // then
         expect(await vsp.balanceOf(alice.address)).eq(expectedReward)
+      })
+    })
+
+    describe('claimable', function () {
+      it('claimable should be correct', async function () {
+        // Update stored reward by calling update
+        await rewardDistributor.updateBeforeMintOrBurn(msdTOKEN1.address, alice.address)
+        await rewardDistributor.updateBeforeMintOrBurn(msdTOKEN2.address, alice.address)
+        await rewardDistributor.updateBeforeMintOrBurn(debtToken1.address, alice.address)
+        await rewardDistributor.updateBeforeMintOrBurn(debtToken2.address, alice.address)
+        await mine()
+        const rewards = await rewardDistributor['claimable(address)'](alice.address)
+        await mine()
+        const rewards2 = await rewardDistributor['claimable(address)'](alice.address)
+        expect(rewards2).eq(rewards.add(parseEther('2'))) // Each block will increase claimable by 2
+
+        const before = await vsp.balanceOf(alice.address)
+        expect(before).eq(BigNumber.from(0))
+        await rewardDistributor['claimRewards(address)'](alice.address)
+        await mine()
+
+        const after = await vsp.balanceOf(alice.address)
+        expect(after).eq(rewards2.add(parseEther('2')))
       })
     })
   })

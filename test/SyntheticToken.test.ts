@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
 /* eslint-disable camelcase */
 import {parseEther} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
@@ -6,19 +5,13 @@ import {expect} from 'chai'
 import {ethers} from 'hardhat'
 import {
   SyntheticToken,
-  SyntheticToken__factory,
   DebtToken,
-  DebtToken__factory,
-  MasterOracleMock__factory,
   MasterOracleMock,
-  ERC20Mock__factory,
   ERC20Mock,
-  DepositToken__factory,
   DepositToken,
   PoolMock,
   PoolMock__factory,
   FeeProvider,
-  FeeProvider__factory,
 } from '../typechain'
 import {toUSD} from '../helpers'
 import {FakeContract, MockContract, smock} from '@defi-wonderland/smock'
@@ -53,29 +46,29 @@ describe('SyntheticToken', function () {
     poolRegistryMock = await smock.fake('PoolRegistry')
     await setBalance(poolRegistryMock.address, parseEther('10'))
 
-    const masterOracleMockFactory = new MasterOracleMock__factory(deployer)
+    const masterOracleMockFactory = await ethers.getContractFactory('MasterOracleMock', deployer)
     masterOracleMock = await masterOracleMockFactory.deploy()
     await masterOracleMock.deployed()
 
-    const erc20MockFactory = new ERC20Mock__factory(deployer)
+    const erc20MockFactory = await ethers.getContractFactory('ERC20Mock', deployer)
     met = await erc20MockFactory.deploy('Metronome', 'MET', 18)
     await met.deployed()
 
-    const depositTokenFactory = new DepositToken__factory(deployer)
+    const depositTokenFactory = await ethers.getContractFactory('DepositToken', deployer)
     msdMET = await depositTokenFactory.deploy()
     await msdMET.deployed()
 
-    const debtTokenFactory = new DebtToken__factory(deployer)
+    const debtTokenFactory = await ethers.getContractFactory('DebtToken', deployer)
     msUSDDebt = await debtTokenFactory.deploy()
     await msUSDDebt.deployed()
 
-    const syntheticTokenFactory = new SyntheticToken__factory(deployer)
+    const syntheticTokenFactory = await ethers.getContractFactory('SyntheticToken', deployer)
     msUSD = await syntheticTokenFactory.deploy()
     await msUSD.deployed()
 
     const esMET = await smock.fake('IESMET')
 
-    const feeProviderFactory = new FeeProvider__factory(deployer)
+    const feeProviderFactory = await ethers.getContractFactory('FeeProvider', deployer)
     feeProvider = await feeProviderFactory.deploy()
     await feeProvider.deployed()
     await feeProvider.initialize(poolRegistryMock.address, esMET.address)

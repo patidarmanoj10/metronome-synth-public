@@ -106,7 +106,7 @@ contract SyntheticTokenHandler is SynthHandlerBase {
         amount = bound(amount, 0, syntheticToken.balanceOf(from));
 
         vm.stopPrank();
-        vm.prank(address(pool));
+        vm.startPrank(address(pool));
         syntheticToken.seize(from, to, amount);
     }
 

@@ -1,6 +1,5 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
+/* eslint-disable new-cap */
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-/* eslint-disable camelcase */
 import {BigNumber} from '@ethersproject/bignumber'
 import {parseEther} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
@@ -9,24 +8,14 @@ import chai, {expect} from 'chai'
 import {ethers} from 'hardhat'
 import {
   DepositToken,
-  DepositToken__factory,
   ERC20Mock,
-  ERC20Mock__factory,
   MasterOracleMock,
-  MasterOracleMock__factory,
   SyntheticToken,
-  SyntheticToken__factory,
   Treasury,
-  Treasury__factory,
-  Pool__factory,
   Pool,
   DebtToken,
-  DebtToken__factory,
   SwapperMock,
-  SwapperMock__factory,
   VPoolMock,
-  VPoolMock__factory,
-  FeeProvider__factory,
   FeeProvider,
 } from '../typechain'
 import {getMinLiquidationAmountInUsd} from './helpers'
@@ -78,16 +67,16 @@ describe('Pool', function () {
   async function fixture() {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[deployer, alice, , liquidator, feeCollector] = await ethers.getSigners()
-    const masterOracleMockFactory = new MasterOracleMock__factory(deployer)
+    const masterOracleMockFactory = await ethers.getContractFactory('MasterOracleMock', deployer)
     masterOracle = await masterOracleMockFactory.deploy()
     await masterOracle.deployed()
 
-    const swapperMockFactory = new SwapperMock__factory(deployer)
+    const swapperMockFactory = await ethers.getContractFactory('SwapperMock', deployer)
     swapper = await swapperMockFactory.deploy(masterOracle.address)
     await swapper.deployed()
 
-    const erc20MockFactory = new ERC20Mock__factory(deployer)
-    const vPoolMockFactory = new VPoolMock__factory(deployer)
+    const erc20MockFactory = await ethers.getContractFactory('ERC20Mock', deployer)
+    const vPoolMockFactory = await ethers.getContractFactory('VPoolMock', deployer)
 
     met = await erc20MockFactory.deploy('Metronome', 'MET', 18)
     await met.deployed()
@@ -98,11 +87,11 @@ describe('Pool', function () {
     vaDAI = await vPoolMockFactory.deploy('Vesper Pool Dai', 'vaDAI', dai.address)
     await vaDAI.deployed()
 
-    const treasuryFactory = new Treasury__factory(deployer)
+    const treasuryFactory = await ethers.getContractFactory('Treasury', deployer)
     treasury = await treasuryFactory.deploy()
     await treasury.deployed()
 
-    const depositTokenFactory = new DepositToken__factory(deployer)
+    const depositTokenFactory = await ethers.getContractFactory('DepositToken', deployer)
     msdMET = await depositTokenFactory.deploy()
     await msdMET.deployed()
 
@@ -112,7 +101,7 @@ describe('Pool', function () {
     msdVaDAI = await depositTokenFactory.deploy()
     await msdVaDAI.deployed()
 
-    const debtTokenFactory = new DebtToken__factory(deployer)
+    const debtTokenFactory = await ethers.getContractFactory('DebtToken', deployer)
 
     msEthDebtToken = await debtTokenFactory.deploy()
     await msEthDebtToken.deployed()
@@ -123,7 +112,7 @@ describe('Pool', function () {
     msUsdDebtToken = await debtTokenFactory.deploy()
     await msUsdDebtToken.deployed()
 
-    const syntheticTokenFactory = new SyntheticToken__factory(deployer)
+    const syntheticTokenFactory = await ethers.getContractFactory('SyntheticToken', deployer)
 
     msEth = await syntheticTokenFactory.deploy()
     await msEth.deployed()
@@ -134,11 +123,11 @@ describe('Pool', function () {
     msUSD = await syntheticTokenFactory.deploy()
     await msUSD.deployed()
 
-    const feeProviderFactory = new FeeProvider__factory(deployer)
+    const feeProviderFactory = await ethers.getContractFactory('FeeProvider', deployer)
     feeProvider = await feeProviderFactory.deploy()
     await feeProvider.deployed()
 
-    const poolFactory = new Pool__factory(deployer)
+    const poolFactory = await ethers.getContractFactory('Pool', deployer)
     pool = await poolFactory.deploy()
     await pool.deployed()
 
@@ -349,6 +338,78 @@ describe('Pool', function () {
       const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
       expect(_depositInUsd).closeTo(parseEther('75'), parseEther('10'))
       expect(_debtInUsd).closeTo(parseEther('25'), parseEther('10'))
+    })
+
+    describe('flashRepay', function () {
+      beforeEach('leverage vaDAI->msUSD', async function () {
+        const amountIn = parseUnits('100', 18)
+        const leverage = parseEther('1.5')
+        await pool.connect(alice).leverage(vaDAI.address, msdVaDAI.address, msUSD.address, amountIn, leverage, 0)
+      })
+
+      it('should revert if withdraw amount is too high', async function () {
+        // when
+        const withdrawAmount = (await msdVaDAI.balanceOf(alice.address)).add('1')
+        const tx = pool.connect(alice).flashRepay(msUSD.address, msdVaDAI.address, withdrawAmount, 0)
+
+        // then
+        await expect(tx).revertedWithCustomError(pool, 'AmountIsTooHigh')
+      })
+
+      it('should revert if repay amount is too high', async function () {
+        // when
+        const withdrawAmount = await msdVaDAI.balanceOf(alice.address)
+        const repayAmountMin = (await msUsdDebtToken.balanceOf(alice.address)).add('1')
+        const tx = pool.connect(alice).flashRepay(msUSD.address, msdVaDAI.address, withdrawAmount, repayAmountMin)
+
+        // then
+        await expect(tx).revertedWithCustomError(pool, 'AmountIsTooHigh')
+      })
+
+      it('should revert if slippage is too high', async function () {
+        // given
+        await swapper.updateRate(parseEther('0.9')) // 10% slippage
+
+        // when
+        const withdrawAmount = parseEther('50')
+        const repayAmountMin = parseEther('49.5') // 1% slippage
+        const tx = pool.connect(alice).flashRepay(msUSD.address, msdVaDAI.address, withdrawAmount, repayAmountMin)
+
+        // then
+        await expect(tx).revertedWithCustomError(pool, 'FlashRepaySlippageTooHigh')
+      })
+
+      it('should revert if the outcome position is unhealthy', async function () {
+        // given
+        const {_debtInUsd: debtBefore, _depositInUsd: depositBefore} = await pool.debtPositionOf(alice.address)
+        expect(depositBefore).eq(parseEther('150'))
+        expect(debtBefore).eq(parseEther('50'))
+        // Simulates huge slippage (90%), that makes user withdraw large collateral but repay small amount
+        await swapper.updateRate(parseEther('0.1'))
+
+        // when
+        const withdrawAmount = parseEther('100')
+        const tx = pool.connect(alice).flashRepay(msUSD.address, msdVaDAI.address, withdrawAmount, 0)
+
+        // then
+        await expect(tx).revertedWithCustomError(pool, 'PositionIsNotHealthy')
+      })
+
+      it('should flashRepay vaDAI->msUSD', async function () {
+        // given
+        const {_debtInUsd: debtBefore, _depositInUsd: depositBefore} = await pool.debtPositionOf(alice.address)
+        expect(depositBefore).eq(parseEther('150'))
+        expect(debtBefore).eq(parseEther('50'))
+
+        // when
+        const withdrawAmount = parseEther('50')
+        await pool.connect(alice).flashRepay(msUSD.address, msdVaDAI.address, withdrawAmount, 0)
+
+        // then
+        const {_debtInUsd: debtAfter, _depositInUsd: depositAfter} = await pool.debtPositionOf(alice.address)
+        expect(depositAfter).eq(parseEther('100'))
+        expect(debtAfter).eq(0)
+      })
     })
   })
 
@@ -929,7 +990,7 @@ describe('Pool', function () {
             const tx = pool.connect(liquidator).liquidate(msEth.address, alice.address, amountToRepay, msdMET.address)
 
             // then
-            await expect(tx).revertedWithCustomError(pool, 'AmountIsTooHight')
+            await expect(tx).revertedWithCustomError(pool, 'AmountIsTooHigh')
           })
 
           it('should liquidate by repaying max possible amount (liquidateFee == 0)', async function () {
@@ -1467,7 +1528,7 @@ describe('Pool', function () {
     })
 
     it('should migrate funds to the new treasury', async function () {
-      const treasuryFactory = new Treasury__factory(deployer)
+      const treasuryFactory = await ethers.getContractFactory('Treasury', deployer)
       const newTreasury = await treasuryFactory.deploy()
       await newTreasury.deployed()
       await newTreasury.initialize(pool.address)
@@ -1602,6 +1663,7 @@ describe('Pool', function () {
       it('should revert if caller is not a debt token', async function () {
         const invalidDebtToken = await smock.fake('DebtToken')
         invalidDebtToken.syntheticToken.returns(syntheticToken.address)
+        await setBalance(invalidDebtToken.address, parseEther('10'))
 
         const tx = pool.connect(invalidDebtToken.wallet).addToDebtTokensOfAccount(alice.address)
         await expect(tx).revertedWithCustomError(pool, 'SenderIsNotDebtToken')
@@ -1672,6 +1734,7 @@ describe('Pool', function () {
       it('should revert if caller is not a debt token', async function () {
         const invalidDebtToken = await smock.fake('DebtToken')
         invalidDebtToken.syntheticToken.returns(syntheticToken.address)
+        await setBalance(invalidDebtToken.address, parseEther('10'))
 
         const tx = pool.connect(invalidDebtToken.wallet).removeFromDebtTokensOfAccount(alice.address)
         await expect(tx).revertedWithCustomError(pool, 'SenderIsNotDebtToken')

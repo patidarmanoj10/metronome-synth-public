@@ -24,13 +24,15 @@ npx hardhat impersonate-deployer --network localhost
 ## run test before (optional)
 
 ```sh
-npx hardhat test --network localhost test/E2E.test.ts
+# If the target chain already has contracts deployed
+npx hardhat test --network localhost test/E2E.<NETWORK>.test.ts
 ```
 
 ## run deployment
 
 ```sh
-cp -r deployments/mainnet/ deployments/localhost
+# If the target chain already has contracts deployed
+cp -r deployments/<NETWORK>/ deployments/localhost
 ```
 
 Note: If you want to check `deployments/` files changes easier, uncomment `deployments/localhost` line from `.gitignore` and stage them.
@@ -43,5 +45,5 @@ npx hardhat deploy --network localhost > DEPLOYMENT_TEST_OUTPUT.txt
 ## run test after
 
 ```sh
-npx hardhat test --network localhost test/E2E.test.ts
+npx hardhat test --network localhost test/E2E.<NETWORK>.test.ts
 ```
