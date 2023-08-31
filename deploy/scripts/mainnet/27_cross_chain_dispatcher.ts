@@ -17,7 +17,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {address: crossChainDispatcherAddress} = await deployUpgradable({
     hre,
     contractConfig: UpgradableContracts.CrossChainDispatcher,
-    initializeArgs: [poolRegistryAddress],
+    initializeArgs: [poolRegistryAddress, Address.WETH_ADDRESS, Address.SGETH_ADDRESS],
   })
 
   await updateParamIfNeeded(hre, {

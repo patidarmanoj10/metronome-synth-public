@@ -15,7 +15,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   const {address: smartFarmingManagerAddress} = await deployUpgradable({
     hre,
-    contractConfig: UpgradableContracts.Quoter,
+    contractConfig: UpgradableContracts.SmartFarmingManager,
     initializeArgs: [poolAddress],
   })
 

@@ -18,21 +18,21 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     {
       currentUpgrader: 'PoolUpgraderV2',
       newUpgrader: 'PoolUpgraderV3',
-      proxyAliases: ['Pool'],
+      targetProxies: ['Pool'],
     },
     {
       currentUpgrader: 'SyntheticTokenUpgrader',
       newUpgrader: 'SyntheticTokenUpgraderV2',
-      proxyAliases: ['MsUSDSynthetic', 'MsETHSynthetic', 'MsBTCSynthetic'],
+      targetProxies: ['MsUSDSynthetic', 'MsETHSynthetic', 'MsOPSynthetic'],
     },
     {
       currentUpgrader: 'PoolRegistryUpgrader',
       newUpgrader: 'PoolRegistryUpgraderV2',
-      proxyAliases: ['PoolRegistry'],
+      targetProxies: ['PoolRegistry'],
     },
   ]
 
-  for (const {currentUpgrader, newUpgrader, proxyAliases: proxies} of upgraders) {
+  for (const {currentUpgrader, newUpgrader, targetProxies: proxies} of upgraders) {
     // 1. Deploy new version of upgrader
     const alreadyDeployed = !!(await getOrNull(newUpgrader))
 

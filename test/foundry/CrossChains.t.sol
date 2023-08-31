@@ -60,6 +60,11 @@ abstract contract CrossChains_Test is Test {
     address public constant SG_OP_USDC_POOL = 0xDecC0c09c3B5f6e92EF4184125D5648a66E35298;
     address public constant SG_MAINNET_USDC_POOL = 0xdf0770dF86a8034b3EFEf0A1Bb3c889B8332FF56;
 
+    address public constant WETH_MAINNET = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    address public constant SGETH_MAINNET = 0x72E2F4830b9E45d52F80aC08CB2bEC0FeF72eD9c;
+    address public constant WETH_OP = 0x4200000000000000000000000000000000000006;
+    address public constant SGETH_OP = 0xb69c8CBCD90A39D8D3d3ccf0a3E968511C3856A0;
+
     address feeCollector = address(999);
     address alice = address(10);
     address whale = address(123);
@@ -166,7 +171,7 @@ abstract contract CrossChains_Test is Test {
         poolRegistry_optimism.updateCrossChainDispatcher(crossChainDispatcher_optimism);
         feeProvider_optimism.initialize({poolRegistry_: poolRegistry_optimism, esMET_: IESMET(address(0))});
         pool_optimism.initialize(poolRegistry_optimism);
-        crossChainDispatcher_optimism.initialize(poolRegistry_optimism);
+        crossChainDispatcher_optimism.initialize(poolRegistry_optimism, WETH_OP, SGETH_OP);
         crossChainDispatcher_optimism.toggleBridgingIsActive();
         crossChainDispatcher_optimism.toggleDestinationChainIsActive(LZ_MAINNET_CHAIN_ID);
         smartFarmingManager_optimism.initialize(pool_optimism);
@@ -275,7 +280,7 @@ abstract contract CrossChains_Test is Test {
         feeProvider_mainnet.initialize({poolRegistry_: poolRegistry_mainnet, esMET_: IESMET(address(0))});
         pool_mainnet.initialize(poolRegistry_mainnet);
         treasury_mainnet.initialize(pool_mainnet);
-        crossChainDispatcher_mainnet.initialize(poolRegistry_mainnet);
+        crossChainDispatcher_mainnet.initialize(poolRegistry_mainnet, WETH_MAINNET, SGETH_MAINNET);
         crossChainDispatcher_mainnet.toggleBridgingIsActive();
         crossChainDispatcher_mainnet.toggleDestinationChainIsActive(LZ_OP_CHAIN_ID);
         smartFarmingManager_mainnet.initialize(pool_mainnet);

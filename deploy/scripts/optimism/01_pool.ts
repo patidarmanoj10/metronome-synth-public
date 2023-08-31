@@ -17,7 +17,6 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     hre,
     contractConfig: UpgradableContracts.Pool,
     initializeArgs: [poolRegistry.address],
-    forceUpgrade: true,
   })
 
   await updateParamIfNeeded(hre, {

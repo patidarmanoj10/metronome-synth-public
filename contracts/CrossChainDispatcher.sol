@@ -5,6 +5,7 @@ pragma solidity 0.8.9;
 import "./utils/ReentrancyGuard.sol";
 import "./dependencies/@layerzerolabs/solidity-examples/util/BytesLib.sol";
 import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
+import "./interfaces/external/IWETH.sol";
 import "./interfaces/external/IStargatePool.sol";
 import "./interfaces/external/IStargateFactory.sol";
 import "./storage/CrossChainDispatcherStorage.sol";
@@ -22,6 +23,7 @@ error NewValueIsSameAsCurrent();
 error SenderIsNotGovernor();
 error DestinationChainNotAllowed();
 error InvalidOperationType();
+error InvalidETHSender();
 
 /**
  * @title Cross-chain dispatcher
@@ -115,7 +117,11 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
         _disableInitializers();
     }
 
-    function initialize(IPoolRegistry poolRegistry_) external initializer {
+    receive() external payable {
+        if (msg.sender != weth && msg.sender != sgeth) revert InvalidETHSender();
+    }
+
+    function initialize(IPoolRegistry poolRegistry_, address weth_, address sgeth_) external initializer {
         if (address(poolRegistry_) == address(0)) revert AddressIsNull();
 
         __ReentrancyGuard_init();
@@ -127,6 +133,8 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
         flashRepaySwapTxGasLimit = 500_000;
         leverageCallbackTxGasLimit = 750_000;
         leverageSwapTxGasLimit = 650_000;
+        weth = weth_;
+        sgeth = sgeth_;
     }
 
     /**
@@ -230,6 +238,11 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
         uint256 amountLD_,
         bytes memory payload_
     ) external override onlyIfStargateRouter {
+        // Note: Stargate uses SGETH for ETH cross-chain swaps
+        if (token_ == sgeth) {
+            _sgethForWETH(amountLD_);
+        }
+
         address _srcAddress = abi.decode(srcAddress_, (address));
         if (_srcAddress == address(0) || _srcAddress != crossChainDispatcherOf[srcChainId_])
             revert InvalidFromAddress();
@@ -528,14 +541,19 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
             });
         }
 
-        IERC20 _tokenIn = IERC20(params_.tokenIn);
-        uint256 _poolId = stargatePoolIdOf[address(_tokenIn)];
+        uint256 _poolId = stargatePoolIdOf[params_.tokenIn];
         uint256 _amountOutMin = (params_.amountIn * (MAX_BPS - stargateSlippage)) / MAX_BPS;
         bytes memory _payload = params_.payload;
 
+        // Note: Stargate uses SGETH for ETH cross-chain swaps
+        if (params_.tokenIn == weth) {
+            _wethForSGETH(params_.amountIn);
+            params_.tokenIn = sgeth;
+        }
+
         IStargateRouter _stargateRouter = stargateRouter;
-        _tokenIn.safeApprove(address(_stargateRouter), 0);
-        _tokenIn.safeApprove(address(_stargateRouter), params_.amountIn);
+        IERC20(params_.tokenIn).safeApprove(address(_stargateRouter), 0);
+        IERC20(params_.tokenIn).safeApprove(address(_stargateRouter), params_.amountIn);
         _stargateRouter.swap{value: params_.nativeFee}({
             _dstChainId: params_.dstChainId,
             _srcPoolId: _poolId,
@@ -578,6 +596,22 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
             amountOutMin_: amountOutMin_,
             receiver_: address(this)
         });
+    }
+
+    /**
+     * @dev Swap SGETH for WETH
+     */
+    function _sgethForWETH(uint256 amount_) private {
+        IWETH(sgeth).withdraw(amount_);
+        IWETH(weth).deposit{value: amount_}();
+    }
+
+    /**
+     * @dev Swap WETH for SGETH
+     */
+    function _wethForSGETH(uint256 amount_) private {
+        IWETH(weth).withdraw(amount_);
+        IWETH(sgeth).deposit{value: amount_}();
     }
 
     /**
