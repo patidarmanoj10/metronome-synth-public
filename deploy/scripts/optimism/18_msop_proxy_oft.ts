@@ -6,33 +6,33 @@ import Address from '../../../helpers/address'
 const {
   Pool: {alias: Pool},
 } = UpgradableContracts
-const MsETHSynthetic = 'MsETHSynthetic'
-const MsETHProxyOFT = 'MsETHProxyOFT'
+const MsOPSynthetic = 'MsOPSynthetic'
+const MsOPProxyOFT = 'MsOPProxyOFT'
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {deployments} = hre
   const {get} = deployments
 
-  const {address: msEthAddress} = await get(MsETHSynthetic)
+  const {address: msOpAddress} = await get(MsOPSynthetic)
 
   const {address: proxyOFTAddress} = await deployUpgradable({
     hre,
     contractConfig: {
       ...UpgradableContracts.ProxyOFT,
-      alias: MsETHProxyOFT,
+      alias: MsOPProxyOFT,
     },
-    initializeArgs: [Address.LZ_ENDPOINT, msEthAddress],
+    initializeArgs: [Address.LZ_ENDPOINT, msOpAddress],
   })
 
   await updateParamIfNeeded(hre, {
-    contract: MsETHSynthetic,
+    contract: MsOPSynthetic,
     readMethod: 'proxyOFT',
     writeMethod: 'updateProxyOFT',
     newValue: proxyOFTAddress,
   })
 
   await updateParamIfNeeded(hre, {
-    contract: MsETHProxyOFT,
+    contract: MsOPProxyOFT,
     readMethod: 'useCustomAdapterParams',
     writeMethod: 'setUseCustomAdapterParams',
     newValue: 'true',
@@ -41,5 +41,5 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 }
 
 export default func
-func.tags = [MsETHProxyOFT]
-func.dependencies = [Pool, MsETHSynthetic]
+func.tags = [MsOPProxyOFT]
+func.dependencies = [Pool, MsOPSynthetic]

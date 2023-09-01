@@ -21,7 +21,7 @@ If you set `process.env.DEPLOYER` account, run:
 npx hardhat impersonate-deployer --network localhost
 ```
 
-## run test before (optional)
+## run test for pre-release code
 
 ```sh
 # If the target chain already has contracts deployed
@@ -44,8 +44,8 @@ npx hardhat deploy --network localhost > DEPLOYMENT_TEST_OUTPUT.txt
 
 Note: Always run deployment scripts twice to make sure all changes are executed (for example: calling a function for the new version of the contract won't work on the first run because of outdated ABI but will on the second).
 
-## run test after
+## run test for post-release code
 
 ```sh
-npx hardhat test --network localhost test/E2E.localhost.test.ts
+npx hardhat test --network localhost test/E2E.<NETWORK>.next.test.ts
 ```

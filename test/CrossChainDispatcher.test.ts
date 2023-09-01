@@ -19,6 +19,7 @@ import {
 } from '../typechain'
 import {FakeContract, smock} from '@defi-wonderland/smock'
 import {CrossChainLib} from './helpers/CrossChainLib'
+import Address from '../helpers/address'
 
 chai.use(smock.matchers)
 
@@ -97,7 +98,7 @@ describe('CrossChainDispatcher', function () {
     const crossChainDispatcherFactory = await ethers.getContractFactory('CrossChainDispatcher', deployer)
     crossChainDispatcher = await crossChainDispatcherFactory.deploy()
     await setStorageAt(crossChainDispatcher.address, 0, 0) // Undo initialization made by constructor
-    await crossChainDispatcher.initialize(poolRegistry.address)
+    await crossChainDispatcher.initialize(poolRegistry.address, Address.WETH_ADDRESS, Address.SGETH_ADDRESS)
     await crossChainDispatcher.toggleBridgingIsActive()
     await crossChainDispatcher.updateStargatePoolIdOf(usdc.address, SG_USDC_POOL_ID)
     await crossChainDispatcher.updateCrossChainDispatcherOf(LZ_MAINNET_ID, crossChainDispatcher.address)

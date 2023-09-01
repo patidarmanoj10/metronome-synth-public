@@ -72,4 +72,14 @@ abstract contract CrossChainDispatcherStorageV1 is ICrossChainDispatcher {
      * @notice Maps supported cross-chain routes (i.e. which chains are allowed to be used as source of liquidity)
      */
     mapping(uint16 => bool) public isDestinationChainSupported;
+
+    /**
+     * @notice WETH contract
+     */
+    address public weth;
+
+    /**
+     * @notice SGETH contract
+     */
+    address public sgeth;
 }
