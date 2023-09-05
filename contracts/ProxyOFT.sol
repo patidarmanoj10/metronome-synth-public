@@ -98,7 +98,18 @@ contract ProxyOFT is ComposableOFTCoreUpgradeable, ProxyOFTStorageV1 {
         );
     }
 
+    /// @inheritdoc OwnableUpgradeable
     function owner() public view override returns (address) {
         return syntheticToken.poolRegistry().governor();
+    }
+
+    /// @inheritdoc OwnableUpgradeable
+    function renounceOwnership() public override {
+        revert("disabled");
+    }
+
+    /// @inheritdoc OwnableUpgradeable
+    function transferOwnership(address) public override {
+        revert("disabled");
     }
 }

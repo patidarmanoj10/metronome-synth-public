@@ -127,8 +127,8 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
     }
 
     /**
-     * @notice Get bridged-in circulating supply
-     * @dev The supply is calculated using `totalBridgedIn - totalBridgedOut` or `0` if it's negative
+     * @notice Get net bridged-in circulating supply
+     * @dev The supply is calculated using `MAX(totalBridgedIn - totalBridgedOut, 0)`
      */
     function bridgedInSupply() public view returns (uint256 _supply) {
         uint256 _totalBridgedIn = totalBridgedIn;
@@ -140,8 +140,8 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
     }
 
     /**
-     * @notice Get bridged-out circulating supply
-     * @dev The supply is calculated using `totalBridgedOut - totalBridgedIn` or `0` if it's negative
+     * @notice Get net bridged-out circulating supply
+     * @dev The supply is calculated using `MAX(totalBridgedOut - totalBridgedIn, 0)`
      */
     function bridgedOutSupply() public view returns (uint256 _supply) {
         uint256 _totalBridgedIn = totalBridgedIn;
