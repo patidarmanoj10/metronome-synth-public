@@ -22,9 +22,9 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   await updateParamIfNeeded(hre, {
     contract: PoolRegistry,
     readMethod: 'isPoolRegistered',
-    readArg: poolAddress,
+    readArgs: [poolAddress],
     writeMethod: 'registerPool',
-    newValue: poolAddress,
+    writeArgs: [poolAddress],
     isCurrentValueUpdated: (currentValue: boolean) => currentValue,
   })
 }

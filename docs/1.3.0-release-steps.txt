@@ -73,3 +73,10 @@
     npx hardhat create-release --release 1.3.0 --network optimism
     ```
 
+
+# After both upgrades
+
+
+1. Fill commented setup from deployment scripts related to counter-party addresses (See `CrossChainDispatcher` and `ProxyOFT` deployment scripts)
+
+1. Run deployment scripts again

@@ -28,7 +28,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     contract: PoolRegistry,
     readMethod: 'nativeTokenGateway',
     writeMethod: 'updateNativeTokenGateway',
-    newValue: nativeTokenGatewayAddress,
+    writeArgs: [nativeTokenGatewayAddress],
   })
 }
 
