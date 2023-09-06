@@ -24,6 +24,7 @@ error SenderIsNotGovernor();
 error DestinationChainNotAllowed();
 error InvalidOperationType();
 error InvalidETHSender();
+error InvalidPayload();
 
 /**
  * @title Cross-chain dispatcher
@@ -107,9 +108,7 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
     }
 
     modifier onlyIfProxyOFT() {
-        ISyntheticToken _syntheticToken = ISyntheticToken(IProxyOFT(msg.sender).token());
-        if (!poolRegistry.doesSyntheticTokenExist(_syntheticToken)) revert InvalidMsgSender();
-        if (msg.sender != address(_syntheticToken.proxyOFT())) revert InvalidMsgSender();
+        if (!_isValidProxyOFT(msg.sender)) revert InvalidMsgSender();
         _;
     }
 
@@ -241,6 +240,7 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
         // Note: Stargate uses SGETH for ETH cross-chain swaps
         if (token_ == sgeth) {
             _sgethForWETH(amountLD_);
+            token_ = weth;
         }
 
         address _srcAddress = abi.decode(srcAddress_, (address));
@@ -393,6 +393,7 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
             payload_
         );
 
+        if (!_isValidProxyOFT(_dstProxyOFT)) revert InvalidPayload();
         if (msg.sender != _account) revert InvalidMsgSender();
 
         swapAmountOutMin[_requestId] = newAmountOutMin_;
@@ -526,6 +527,17 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
     }
 
     /**
+     * @dev Check wether an address is a proxyOFT or not
+     */
+    function _isValidProxyOFT(address proxyOFT_) private view returns (bool) {
+        ISyntheticToken _syntheticToken = ISyntheticToken(IProxyOFT(proxyOFT_).token());
+        if (!poolRegistry.doesSyntheticTokenExist(_syntheticToken)) return false;
+        if (proxyOFT_ != address(_syntheticToken.proxyOFT())) return false;
+
+        return true;
+    }
+
+    /**
      * @dev Send underlying token cross-chain
      */
     function _sendUsingStargate(LayerZeroParams memory params_) private {
@@ -582,11 +594,11 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
         if (_storedAmountOutMin > 0) {
             // Use stored slippage and clear it
             amountOutMin_ = _storedAmountOutMin;
-            swapAmountOutMin[requestId_] = 0;
+            delete swapAmountOutMin[requestId_];
         }
+
         // 2. Perform swap
         ISwapper _swapper = poolRegistry.swapper();
-
         IERC20(tokenIn_).safeApprove(address(_swapper), 0);
         IERC20(tokenIn_).safeApprove(address(_swapper), amountIn_);
         _amountOut = _swapper.swapExactInput({
