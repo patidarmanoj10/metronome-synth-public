@@ -153,7 +153,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         {
             // 1. withdraw collateral
             // Note: No need to check healthy because this function ensures withdrawing only from unlocked balance
-            (uint256 _withdrawn, ) = depositToken_.withdrawFrom(msg.sender, withdrawAmount_);
+            (_amountIn, ) = depositToken_.withdrawFrom(msg.sender, withdrawAmount_);
 
             // 2. swap collateral for its underlying
             // Note: Swap to `crossChainDispatcher` to save transfer gas
@@ -161,7 +161,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
                 swapper_: swapper(),
                 tokenIn_: _collateralOf(depositToken_),
                 tokenOut_: underlying_,
-                amountIn_: _withdrawn,
+                amountIn_: _amountIn,
                 amountOutMin_: underlyingAmountMin_,
                 to_: address(_crossChainDispatcher)
             });
@@ -676,10 +676,15 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         uint256 amountOutMin_,
         address to_
     ) private returns (uint256 _amountOut) {
-        tokenIn_.safeApprove(address(swapper_), 0);
-        tokenIn_.safeApprove(address(swapper_), amountIn_);
-        uint256 _tokenOutBefore = tokenOut_.balanceOf(to_);
-        swapper_.swapExactInput(address(tokenIn_), address(tokenOut_), amountIn_, amountOutMin_, to_);
-        return tokenOut_.balanceOf(to_) - _tokenOutBefore;
+        if (tokenIn_ != tokenOut_) {
+            tokenIn_.safeApprove(address(swapper_), 0);
+            tokenIn_.safeApprove(address(swapper_), amountIn_);
+            uint256 _tokenOutBefore = tokenOut_.balanceOf(to_);
+            swapper_.swapExactInput(address(tokenIn_), address(tokenOut_), amountIn_, amountOutMin_, to_);
+            return tokenOut_.balanceOf(to_) - _tokenOutBefore;
+        } else if (to_ != address(this)) {
+            tokenIn_.safeTransfer(to_, amountIn_);
+        }
+        return amountIn_;
     }
 }

@@ -9,16 +9,49 @@ contract CrossChainFlashRepay_Test is CrossChains_Test {
     using BytesLib for bytes;
 
     function _depositAndIssue(uint256 depositAmount_, uint256 issueAmount_) private {
+        _depositAndIssue({
+            depositToken_: msdVaUSDC_optimism,
+            depositAmount_: depositAmount_,
+            debtToken_: msUSDDebt_optimism,
+            issueAmount_: issueAmount_
+        });
+    }
+
+    function _depositAndIssue(
+        DepositToken depositToken_,
+        uint256 depositAmount_,
+        DebtToken debtToken_,
+        uint256 issueAmount_
+    ) private {
         vm.selectFork(optimismFork);
 
         vm.startPrank(alice);
-        deal(address(vaUSDC_optimism), alice, depositAmount_);
-        vaUSDC_optimism.approve(address(msdVaUSDC_optimism), type(uint256).max);
-        msdVaUSDC_optimism.deposit(depositAmount_, alice);
-        msUSDDebt_optimism.issue(issueAmount_, alice);
+        deal(address(depositToken_.underlying()), alice, depositAmount_);
+        depositToken_.underlying().approve(address(depositToken_), type(uint256).max);
+        depositToken_.deposit(depositAmount_, alice);
+        debtToken_.issue(issueAmount_, alice);
     }
 
     function _crossChainFlashRepay(
+        uint256 withdrawAmount_,
+        uint256 swapAmountOutMin_,
+        uint256 repayAmountMin_
+    ) private {
+        _crossChainFlashRepay(msdVaUSDC_optimism, usdc_optimism, withdrawAmount_, swapAmountOutMin_, repayAmountMin_);
+    }
+
+    function _crossChainFlashRepay(
+        DepositToken depositToken_,
+        uint256 withdrawAmount_,
+        uint256 swapAmountOutMin_,
+        uint256 repayAmountMin_
+    ) private {
+        _crossChainFlashRepay(depositToken_, usdc_optimism, withdrawAmount_, swapAmountOutMin_, repayAmountMin_);
+    }
+
+    function _crossChainFlashRepay(
+        DepositToken depositToken_,
+        IERC20 underlying_,
         uint256 withdrawAmount_,
         uint256 swapAmountOutMin_,
         uint256 repayAmountMin_
@@ -39,12 +72,11 @@ contract CrossChainFlashRepay_Test is CrossChains_Test {
         deal(alice, fee);
 
         vm.startPrank(alice);
-        usdc_optimism.approve(address(pool_optimism), type(uint256).max);
         smartFarmingManager_optimism.crossChainFlashRepay{value: fee}({
             syntheticToken_: msUSD_optimism,
-            depositToken_: msdVaUSDC_optimism,
+            depositToken_: depositToken_,
             withdrawAmount_: withdrawAmount_,
-            underlying_: usdc_optimism,
+            underlying_: underlying_,
             underlyingAmountMin_: 0,
             repayAmountMin_: repayAmountMin_,
             swapAmountOutMin_: swapAmountOutMin_,
@@ -82,6 +114,93 @@ contract CrossChainFlashRepay_Test is CrossChains_Test {
 
         // tx1
         _crossChainFlashRepay({withdrawAmount_: 500e18, swapAmountOutMin_: 0, repayAmountMin_: 0});
+        (Vm.Log memory Swap, Vm.Log memory Packet, Vm.Log memory RelayerParams) = _getSgSwapEvents();
+
+        // tx2
+        _executeSwapAndTriggerCallback(Swap, Packet, RelayerParams);
+        (Vm.Log memory SendToChain, Vm.Log memory PacketTx2, Vm.Log memory RelayerParamsTx2) = _getOftTransferEvents();
+
+        // tx3
+        _executeCallback(SendToChain, PacketTx2, RelayerParamsTx2);
+
+        //
+        // then
+        //
+        (, uint256 _depositInUsdAfter, uint256 _debtInUsdAfter, , ) = pool_optimism.debtPositionOf(alice);
+        assertApproxEqAbs(_depositInUsdAfter, 1500e18, 1e18);
+        assertApproxEqAbs(_debtInUsdAfter, 0, 1e18);
+        assertEq(address(proxyOFT_msUSD_mainnet).balance, 0, "fee-estimation-is-not-accurate");
+    }
+
+    function test_crossChainFlashRepay_with_nakedCollateral() external {
+        //
+        // given
+        //
+        _depositAndIssue({
+            depositToken_: msdUSDC_optimism,
+            depositAmount_: 2000e6,
+            debtToken_: msUSDDebt_optimism,
+            issueAmount_: 500e18
+        });
+        (, uint256 _depositInUsdBefore, uint256 _debtInUsdBefore, , ) = pool_optimism.debtPositionOf(alice);
+        assertApproxEqAbs(_depositInUsdBefore, 2000e18, 1e18);
+        assertApproxEqAbs(_debtInUsdBefore, 500e18, 1e18);
+
+        //
+        // when
+        //
+
+        // tx1
+        _crossChainFlashRepay({
+            depositToken_: msdUSDC_optimism,
+            withdrawAmount_: 500e6,
+            swapAmountOutMin_: 0,
+            repayAmountMin_: 0
+        });
+        (Vm.Log memory Swap, Vm.Log memory Packet, Vm.Log memory RelayerParams) = _getSgSwapEvents();
+
+        // tx2
+        _executeSwapAndTriggerCallback(Swap, Packet, RelayerParams);
+        (Vm.Log memory SendToChain, Vm.Log memory PacketTx2, Vm.Log memory RelayerParamsTx2) = _getOftTransferEvents();
+
+        // tx3
+        _executeCallback(SendToChain, PacketTx2, RelayerParamsTx2);
+
+        //
+        // then
+        //
+        (, uint256 _depositInUsdAfter, uint256 _debtInUsdAfter, , ) = pool_optimism.debtPositionOf(alice);
+        assertApproxEqAbs(_depositInUsdAfter, 1500e18, 1e18);
+        assertApproxEqAbs(_debtInUsdAfter, 0, 1e18);
+        assertEq(address(proxyOFT_msUSD_mainnet).balance, 0, "fee-estimation-is-not-accurate");
+    }
+
+    function test_crossChainFlashRepay_with_weth() external {
+        //
+        // given
+        //
+        _depositAndIssue({
+            depositToken_: msdVaETH_optimism,
+            depositAmount_: 1e18,
+            debtToken_: msUSDDebt_optimism,
+            issueAmount_: 500e18
+        });
+        (, uint256 _depositInUsdBefore, uint256 _debtInUsdBefore, , ) = pool_optimism.debtPositionOf(alice);
+        assertApproxEqAbs(_depositInUsdBefore, 2000e18, 1e18);
+        assertApproxEqAbs(_debtInUsdBefore, 500e18, 1e18);
+
+        //
+        // when
+        //
+
+        // tx1
+        _crossChainFlashRepay({
+            depositToken_: msdVaETH_optimism,
+            underlying_: weth_optimism,
+            withdrawAmount_: 0.25e18,
+            swapAmountOutMin_: 0,
+            repayAmountMin_: 0
+        });
         (Vm.Log memory Swap, Vm.Log memory Packet, Vm.Log memory RelayerParams) = _getSgSwapEvents();
 
         // tx2
