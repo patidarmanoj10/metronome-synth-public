@@ -98,6 +98,44 @@ contract ProxyOFT is ComposableOFTCoreUpgradeable, ProxyOFTStorageV1 {
         );
     }
 
+    /**
+     * @notice User friendly `sendFrom()` function
+     */
+    function sendFrom(address from_, uint16 dstChainId_, address to_, uint256 amount_) external payable {
+        _send({
+            _from: from_,
+            _dstChainId: dstChainId_,
+            _toAddress: abi.encodePacked(to_),
+            _amount: amount_,
+            _refundAddress: payable(from_),
+            _zroPaymentAddress: address(0),
+            _adapterParams: abi.encodePacked(
+                uint16(1), // LZ_ADAPTER_PARAMS_VERSION
+                syntheticToken.poolRegistry().crossChainDispatcher().lzBaseGasLimit()
+            )
+        });
+    }
+
+    /**
+     * @notice User friendly `sendFrom()` function
+     */
+    function estimateSendFee(
+        uint16 dstChainId_,
+        address to_,
+        uint256 amount_
+    ) external view returns (uint256 _nativeFee) {
+        (_nativeFee, ) = this.estimateSendFee({
+            _dstChainId: dstChainId_,
+            _toAddress: abi.encodePacked(to_),
+            _amount: amount_,
+            _useZro: false,
+            _adapterParams: abi.encodePacked(
+                uint16(1), // LZ_ADAPTER_PARAMS_VERSION
+                syntheticToken.poolRegistry().crossChainDispatcher().lzBaseGasLimit()
+            )
+        });
+    }
+
     /// @inheritdoc OwnableUpgradeable
     function owner() public view override returns (address) {
         return syntheticToken.poolRegistry().governor();

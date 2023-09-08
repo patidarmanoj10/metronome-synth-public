@@ -92,15 +92,7 @@ describe('ProxyOFT', function () {
       // when
       const tx = proxyOFT
         .connect(bob)
-        .sendFrom(
-          alice.address,
-          LZ_MAINNET_ID,
-          ethers.utils.solidityPack(['address'], [bob.address]),
-          amount,
-          alice.address,
-          ethers.constants.AddressZero,
-          adapterParams
-        )
+        ['sendFrom(address,uint16,address,uint256)'](alice.address, LZ_MAINNET_ID, bob.address, amount)
 
       // then
       await expect(tx).revertedWithCustomError(proxyOFT, 'SenderIsNotTheOwner')
@@ -114,15 +106,7 @@ describe('ProxyOFT', function () {
       // when
       const tx = proxyOFT
         .connect(alice)
-        .sendFrom(
-          alice.address,
-          LZ_MAINNET_ID,
-          ethers.utils.solidityPack(['address'], [bob.address]),
-          amount,
-          alice.address,
-          ethers.constants.AddressZero,
-          adapterParams
-        )
+        ['sendFrom(address,uint16,address,uint256)'](alice.address, LZ_MAINNET_ID, bob.address, amount)
 
       // then
       await expect(tx).revertedWithCustomError(proxyOFT, 'BridgingIsPaused')
@@ -136,15 +120,7 @@ describe('ProxyOFT', function () {
       // when
       await proxyOFT
         .connect(alice)
-        .sendFrom(
-          alice.address,
-          LZ_MAINNET_ID,
-          ethers.utils.solidityPack(['address'], [bob.address]),
-          amount,
-          alice.address,
-          ethers.constants.AddressZero,
-          adapterParams
-        )
+        ['sendFrom(address,uint16,address,uint256)'](alice.address, LZ_MAINNET_ID, bob.address, amount)
 
       // then
       expect(msUSD.burn).calledWith(alice.address, amount)

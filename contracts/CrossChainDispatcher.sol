@@ -127,7 +127,7 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
 
         poolRegistry = poolRegistry_;
         stargateSlippage = 50; // 0.5%
-        lzBaseGasLimit = 200_00;
+        lzBaseGasLimit = 200_000;
         flashRepayCallbackTxGasLimit = 750_000;
         flashRepaySwapTxGasLimit = 500_000;
         leverageCallbackTxGasLimit = 750_000;
