@@ -115,9 +115,9 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
      * @param syntheticToken_ The debt token to repay
      * @param depositToken_ The collateral to withdraw
      * @param withdrawAmount_ The amount to withdraw
-     * @param underlying_ The underlying asset (e.g. USDC is vaUSDC's underlying)
-     * @param underlyingAmountMin_ The minimum amount out for collateral->underlying swap (slippage check)
-     * @param swapAmountOutMin_ The minimum amount out for underlying->msAsset swap (slippage check)
+     * @param bridgeToken_ The asset that will be bridged out and used to swap for msAsset
+     * @param bridgeTokenAmountMin_ The minimum amount out when converting collateral for bridgeToken if they aren't the same (slippage check)
+     * @param swapAmountOutMin_ The minimum amount out from the bridgeToken->msAsset swap (slippage check)
      * @param repayAmountMin_ The minimum amount to repay (slippage check)
      * @param lzArgs_ The LayerZero params (See: `Quoter.getFlashRepaySwapAndCallbackLzArgs()`)
      */
@@ -125,8 +125,8 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         ISyntheticToken syntheticToken_,
         IDepositToken depositToken_,
         uint256 withdrawAmount_,
-        IERC20 underlying_,
-        uint256 underlyingAmountMin_,
+        IERC20 bridgeToken_,
+        uint256 bridgeTokenAmountMin_,
         uint256 swapAmountOutMin_,
         uint256 repayAmountMin_,
         bytes calldata lzArgs_
@@ -155,14 +155,13 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
             // Note: No need to check healthy because this function ensures withdrawing only from unlocked balance
             (_amountIn, ) = depositToken_.withdrawFrom(msg.sender, withdrawAmount_);
 
-            // 2. swap collateral for its underlying
-            // Note: Swap to `crossChainDispatcher` to save transfer gas
+            // 2. swap collateral for bridge token
             _amountIn = _swap({
                 swapper_: swapper(),
                 tokenIn_: _collateralOf(depositToken_),
-                tokenOut_: underlying_,
+                tokenOut_: bridgeToken_,
                 amountIn_: _amountIn,
-                amountOutMin_: underlyingAmountMin_,
+                amountOutMin_: bridgeTokenAmountMin_,
                 to_: address(_crossChainDispatcher)
             });
         }
@@ -170,8 +169,8 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         // 3. store request and trigger swap
         _triggerFlashRepaySwap({
             crossChainDispatcher_: _crossChainDispatcher,
-            underlying_: underlying_,
-            syntheticToken_: syntheticToken_,
+            tokenIn_: bridgeToken_,
+            tokenOut_: syntheticToken_,
             amountIn_: _amountIn,
             swapAmountOutMin_: swapAmountOutMin_,
             repayAmountMin_: repayAmountMin_,
@@ -184,8 +183,8 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
      */
     function _triggerFlashRepaySwap(
         ICrossChainDispatcher crossChainDispatcher_,
-        IERC20 underlying_,
-        ISyntheticToken syntheticToken_,
+        IERC20 tokenIn_,
+        ISyntheticToken tokenOut_,
         uint256 amountIn_,
         uint256 swapAmountOutMin_,
         uint256 repayAmountMin_,
@@ -197,7 +196,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
 
         crossChainFlashRepays[_id] = CrossChainFlashRepay({
             dstChainId: _dstChainId,
-            syntheticToken: syntheticToken_,
+            syntheticToken: tokenOut_,
             repayAmountMin: repayAmountMin_,
             account: msg.sender,
             finished: false
@@ -206,8 +205,8 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         crossChainDispatcher_.triggerFlashRepaySwap{value: msg.value}({
             id_: _id,
             account_: payable(msg.sender),
-            tokenIn_: address(underlying_),
-            tokenOut_: address(syntheticToken_),
+            tokenIn_: address(tokenIn_),
+            tokenOut_: address(tokenOut_),
             amountIn_: amountIn_,
             amountOutMin_: swapAmountOutMin_,
             lzArgs_: lzArgs_
@@ -249,17 +248,17 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
     /***
      * @notice Cross-chain Leverage
      * @dev Not calling `whenNotShutdown` here because nested function already does it
-     * @param underlying_ The underlying asset (e.g. USDC is vaUSDC's underlying)
+     * @param tokenIn_ The asset to deposit and that'll be bridged in after swapping from msAsset
      * @param depositToken_ The collateral to deposit
      * @param syntheticToken_ The msAsset to mint
      * @param amountIn_ The amount to deposit
      * @param leverage_ The leverage X param (e.g. 1.5e18 for 1.5X)
-     * @param swapAmountOutMin_ The minimum amount out for msAsset->underlying swap (slippage check)
-     * @param depositAmountMin_ The minimum amount to deposit (slippage check)
+     * @param swapAmountOutMin_ The minimum amount out from msAsset->bridgeToken swap (slippage check)
+     * @param depositAmountMin_ The minimum final amount to deposit (slippage check)
      * @param lzArgs_ The LayerZero params (See: `Quoter.getLeverageSwapAndCallbackLzArgs()`)
      */
     function crossChainLeverage(
-        IERC20 underlying_,
+        IERC20 tokenIn_,
         IDepositToken depositToken_,
         ISyntheticToken syntheticToken_,
         uint256 amountIn_,
@@ -275,36 +274,35 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         onlyIfDepositTokenExists(depositToken_)
         onlyIfSyntheticTokenExists(syntheticToken_)
     {
-        IERC20 _underlying = underlying_; // stack too deep
+        IERC20 _tokenIn = tokenIn_; // stack too deep
 
         if (amountIn_ == 0) revert AmountIsZero();
         if (leverage_ <= 1e18) revert LeverageTooLow();
         if (leverage_ > uint256(1e18).wadDiv(1e18 - depositToken_.collateralFactor())) revert LeverageTooHigh();
-        if (address(_underlying) == address(0)) revert TokenInIsNull();
+        if (address(_tokenIn) == address(0)) revert TokenInIsNull();
 
         ICrossChainDispatcher _crossChainDispatcher = crossChainDispatcher();
         uint256 _issued;
         {
-            // 1. transfer underlying
-            amountIn_ = _safeTransferFrom(_underlying, msg.sender, amountIn_);
+            // 1. deposit tokenIn
+            amountIn_ = _safeTransferFrom(_tokenIn, msg.sender, amountIn_);
 
             // 2. mint synth
-            uint256 _amount = _calculateLeverageDebtAmount(_underlying, syntheticToken_, amountIn_, leverage_);
-            // Note: Issue to `crossChainDispatcher` to save transfer gas
+            uint256 _amount = _calculateLeverageDebtAmount(_tokenIn, syntheticToken_, amountIn_, leverage_);
             (_issued, ) = pool.debtTokenOf(syntheticToken_).flashIssue(address(_crossChainDispatcher), _amount);
         }
 
         // 3. store request and trigger swap
         _triggerCrossChainLeverageSwap({
             crossChainDispatcher_: _crossChainDispatcher,
-            underlying_: underlying_,
             depositToken_: depositToken_,
-            syntheticToken_: syntheticToken_,
-            amountIn_: amountIn_,
+            depositedAmount_: amountIn_,
+            tokenIn_: syntheticToken_,
+            tokenOut_: _tokenIn,
+            swapAmountIn_: _issued,
             swapAmountOutMin_: swapAmountOutMin_,
             depositAmountMin_: depositAmountMin_,
-            lzArgs_: lzArgs_,
-            issued_: _issued
+            lzArgs_: lzArgs_
         });
     }
 
@@ -313,14 +311,14 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
      */
     function _triggerCrossChainLeverageSwap(
         ICrossChainDispatcher crossChainDispatcher_,
-        IERC20 underlying_,
         IDepositToken depositToken_,
-        ISyntheticToken syntheticToken_,
-        uint256 amountIn_,
+        uint256 depositedAmount_,
+        ISyntheticToken tokenIn_,
+        IERC20 tokenOut_,
+        uint256 swapAmountIn_,
         uint256 swapAmountOutMin_,
         uint256 depositAmountMin_,
-        bytes calldata lzArgs_,
-        uint256 issued_
+        bytes calldata lzArgs_
     ) private {
         uint256 _id = _nextCrossChainRequestId();
 
@@ -329,12 +327,12 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
 
             crossChainLeverages[_id] = CrossChainLeverage({
                 dstChainId: _dstChainId,
-                underlying: underlying_,
+                bridgeToken: tokenOut_,
                 depositToken: depositToken_,
-                syntheticToken: syntheticToken_,
+                syntheticToken: tokenIn_,
                 depositAmountMin: depositAmountMin_,
-                underlyingAmountIn: amountIn_,
-                syntheticTokenIssued: issued_,
+                bridgeTokenAmountIn: depositedAmount_,
+                syntheticTokenIssued: swapAmountIn_,
                 account: msg.sender,
                 finished: false
             });
@@ -343,9 +341,9 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         crossChainDispatcher_.triggerLeverageSwap{value: msg.value}({
             id_: _id,
             account_: payable(msg.sender),
-            tokenIn_: address(syntheticToken_),
-            tokenOut_: address(underlying_),
-            amountIn_: issued_,
+            tokenIn_: address(tokenIn_),
+            tokenOut_: address(tokenOut_),
+            amountIn_: swapAmountIn_,
             amountOutMin: swapAmountOutMin_,
             lzArgs_: lzArgs_
         });
@@ -355,9 +353,9 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
 
     /**
      * @notice Finalize cross-chain leverage process
-     * @dev Receives underlying from L1 and use it to deposit
+     * @dev Receives bridged token (aka naked token) use it to deposit
      * @param id_ The id of the request
-     * @param swapAmountOut_ The underlying amount received from L1 swap
+     * @param swapAmountOut_ The amount received from swap
      * @return _deposited The amount deposited
      */
     function crossChainLeverageCallback(
@@ -374,14 +372,14 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         // 1. update state
         crossChainLeverages[id_].finished = true;
 
-        // 2. transfer underlying
-        swapAmountOut_ = _safeTransferFrom(_request.underlying, msg.sender, swapAmountOut_);
+        // 2. transfer swap's tokenOut (aka bridged token)
+        swapAmountOut_ = _safeTransferFrom(_request.bridgeToken, msg.sender, swapAmountOut_);
 
-        // 3. swap underlying for collateral if needed
-        uint256 _underlyingAmount = _request.underlyingAmountIn + swapAmountOut_;
-        uint256 _depositAmount = _request.underlying == _collateral
-            ? _underlyingAmount
-            : _swap(swapper(), _request.underlying, _collateral, _underlyingAmount, 0);
+        // 3. swap bridged token for collateral if needed
+        uint256 _bridgeTokenAmount = _request.bridgeTokenAmountIn + swapAmountOut_;
+        uint256 _depositAmount = _request.bridgeToken == _collateral
+            ? _bridgeTokenAmount
+            : _swap(swapper(), _request.bridgeToken, _collateral, _bridgeTokenAmount, 0);
         if (_depositAmount < _request.depositAmountMin) revert LeverageSlippageTooHigh();
 
         // 4. deposit collateral
@@ -607,9 +605,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
     }
 
     /**
-     * @dev Get collateral from a deposit token
-     * This is used to avoid misunderstanding what these names mean
-     * For example: The msdVaDAI's collateral is `vaDAI` and it's underlying is `DAI`
+     * @dev `collateral` is a better name than `underlying`
      * See more: https://github.com/autonomoussoftware/metronome-synth/issues/905
      */
     function _collateralOf(IDepositToken depositToken_) private view returns (IERC20) {

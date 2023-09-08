@@ -51,7 +51,7 @@ contract CrossChainFlashRepay_Test is CrossChains_Test {
 
     function _crossChainFlashRepay(
         DepositToken depositToken_,
-        IERC20 underlying_,
+        IERC20 bridgeToken_,
         uint256 withdrawAmount_,
         uint256 swapAmountOutMin_,
         uint256 repayAmountMin_
@@ -76,8 +76,8 @@ contract CrossChainFlashRepay_Test is CrossChains_Test {
             syntheticToken_: msUSD_optimism,
             depositToken_: depositToken_,
             withdrawAmount_: withdrawAmount_,
-            underlying_: underlying_,
-            underlyingAmountMin_: 0,
+            bridgeToken_: bridgeToken_,
+            bridgeTokenAmountMin_: 0,
             repayAmountMin_: repayAmountMin_,
             swapAmountOutMin_: swapAmountOutMin_,
             lzArgs_: _lzArgs
@@ -196,7 +196,7 @@ contract CrossChainFlashRepay_Test is CrossChains_Test {
         // tx1
         _crossChainFlashRepay({
             depositToken_: msdVaETH_optimism,
-            underlying_: weth_optimism,
+            bridgeToken_: weth_optimism,
             withdrawAmount_: 0.25e18,
             swapAmountOutMin_: 0,
             repayAmountMin_: 0

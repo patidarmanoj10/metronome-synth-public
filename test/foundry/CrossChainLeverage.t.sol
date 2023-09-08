@@ -97,7 +97,7 @@ contract CrossChainLeverage_Test is CrossChains_Test {
         vm.startPrank(alice);
         underlying_.approve(address(smartFarmingManager_optimism), type(uint256).max);
         smartFarmingManager_optimism.crossChainLeverage{value: fee}({
-            underlying_: underlying_,
+            tokenIn_: underlying_,
             depositToken_: depositToken_,
             syntheticToken_: msUSD_optimism,
             amountIn_: amountIn_,

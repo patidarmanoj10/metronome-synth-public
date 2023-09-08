@@ -21,15 +21,15 @@ interface ISmartFarmingManager {
         ISyntheticToken syntheticToken_,
         IDepositToken depositToken_,
         uint256 withdrawAmount_,
-        IERC20 underlying_,
-        uint256 underlyingAmountMin_,
+        IERC20 bridgeToken_,
+        uint256 bridgeTokenAmountMin_,
         uint256 swapAmountOutMin_,
         uint256 repayAmountMin_,
         bytes calldata lzArgs_
     ) external payable;
 
     function crossChainLeverage(
-        IERC20 underlying_,
+        IERC20 tokenIn_,
         IDepositToken depositToken_,
         ISyntheticToken syntheticToken_,
         uint256 amountIn_,
