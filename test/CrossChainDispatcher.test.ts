@@ -104,7 +104,6 @@ describe('CrossChainDispatcher', function () {
     await crossChainDispatcher.updateCrossChainDispatcherOf(LZ_MAINNET_ID, crossChainDispatcher.address)
     await crossChainDispatcher.updateStargateRouter(stargateRouter.address)
     await crossChainDispatcher.updateStargateSlippage(0)
-    await crossChainDispatcher.updateLzBaseGasLimit(LZ_BASE_GAS_LIMIT)
     await crossChainDispatcher.toggleDestinationChainIsActive(LZ_MAINNET_ID)
 
     poolRegistry.crossChainDispatcher.returns(crossChainDispatcher.address)

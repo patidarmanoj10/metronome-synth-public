@@ -58,26 +58,11 @@ contract CrossChainTransfers_Test is CrossChains_Test {
         bytes memory toAddress = abi.encodePacked(alice);
         {
             vm.selectFork(mainnetFork);
-            bytes memory adapterParams = abi.encodePacked(LZ_ADAPTER_PARAMS_VERSION, SIMPLE_TRANSFER_GAS);
-            (uint256 fee, ) = proxyOFT_msUSD_mainnet.estimateSendFee(
-                dstChainId,
-                toAddress,
-                amount,
-                false,
-                adapterParams
-            );
+            uint256 fee = proxyOFT_msUSD_mainnet.estimateSendFee(dstChainId, alice, amount);
 
             vm.startPrank(alice);
             deal(alice, fee);
-            proxyOFT_msUSD_mainnet.sendFrom{value: fee}(
-                alice,
-                dstChainId,
-                toAddress,
-                amount,
-                payable(alice),
-                address(0),
-                adapterParams
-            );
+            proxyOFT_msUSD_mainnet.sendFrom{value: fee}(alice, dstChainId, alice, amount);
             vm.stopPrank();
         }
 
@@ -120,22 +105,12 @@ contract CrossChainTransfers_Test is CrossChains_Test {
         //
         // then
         //
-        bytes memory toAddress = abi.encodePacked(alice);
-        bytes memory adapterParams = abi.encodePacked(LZ_ADAPTER_PARAMS_VERSION, SIMPLE_TRANSFER_GAS);
-        (uint256 fee, ) = proxyOFT_msUSD_mainnet.estimateSendFee(dstChainId, toAddress, amount, false, adapterParams);
+        uint256 fee = proxyOFT_msUSD_mainnet.estimateSendFee(dstChainId, alice, amount);
 
         deal(alice, fee);
         vm.startPrank(alice);
         vm.expectRevert(BridgingIsPaused.selector);
-        proxyOFT_msUSD_mainnet.sendFrom{value: fee}(
-            alice,
-            dstChainId,
-            toAddress,
-            amount,
-            payable(alice),
-            address(0),
-            adapterParams
-        );
+        proxyOFT_msUSD_mainnet.sendFrom{value: fee}(alice, dstChainId, alice, amount);
         vm.stopPrank();
     }
 
@@ -159,26 +134,11 @@ contract CrossChainTransfers_Test is CrossChains_Test {
         bytes memory toAddress = abi.encodePacked(alice);
         {
             vm.selectFork(optimismFork);
-            bytes memory adapterParams = abi.encodePacked(LZ_ADAPTER_PARAMS_VERSION, SIMPLE_TRANSFER_GAS);
-            (uint256 fee, ) = proxyOFT_msUSD_optimism.estimateSendFee(
-                dstChainId,
-                toAddress,
-                amount,
-                false,
-                adapterParams
-            );
+            uint256 fee = proxyOFT_msUSD_optimism.estimateSendFee(dstChainId, alice, amount);
 
             vm.startPrank(alice);
             deal(alice, fee);
-            proxyOFT_msUSD_optimism.sendFrom{value: fee}(
-                alice,
-                dstChainId,
-                toAddress,
-                amount,
-                payable(alice),
-                address(0),
-                adapterParams
-            );
+            proxyOFT_msUSD_optimism.sendFrom{value: fee}(alice, dstChainId, alice, amount);
             vm.stopPrank();
         }
 
@@ -221,22 +181,12 @@ contract CrossChainTransfers_Test is CrossChains_Test {
         //
         // then
         //
-        bytes memory toAddress = abi.encodePacked(alice);
-        bytes memory adapterParams = abi.encodePacked(LZ_ADAPTER_PARAMS_VERSION, SIMPLE_TRANSFER_GAS);
-        (uint256 fee, ) = proxyOFT_msUSD_optimism.estimateSendFee(dstChainId, toAddress, amount, false, adapterParams);
+        uint256 fee = proxyOFT_msUSD_optimism.estimateSendFee(dstChainId, alice, amount);
 
         deal(alice, fee);
         vm.startPrank(alice);
         vm.expectRevert(BridgingIsPaused.selector);
-        proxyOFT_msUSD_optimism.sendFrom{value: fee}(
-            alice,
-            dstChainId,
-            toAddress,
-            amount,
-            payable(alice),
-            address(0),
-            adapterParams
-        );
+        proxyOFT_msUSD_optimism.sendFrom{value: fee}(alice, dstChainId, alice, amount);
         vm.stopPrank();
     }
 }
