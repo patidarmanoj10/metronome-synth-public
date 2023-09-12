@@ -39,7 +39,6 @@ let NATIVE_TOKEN_GATEWAY_ADDRESS: string
 let QUOTER_ADDRESS: string
 let MSUSD_PROXYOFT_ADDRESS: string
 let MSETH_PROXYOFT_ADDRESS: string
-let MSOP_PROXYOFT_ADDRESS: string
 let SMART_FARMING_MANAGER_ADDRESS: string
 let CROSS_CHAIN_DISPATCHER_ADDRESS: string
 
@@ -89,7 +88,6 @@ describe.skip('E2E tests (next optimism release)', function () {
   let msOP: SyntheticToken
   let msETH: SyntheticToken
   let msUSDProxyOFT: ProxyOFT
-  let msOPProxyOFT: ProxyOFT
   let msETHProxyOFT: ProxyOFT
 
   async function fixture() {
@@ -110,7 +108,6 @@ describe.skip('E2E tests (next optimism release)', function () {
     ;({address: MSETH_SYNTHETIC_ADDRESS} = await import('../deployments/localhost/MsETHSynthetic.json'))
     ;({address: MSUSD_PROXYOFT_ADDRESS} = await import('../deployments/localhost/MsUSDProxyOFT.json'))
     ;({address: MSETH_PROXYOFT_ADDRESS} = await import('../deployments/localhost/MsETHProxyOFT.json'))
-    ;({address: MSOP_PROXYOFT_ADDRESS} = await import('../deployments/localhost/MsOPProxyOFT.json'))
     ;({address: NATIVE_TOKEN_GATEWAY_ADDRESS} = await import('../deployments/localhost/NativeTokenGateway.json'))
     ;({address: QUOTER_ADDRESS} = await import('../deployments/localhost/Quoter.json'))
     ;({address: SMART_FARMING_MANAGER_ADDRESS} = await import('../deployments/localhost/SmartFarmingManager.json'))
@@ -151,7 +148,6 @@ describe.skip('E2E tests (next optimism release)', function () {
 
     msUSDProxyOFT = await ethers.getContractAt('ProxyOFT', MSUSD_PROXYOFT_ADDRESS, alice)
     msETHProxyOFT = await ethers.getContractAt('ProxyOFT', MSETH_PROXYOFT_ADDRESS, alice)
-    msOPProxyOFT = await ethers.getContractAt('ProxyOFT', MSOP_PROXYOFT_ADDRESS, alice)
 
     smartFarmingManager = await ethers.getContractAt('SmartFarmingManager', SMART_FARMING_MANAGER_ADDRESS, alice)
     crossChainDispatcher = await ethers.getContractAt('CrossChainDispatcher', CROSS_CHAIN_DISPATCHER_ADDRESS, alice)
@@ -218,7 +214,6 @@ describe.skip('E2E tests (next optimism release)', function () {
       expect(VAOP_DEPOSIT_ADDRESS).eq(await pool.depositTokenOf(vaOP.address))
 
       expect(MSUSD_SYNTHETIC_ADDRESS).eq(await msUSDProxyOFT.token())
-      expect(MSBTC_SYNTHETIC_ADDRESS).eq(await msOPProxyOFT.token())
       expect(MSETH_SYNTHETIC_ADDRESS).eq(await msETHProxyOFT.token())
 
       expect(MSUSD_DEBT_ADDRESS).eq(await pool.debtTokenOf(msUSD.address))
@@ -227,7 +222,6 @@ describe.skip('E2E tests (next optimism release)', function () {
 
       expect(MSUSD_PROXYOFT_ADDRESS).eq(await msUSD.proxyOFT())
       expect(MSETH_PROXYOFT_ADDRESS).eq(await msETH.proxyOFT())
-      expect(MSOP_PROXYOFT_ADDRESS).eq(await msOP.proxyOFT())
     })
 
     it('should get prices for all assets', async function () {
@@ -587,7 +581,6 @@ describe.skip('E2E tests (next optimism release)', function () {
     describe('cross-chain operations', function () {
       const LZ_MAINNET_ID = 101
       const LZ_OP_ID = 110
-      const SG_ETH_POOL_ID = 13
 
       beforeEach(async function () {
         //
@@ -608,8 +601,6 @@ describe.skip('E2E tests (next optimism release)', function () {
             .updateCrossChainDispatcherOf(LZ_OP_ID, crossChainDispatcher.address)
         }
 
-        await msETHProxyOFT.connect(governor).setMinDstGas(LZ_OP_ID, await msETHProxyOFT.PT_SEND(), 200000)
-
         if (!(await msETH.maxBridgedInSupply()).eq(ethers.constants.MaxUint256)) {
           await msETH.connect(governor).updateMaxBridgedInSupply(ethers.constants.MaxUint256)
         }
@@ -624,10 +615,6 @@ describe.skip('E2E tests (next optimism release)', function () {
             LZ_OP_ID,
             ethers.utils.solidityPack(['address', 'address'], [msETHProxyOFT.address, msETHProxyOFT.address])
           )
-
-        if (!(await crossChainDispatcher.stargatePoolIdOf(weth.address)).eq(SG_ETH_POOL_ID)) {
-          await crossChainDispatcher.connect(governor).updateStargatePoolIdOf(weth.address, SG_ETH_POOL_ID)
-        }
       })
 
       it('crossChainLeverage', async function () {

@@ -23,7 +23,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     contract: Pool,
     readMethod: 'smartFarmingManager',
     writeMethod: 'updateSmartFarmingManager',
-    newValue: smartFarmingManagerAddress,
+    writeArgs: [smartFarmingManagerAddress],
   })
 }
 

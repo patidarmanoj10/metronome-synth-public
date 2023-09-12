@@ -293,20 +293,20 @@ export const updateParamIfNeeded = async (
   {
     contract,
     readMethod,
-    readArg,
+    readArgs,
     writeMethod,
-    newValue,
+    writeArgs,
     // Note: Usually we have getter and setter functions to check if a param needs to be updated or not
     // but there are edge cases where it isn't true, e.g,: `function isPoolRegistered(address) view returns (bool)`
     // This function is used on such cases where comparison isn't straightforward
     // eslint-disable-next-line no-shadow, @typescript-eslint/no-explicit-any
-    isCurrentValueUpdated = (currentValue: any, newValue: any) => currentValue === newValue,
+    isCurrentValueUpdated = (currentValue: any, newValue: any) => currentValue.toString() === newValue.toString(),
   }: {
     contract: string
     readMethod: string
-    readArg?: string
+    readArgs?: string[]
     writeMethod: string
-    newValue: string
+    writeArgs?: string[]
     // eslint-disable-next-line no-shadow, @typescript-eslint/no-explicit-any
     isCurrentValueUpdated?: (currentValue: any, newValue: any) => boolean
   }
@@ -315,18 +315,21 @@ export const updateParamIfNeeded = async (
   const {read, execute, catchUnknownSigner} = deployments
 
   try {
-    const currentValue = await read(contract, readMethod, readArg)
+    const currentValue = readArgs ? await read(contract, readMethod, ...readArgs) : await read(contract, readMethod)
 
-    if (!isCurrentValueUpdated(currentValue, newValue)) {
+    if (!isCurrentValueUpdated(currentValue, writeArgs)) {
       // Note: Assumes all governable contracts have the same governor as `PoolRegistry`
       const governor = await read(PoolRegistry, 'governor')
 
-      const multiSigTx = await catchUnknownSigner(
-        execute(contract, {from: governor, log: true}, writeMethod, newValue),
-        {
-          log: true,
-        }
-      )
+      const doExecute = async () => {
+        return writeArgs
+          ? execute(contract, {from: governor, log: true}, writeMethod, ...writeArgs)
+          : execute(contract, {from: governor, log: true}, writeMethod)
+      }
+
+      const multiSigTx = await catchUnknownSigner(doExecute, {
+        log: true,
+      })
 
       if (multiSigTx) {
         await saveForMultiSigBatchExecution(multiSigTx)

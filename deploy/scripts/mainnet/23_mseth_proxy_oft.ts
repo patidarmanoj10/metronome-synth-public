@@ -8,33 +8,33 @@ import Constants from '../../../helpers/constants'
 const {
   Pool: {alias: Pool},
 } = UpgradableContracts
-const MsUSDSynthetic = 'MsUSDSynthetic'
-const MsUSDProxyOFT = 'MsUSDProxyOFT'
+const MsETHSynthetic = 'MsETHSynthetic'
+const MsETHProxyOFT = 'MsETHProxyOFT'
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {deployments} = hre
   const {get} = deployments
 
-  const {address: msUsdAddress} = await get(MsUSDSynthetic)
+  const {address: msEthAddress} = await get(MsETHSynthetic)
 
   const {address: proxyOFTAddress} = await deployUpgradable({
     hre,
     contractConfig: {
       ...UpgradableContracts.ProxyOFT,
-      alias: MsUSDProxyOFT,
+      alias: MsETHProxyOFT,
     },
-    initializeArgs: [Address.LZ_ENDPOINT, msUsdAddress],
+    initializeArgs: [Address.LZ_ENDPOINT, msEthAddress],
   })
 
   await updateParamIfNeeded(hre, {
-    contract: MsUSDSynthetic,
+    contract: MsETHSynthetic,
     readMethod: 'proxyOFT',
     writeMethod: 'updateProxyOFT',
     writeArgs: [proxyOFTAddress],
   })
 
   await updateParamIfNeeded(hre, {
-    contract: MsUSDSynthetic,
+    contract: MsETHSynthetic,
     readMethod: 'maxBridgedInSupply',
     writeMethod: 'updateMaxBridgedInSupply',
     // Note: We won't activate bridge-in by default
@@ -42,7 +42,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   })
 
   await updateParamIfNeeded(hre, {
-    contract: MsUSDSynthetic,
+    contract: MsETHSynthetic,
     readMethod: 'maxBridgedOutSupply',
     writeMethod: 'updateMaxBridgedOutSupply',
     // Note: We won't activate bridge-out by default
@@ -50,7 +50,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   })
 
   await updateParamIfNeeded(hre, {
-    contract: MsUSDProxyOFT,
+    contract: MsETHProxyOFT,
     readMethod: 'useCustomAdapterParams',
     writeMethod: 'setUseCustomAdapterParams',
     writeArgs: ['true'],
@@ -58,28 +58,28 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   })
 
   await updateParamIfNeeded(hre, {
-    contract: MsUSDProxyOFT,
+    contract: MsETHProxyOFT,
     readMethod: 'minDstGasLookup',
-    readArgs: [Constants.LZ_MAINNET_CHAIN_ID, Constants.LZ_PT_SEND],
+    readArgs: [Constants.LZ_OP_CHAIN_ID, Constants.LZ_PT_SEND],
     writeMethod: 'setMinDstGas',
-    writeArgs: [Constants.LZ_MAINNET_CHAIN_ID, Constants.LZ_PT_SEND, Constants.LZ_MIN_SEND_GAS],
+    writeArgs: [Constants.LZ_OP_CHAIN_ID, Constants.LZ_PT_SEND, Constants.LZ_MIN_SEND_GAS],
     isCurrentValueUpdated: (currentMinGas: BigNumber, [, , newMinGas]) => currentMinGas.eq(newMinGas),
   })
 
-  // TODO: Uncomment after having mainnet contracts upgraded
+  // TODO: Uncomment after having optimism contracts upgraded
   // await updateParamIfNeeded(hre, {
-  //   contract: MsUSDProxyOFT,
+  //   contract: MsETHProxyOFT,
   //   readMethod: 'trustedRemoteLookup',
-  //   readArgs: [Constants.LZ_MAINNET_CHAIN_ID],
+  //   readArgs: [Constants.LZ_OP_CHAIN_ID],
   //   writeMethod: 'setTrustedRemote',
   //   writeArgs: [
   //     Constants.LZ_OP_CHAIN_ID,
-  //     ethers.utils.solidityPack(['address', 'address'], ['0xMainnetProxyOFT', proxyOFTAddress]),
+  //     ethers.utils.solidityPack(['address', 'address'], ['0xOptimismProxyOFT', proxyOFTAddress]),
   //   ],
   //   isCurrentValueUpdated: (currentPath: string, [, newPath]) => currentPath == newPath,
   // })
 }
 
 export default func
-func.tags = [MsUSDProxyOFT]
-func.dependencies = [Pool, MsUSDSynthetic]
+func.tags = [MsETHProxyOFT]
+func.dependencies = [Pool, MsETHSynthetic]

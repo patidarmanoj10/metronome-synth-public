@@ -18,7 +18,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     contract: PoolRegistry,
     readMethod: 'swapper',
     writeMethod: 'updateSwapper',
-    newValue: Address.SWAPPER,
+    writeArgs: [Address.SWAPPER],
   })
 }
 

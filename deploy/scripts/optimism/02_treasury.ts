@@ -23,7 +23,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     contract: Pool,
     readMethod: 'treasury',
     writeMethod: 'updateTreasury',
-    newValue: treasuryAddress,
+    writeArgs: [treasuryAddress],
   })
 }
 

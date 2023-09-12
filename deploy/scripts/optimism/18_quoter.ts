@@ -23,7 +23,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     contract: PoolRegistry,
     readMethod: 'quoter',
     writeMethod: 'updateQuoter',
-    newValue: quoterAddress,
+    writeArgs: [quoterAddress],
   })
 }
 
