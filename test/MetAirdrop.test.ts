@@ -82,7 +82,7 @@ describe('MetAirdrop', function () {
 
     merkleRoot1 = merkleTree1.getHexRoot()
 
-    await airdrop.updateMerkleRoot(merkleRoot0)
+    await airdrop.updateMerkleRoot(merkleRoot0, `0x${randomBytes(32).toString('hex')}`)
 
     await setTokenBalance(met.address, airdrop.address, parseEther('1000'))
   }
@@ -130,7 +130,7 @@ describe('MetAirdrop', function () {
 
     it('should receive accumulated amount when only claiming on 2st round', async function () {
       // given
-      await airdrop.updateMerkleRoot(merkleRoot1)
+      await airdrop.updateMerkleRoot(merkleRoot1, `0x${randomBytes(32).toString('hex')}`)
 
       // when
       const amount = rewards1[alice.address]
@@ -152,7 +152,7 @@ describe('MetAirdrop', function () {
       expect(await airdrop.claimed(alice.address)).eq(amount0)
 
       // when
-      await airdrop.updateMerkleRoot(merkleRoot1)
+      await airdrop.updateMerkleRoot(merkleRoot1, `0x${randomBytes(32).toString('hex')}`)
       const amount1 = rewards1[alice.address]
       const leaf1 = generateLeaf(alice.address, amount1)
       const proof1 = merkleTree1.getHexProof(leaf1)
@@ -166,7 +166,9 @@ describe('MetAirdrop', function () {
 
   describe('updateMerkleRoot', function () {
     it('should revert if not governor', async function () {
-      const tx = airdrop.connect(alice).updateMerkleRoot(`0x${randomBytes(32).toString('hex')}`)
+      const tx = airdrop
+        .connect(alice)
+        .updateMerkleRoot(`0x${randomBytes(32).toString('hex')}`, `0x${randomBytes(32).toString('hex')}`)
 
       await expect(tx).revertedWithCustomError(airdrop, 'SenderIsNotGovernor')
     })
@@ -176,10 +178,21 @@ describe('MetAirdrop', function () {
       const current = await airdrop.merkleRoot()
 
       // when
-      const tx = airdrop.updateMerkleRoot(current)
+      const tx = airdrop.updateMerkleRoot(current, `0x${randomBytes(32).toString('hex')}`)
 
       // then
       await expect(tx).revertedWithCustomError(airdrop, 'NewMerkleRootSameAsCurrent')
+    })
+
+    it('should revert if proofs file is empty', async function () {
+      // given
+      const newRoot = `0x${randomBytes(32).toString('hex')}`
+
+      // when
+      const tx = airdrop.updateMerkleRoot(newRoot, '0x0000000000000000000000000000000000000000000000000000000000000000')
+
+      // then
+      await expect(tx).revertedWithCustomError(airdrop, 'ProofsFileIsNull')
     })
 
     it('should update merkleRoot', async function () {
@@ -188,7 +201,7 @@ describe('MetAirdrop', function () {
       expect(await airdrop.merkleRoot()).not.eq(newRoot)
 
       // when
-      await airdrop.updateMerkleRoot(newRoot)
+      await airdrop.updateMerkleRoot(newRoot, `0x${randomBytes(32).toString('hex')}`)
 
       // given
       expect(await airdrop.merkleRoot()).eq(newRoot)

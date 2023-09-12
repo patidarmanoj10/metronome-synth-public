@@ -10,6 +10,7 @@ import "../access/Governable.sol";
 error NothingToClaim();
 error InvalidProof();
 error NewMerkleRootSameAsCurrent();
+error ProofsFileIsNull();
 
 /**
  * @title Generic Recurring Airdrop contract
@@ -22,6 +23,9 @@ contract RecurringAirdrop is ReentrancyGuard, Governable {
 
     /// @notice The merkle root for the current distribution
     bytes32 public merkleRoot;
+
+    /// @notice The proofs file's IPFS hash
+    bytes32 public proofsFileHash;
 
     /// @notice The timestamp of the latest merkle root update
     uint256 public updatedAt;
@@ -74,11 +78,13 @@ contract RecurringAirdrop is ReentrancyGuard, Governable {
      * @notice Update merkle tree root
      * @param merkleRoot_ The merkle root
      */
-    function updateMerkleRoot(bytes32 merkleRoot_) external onlyGovernor {
+    function updateMerkleRoot(bytes32 merkleRoot_, bytes32 proofsFileHash_) external onlyGovernor {
         if (merkleRoot_ == merkleRoot) revert NewMerkleRootSameAsCurrent();
+        if (proofsFileHash_ == bytes32(0)) revert ProofsFileIsNull();
 
         merkleRoot = merkleRoot_;
         updatedAt = block.timestamp;
+        proofsFileHash = proofsFileHash_;
 
         emit MerkleRootUpdated(merkleRoot_, block.timestamp);
     }
