@@ -84,7 +84,7 @@ describe('NativeTokenGateway', function () {
       'Metronome Synth WETH-Deposit',
       'msdWETH',
       18,
-      parseEther('1'),
+      parseEther('0.5'),
       MaxUint256
     )
 
