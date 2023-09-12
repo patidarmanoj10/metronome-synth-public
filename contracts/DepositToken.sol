@@ -3,7 +3,7 @@
 pragma solidity 0.8.9;
 
 import "./dependencies/openzeppelin/utils/math/Math.sol";
-import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
+import "./utils/ReentrancyGuard.sol";
 import "./lib/WadRayMath.sol";
 import "./utils/TokenHolder.sol";
 import "./access/Manageable.sol";
@@ -17,6 +17,7 @@ error PoolIsNull();
 error SymbolIsNull();
 error DecimalsIsNull();
 error CollateralFactorTooHigh();
+error CollateralFactorTooLow();
 error DecreasedAllowanceBelowZero();
 error AmountIsZero();
 error BeneficiaryIsNull();
@@ -33,6 +34,7 @@ error TransferFromTheZeroAddress();
 error TransferToTheZeroAddress();
 error TransferAmountExceedsBalance();
 error NewValueIsSameAsCurrent();
+error SenderIsNotSmartFarmingManager();
 
 /**
  * @title Represents the users' deposits
@@ -69,6 +71,14 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
 
     /// @notice Emitted when max total supply is updated
     event MaxTotalSupplyUpdated(uint256 oldMaxTotalSupply, uint256 newMaxTotalSupply);
+
+    /**
+     * @dev Throws if sender is SmartFarmingManager
+     */
+    modifier onlyIfSmartFarmingManager() {
+        if (msg.sender != address(pool.smartFarmingManager())) revert SenderIsNotSmartFarmingManager();
+        _;
+    }
 
     /**
      * @dev Throws if sender can't seize
@@ -126,6 +136,10 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
             IRewardsDistributor(_rewardsDistributors[i]).updateBeforeTransfer(this, sender_, recipient_);
         }
         _;
+    }
+
+    constructor() {
+        _disableInitializers();
     }
 
     function initialize(
@@ -208,7 +222,7 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
     }
 
     /**
-     * @notice Burn msdTOKEN, withdraw collateral and transfer to `msg.sender` (i.e. Pool)
+     * @notice Burn msdTOKEN, withdraw collateral and transfer to `msg.sender` (i.e. SmartFarmingManager)
      * @param account_ The account where deposit token will be burnt from
      * @param amount_ The amount of collateral to withdraw
      * @return _withdrawn The amount withdrawn after fees
@@ -216,7 +230,7 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
     function flashWithdraw(
         address account_,
         uint256 amount_
-    ) external override onlyPool returns (uint256 _withdrawn, uint256 _fee) {
+    ) external override onlyIfSmartFarmingManager returns (uint256 _withdrawn, uint256 _fee) {
         return _withdraw({account_: account_, amount_: amount_, to_: msg.sender});
     }
 
@@ -379,6 +393,25 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
     }
 
     /**
+     * @notice Burn msdTOKEN and withdraw collateral from a given account
+     * @param from_ The account to withdraw from
+     * @param amount_ The amount of collateral to withdraw
+     * @return _withdrawn The amount withdrawn after fees
+     */
+    function withdrawFrom(
+        address from_,
+        uint256 amount_
+    )
+        external
+        override
+        onlyIfSmartFarmingManager
+        onlyIfUnlocked(from_, amount_)
+        returns (uint256 _withdrawn, uint256 _fee)
+    {
+        return _withdraw({account_: from_, amount_: amount_, to_: msg.sender});
+    }
+
+    /**
      * @notice Set `amount` as the allowance of `spender` over the caller's tokens
      */
     function _approve(address owner_, address spender_, uint256 amount_) private {
@@ -519,7 +552,8 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
      * @param newCollateralFactor_ The new CF value
      */
     function updateCollateralFactor(uint128 newCollateralFactor_) external override onlyGovernor {
-        if (newCollateralFactor_ > 1e18) revert CollateralFactorTooHigh();
+        if (newCollateralFactor_ == 0) revert CollateralFactorTooLow();
+        if (newCollateralFactor_ >= 1e18) revert CollateralFactorTooHigh();
         uint256 _currentCollateralFactor = collateralFactor;
         if (newCollateralFactor_ == _currentCollateralFactor) revert NewValueIsSameAsCurrent();
         emit CollateralFactorUpdated(_currentCollateralFactor, newCollateralFactor_);

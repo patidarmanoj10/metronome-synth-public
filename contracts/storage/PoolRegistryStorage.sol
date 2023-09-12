@@ -4,7 +4,6 @@ pragma solidity 0.8.9;
 
 import "../dependencies/openzeppelin/utils/structs/EnumerableSet.sol";
 import "../interfaces/IPoolRegistry.sol";
-import "../interfaces/external/IMasterOracle.sol";
 
 abstract contract PoolRegistryStorageV1 is IPoolRegistry {
     /**
@@ -36,4 +35,21 @@ abstract contract PoolRegistryStorageV1 is IPoolRegistry {
      * @notice Counter of ids of the pools
      */
     uint256 public override nextPoolId;
+
+    /**
+     * @notice Swapper contract
+     */
+    ISwapper public swapper;
+}
+
+abstract contract PoolRegistryStorageV2 is PoolRegistryStorageV1 {
+    /**
+     * @notice The Quoter contract
+     */
+    IQuoter public quoter;
+
+    /**
+     * @notice The Cross-chain dispatcher contract
+     */
+    ICrossChainDispatcher public crossChainDispatcher;
 }

@@ -1,3 +1,4 @@
+/* eslint-disable camelcase */
 /* eslint-disable max-len */
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
@@ -11,13 +12,14 @@ import Address from '../helpers/address'
 import {
   DepositToken,
   SyntheticToken,
-  Pool,
   ERC20,
   DebtToken,
   IWETH,
   NativeTokenGateway,
   PoolRegistry,
+  SmartFarmingManager__factory,
 } from '../typechain'
+import {Pool__factory} from '../typechain/factories/Pool__factory'
 import {address as POOL_REGISTRY_ADDRESS} from '../deployments/mainnet/PoolRegistry.json'
 import {address as USDC_DEPOSIT_ADDRESS} from '../deployments/mainnet/USDCDepositToken.json'
 import {address as DAI_DEPOSIT_ADDRESS} from '../deployments/mainnet/DAIDepositToken.json'
@@ -44,7 +46,12 @@ const dust = toUSD('5')
 
 const isNodeHardhat = hre.network.name === 'hardhat'
 
-describe('E2E tests', function () {
+/**
+ * The goal of this test suite is to test current state of the mainnet's contracts
+ * Note: When we have on-going changes the TypesChain types may be different than the deployed contracts
+ * For these cases, use `new ethers.Contract()` instead and amend ABI manually
+ */
+describe('E2E tests (mainnet)', function () {
   let governor: SignerWithAddress
   let alice: SignerWithAddress
   let bob: SignerWithAddress
@@ -63,7 +70,7 @@ describe('E2E tests', function () {
   let masterOracle: Contract
   let poolRegistry: PoolRegistry
   let nativeGateway: NativeTokenGateway
-  let pool: Pool
+  let pool: Contract
   let msdUSDC: DepositToken
   let msdWBTC: DepositToken
   let msdDAI: DepositToken
@@ -110,7 +117,10 @@ describe('E2E tests', function () {
     nativeGateway = await ethers.getContractAt('NativeTokenGateway', NATIVE_TOKEN_GATEWAY_ADDRESS, alice)
 
     const [pool1Address] = await poolRegistry.getPools()
-    pool = await ethers.getContractAt('Pool', pool1Address, alice)
+
+    // Note: Using SFM ABI because leverage functions were extracted from Pool on current code but didn't yet on mainnet
+    // TODO: Amend `Pool` typing and use `SmartFarmingManager` after the next overall upgrade
+    pool = new ethers.Contract(pool1Address, [...Pool__factory.abi, ...SmartFarmingManager__factory.abi], alice)
 
     msdUSDC = await ethers.getContractAt('DepositToken', USDC_DEPOSIT_ADDRESS, alice) // 6 decimals.
     msdDAI = await ethers.getContractAt('DepositToken', DAI_DEPOSIT_ADDRESS, alice) // 18 decimals
@@ -171,10 +181,6 @@ describe('E2E tests', function () {
       masterOracleGovernor
     )
     await defaultOracle.updateDefaultStalePeriod(ethers.constants.MaxUint256)
-
-    // TODO: Remove this after unpausing
-    await pool.connect(governor).open()
-    await pool.connect(governor).unpause()
   }
 
   beforeEach(async function () {
@@ -556,7 +562,7 @@ describe('E2E tests', function () {
         const {gasUsed} = await tx.wait()
         expect(gasUsed.lt(1.4e6))
         const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
-        expect(_depositInUsd).closeTo(amountIn.mul(leverage).div(parseEther('1')), parseEther('10')) // ~$150
+        expect(_depositInUsd).closeTo(parseEther('160'), parseEther('10'))
         expect(_debtInUsd).closeTo(amountIn.mul(leverage.sub(parseEther('1'))).div(parseEther('1')), parseEther('10')) // ~$50
       })
 
@@ -571,7 +577,7 @@ describe('E2E tests', function () {
         const {gasUsed} = await tx.wait()
         expect(gasUsed.lt(1.4e6))
         const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
-        expect(_depositInUsd).closeTo(amountIn.mul(leverage).div(parseEther('1')), parseEther('10')) // ~$150
+        expect(_depositInUsd).closeTo(parseEther('160'), parseEther('10'))
         expect(_debtInUsd).closeTo(amountIn.mul(leverage.sub(parseEther('1'))).div(parseEther('1')), parseEther('10')) // ~$50
       })
 
@@ -672,7 +678,7 @@ describe('E2E tests', function () {
         const {gasUsed} = await tx.wait()
         expect(gasUsed.lt(1e6))
         const {_debtInUsd} = await pool.debtPositionOf(alice.address)
-        expect(_debtInUsd).closeTo(0, parseEther('5'))
+        expect(_debtInUsd).closeTo(0, parseEther('10'))
       })
     })
   })

@@ -1,7 +1,6 @@
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
-import {UpgradableContracts, deployUpgradable} from '../../helpers'
-import {executeUsingMultiSig} from '../../helpers/multisig-helpers'
+import {UpgradableContracts, deployUpgradable, updateParamIfNeeded} from '../../helpers'
 
 const {
   Pool: {alias: Pool},
@@ -10,7 +9,7 @@ const {
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {deployments} = hre
-  const {execute, get, read, catchUnknownSigner} = deployments
+  const {get} = deployments
 
   const pool = await get(Pool)
 
@@ -20,22 +19,12 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     initializeArgs: [pool.address],
   })
 
-  const currentTreasury = await read(Pool, 'treasury')
-
-  if (currentTreasury !== treasuryAddress) {
-    const governor = await read(Pool, 'governor')
-
-    const multiSigTx = await catchUnknownSigner(
-      execute(Pool, {from: governor, log: true}, 'updateTreasury', treasuryAddress),
-      {
-        log: true,
-      }
-    )
-
-    if (multiSigTx) {
-      await executeUsingMultiSig(hre, multiSigTx)
-    }
-  }
+  await updateParamIfNeeded(hre, {
+    contract: Pool,
+    readMethod: 'treasury',
+    writeMethod: 'updateTreasury',
+    writeArgs: [treasuryAddress],
+  })
 }
 
 export default func

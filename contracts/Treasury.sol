@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.9;
 
-import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
+import "./utils/ReentrancyGuard.sol";
 import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import "./access/Manageable.sol";
 import "./storage/TreasuryStorage.sol";
@@ -29,6 +29,10 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
     modifier onlyIfDepositToken() {
         if (!pool.doesDepositTokenExist(IDepositToken(msg.sender))) revert SenderIsNotDepositToken();
         _;
+    }
+
+    constructor() {
+        _disableInitializers();
     }
 
     function initialize(IPool pool_) external initializer {

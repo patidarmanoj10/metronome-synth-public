@@ -17,7 +17,7 @@ import {
 import {FakeContract, MockContract, smock} from '@defi-wonderland/smock'
 import {BigNumber} from 'ethers'
 import {toUSD} from '../helpers'
-import {setBalance, time} from '@nomicfoundation/hardhat-network-helpers'
+import {setBalance, time, loadFixture, setStorageAt} from '@nomicfoundation/hardhat-network-helpers'
 
 chai.use(smock.matchers)
 
@@ -47,7 +47,7 @@ describe('DebtToken', function () {
   const symbol = 'msETH-Debt'
   const interestRate = parseEther('0')
 
-  beforeEach(async function () {
+  async function fixture() {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[deployer, governor, user1, user2, treasury, feeCollector] = await ethers.getSigners()
 
@@ -56,6 +56,8 @@ describe('DebtToken', function () {
     const syntheticTokenFactory = await ethers.getContractFactory('SyntheticToken', deployer)
     msUSD = await syntheticTokenFactory.deploy()
     await msUSD.deployed()
+    // Note: Undo initialization made by constructor
+    await setStorageAt(msUSD.address, 0, 0)
 
     const masterOracleMockFactory = await ethers.getContractFactory('MasterOracleMock', deployer)
     masterOracleMock = await masterOracleMockFactory.deploy()
@@ -68,16 +70,19 @@ describe('DebtToken', function () {
     const depositTokenFactory = await ethers.getContractFactory('DepositToken', deployer)
     msdMET = await depositTokenFactory.deploy()
     await msdMET.deployed()
+    await setStorageAt(msdMET.address, 0, 0) // Undo initialization made by constructor
 
     const debtTokenFactory = await ethers.getContractFactory('DebtToken', deployer)
     msUSDDebt = await debtTokenFactory.deploy()
     await msUSDDebt.deployed()
+    await setStorageAt(msUSDDebt.address, 0, 0) // Undo initialization made by constructor
 
     const esMET = await smock.fake('IESMET')
 
     const feeProviderFactory = await ethers.getContractFactory('FeeProvider', deployer)
     feeProvider = await feeProviderFactory.deploy()
     await feeProvider.deployed()
+    await setStorageAt(feeProvider.address, 0, 0) // Undo initialization made by constructor
     await feeProvider.initialize(poolRegistryMock.address, esMET.address)
 
     const poolMockFactory = await smock.mock<PoolMock__factory>('PoolMock')
@@ -120,6 +125,10 @@ describe('DebtToken', function () {
     rewardsDistributorMock.pool.returns(poolMock.address)
 
     poolMock.getRewardsDistributors.returns([rewardsDistributorMock.address])
+  }
+
+  beforeEach(async function () {
+    await loadFixture(fixture)
   })
 
   it('default values', async function () {
@@ -178,11 +187,13 @@ describe('DebtToken', function () {
       const syntheticTokenFactory = await ethers.getContractFactory('SyntheticToken', deployer)
       const notListedSynthetic = await syntheticTokenFactory.deploy()
       await notListedSynthetic.deployed()
+      await setStorageAt(notListedSynthetic.address, 0, 0) // Undo initialization made by constructor
       await notListedSynthetic.initialize(name, symbol, 18, poolMock.address)
 
       const debtTokenFactory = await ethers.getContractFactory('DebtToken', deployer)
       const notListedDebtToken = await debtTokenFactory.deploy()
       await notListedDebtToken.deployed()
+      await setStorageAt(notListedDebtToken.address, 0, 0) // Undo initialization made by constructor
       await notListedDebtToken.initialize(
         name,
         symbol,
@@ -630,7 +641,7 @@ describe('DebtToken', function () {
 
       it('should remove debt token from user1 array only if burning all', async function () {
         // given
-        // poolMock.removeFromDebtTokensOfAccount.reset()
+        poolMock.removeFromDebtTokensOfAccount.reset()
         expect(await msUSDDebt.balanceOf(user1.address)).eq(amount)
 
         // when

@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.9;
 
-import "./dependencies/openzeppelin/proxy/utils/Initializable.sol";
+import "./dependencies/openzeppelin-upgradeable/proxy/utils/Initializable.sol";
 import "./storage/FeeProviderStorage.sol";
 import "./lib/WadRayMath.sol";
 
@@ -54,6 +54,10 @@ contract FeeProvider is Initializable, FeeProviderStorageV1 {
     modifier onlyGovernor() {
         if (msg.sender != poolRegistry.governor()) revert SenderIsNotGovernor();
         _;
+    }
+
+    constructor() {
+        _disableInitializers();
     }
 
     function initialize(IPoolRegistry poolRegistry_, IESMET esMET_) public initializer {

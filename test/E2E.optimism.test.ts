@@ -40,8 +40,13 @@ const dust = toUSD('5')
 
 const isNodeHardhat = hre.network.name === 'hardhat'
 
+/**
+ * The goal of this test suite is to test current state of the optimism's contracts
+ * Note: When we have on-going changes the TypesChain types may be different than the deployed contracts
+ * For these cases, use `new ethers.Contract()` instead and amend ABI manually
+ */
 // Note: Skipping for now because the tests use mainnet by default
-describe.skip('E2E tests - OP', function () {
+describe.skip('E2E tests (optimism)', function () {
   let governor: SignerWithAddress
   let alice: SignerWithAddress
   let bob: SignerWithAddress

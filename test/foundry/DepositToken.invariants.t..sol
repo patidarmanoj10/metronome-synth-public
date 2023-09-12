@@ -35,16 +35,20 @@ contract DepositTokenInvariant_Test is Test {
         masterOracle.updatePrice(address(underlying), 1e18);
 
         poolRegistry = new PoolRegistry();
+        vm.store(address(poolRegistry), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
         poolRegistry.initialize({masterOracle_: masterOracle, feeCollector_: feeCollector});
 
         feeProvider = new FeeProvider();
+        vm.store(address(feeProvider), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
         feeProvider.initialize({poolRegistry_: poolRegistry, esMET_: IESMET(address(esMET))});
 
         pool = new Pool();
+        vm.store(address(pool), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
         pool.initialize(poolRegistry);
         pool.updateFeeProvider(feeProvider);
 
         depositToken = new DepositToken();
+        vm.store(address(depositToken), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
         depositToken.initialize({
             underlying_: underlying,
             pool_: pool,
@@ -56,6 +60,7 @@ contract DepositTokenInvariant_Test is Test {
         });
 
         treasury = new Treasury();
+        vm.store(address(treasury), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
         treasury.initialize(pool);
 
         pool.updateTreasury(treasury);
