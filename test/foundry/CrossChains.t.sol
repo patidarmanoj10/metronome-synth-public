@@ -56,6 +56,7 @@ abstract contract CrossChains_Test is Test {
     uint16 public constant LZ_OP_CHAIN_ID = 111;
 
     uint256 public constant SG_USDC_POOL_ID = 1;
+    uint256 public constant SG_WETH_POOL_ID = 13;
 
     address public constant SG_OP_USDC_POOL = 0xDecC0c09c3B5f6e92EF4184125D5648a66E35298;
     address public constant SG_MAINNET_USDC_POOL = 0xdf0770dF86a8034b3EFEf0A1Bb3c889B8332FF56;
@@ -75,6 +76,8 @@ abstract contract CrossChains_Test is Test {
     // Layer 2
     IERC20 vaUSDC_optimism = IERC20(0x539505Dde2B9771dEBE0898a84441c5E7fDF6BC0);
     IERC20 usdc_optimism = IERC20(0x7F5c764cBc14f9669B88837ca1490cCa17c31607);
+    IERC20 vaETH_optimism = IERC20(0xCcF3d1AcF799bAe67F6e354d685295557cf64761);
+    IERC20 weth_optimism = IERC20(WETH_OP);
     ILayerZeroEndpointExtended lzEndpoint_optimism =
         ILayerZeroEndpointExtended(0x3c2269811836af69497E5F486A85D7316753cf62);
     IStargateRouterExtended sgRouter_optimism = IStargateRouterExtended(0xB0D502E938ed5f4df2E681fE6E419ff29631d62b);
@@ -90,11 +93,13 @@ abstract contract CrossChains_Test is Test {
     DebtToken msUSDDebt_optimism;
     DepositToken msdUSDC_optimism;
     DepositToken msdVaUSDC_optimism;
+    DepositToken msdVaETH_optimism;
     ProxyOFT proxyOFT_msUSD_optimism;
     Quoter quoter_optimism;
 
     // Mainnet
     IERC20 usdc_mainnet = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
+    IERC20 weth_mainnet = IERC20(WETH_MAINNET);
     ILayerZeroEndpointExtended lzEndpoint_mainnet =
         ILayerZeroEndpointExtended(0x66A71Dcef29A0fFBDBE3c6a460a3B5BC225Cd675);
     IStargateRouterExtended sgRouter_mainnet = IStargateRouterExtended(0x8731d54E9D02c286767d56ac03e8037C07e01e98);
@@ -117,9 +122,9 @@ abstract contract CrossChains_Test is Test {
         // Refs: https://github.com/autonomoussoftware/metronome-synth/issues/874
         mainnetFork = vm.createSelectFork("https://eth.connect.bloq.cloud/v1/peace-blood-actress");
         // mainnetFork = vm.createSelectFork("https://eth-mainnet.alchemyapi.io/v2/NbZ2px662CNSwdw3ZxdaZNe31yZbyddK");
-        vm.rollFork(mainnetFork, 17635570);
+        vm.rollFork(mainnetFork, 18085970);
         optimismFork = vm.createSelectFork("https://optimism-mainnet.infura.io/v3/9989c2cf77a24bddaa43103463cb8047");
-        vm.rollFork(optimismFork, 106528550);
+        vm.rollFork(optimismFork, 109254180);
 
         //
         // Layer 2
@@ -158,6 +163,9 @@ abstract contract CrossChains_Test is Test {
 
         msdVaUSDC_optimism = new DepositToken();
         vm.store(address(msdVaUSDC_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
+
+        msdVaETH_optimism = new DepositToken();
+        vm.store(address(msdVaETH_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
 
         proxyOFT_msUSD_optimism = new ProxyOFT();
         vm.store(address(proxyOFT_msUSD_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
@@ -198,6 +206,16 @@ abstract contract CrossChains_Test is Test {
             maxTotalSupply_: type(uint256).max
         });
 
+        msdVaETH_optimism.initialize({
+            underlying_: vaETH_optimism,
+            pool_: pool_optimism,
+            name_: "msdVaETH",
+            symbol_: "msdVaETH",
+            decimals_: 18,
+            collateralFactor_: 0.5e18,
+            maxTotalSupply_: type(uint256).max
+        });
+
         msUSD_optimism.initialize({
             name_: "msUSD",
             symbol_: "msUSD",
@@ -220,9 +238,12 @@ abstract contract CrossChains_Test is Test {
         pool_optimism.updateSmartFarmingManager(smartFarmingManager_optimism);
         pool_optimism.addDepositToken(address(msdUSDC_optimism));
         pool_optimism.addDepositToken(address(msdVaUSDC_optimism));
+        pool_optimism.addDepositToken(address(msdVaETH_optimism));
         pool_optimism.addDebtToken(msUSDDebt_optimism);
         masterOracle_optimism.updatePrice(address(usdc_optimism), 1e18);
         masterOracle_optimism.updatePrice(address(vaUSDC_optimism), 1e18);
+        masterOracle_optimism.updatePrice(address(vaETH_optimism), 2000e18);
+        masterOracle_optimism.updatePrice(address(weth_optimism), 2000e18);
         masterOracle_optimism.updatePrice(address(msUSD_optimism), 1e18);
         crossChainDispatcher_optimism.updateStargateRouter(IStargateRouter(sgRouter_optimism));
         proxyOFT_msUSD_optimism.setUseCustomAdapterParams(true);
@@ -321,6 +342,7 @@ abstract contract CrossChains_Test is Test {
         pool_mainnet.updateTreasury(treasury_mainnet);
         masterOracle_mainnet.updatePrice(address(usdc_mainnet), 1e18);
         masterOracle_mainnet.updatePrice(address(msUSD_mainnet), 1e18);
+        masterOracle_mainnet.updatePrice(address(weth_mainnet), 2000e18);
         proxyOFT_msUSD_mainnet.setUseCustomAdapterParams(true);
         proxyOFT_msUSD_mainnet.setMinDstGas(LZ_OP_CHAIN_ID, proxyOFT_msUSD_mainnet.PT_SEND(), 200_000);
         msUSD_mainnet.updateProxyOFT(proxyOFT_msUSD_mainnet);
@@ -356,9 +378,12 @@ abstract contract CrossChains_Test is Test {
         );
 
         crossChainDispatcher_optimism.updateStargatePoolIdOf(address(usdc_optimism), SG_USDC_POOL_ID);
+        crossChainDispatcher_optimism.updateStargatePoolIdOf(address(weth_optimism), SG_WETH_POOL_ID);
 
         deal(address(usdc_optimism), address(swapper_optimism), 1000000000000000e6);
         deal(address(vaUSDC_optimism), address(swapper_optimism), 1000000000000000e18);
+        deal(address(weth_optimism), address(swapper_optimism), 100000e18);
+        deal(address(vaETH_optimism), address(swapper_optimism), 10000000e18);
 
         vm.selectFork(mainnetFork);
 
@@ -372,9 +397,11 @@ abstract contract CrossChains_Test is Test {
         );
 
         crossChainDispatcher_mainnet.updateStargatePoolIdOf(address(usdc_mainnet), SG_USDC_POOL_ID);
+        crossChainDispatcher_mainnet.updateStargatePoolIdOf(address(weth_mainnet), SG_WETH_POOL_ID);
 
         deal(address(usdc_mainnet), address(swapper_mainnet), 1000000000e6);
         deal(address(msUSD_mainnet), address(swapper_mainnet), 1000000000e18);
+        deal(address(weth_mainnet), address(swapper_mainnet), 100000e18);
     }
 
     function _doNativeAirdropIfNeeded(Vm.Log memory RelayerParams) internal {

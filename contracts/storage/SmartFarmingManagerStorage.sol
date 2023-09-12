@@ -11,12 +11,12 @@ abstract contract SmartFarmingManagerStorageV1 is ISmartFarmingManager {
      */
     struct CrossChainLeverage {
         uint16 dstChainId;
-        IERC20 underlying; // e.g. USDC is vaUSDC's underlying
+        IERC20 bridgeToken;
         IDepositToken depositToken;
         ISyntheticToken syntheticToken;
-        uint256 underlyingAmountIn;
-        uint256 depositAmountMin;
+        uint256 bridgeTokenAmountIn;
         uint256 syntheticTokenIssued;
+        uint256 depositAmountMin;
         address account;
         bool finished;
     }

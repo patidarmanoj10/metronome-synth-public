@@ -126,12 +126,12 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
         __ReentrancyGuard_init();
 
         poolRegistry = poolRegistry_;
-        stargateSlippage = 10; // 0.1%
+        stargateSlippage = 50; // 0.5%
         lzBaseGasLimit = 200_00;
         flashRepayCallbackTxGasLimit = 750_000;
         flashRepaySwapTxGasLimit = 500_000;
         leverageCallbackTxGasLimit = 750_000;
-        leverageSwapTxGasLimit = 650_000;
+        leverageSwapTxGasLimit = 750_000;
         weth = weth_;
         sgeth = sgeth_;
     }
@@ -196,6 +196,8 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
         address _underlying = IStargatePool(IStargateFactory(stargateRouter.factory()).getPool(_underlyingPoolId))
             .token();
 
+        if (_underlying == sgeth) _underlying = weth;
+
         amountIn_ = _swap({
             requestId_: _requestId,
             tokenIn_: IProxyOFT(_dstProxyOFT).token(),
@@ -237,9 +239,9 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
         uint256 amountLD_,
         bytes memory payload_
     ) external override onlyIfStargateRouter {
-        // Note: Stargate uses SGETH for ETH cross-chain swaps
+        // Note: Stargate uses SGETH as `token_` when receiving native ETH
         if (token_ == sgeth) {
-            _sgethForWETH(amountLD_);
+            IWETH(weth).deposit{value: amountLD_}();
             token_ = weth;
         }
 
@@ -557,7 +559,7 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
         uint256 _amountOutMin = (params_.amountIn * (MAX_BPS - stargateSlippage)) / MAX_BPS;
         bytes memory _payload = params_.payload;
 
-        // Note: Stargate uses SGETH for ETH cross-chain swaps
+        // Note: Stargate uses SGETH when sending ETH
         if (params_.tokenIn == weth) {
             _wethForSGETH(params_.amountIn);
             params_.tokenIn = sgeth;
@@ -608,14 +610,6 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
             amountOutMin_: amountOutMin_,
             receiver_: address(this)
         });
-    }
-
-    /**
-     * @dev Swap SGETH for WETH
-     */
-    function _sgethForWETH(uint256 amount_) private {
-        IWETH(sgeth).withdraw(amount_);
-        IWETH(weth).deposit{value: amount_}();
     }
 
     /**

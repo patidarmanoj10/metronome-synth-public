@@ -1019,7 +1019,7 @@ describe('SmartFarmingManager', function () {
 
       // when
       const fee = parseEther('0.1')
-      const underlying = dai.address
+      const tokenIn = dai.address
       const depositToken = msdVaDAI.address
       const syntheticToken = msUSD.address
       const amountIn = parseEther('10')
@@ -1031,7 +1031,7 @@ describe('SmartFarmingManager', function () {
       const tx = smartFarmingManager
         .connect(alice)
         .crossChainLeverage(
-          underlying,
+          tokenIn,
           depositToken,
           syntheticToken,
           amountIn,
@@ -1051,7 +1051,7 @@ describe('SmartFarmingManager', function () {
       const requestId = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(['uint256', 'uint256'], [1, length]))
       expect(await smartFarmingManager.crossChainRequestsLength()).eq(length)
       const request = await smartFarmingManager.crossChainLeverages(requestId)
-      expect(request.underlying).eq(underlying)
+      expect(request.bridgeToken).eq(tokenIn)
       expect(request.depositToken).eq(depositToken)
       expect(request.syntheticToken).eq(syntheticToken)
       expect(request.depositAmountMin).eq(depositAmountMin)
@@ -1153,10 +1153,10 @@ describe('SmartFarmingManager', function () {
 
     it('should revert if swapAmountOut slippage is too high', async function () {
       // given
-      const {depositAmountMin, underlyingAmountIn} = await smartFarmingManager.crossChainLeverages(id)
+      const {depositAmountMin, bridgeTokenAmountIn} = await smartFarmingManager.crossChainLeverages(id)
 
       // when
-      const swapAmountOut = depositAmountMin.sub(underlyingAmountIn).sub('1')
+      const swapAmountOut = depositAmountMin.sub(bridgeTokenAmountIn).sub('1')
       const tx = smartFarmingManager.connect(crossChainDispatcherSigner).crossChainLeverageCallback(id, swapAmountOut)
 
       // then
