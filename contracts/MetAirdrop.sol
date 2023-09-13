@@ -27,14 +27,18 @@ contract MetAirdrop is RecurringAirdrop {
      * The `lockPeriod` starts from the current merkle root update (i.e. `updatedAt`)
      */
     function _transferReward(address to_, uint256 amount_) internal override {
-        uint256 _min = ESMET.MINIMUM_LOCK_PERIOD() + 1;
-        uint256 _max = ESMET.MAXIMUM_LOCK_PERIOD();
         uint256 _end = updatedAt + lockPeriod;
 
+        if (_end < block.timestamp) {
+            MET.safeTransfer(to_, amount_);
+            return;
+        }
+
+        uint256 _min = ESMET.MINIMUM_LOCK_PERIOD() + 1;
+        uint256 _max = ESMET.MAXIMUM_LOCK_PERIOD();
+
         // Ensures valid lock period
-        uint256 _remainLockPeriod = (_end < block.timestamp)
-            ? _min
-            : Math.min(Math.max(_end - block.timestamp, _min), _max);
+        uint256 _remainLockPeriod = Math.min(Math.max(_end - block.timestamp, _min), _max);
 
         token.safeApprove(address(ESMET), 0);
         token.safeApprove(address(ESMET), amount_);

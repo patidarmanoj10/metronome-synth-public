@@ -4,7 +4,7 @@ import {expect} from 'chai'
 import MerkleTree from 'merkletreejs'
 import {randomBytes} from 'crypto'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
-import {loadFixture} from '@nomicfoundation/hardhat-network-helpers'
+import {loadFixture, time} from '@nomicfoundation/hardhat-network-helpers'
 import {parseEther} from 'ethers/lib/utils'
 import {IERC20, IESMET, MetAirdrop} from '../typechain'
 import {disableForking, enableForking, setTokenBalance} from './helpers'
@@ -97,6 +97,22 @@ describe('MetAirdrop', function () {
   describe('claim', function () {
     beforeEach(async function () {
       expect(await met.balanceOf(esMET.address)).eq(0)
+    })
+
+    it('should receive MET when claiming after lockPeriod', async function () {
+      // given
+      const unlockTime = (await airdrop.updatedAt()).add(await airdrop.lockPeriod())
+      await time.increaseTo(unlockTime.add(time.duration.days(1)))
+      expect(await met.balanceOf(alice.address)).eq(0)
+
+      // when
+      const amount = rewards0[alice.address]
+      const leaf = generateLeaf(alice.address, amount)
+      const proof = merkleTree0.getHexProof(leaf)
+      await airdrop.connect(alice).claim(amount, proof)
+
+      // then
+      expect(await met.balanceOf(alice.address)).eq(amount)
     })
 
     it('should claim and lock MET for correct period of time', async function () {
