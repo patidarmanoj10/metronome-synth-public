@@ -1,4 +1,4 @@
-import {BigNumber} from 'ethers'
+import {ethers, BigNumber} from 'ethers'
 import chalk from 'chalk'
 import {DeployFunction} from 'hardhat-deploy/types'
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
@@ -8,6 +8,7 @@ import {executeUsingMultiSig, saveForMultiSigBatchExecution} from './multisig-he
 const {GNOSIS_SAFE_ADDRESS} = Address
 
 const {log} = console
+const {getAddress} = ethers.utils
 
 interface ContractConfig {
   alias: string
@@ -154,7 +155,8 @@ export const deployUpgradable = async ({
   // See more: https://github.com/wighawag/hardhat-deploy/issues/284#issuecomment-1139971427
   const actualImpl = await read(adminContract, 'getProxyImplementation', address)
 
-  if (actualImpl !== implementationAddress) {
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  if (getAddress(actualImpl) !== getAddress(implementationAddress!)) {
     const multiSigUpgradeTx = await catchUnknownSigner(
       execute(adminContract, {from: GNOSIS_SAFE_ADDRESS, log: true}, 'upgrade', address, implementationAddress),
       {log: true}
