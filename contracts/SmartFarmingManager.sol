@@ -35,7 +35,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
     using SafeERC20 for ISyntheticToken;
     using WadRayMath for uint256;
 
-    string public constant VERSION = "1.2.0";
+    string public constant VERSION = "1.3.0";
 
     /// @notice Emitted when a cross-chain leverage request is finalized
     event CrossChainLeverageFinished(uint256 indexed id);

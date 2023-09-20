@@ -35,10 +35,10 @@ error SenderIsNotSmartFarmingManager();
 contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorageV2 {
     using WadRayMath for uint256;
 
+    string public constant VERSION = "1.3.0";
+
     uint256 public constant SECONDS_PER_YEAR = 365.25 days;
     uint256 private constant HUNDRED_PERCENT = 1e18;
-
-    string public constant VERSION = "1.2.0";
 
     /// @notice Emitted when synthetic's debt is repaid
     event DebtRepaid(address indexed payer, address indexed account, uint256 amount, uint256 repaid, uint256 fee);

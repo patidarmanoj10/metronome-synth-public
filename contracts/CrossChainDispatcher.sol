@@ -33,6 +33,8 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
     using SafeERC20 for IERC20;
     using BytesLib for bytes;
 
+    string public constant VERSION = "1.3.0";
+
     /**
      * @dev LayerZero adapter param version
      * See more: https://layerzero.gitbook.io/docs/evm-guides/advanced/relayer-adapter-parameters
