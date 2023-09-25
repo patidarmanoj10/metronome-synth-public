@@ -1,3 +1,4 @@
+/* eslint-disable camelcase */
 /* eslint-disable max-len */
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
@@ -11,13 +12,14 @@ import Address from '../helpers/address'
 import {
   DepositToken,
   SyntheticToken,
-  Pool,
   ERC20,
   DebtToken,
   IWETH,
   NativeTokenGateway,
   PoolRegistry,
+  SmartFarmingManager__factory,
 } from '../typechain'
+import {Pool__factory} from '../typechain/factories/Pool__factory'
 import {address as POOL_REGISTRY_ADDRESS} from '../deployments/optimism/PoolRegistry.json'
 import {address as USDC_DEPOSIT_ADDRESS} from '../deployments/optimism/USDCDepositToken.json'
 import {address as OP_DEPOSIT_ADDRESS} from '../deployments/optimism/OPDepositToken.json'
@@ -60,7 +62,7 @@ describe.skip('E2E tests (optimism)', function () {
   let masterOracle: Contract
   let poolRegistry: PoolRegistry
   let nativeGateway: NativeTokenGateway
-  let pool: Pool
+  let pool: Contract
   let msdUSDC: DepositToken
   let msdOP: DepositToken
   let msdWETH: DepositToken
@@ -98,7 +100,10 @@ describe.skip('E2E tests (optimism)', function () {
     nativeGateway = await ethers.getContractAt('NativeTokenGateway', NATIVE_TOKEN_GATEWAY_ADDRESS, alice)
 
     const [pool1Address] = await poolRegistry.getPools()
-    pool = await ethers.getContractAt('Pool', pool1Address, alice)
+
+    // Note: Using SFM ABI because leverage functions were extracted from Pool on current code but didn't yet on mainnet
+    // TODO: Amend `Pool` typing and use `SmartFarmingManager` after the next overall upgrade
+    pool = new ethers.Contract(pool1Address, [...Pool__factory.abi, ...SmartFarmingManager__factory.abi], alice)
 
     msdUSDC = await ethers.getContractAt('DepositToken', USDC_DEPOSIT_ADDRESS, alice) // 6 decimals.
     msdOP = await ethers.getContractAt('DepositToken', OP_DEPOSIT_ADDRESS, alice)
@@ -126,7 +131,7 @@ describe.skip('E2E tests (optimism)', function () {
     expect(await vaUSDC.balanceOf(alice.address)).gt(0)
     await setTokenBalance(vaETH.address, alice.address, parseUnits('1,000', 18))
     expect(await vaETH.balanceOf(alice.address)).gt(0)
-    await setTokenBalance(vaOP.address, alice.address, parseUnits('1,000', 18))
+    await setTokenBalance(vaOP.address, alice.address, parseUnits('2,000', 18))
     expect(await vaOP.balanceOf(alice.address)).gt(0)
     await setTokenBalance(vawstETH.address, alice.address, parseUnits('20', 18))
     expect(await vawstETH.balanceOf(alice.address)).gt(0)
@@ -155,6 +160,33 @@ describe.skip('E2E tests (optimism)', function () {
       masterOracleGovernor
     )
     await defaultOracle.updateDefaultStalePeriod(ethers.constants.MaxUint256)
+
+    // TODO: Remove lines below after those routings are set
+    const swapper = new ethers.Contract(
+      await pool.swapper(),
+      ['function setExactInputRouting(address,address,bytes)'],
+      governor
+    )
+    await swapper.setExactInputRouting(
+      msUSD.address,
+      vaUSDC.address,
+      '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000001e0000000000000000000000000B61a23EC0c576d6864Ee81522B6D2d60300C835100000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000e45407cc64000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000020000000000000000000000009dabae7274d28a45f0b65bf8ed201a5731492ca00000000000000000000000007f5c764cbc14f9669b88837ca1490cca17c3160700000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000009a92b76fA1782f60bcaf76E7DDa1e2b8Dc9e24930000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000024f340fa01000000000000000000000000539505dde2b9771debe0898a84441c5e7fdf6bc000000000000000000000000000000000000000000000000000000000'
+    )
+    await swapper.setExactInputRouting(
+      msOP.address,
+      vaOP.address,
+      '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000001e0000000000000000000000000B61a23EC0c576d6864Ee81522B6D2d60300C835100000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000e45407cc64000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000000200000000000000000000000033bca143d9b41322479e8d26072a00a352404721000000000000000000000000420000000000000000000000000000000000004200000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000009a92b76fA1782f60bcaf76E7DDa1e2b8Dc9e24930000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000024f340fa0100000000000000000000000019382707d5a47e74f60053b652ab34b6e30febad00000000000000000000000000000000000000000000000000000000'
+    )
+    await swapper.setExactInputRouting(
+      vaUSDC.address,
+      msUSD.address,
+      '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000001200000000000000000000000009a92b76fA1782f60bcaf76E7DDa1e2b8Dc9e2493000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000002451cff8d9000000000000000000000000539505dde2b9771debe0898a84441c5e7fdf6bc000000000000000000000000000000000000000000000000000000000000000000000000000000000B61a23EC0c576d6864Ee81522B6D2d60300C835100000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000e45407cc64000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000020000000000000000000000007f5c764cbc14f9669b88837ca1490cca17c316070000000000000000000000009dabae7274d28a45f0b65bf8ed201a5731492ca00000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000'
+    )
+    await swapper.setExactInputRouting(
+      vaOP.address,
+      msOP.address,
+      '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000001200000000000000000000000009a92b76fA1782f60bcaf76E7DDa1e2b8Dc9e2493000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000002451cff8d900000000000000000000000019382707d5a47e74f60053b652ab34b6e30febad00000000000000000000000000000000000000000000000000000000000000000000000000000000B61a23EC0c576d6864Ee81522B6D2d60300C835100000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000e45407cc64000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000002000000000000000000000000420000000000000000000000000000000000004200000000000000000000000033bca143d9b41322479e8d26072a00a3524047210000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000'
+    )
   }
 
   beforeEach(async function () {
@@ -430,7 +462,6 @@ describe.skip('E2E tests (optimism)', function () {
       expect(depositAfter).closeTo(0, dust)
     })
 
-    // TODO some tests are skipped as there is no liquidity
     describe('leverage', function () {
       beforeEach(async function () {
         const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
@@ -438,7 +469,7 @@ describe.skip('E2E tests (optimism)', function () {
         expect(_depositInUsd).eq(0)
       })
 
-      it.skip('should leverage vaUSDC->msUSD', async function () {
+      it('should leverage vaUSDC->msUSD', async function () {
         // when
         const amountIn = parseUnits('100', 18)
         const leverage = parseEther('1.5')
@@ -453,10 +484,10 @@ describe.skip('E2E tests (optimism)', function () {
         expect(_debtInUsd).closeTo(amountIn.mul(leverage.sub(parseEther('1'))).div(parseEther('1')), parseEther('10')) // ~$50
       })
 
-      it.skip('should leverage vaOP->msOP', async function () {
+      it('should leverage vaOP->msOP', async function () {
         // when
-        const amountIn = parseUnits('1000', 18)
-        const amountInUsd = parseUnits('1.81', 18) // approx.
+        const amountIn = parseUnits('1,000', 18)
+        const amountInUsd = parseUnits('1,250', 18) // approx.
         const leverage = parseEther('1.5')
         await vaOP.connect(alice).approve(pool.address, MaxUint256)
         const tx = await pool.leverage(vaOP.address, msdVaOP.address, msOP.address, amountIn, leverage, 0)
@@ -465,17 +496,18 @@ describe.skip('E2E tests (optimism)', function () {
         const {gasUsed} = await tx.wait()
         expect(gasUsed.lt(1.4e6))
         const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
-        expect(_depositInUsd).closeTo(amountInUsd.mul(leverage).div(parseEther('1')), parseEther('100')) // ~$2,715
+
+        expect(_depositInUsd).closeTo(amountInUsd.mul(leverage).div(parseEther('1')), parseEther('100'))
         expect(_debtInUsd).closeTo(
           amountInUsd.mul(leverage.sub(parseEther('1'))).div(parseEther('1')),
           parseEther('100')
-        ) // ~$950
+        )
       })
 
       it('should leverage vaETH->msETH', async function () {
         // when
         const amountIn = parseUnits('1', 18)
-        const amountInUsd = parseUnits('1,750', 18) // approx.
+        const amountInUsd = parseUnits('1,590', 18) // approx.
         const leverage = parseEther('1.5')
         await vaETH.connect(alice).approve(pool.address, MaxUint256)
         const tx = await pool.leverage(vaETH.address, msdVaETH.address, msETH.address, amountIn, leverage, 0)
@@ -494,7 +526,7 @@ describe.skip('E2E tests (optimism)', function () {
       it('should leverage vawstETH->msETH', async function () {
         // when
         const amountIn = parseUnits('1', 18)
-        const amountInUsd = parseUnits('1,950', 18) // approx.
+        const amountInUsd = parseUnits('1,815', 18) // approx.
         const leverage = parseEther('1.5')
         await vawstETH.connect(alice).approve(pool.address, MaxUint256)
         const tx = await pool.leverage(vawstETH.address, msdVaWSTETH.address, msETH.address, amountIn, leverage, 0)
@@ -516,13 +548,15 @@ describe.skip('E2E tests (optimism)', function () {
         const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
         expect(_debtInUsd).eq(0)
         expect(_depositInUsd).eq(0)
+      })
+
+      it('should flash repay msETH debt using vawstETH', async function () {
+        // given
         const amountIn = parseEther('1')
         const leverage = parseEther('2')
         await vawstETH.connect(alice).approve(pool.address, MaxUint256)
         await pool.connect(alice).leverage(vawstETH.address, msdVaWSTETH.address, msETH.address, amountIn, leverage, 0)
-      })
 
-      it('should flash repay msETH debt using vawstETH', async function () {
         // when
         const withdrawAmount = parseEther('0.9')
         const tx = await pool.connect(alice).flashRepay(msETH.address, msdVaWSTETH.address, withdrawAmount, 0)
@@ -531,9 +565,46 @@ describe.skip('E2E tests (optimism)', function () {
         const {gasUsed} = await tx.wait()
         expect(gasUsed).lt(2e6)
         const {_debtInUsd} = await pool.debtPositionOf(alice.address)
-        expect(_debtInUsd).closeTo(parseEther('110'), parseEther('5'))
+        expect(_debtInUsd).closeTo(parseEther('165'), parseEther('5'))
+      })
+
+      it('should flash repay msUSD debt using vaUSDC', async function () {
+        // given
+        const amountIn = parseEther('100')
+        const leverage = parseEther('1.5')
+        await vaUSDC.connect(alice).approve(pool.address, MaxUint256)
+        await pool.connect(alice).leverage(vaUSDC.address, msdVaUSDC.address, msUSD.address, amountIn, leverage, 0)
+
+        // when
+        const withdrawAmount = parseEther('45')
+        const tx = await pool.connect(alice).flashRepay(msUSD.address, msdVaUSDC.address, withdrawAmount, 0)
+
+        // then
+        const {gasUsed} = await tx.wait()
+        expect(gasUsed).lt(2e6)
+        const {_debtInUsd} = await pool.debtPositionOf(alice.address)
+        expect(_debtInUsd).closeTo(parseEther('0'), parseEther('50'))
+      })
+
+      it('should flash repay msOP debt using vaOP', async function () {
+        // given
+        const amountIn = parseEther('100')
+        const leverage = parseEther('1.5')
+        await vaOP.connect(alice).approve(pool.address, MaxUint256)
+        await pool.connect(alice).leverage(vaOP.address, msdVaOP.address, msOP.address, amountIn, leverage, 0)
+
+        // when
+        const withdrawAmount = parseEther('45')
+        const tx = await pool.connect(alice).flashRepay(msOP.address, msdVaOP.address, withdrawAmount, 0)
+
+        // then
+        const {gasUsed} = await tx.wait()
+        expect(gasUsed).lt(2e6)
+        const {_debtInUsd} = await pool.debtPositionOf(alice.address)
+        expect(_debtInUsd).closeTo(parseEther('0'), parseEther('50'))
       })
     })
+
     describe('rewards', function () {
       // TODO
     })
