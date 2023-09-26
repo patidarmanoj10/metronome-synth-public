@@ -30,9 +30,9 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   await updateParamIfNeeded(hre, {
     contract: CrossChainDispatcher,
-    readMethod: 'stargateRouter',
-    writeMethod: 'updateStargateRouter',
-    writeArgs: [Address.STARGATE_ROUTER],
+    readMethod: 'stargateComposer',
+    writeMethod: 'updateStargateComposer',
+    writeArgs: [Address.STARGATE_COMPOSER],
   })
 
   await updateParamIfNeeded(hre, {

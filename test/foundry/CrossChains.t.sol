@@ -7,6 +7,7 @@ import {ILayerZeroReceiver} from "../../contracts/dependencies/@layerzerolabs/so
 import {ILayerZeroEndpoint} from "../../contracts/dependencies/@layerzerolabs/solidity-examples/interfaces/ILayerZeroEndpoint.sol";
 import {Pool as StargatePool} from "../../contracts/dependencies/stargate-protocol/Pool.sol";
 import {IStargateRouter} from "../../contracts/dependencies/stargate-protocol/interfaces/IStargateRouter.sol";
+import {IStargateComposer} from "../../contracts/dependencies/stargate-protocol/interfaces/IStargateComposer.sol";
 import {PoolRegistry} from "../../contracts/PoolRegistry.sol";
 import {Pool, ISyntheticToken, IERC20} from "../../contracts/Pool.sol";
 import {SmartFarmingManager} from "../../contracts/SmartFarmingManager.sol";
@@ -81,6 +82,7 @@ abstract contract CrossChains_Test is Test {
     ILayerZeroEndpointExtended lzEndpoint_optimism =
         ILayerZeroEndpointExtended(0x3c2269811836af69497E5F486A85D7316753cf62);
     IStargateRouterExtended sgRouter_optimism = IStargateRouterExtended(0xB0D502E938ed5f4df2E681fE6E419ff29631d62b);
+    IStargateComposer sgComposer_optimism = IStargateComposer(0xeCc19E177d24551aA7ed6Bc6FE566eCa726CC8a9);
     MasterOracleMock masterOracle_optimism;
     SwapperMock swapper_optimism;
     PoolRegistry poolRegistry_optimism;
@@ -103,6 +105,7 @@ abstract contract CrossChains_Test is Test {
     ILayerZeroEndpointExtended lzEndpoint_mainnet =
         ILayerZeroEndpointExtended(0x66A71Dcef29A0fFBDBE3c6a460a3B5BC225Cd675);
     IStargateRouterExtended sgRouter_mainnet = IStargateRouterExtended(0x8731d54E9D02c286767d56ac03e8037C07e01e98);
+    IStargateComposer sgComposer_mainnet = IStargateComposer(0xeCc19E177d24551aA7ed6Bc6FE566eCa726CC8a9);
     MasterOracleMock masterOracle_mainnet;
     SwapperMock swapper_mainnet;
     Treasury treasury_mainnet;
@@ -122,9 +125,9 @@ abstract contract CrossChains_Test is Test {
         // Refs: https://github.com/autonomoussoftware/metronome-synth/issues/874
         mainnetFork = vm.createSelectFork("https://eth.connect.bloq.cloud/v1/peace-blood-actress");
         // mainnetFork = vm.createSelectFork("https://eth-mainnet.alchemyapi.io/v2/NbZ2px662CNSwdw3ZxdaZNe31yZbyddK");
-        vm.rollFork(mainnetFork, 18085970);
+        vm.rollFork(mainnetFork, 18221440);
         optimismFork = vm.createSelectFork("https://optimism-mainnet.infura.io/v3/9989c2cf77a24bddaa43103463cb8047");
-        vm.rollFork(optimismFork, 109254180);
+        vm.rollFork(optimismFork, 110075310);
 
         //
         // Layer 2
@@ -245,7 +248,7 @@ abstract contract CrossChains_Test is Test {
         masterOracle_optimism.updatePrice(address(vaETH_optimism), 2000e18);
         masterOracle_optimism.updatePrice(address(weth_optimism), 2000e18);
         masterOracle_optimism.updatePrice(address(msUSD_optimism), 1e18);
-        crossChainDispatcher_optimism.updateStargateRouter(IStargateRouter(sgRouter_optimism));
+        crossChainDispatcher_optimism.updateStargateComposer(sgComposer_optimism);
         proxyOFT_msUSD_optimism.setUseCustomAdapterParams(true);
         proxyOFT_msUSD_optimism.setMinDstGas(LZ_MAINNET_CHAIN_ID, proxyOFT_msUSD_optimism.PT_SEND(), 200_000);
         msUSD_optimism.updateProxyOFT(proxyOFT_msUSD_optimism);
@@ -334,7 +337,7 @@ abstract contract CrossChains_Test is Test {
 
         poolRegistry_mainnet.registerPool(address(pool_mainnet));
         poolRegistry_mainnet.updateSwapper(swapper_mainnet);
-        crossChainDispatcher_mainnet.updateStargateRouter(IStargateRouter(sgRouter_mainnet));
+        crossChainDispatcher_mainnet.updateStargateComposer(sgComposer_mainnet);
         pool_mainnet.updateFeeProvider(feeProvider_mainnet);
         pool_mainnet.updateSmartFarmingManager(smartFarmingManager_mainnet);
         pool_mainnet.addDepositToken(address(msdUSDC_mainnet));
@@ -359,6 +362,7 @@ abstract contract CrossChains_Test is Test {
         vm.label(address(msUSD_optimism), "msUSD OP");
         vm.label(address(usdc_optimism), "USDC OP");
         vm.label(address(vaUSDC_optimism), "vaUSDC OP");
+        vm.label(address(sgComposer_optimism), "SgComposer");
 
         vm.label(address(sgRouter_mainnet), "SgRouter Mainnet");
         vm.label(address(lzEndpoint_mainnet), "LzEndpoint Mainnet");
