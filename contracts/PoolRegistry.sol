@@ -23,7 +23,7 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV2 {
     using WadRayMath for uint256;
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    string public constant VERSION = "1.2.0";
+    string public constant VERSION = "1.3.0";
 
     /// @notice Emitted when fee collector is updated
     event FeeCollectorUpdated(address indexed oldFeeCollector, address indexed newFeeCollector);

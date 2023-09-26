@@ -38,7 +38,7 @@ error AddressIsNull();
 contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
     using WadRayMath for uint256;
 
-    string public constant VERSION = "1.2.0";
+    string public constant VERSION = "1.3.0";
 
     /// @notice Emitted when active flag is updated
     event SyntheticTokenActiveUpdated(bool newActive);

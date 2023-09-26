@@ -16,6 +16,8 @@ error SenderIsNotCrossChainDispatcher();
 contract ProxyOFT is ComposableOFTCoreUpgradeable, ProxyOFTStorageV1 {
     using BytesLib for bytes;
 
+    string public constant VERSION = "1.3.0";
+
     constructor() {
         _disableInitializers();
     }

@@ -14,6 +14,8 @@ error NotAvailableOnThisChain();
  * @title Quoter contract
  */
 contract Quoter is Initializable, QuoterStorageV1 {
+    string public constant VERSION = "1.3.0";
+
     /**
      * @dev LayerZero adapter param version
      * See more: https://layerzero.gitbook.io/docs/evm-guides/advanced/relayer-adapter-parameters

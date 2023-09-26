@@ -21,7 +21,7 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
     using SafeERC20 for IERC20;
     using SafeERC20 for IDepositToken;
 
-    string public constant VERSION = "1.2.0";
+    string public constant VERSION = "1.3.0";
 
     /**
      * @dev Throws if caller isn't a deposit token
