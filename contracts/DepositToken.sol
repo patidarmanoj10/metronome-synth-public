@@ -155,7 +155,8 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
         if (address(pool_) == address(0)) revert PoolIsNull();
         if (bytes(symbol_).length == 0) revert SymbolIsNull();
         if (decimals_ == 0) revert DecimalsIsNull();
-        if (collateralFactor_ > 1e18) revert CollateralFactorTooHigh();
+        if (collateralFactor_ == 0) revert CollateralFactorTooLow();
+        if (collateralFactor_ >= 1e18) revert CollateralFactorTooHigh();
 
         __ReentrancyGuard_init();
         __Manageable_init(pool_);

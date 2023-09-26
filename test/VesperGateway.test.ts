@@ -85,7 +85,7 @@ describe('VesperGateway', function () {
       'Metronome Synth vaUSDC-Deposit',
       'msdUSDC',
       18,
-      parseEther('1'),
+      parseEther('0.5'),
       MaxUint256
     )
 
