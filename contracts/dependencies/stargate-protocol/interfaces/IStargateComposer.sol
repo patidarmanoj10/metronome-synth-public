@@ -21,7 +21,7 @@ interface IStargateComposer {
 
     function stargateBridge() external view returns (address);
 
-    function stargateRouter() external view returns (address);
+    function stargateRouter() external view returns (IStargateRouter);
 
     function quoteLayerZeroFee(
         uint16 _dstChainId,

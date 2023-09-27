@@ -63,7 +63,7 @@ describe('Quoter', function () {
     await quoter.initialize(poolRegistry.address)
 
     proxyOFT.getProxyOFTOf.returns(MAINNET_OFT_ADDRESS)
-    stargateRouter.bridge.returns(stargateBridge.address)
+    stargateComposer.stargateBridge.returns(stargateBridge.address)
     stargateComposer.stargateRouter.returns(stargateRouter.address)
     stargateBridge.layerZeroEndpoint.returns(lzEndpoint.address)
     poolRegistry.crossChainDispatcher.returns(crossChainDispatcher.address)

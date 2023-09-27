@@ -106,7 +106,7 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
     }
 
     modifier onlyIfStargateRouter() {
-        if (msg.sender != stargateComposer.stargateRouter()) revert InvalidMsgSender();
+        if (msg.sender != address(stargateComposer.stargateRouter())) revert InvalidMsgSender();
         _;
     }
 
@@ -369,7 +369,7 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
         uint256 nonce_,
         uint256 newAmountOutMin_
     ) external nonReentrant {
-        IStargateRouter _stargateRouter = IStargateRouter(stargateComposer.stargateRouter());
+        IStargateRouter _stargateRouter = stargateComposer.stargateRouter();
 
         (, , , bytes memory _sgPayload) = _stargateRouter.cachedSwapLookup(srcChainId_, srcAddress_, nonce_);
 

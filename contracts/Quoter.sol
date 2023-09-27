@@ -123,9 +123,9 @@ contract Quoter is Initializable, QuoterStorageV1 {
             _callbackTxGasLimit
         );
 
-        (_callbackTxNativeFee, ) = IStargateBridge(
-            IStargateRouter(_crossChainDispatcher.stargateComposer().stargateRouter()).bridge()
-        ).layerZeroEndpoint().estimateFees(
+        (_callbackTxNativeFee, ) = IStargateBridge(_crossChainDispatcher.stargateComposer().stargateBridge())
+            .layerZeroEndpoint()
+            .estimateFees(
                 srcChainId_,
                 address(this),
                 _lzPayload,
