@@ -85,7 +85,7 @@ contract Quoter is Initializable, QuoterStorageV1 {
      */
     function quoteLeverageCallbackNativeFee(uint16 srcChainId_) public view returns (uint256 _callbackTxNativeFee) {
         ICrossChainDispatcher _crossChainDispatcher = _getCrossChainDispatcher();
-        (_callbackTxNativeFee, ) = _crossChainDispatcher.stargateRouter().quoteLayerZeroFee({
+        (_callbackTxNativeFee, ) = _crossChainDispatcher.stargateComposer().quoteLayerZeroFee({
             _dstChainId: srcChainId_,
             _functionType: SG_TYPE_SWAP_REMOTE,
             _toAddress: abi.encodePacked(address(type(uint160).max)),
@@ -123,7 +123,7 @@ contract Quoter is Initializable, QuoterStorageV1 {
             _callbackTxGasLimit
         );
 
-        (_callbackTxNativeFee, ) = IStargateBridge(_crossChainDispatcher.stargateRouter().bridge())
+        (_callbackTxNativeFee, ) = IStargateBridge(_crossChainDispatcher.stargateComposer().stargateBridge())
             .layerZeroEndpoint()
             .estimateFees(
                 srcChainId_,
@@ -155,7 +155,7 @@ contract Quoter is Initializable, QuoterStorageV1 {
 
         bytes memory _dstProxyOFT = abi.encodePacked(proxyOFT_.getProxyOFTOf(_dstChainId));
 
-        (_nativeFee, ) = _getCrossChainDispatcher().stargateRouter().quoteLayerZeroFee({
+        (_nativeFee, ) = _getCrossChainDispatcher().stargateComposer().quoteLayerZeroFee({
             _dstChainId: _dstChainId,
             _functionType: SG_TYPE_SWAP_REMOTE,
             _toAddress: _dstProxyOFT,

@@ -572,7 +572,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
 
         crossChainLeverages[id_].depositAmountMin = newDepositAmountMin_;
 
-        crossChainDispatcher().stargateRouter().clearCachedSwap(srcChainId_, srcAddress_, nonce_);
+        crossChainDispatcher().stargateComposer().stargateRouter().clearCachedSwap(srcChainId_, srcAddress_, nonce_);
     }
 
     /**

@@ -19,6 +19,7 @@ error AddressIsNull();
 error InvalidMsgSender();
 error BridgingIsPaused();
 error InvalidFromAddress();
+error InvalidToAddress();
 error NewValueIsSameAsCurrent();
 error SenderIsNotGovernor();
 error DestinationChainNotAllowed();
@@ -57,8 +58,8 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
     /// @notice Emitted when Lz base gas limit updated
     event LzBaseGasLimitUpdated(uint256 oldLzBaseGasLimit, uint256 newLzBaseGasLimit);
 
-    /// @notice Emitted when Stargate router is updated
-    event StargateRouterUpdated(IStargateRouter oldStargateRouter, IStargateRouter newStargateRouter);
+    /// @notice Emitted when Stargate composer is updated
+    event StargateComposerUpdated(IStargateComposer oldStargateComposer, IStargateComposer newStargateComposer);
 
     /// @notice Emitted when Stargate pool id is updated
     event StargatePoolIdUpdated(address indexed token, uint256 oldPoolId, uint256 newPoolId);
@@ -105,7 +106,7 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
     }
 
     modifier onlyIfStargateRouter() {
-        if (msg.sender != address(stargateRouter)) revert InvalidMsgSender();
+        if (msg.sender != address(stargateComposer.stargateRouter())) revert InvalidMsgSender();
         _;
     }
 
@@ -195,7 +196,7 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
             uint256 _amountOutMin
         ) = CrossChainLib.decodeLeverageSwapPayload(payload_);
 
-        address _underlying = IStargatePool(IStargateFactory(stargateRouter.factory()).getPool(_underlyingPoolId))
+        address _underlying = IStargatePool(IStargateFactory(stargateComposer.factory()).getPool(_underlyingPoolId))
             .token();
 
         if (_underlying == sgeth) _underlying = weth;
@@ -231,7 +232,7 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
      * @param srcAddress_ The remote Bridge address
      * @param token_ The token contract on the local chain
      * @param amountLD_ The qty of local _token contract tokens
-     * @param payload_ The bytes containing the _tokenOut, _deadline, _amountOutMin, _toAddr
+     * @param sgPayload_ The original payload encoded with further data added by StargateComposer
      */
     function sgReceive(
         uint16 srcChainId_,
@@ -239,7 +240,7 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
         uint256 /*nonce_*/,
         address token_,
         uint256 amountLD_,
-        bytes memory payload_
+        bytes memory sgPayload_
     ) external override onlyIfStargateRouter {
         // Note: Stargate uses SGETH as `token_` when receiving native ETH
         if (token_ == sgeth) {
@@ -248,15 +249,22 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
         }
 
         address _srcAddress = abi.decode(srcAddress_, (address));
-        if (_srcAddress == address(0) || _srcAddress != crossChainDispatcherOf[srcChainId_])
-            revert InvalidFromAddress();
+        (address _to, address _sender, bytes memory _payload) = _decodePayloadFromSgComposer(sgPayload_);
 
-        uint8 _op = CrossChainLib.getOperationType(payload_);
+        if (
+            _srcAddress == address(0) ||
+            _srcAddress != stargateComposer.peers(srcChainId_) ||
+            _sender != crossChainDispatcherOf[srcChainId_]
+        ) revert InvalidFromAddress();
+
+        if (_to == address(0) || _to != address(this)) revert InvalidToAddress();
+
+        uint8 _op = CrossChainLib.getOperationType(_payload);
 
         if (_op == CrossChainLib.LEVERAGE) {
-            _crossChainLeverageCallback(token_, amountLD_, payload_);
+            _crossChainLeverageCallback(token_, amountLD_, _payload);
         } else if (_op == CrossChainLib.FLASH_REPAY) {
-            _swapAndTriggerFlashRepayCallback(srcChainId_, srcAddress_, token_, amountLD_, payload_);
+            _swapAndTriggerFlashRepayCallback(srcChainId_, token_, amountLD_, _payload);
         } else {
             revert InvalidOperationType();
         }
@@ -304,7 +312,6 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
      */
     function _swapAndTriggerFlashRepayCallback(
         uint16 srcChainId_,
-        bytes memory srcAddress_,
         address token_,
         uint256 amount_,
         bytes memory payload_
@@ -317,8 +324,6 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
             address _account,
             uint256 _amountOutMin
         ) = CrossChainLib.decodeFlashRepaySwapPayload(payload_);
-
-        if (abi.decode(srcAddress_, (address)) != crossChainDispatcherOf[srcChainId_]) revert InvalidFromAddress();
 
         address _syntheticToken = IProxyOFT(_dstProxyOFT).token();
         amount_ = _swap({
@@ -364,9 +369,12 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
         uint256 nonce_,
         uint256 newAmountOutMin_
     ) external nonReentrant {
-        IStargateRouter _stargateRouter = stargateRouter;
+        IStargateRouter _stargateRouter = stargateComposer.stargateRouter();
 
-        (, , , bytes memory _payload) = _stargateRouter.cachedSwapLookup(srcChainId_, srcAddress_, nonce_);
+        (, , , bytes memory _sgPayload) = _stargateRouter.cachedSwapLookup(srcChainId_, srcAddress_, nonce_);
+
+        (, , bytes memory _payload) = _decodePayloadFromSgComposer(_sgPayload);
+
         (, , uint256 _requestId, address _account, ) = CrossChainLib.decodeFlashRepaySwapPayload(_payload);
 
         if (msg.sender != _account) revert InvalidMsgSender();
@@ -531,6 +539,17 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
     }
 
     /**
+     * @dev The `StargateComposer` contract adds further addresses to the original payload
+     */
+    function _decodePayloadFromSgComposer(
+        bytes memory payload_
+    ) private pure returns (address _to, address _sender, bytes memory _payload) {
+        _to = payload_.toAddress(0); // The original `swap()` `_to` arg
+        _sender = payload_.toAddress(20); // The address who called the `StargateComposer`
+        _payload = payload_.slice(40, payload_.length - 40);
+    }
+
+    /**
      * @dev Check wether an address is a proxyOFT or not
      */
     function _isValidProxyOFT(address proxyOFT_) private view returns (bool) {
@@ -561,16 +580,18 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
         uint256 _amountOutMin = (params_.amountIn * (MAX_BPS - stargateSlippage)) / MAX_BPS;
         bytes memory _payload = params_.payload;
 
-        // Note: Stargate uses SGETH when sending ETH
+        IStargateComposer _stargateComposer = stargateComposer;
+
+        // Note: StargateComposer only accepts native for ETH pool
         if (params_.tokenIn == weth) {
-            _wethForSGETH(params_.amountIn);
-            params_.tokenIn = sgeth;
+            IWETH(weth).withdraw(params_.amountIn);
+            params_.nativeFee += params_.amountIn;
+        } else {
+            IERC20(params_.tokenIn).safeApprove(address(_stargateComposer), 0);
+            IERC20(params_.tokenIn).safeApprove(address(_stargateComposer), params_.amountIn);
         }
 
-        IStargateRouter _stargateRouter = stargateRouter;
-        IERC20(params_.tokenIn).safeApprove(address(_stargateRouter), 0);
-        IERC20(params_.tokenIn).safeApprove(address(_stargateRouter), params_.amountIn);
-        _stargateRouter.swap{value: params_.nativeFee}({
+        _stargateComposer.swap{value: params_.nativeFee}({
             _dstChainId: params_.dstChainId,
             _srcPoolId: _poolId,
             _dstPoolId: _poolId,
@@ -612,14 +633,6 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
             amountOutMin_: amountOutMin_,
             receiver_: address(this)
         });
-    }
-
-    /**
-     * @dev Swap WETH for SGETH
-     */
-    function _wethForSGETH(uint256 amount_) private {
-        IWETH(weth).withdraw(amount_);
-        IWETH(sgeth).deposit{value: amount_}();
     }
 
     /**
@@ -697,13 +710,13 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
     }
 
     /**
-     * @notice Update StargateRouter
+     * @notice Update StargateComposer
      */
-    function updateStargateRouter(IStargateRouter newStargateRouter_) external onlyGovernor {
-        IStargateRouter _currentStargateRouter = stargateRouter;
-        if (newStargateRouter_ == _currentStargateRouter) revert NewValueIsSameAsCurrent();
-        emit StargateRouterUpdated(_currentStargateRouter, newStargateRouter_);
-        stargateRouter = newStargateRouter_;
+    function updateStargateComposer(IStargateComposer newStargateComposer_) external onlyGovernor {
+        IStargateComposer _currentStargateComposer = stargateComposer;
+        if (newStargateComposer_ == _currentStargateComposer) revert NewValueIsSameAsCurrent();
+        emit StargateComposerUpdated(_currentStargateComposer, newStargateComposer_);
+        stargateComposer = newStargateComposer_;
     }
 
     /**

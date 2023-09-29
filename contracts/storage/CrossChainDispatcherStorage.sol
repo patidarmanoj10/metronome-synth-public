@@ -61,7 +61,7 @@ abstract contract CrossChainDispatcherStorageV1 is ICrossChainDispatcher {
     /**
      * @notice The Stargate Router contract
      */
-    IStargateRouter public stargateRouter;
+    IStargateComposer public stargateComposer;
 
     /**
      * @notice Maps Stargate's token pools

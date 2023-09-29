@@ -376,8 +376,16 @@ contract CrossChainLeverage_Test is CrossChains_Test {
         // tx3 - fail
         _executeCallback(Swap, PacketTx2, RelayerParamsTx2);
         (Vm.Log memory CachedSwapSaved, ) = _getSgSwapErrorEvents();
-        (uint16 chainId, bytes memory srcAddress, uint256 nonce, , , , bytes memory payload, bytes memory reason) = abi
-            .decode(CachedSwapSaved.data, (uint16, bytes, uint256, address, uint256, address, bytes, bytes));
+        (
+            uint16 chainId,
+            bytes memory srcAddress,
+            uint256 nonce,
+            ,
+            ,
+            ,
+            bytes memory sgPayload,
+            bytes memory reason
+        ) = abi.decode(CachedSwapSaved.data, (uint16, bytes, uint256, address, uint256, address, bytes, bytes));
         assertEq(reason, abi.encodeWithSignature("LeverageSlippageTooHigh()"));
         // Even if `sgReceive` fails, the collateral amount is sent
         assertGt(usdc_optimism.balanceOf(address(crossChainDispatcher_optimism)), 0);
@@ -389,7 +397,8 @@ contract CrossChainLeverage_Test is CrossChains_Test {
 
         // tx3
         // Retry will work with right slippage
-        (, uint256 _requestId) = CrossChainLib.decodeLeverageCallbackPayload(payload);
+        bytes memory _payload = sgPayload.slice(40, sgPayload.length - 40);
+        (, uint256 _requestId) = CrossChainLib.decodeLeverageCallbackPayload(_payload);
         vm.prank(alice);
         smartFarmingManager_optimism.retryCrossChainLeverageCallback(
             _requestId,

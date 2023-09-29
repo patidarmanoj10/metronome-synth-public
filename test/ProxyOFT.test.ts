@@ -11,6 +11,7 @@ import {
   ILayerZeroEndpoint,
   CrossChainDispatcher,
   IStargateBridge,
+  IStargateComposer,
 } from '../typechain'
 import {FakeContract, smock} from '@defi-wonderland/smock'
 import {parseEther} from '../helpers'
@@ -36,6 +37,7 @@ describe('ProxyOFT', function () {
   let msUSD: FakeContract<SyntheticToken>
   let lzEndpoint: FakeContract<ILayerZeroEndpoint>
   let stargateRouter: FakeContract<IStargateRouter>
+  let stargateComposer: FakeContract<IStargateComposer>
   let stargateBridge: FakeContract<IStargateBridge>
   let proxyOFT: ProxyOFT
   let crossChainDispatcher: FakeContract<CrossChainDispatcher>
@@ -49,15 +51,17 @@ describe('ProxyOFT', function () {
     lzEndpoint = await smock.fake('ILayerZeroEndpoint')
     poolRegistry = await smock.fake('PoolRegistry')
     stargateRouter = await smock.fake('IStargateRouter')
+    stargateComposer = await smock.fake('IStargateComposer')
     stargateBridge = await smock.fake('IStargateBridge')
     crossChainDispatcher = await smock.fake('CrossChainDispatcher')
 
+    stargateComposer.stargateRouter.returns(stargateRouter.address)
     stargateRouter.bridge.returns(stargateBridge.address)
     stargateBridge.layerZeroEndpoint.returns(lzEndpoint.address)
     poolRegistry.crossChainDispatcher.returns(crossChainDispatcher.address)
     poolRegistry.governor.returns(deployer.address)
     msUSD.poolRegistry.returns(poolRegistry.address)
-    crossChainDispatcher.stargateRouter.returns(stargateRouter.address)
+    crossChainDispatcher.stargateComposer.returns(stargateComposer.address)
     crossChainDispatcher.lzBaseGasLimit.returns(LZ_BASE_GAS_LIMIT)
     crossChainDispatcher.flashRepayCallbackTxGasLimit.returns(100000)
     crossChainDispatcher.leverageCallbackTxGasLimit.returns(200000)

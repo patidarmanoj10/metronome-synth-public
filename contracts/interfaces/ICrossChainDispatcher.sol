@@ -5,6 +5,7 @@ pragma solidity 0.8.9;
 import "../dependencies/@layerzerolabs/solidity-examples/contracts-upgradeable/token/oft/composable/IOFTReceiverUpgradeable.sol";
 import "../dependencies/stargate-protocol/interfaces/IStargateReceiver.sol";
 import "../dependencies/stargate-protocol/interfaces/IStargateRouter.sol";
+import "../dependencies/stargate-protocol/interfaces/IStargateComposer.sol";
 import "./IProxyOFT.sol";
 
 interface ICrossChainDispatcher is IStargateReceiver, IOFTReceiverUpgradeable {
@@ -42,7 +43,7 @@ interface ICrossChainDispatcher is IStargateReceiver, IOFTReceiverUpgradeable {
 
     function lzBaseGasLimit() external view returns (uint256);
 
-    function stargateRouter() external view returns (IStargateRouter);
+    function stargateComposer() external view returns (IStargateComposer);
 
     function stargateSlippage() external view returns (uint256);
 

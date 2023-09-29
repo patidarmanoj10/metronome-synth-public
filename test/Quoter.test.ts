@@ -10,6 +10,7 @@ import {
   IStargateRouter,
   ILayerZeroEndpoint,
   CrossChainDispatcher,
+  IStargateComposer,
 } from '../typechain'
 import {FakeContract, smock} from '@defi-wonderland/smock'
 import {parseEther} from '../helpers'
@@ -36,6 +37,7 @@ describe('Quoter', function () {
   let owner: SignerWithAddress
   let lzEndpoint: FakeContract<ILayerZeroEndpoint>
   let stargateRouter: FakeContract<IStargateRouter>
+  let stargateComposer: FakeContract<IStargateComposer>
   let stargateBridge: FakeContract<IStargateBridge>
   let proxyOFT: FakeContract<ProxyOFT>
   let crossChainDispatcher: FakeContract<CrossChainDispatcher>
@@ -49,6 +51,7 @@ describe('Quoter', function () {
     lzEndpoint = await smock.fake('ILayerZeroEndpoint')
     poolRegistry = await smock.fake('PoolRegistry')
     stargateRouter = await smock.fake('IStargateRouter')
+    stargateComposer = await smock.fake('IStargateComposer')
     stargateBridge = await smock.fake('IStargateBridge')
     crossChainDispatcher = await smock.fake('CrossChainDispatcher')
     proxyOFT = await smock.fake('ProxyOFT')
@@ -60,10 +63,11 @@ describe('Quoter', function () {
     await quoter.initialize(poolRegistry.address)
 
     proxyOFT.getProxyOFTOf.returns(MAINNET_OFT_ADDRESS)
-    stargateRouter.bridge.returns(stargateBridge.address)
+    stargateComposer.stargateBridge.returns(stargateBridge.address)
+    stargateComposer.stargateRouter.returns(stargateRouter.address)
     stargateBridge.layerZeroEndpoint.returns(lzEndpoint.address)
     poolRegistry.crossChainDispatcher.returns(crossChainDispatcher.address)
-    crossChainDispatcher.stargateRouter.returns(stargateRouter.address)
+    crossChainDispatcher.stargateComposer.returns(stargateComposer.address)
     crossChainDispatcher.stargatePoolIdOf.returns(SG_POOL_ID)
     crossChainDispatcher.stargateSlippage.returns(0)
     crossChainDispatcher.lzBaseGasLimit.returns(LZ_BASE_GAS_LIMIT)
@@ -93,7 +97,7 @@ describe('Quoter', function () {
   it('getLeverageSwapAndCallbackLzArgs', async function () {
     // given
     const leverageCallbackNativeFee = parseEther('0.25')
-    stargateRouter.quoteLayerZeroFee.returns([leverageCallbackNativeFee, 0])
+    stargateComposer.quoteLayerZeroFee.returns([leverageCallbackNativeFee, 0])
     const leverageSwapTxGasLimit = await crossChainDispatcher.leverageSwapTxGasLimit()
 
     // when
@@ -112,7 +116,7 @@ describe('Quoter', function () {
     await quoter.quoteLeverageCallbackNativeFee(LZ_OPTIMISM_ID)
 
     // then
-    expect(stargateRouter.quoteLayerZeroFee).calledWith(
+    expect(stargateComposer.quoteLayerZeroFee).calledWith(
       LZ_OPTIMISM_ID,
       SG_TYPE_SWAP_REMOTE,
       ethers.utils.solidityPack(['address'], [MAX_ADDRESS]),
@@ -172,7 +176,7 @@ describe('Quoter', function () {
     await quoter.quoteCrossChainFlashRepayNativeFee(proxyOFT.address, lzArgs)
 
     // then
-    expect(stargateRouter.quoteLayerZeroFee).calledWith(
+    expect(stargateComposer.quoteLayerZeroFee).calledWith(
       LZ_MAINNET_ID,
       SG_TYPE_SWAP_REMOTE,
       MAINNET_OFT_ADDRESS,
