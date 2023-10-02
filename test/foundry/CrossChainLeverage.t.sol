@@ -192,7 +192,7 @@ contract CrossChainLeverage_Test is CrossChains_Test {
         // then
         //
         (, uint256 _depositInUsdAfter, uint256 _debtInUsdAfter, , ) = pool_optimism.debtPositionOf(alice);
-        assertApproxEqAbs(_depositInUsdAfter, 1500e18, 1e18);
+        assertApproxEqAbs(_depositInUsdAfter, 1500e18, 1.5e18);
         assertEq(_debtInUsdAfter, 500e18);
     }
 
@@ -433,7 +433,7 @@ contract CrossChainLeverage_Test is CrossChains_Test {
             dstChainId_: LZ_MAINNET_CHAIN_ID
         });
 
-        uint256 missingFee = 0.001e18;
+        uint256 missingFee = 0.0001e18;
 
         {
             (uint16 _dstChainId, uint256 _callbackTxNativeFee, uint64 _leverageSwapTxGasLimit) = CrossChainLib

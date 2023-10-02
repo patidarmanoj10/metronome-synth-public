@@ -19,7 +19,7 @@ import {parseEther} from '../helpers'
 chai.use(smock.matchers)
 
 const LZ_MAINNET_ID = 101
-const LZ_OPTIMISM_ID = 110
+const LZ_OPTIMISM_ID = 111
 const PT_SEND = BigNumber.from(0)
 const PT_SEND_AND_CALL = BigNumber.from(1)
 const LZ_BASE_GAS_LIMIT = BigNumber.from('200000')

@@ -1,4 +1,4 @@
-import {Contract} from 'ethers'
+import {Contract, BigNumber} from 'ethers'
 import {ethers} from 'hardhat'
 import {expect} from 'chai'
 import MerkleTree from 'merkletreejs'
@@ -95,10 +95,6 @@ describe('MetAirdrop', function () {
   })
 
   describe('claim', function () {
-    beforeEach(async function () {
-      expect(await met.balanceOf(esMET.address)).eq(0)
-    })
-
     it('should receive MET when claiming after lockPeriod', async function () {
       // given
       const unlockTime = (await airdrop.updatedAt()).add(await airdrop.lockPeriod())
@@ -123,12 +119,12 @@ describe('MetAirdrop', function () {
       const amount = rewards0[alice.address]
       const leaf = generateLeaf(alice.address, amount)
       const proof = merkleTree0.getHexProof(leaf)
-      await airdrop.connect(alice).claim(amount, proof)
+      const tx = airdrop.connect(alice).claim(amount, proof)
 
       // then
+      await expect(tx).changeTokenBalance(met, esMET, amount)
       const {unlockTime} = await esMET.positions(id)
       expect(unlockTime).closeTo(expectedUnlockTime, 5)
-      expect(await met.balanceOf(esMET.address)).eq(amount)
       expect(await airdrop.claimed(alice.address)).eq(amount)
     })
 
@@ -137,10 +133,10 @@ describe('MetAirdrop', function () {
       const amount = rewards0[alice.address]
       const leaf = generateLeaf(alice.address, amount)
       const proof = merkleTree0.getHexProof(leaf)
-      await airdrop.connect(alice).claim(amount, proof)
+      const tx = airdrop.connect(alice).claim(amount, proof)
 
       // then
-      expect(await met.balanceOf(esMET.address)).eq(amount)
+      await expect(tx).changeTokenBalance(met, esMET, amount)
       expect(await airdrop.claimed(alice.address)).eq(amount)
     })
 
@@ -152,10 +148,11 @@ describe('MetAirdrop', function () {
       const amount = rewards1[alice.address]
       const leaf = generateLeaf(alice.address, amount)
       const proof = merkleTree1.getHexProof(leaf)
-      await airdrop.connect(alice).claim(amount, proof)
+      const tx = airdrop.connect(alice).claim(amount, proof)
 
       // then
-      expect(await met.balanceOf(esMET.address)).eq(amount)
+
+      await expect(tx).changeTokenBalance(met, esMET, amount)
       expect(await airdrop.claimed(alice.address)).eq(amount)
     })
 
@@ -164,7 +161,8 @@ describe('MetAirdrop', function () {
       const amount0 = rewards0[alice.address]
       const leaf0 = generateLeaf(alice.address, amount0)
       const proof0 = merkleTree0.getHexProof(leaf0)
-      await airdrop.connect(alice).claim(amount0, proof0)
+      const tx0 = airdrop.connect(alice).claim(amount0, proof0)
+      await expect(tx0).changeTokenBalance(met, esMET, amount0)
       expect(await airdrop.claimed(alice.address)).eq(amount0)
 
       // when
@@ -172,11 +170,11 @@ describe('MetAirdrop', function () {
       const amount1 = rewards1[alice.address]
       const leaf1 = generateLeaf(alice.address, amount1)
       const proof1 = merkleTree1.getHexProof(leaf1)
-      await airdrop.connect(alice).claim(amount1, proof1)
+      const tx1 = airdrop.connect(alice).claim(amount1, proof1)
 
       // then
+      await expect(tx1).changeTokenBalance(met, esMET, BigNumber.from(amount1).sub(amount0))
       expect(await airdrop.claimed(alice.address)).eq(amount1)
-      expect(await met.balanceOf(esMET.address)).eq(amount1)
     })
   })
 

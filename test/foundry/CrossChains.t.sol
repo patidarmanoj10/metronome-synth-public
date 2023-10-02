@@ -125,9 +125,10 @@ abstract contract CrossChains_Test is Test {
         // Refs: https://github.com/autonomoussoftware/metronome-synth/issues/874
         mainnetFork = vm.createSelectFork("https://eth.connect.bloq.cloud/v1/peace-blood-actress");
         // mainnetFork = vm.createSelectFork("https://eth-mainnet.alchemyapi.io/v2/NbZ2px662CNSwdw3ZxdaZNe31yZbyddK");
-        vm.rollFork(mainnetFork, 18221440);
+        vm.rollFork(mainnetFork, 18262880);
+
         optimismFork = vm.createSelectFork("https://optimism-mainnet.infura.io/v3/9989c2cf77a24bddaa43103463cb8047");
-        vm.rollFork(optimismFork, 110075310);
+        vm.rollFork(optimismFork, 110325800);
 
         //
         // Layer 2

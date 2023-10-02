@@ -4,8 +4,8 @@ const Constants = {
   LZ_MAINNET_CHAIN_ID: '101',
   LZ_OP_CHAIN_ID: '111',
   SG_USDC_POOL_ID: '1',
-  SG_ETH_POOL_ID: '7',
-  SG_FRAX_POOL_ID: '13',
+  SG_ETH_POOL_ID: '13',
+  SG_FRAX_POOL_ID: '7',
 }
 
 export default Constants
