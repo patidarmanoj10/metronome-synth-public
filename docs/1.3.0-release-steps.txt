@@ -16,7 +16,9 @@
 
 1. Update upgraders mapping with the new versions
 
-    Change `deploy/helpers/index.ts` (follow green console outputs guidance)
+    ```sh
+    patch deploy/helpers/index.ts docs/update-upgraders.patch
+    ```
 
 1. Run deployment script again
 
@@ -38,7 +40,7 @@
 
 1. Undo upgraders mapping change
 
-    Back the upgraders' contracts mapping to later state (i.e. sync with OP prod versions)
+    Back the upgraders' contracts mapping to previous state (i.e. sync with OP prod versions)
 
 1. Run deployment script
 
@@ -56,7 +58,9 @@
 
 1. Update upgraders mapping with the new versions
 
-    Change `deploy/helpers/index.ts` (follow green console outputs guidance)
+    ```sh
+    patch deploy/helpers/index.ts docs/update-upgraders.patch
+    ```
 
 1. Run deployment script again
 
