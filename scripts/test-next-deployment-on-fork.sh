@@ -16,7 +16,7 @@ fi
 
 echo "Make sure the test/E2E.$network.next.test.ts test suite isn't skipped."
 echo -n "Press <ENTER> to continue: "
-read -r ans
+read
 
 # Test current release
 #npx hardhat test --network localhost test/E2E.$network.test.ts

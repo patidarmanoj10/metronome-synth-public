@@ -6,15 +6,20 @@
 #   All modifications done by the scripts will appear on the git changes area.
 #
 
+# Update ENV VARS
+source .env
+
 echo "Make sure .env has the correct values."
+echo ""
+echo NODE_URL=$NODE_URL
+echo BLOCK_NUMBER=$BLOCK_NUMBER
+echo ""
 echo -n "Press <ENTER> to continue: "
-read -r ans
+read
 
 # Clean old files
 rm  -rf artifacts/ cache/
 
-# Update ENV VARS
-source .env
 
 # Run node
 npx hardhat node --fork $NODE_URL --fork-block-number $BLOCK_NUMBER --no-deploy

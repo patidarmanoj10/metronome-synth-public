@@ -661,19 +661,6 @@ describe.skip('E2E tests (next optimism release)', function () {
           const leverage = parseEther('1.5')
           await vaETH.connect(alice).approve(smartFarmingManager.address, MaxUint256)
           await smartFarmingManager.leverage(vaETH.address, msdVaETH.address, msETH.address, amountIn, leverage, 0)
-
-          // Note: Adds vaETH->WETH routing
-          // TODO: Remove after having this step done on Swapper side
-          const swapper = new ethers.Contract(
-            await poolRegistry.swapper(),
-            ['function setExactInputRouting(address,address,bytes)'],
-            governor
-          )
-          await swapper.setExactInputRouting(
-            vaETH.address,
-            weth.address,
-            '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000200000000000000000000000009a92b76fA1782f60bcaf76E7DDa1e2b8Dc9e2493000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000002451cff8d9000000000000000000000000CcF3d1AcF799bAe67F6e354d685295557cf6476100000000000000000000000000000000000000000000000000000000'
-          )
         })
 
         it('crossChainFlashRepay', async function () {
