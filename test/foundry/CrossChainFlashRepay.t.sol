@@ -30,6 +30,7 @@ contract CrossChainFlashRepay_Test is CrossChains_Test {
         depositToken_.underlying().approve(address(depositToken_), type(uint256).max);
         depositToken_.deposit(depositAmount_, alice);
         debtToken_.issue(issueAmount_, alice);
+        vm.stopPrank();
     }
 
     function _crossChainFlashRepay(
@@ -85,6 +86,14 @@ contract CrossChainFlashRepay_Test is CrossChains_Test {
         vm.stopPrank();
 
         assertEq(alice.balance, 0, "fee-estimation-is-not-accurate");
+    }
+
+    function _executeSwapAndTriggerCallbackWithoutAirdrop(
+        Vm.Log memory Swap,
+        Vm.Log memory Packet,
+        Vm.Log memory RelayerParams
+    ) internal {
+        _executeSgSwapArrivalTx(Swap, Packet, RelayerParams, false);
     }
 
     function _executeSwapAndTriggerCallback(
@@ -362,7 +371,7 @@ contract CrossChainFlashRepay_Test is CrossChains_Test {
 
         // tx3 - fail
         _executeCallback(SendToChain, Packet_Tx2, RelayerParams_Tx2);
-        (Vm.Log memory MessageFailed, ) = _getOftTransferErrorEvents();
+        (Vm.Log memory MessageFailed, , ) = _getOftTransferErrorEvents();
         (uint16 _srcChainId, bytes memory _srcAddress, uint64 _nonce, bytes memory _payload, bytes memory reason) = abi
             .decode(MessageFailed.data, (uint16, bytes, uint64, bytes, bytes));
         assertEq(reason, abi.encodeWithSignature("SurpassMaxBridgingSupply()"));
@@ -408,7 +417,7 @@ contract CrossChainFlashRepay_Test is CrossChains_Test {
 
         // tx3 - fail
         _executeCallback(SendToChain, Packet_Tx2, RelayerParams_Tx2);
-        (, Vm.Log memory CallOFTReceivedFailure) = _getOftTransferErrorEvents();
+        (, Vm.Log memory CallOFTReceivedFailure, ) = _getOftTransferErrorEvents();
 
         (
             uint16 srcChainId,
@@ -444,5 +453,140 @@ contract CrossChainFlashRepay_Test is CrossChains_Test {
         // then
         //
         assertApproxEqAbs(pool_optimism.debtOf(alice), 0, 1e18);
+    }
+
+    function test_failedTx2_whenOOG() external {
+        //
+        // given
+        //
+        _depositAndIssue({depositAmount_: 2000e18, issueAmount_: 500e18});
+        (, uint256 _depositInUsdBefore, uint256 _debtInUsdBefore, , ) = pool_optimism.debtPositionOf(alice);
+        assertApproxEqAbs(_depositInUsdBefore, 2000e18, 1e18);
+        assertApproxEqAbs(_debtInUsdBefore, 500e18, 1e18);
+        vm.selectFork(mainnetFork);
+        crossChainDispatcher_mainnet.updateFlashRepaySwapTxGasLimit(100_000);
+
+        //
+        // when
+        //
+
+        // tx1
+        _crossChainFlashRepay({withdrawAmount_: 500e18, swapAmountOutMin_: 0, repayAmountMin_: 0});
+        (Vm.Log memory Swap, Vm.Log memory Packet, Vm.Log memory RelayerParams) = _getSgSwapEvents();
+
+        // tx2 - fail
+        _executeSwapAndTriggerCallback(Swap, Packet, RelayerParams);
+        (Vm.Log memory CachedSwapSaved, ) = _getSgSwapErrorEvents();
+        (uint16 chainId, bytes memory srcAddress, uint256 nonce, , , , , bytes memory reason) = abi.decode(
+            CachedSwapSaved.data,
+            (uint16, bytes, uint256, address, uint256, address, bytes, bytes)
+        );
+        assertEq(reason, ""); // OOG
+
+        // tx2
+        sgRouter_mainnet.clearCachedSwap(chainId, srcAddress, nonce);
+        (Vm.Log memory SendToChain, Vm.Log memory PacketTx2, Vm.Log memory RelayerParamsTx2) = _getOftTransferEvents();
+
+        // tx3
+        _executeCallback(SendToChain, PacketTx2, RelayerParamsTx2);
+
+        //
+        // then
+        //
+        (, uint256 _depositInUsdAfter, uint256 _debtInUsdAfter, , ) = pool_optimism.debtPositionOf(alice);
+        assertApproxEqAbs(_depositInUsdAfter, 1500e18, 1e18);
+        assertApproxEqAbs(_debtInUsdAfter, 0, 1e18);
+    }
+
+    function test_failedTx3_whenOOG() external {
+        //
+        // given
+        //
+        _depositAndIssue({depositAmount_: 2000e18, issueAmount_: 500e18});
+        (, uint256 _depositInUsdBefore, uint256 _debtInUsdBefore, , ) = pool_optimism.debtPositionOf(alice);
+        assertApproxEqAbs(_depositInUsdBefore, 2000e18, 1e18);
+        assertApproxEqAbs(_debtInUsdBefore, 500e18, 1e18);
+        vm.selectFork(mainnetFork);
+        crossChainDispatcher_mainnet.updateFlashRepayCallbackTxGasLimit(50_000);
+
+        //
+        // when
+        //
+
+        // tx1
+        _crossChainFlashRepay({withdrawAmount_: 500e18, swapAmountOutMin_: 0, repayAmountMin_: 0});
+        (Vm.Log memory Swap, Vm.Log memory Packet, Vm.Log memory RelayerParams) = _getSgSwapEvents();
+
+        // tx2
+        _executeSwapAndTriggerCallback(Swap, Packet, RelayerParams);
+        (Vm.Log memory SendToChain, Vm.Log memory PacketTx2, Vm.Log memory RelayerParamsTx2) = _getOftTransferEvents();
+
+        // tx3 - fail
+        _executeCallback(SendToChain, PacketTx2, RelayerParamsTx2);
+        (, Vm.Log memory CallOFTReceivedFailure, ) = _getOftTransferErrorEvents();
+        (
+            uint16 srcChainId,
+            address to,
+            bytes memory srcAddress,
+            uint64 nonce,
+            bytes memory from,
+            uint amount,
+            bytes memory payload,
+            bytes memory reason
+        ) = _decodeCallOFTReceivedFailureEvent(CallOFTReceivedFailure);
+        assertEq(reason, ""); // OOG
+
+        // tx3
+        proxyOFT_msUSD_optimism.retryOFTReceived(srcChainId, srcAddress, nonce, from, to, amount, payload);
+
+        //
+        // then
+        //
+        (, uint256 _depositInUsdAfter, uint256 _debtInUsdAfter, , ) = pool_optimism.debtPositionOf(alice);
+        assertApproxEqAbs(_depositInUsdAfter, 1500e18, 1e18);
+        assertApproxEqAbs(_debtInUsdAfter, 0, 1e18);
+    }
+
+    function test_failedTx2_whenLowAirdrop() external {
+        //
+        // given
+        //
+        _depositAndIssue({depositAmount_: 2000e18, issueAmount_: 500e18});
+        (, uint256 _depositInUsdBefore, uint256 _debtInUsdBefore, , ) = pool_optimism.debtPositionOf(alice);
+        assertApproxEqAbs(_depositInUsdBefore, 2000e18, 1e18);
+        assertApproxEqAbs(_debtInUsdBefore, 500e18, 1e18);
+        vm.selectFork(mainnetFork);
+
+        //
+        // when
+        //
+
+        // tx1
+        _crossChainFlashRepay({withdrawAmount_: 500e18, swapAmountOutMin_: 0, repayAmountMin_: 0});
+        (Vm.Log memory Swap, Vm.Log memory Packet, Vm.Log memory RelayerParams) = _getSgSwapEvents();
+
+        // tx2 - fail
+        _executeSwapAndTriggerCallbackWithoutAirdrop(Swap, Packet, RelayerParams);
+        (Vm.Log memory CachedSwapSaved, ) = _getSgSwapErrorEvents();
+        (uint16 chainId, bytes memory srcAddress, uint256 nonce, , , , , bytes memory reason) = abi.decode(
+            CachedSwapSaved.data,
+            (uint16, bytes, uint256, address, uint256, address, bytes, bytes)
+        );
+        assertEq(reason, ""); // OOF
+
+        // tx2
+        deal(address(crossChainDispatcher_mainnet), 1 ether);
+        sgRouter_mainnet.clearCachedSwap(chainId, srcAddress, nonce);
+        (Vm.Log memory SendToChain, Vm.Log memory PacketTx2, Vm.Log memory RelayerParamsTx2) = _getOftTransferEvents();
+
+        // tx3
+        _executeCallback(SendToChain, PacketTx2, RelayerParamsTx2);
+
+        //
+        // then
+        //
+        (, uint256 _depositInUsdAfter, uint256 _debtInUsdAfter, , ) = pool_optimism.debtPositionOf(alice);
+        assertApproxEqAbs(_depositInUsdAfter, 1500e18, 1e18);
+        assertApproxEqAbs(_debtInUsdAfter, 0, 1e18);
     }
 }
