@@ -290,6 +290,11 @@ export const buildDepositDeployFunction = ({
   return deployFunction
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const defaultIsCurrentValueUpdated = (currentValue: any, newValue: any) =>
+  currentValue.toString() === newValue.toString()
+
+// eslint-disable-next-line complexity
 export const updateParamIfNeeded = async (
   hre: HardhatRuntimeEnvironment,
   {
@@ -301,15 +306,14 @@ export const updateParamIfNeeded = async (
     // Note: Usually we have getter and setter functions to check if a param needs to be updated or not
     // but there are edge cases where it isn't true, e.g,: `function isPoolRegistered(address) view returns (bool)`
     // This function is used on such cases where comparison isn't straightforward
-    // eslint-disable-next-line no-shadow, @typescript-eslint/no-explicit-any
-    isCurrentValueUpdated = (currentValue: any, newValue: any) => currentValue.toString() === newValue.toString(),
+    isCurrentValueUpdated = defaultIsCurrentValueUpdated,
   }: {
     contract: string
     readMethod: string
     readArgs?: string[]
     writeMethod: string
     writeArgs?: string[]
-    // eslint-disable-next-line no-shadow, @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     isCurrentValueUpdated?: (currentValue: any, newValue: any) => boolean
   }
 ): Promise<void> => {
@@ -319,6 +323,21 @@ export const updateParamIfNeeded = async (
   try {
     const currentValue = readArgs ? await read(contract, readMethod, ...readArgs) : await read(contract, readMethod)
 
+    const {isArray} = Array
+
+    // Checks if overriding `isCurrentValueUpdated()` is required
+    const isOverrideRequired =
+      !writeArgs ||
+      (!isArray(currentValue) && writeArgs.length > 1) ||
+      (isArray(currentValue) && writeArgs.length != currentValue.length)
+
+    if (isOverrideRequired && isCurrentValueUpdated === defaultIsCurrentValueUpdated) {
+      const e = Error(`You must override 'isCurrentValueUpdated()' function for ${contract}.${writeMethod}()`)
+      log(chalk.red(e.message))
+      throw e
+    }
+
+    // Update value if needed
     if (!isCurrentValueUpdated(currentValue, writeArgs)) {
       // Note: Assumes all governable contracts have the same governor as `PoolRegistry`
       const governor = await read(PoolRegistry, 'governor')
