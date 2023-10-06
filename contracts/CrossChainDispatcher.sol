@@ -428,6 +428,7 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
      * @param requestId_ Request id.
      * @param account_ User address and also refund address
      * @param tokenIn_ tokenIn
+     * @param tokenOut_ tokenOut
      * @param amountIn_ amountIn_
      * @param amountOutMin_ amountOutMin_
      * @param lzArgs_ LayerZero method argument

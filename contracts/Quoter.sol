@@ -175,7 +175,7 @@ contract Quoter is Initializable, QuoterStorageV1 {
     }
 
     /**
-     * @notice Get the LZ (native) fee for the `triggerFlashRepay()` call
+     * @notice Get the LZ (native) fee for the `triggerLeverageSwap()` call
      * @param proxyOFT_ The synthetic token's Proxy OFT contract
      * @param lzArgs_ The LZ args for swap transaction (See: `getLeverageSwapAndCallbackLzArgs()`)
      * @return _nativeFee The fee in native coin
