@@ -428,6 +428,7 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
      * @param requestId_ Request id.
      * @param account_ User address and also refund address
      * @param tokenIn_ tokenIn
+     * @param tokenOut_ tokenOut
      * @param amountIn_ amountIn_
      * @param amountOutMin_ amountOutMin_
      * @param lzArgs_ LayerZero method argument
@@ -496,7 +497,7 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
         uint256 amountIn_,
         uint256 amountOutMin_,
         bytes calldata lzArgs_
-    ) external payable override nonReentrant onlyIfSmartFarmingManager onlyIfBridgingIsNotPaused {
+    ) external payable override nonReentrant onlyIfSmartFarmingManager {
         address _account = account_; // stack too deep
 
         (uint16 _dstChainId, uint256 _callbackTxNativeFee, uint64 _leverageSwapTxGasLimit) = CrossChainLib.decodeLzArgs(

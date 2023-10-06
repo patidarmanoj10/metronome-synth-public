@@ -18,8 +18,7 @@ echo -n "Press <ENTER> to continue: "
 read
 
 # Clean old files
-rm  -rf artifacts/ cache/
-
+rm  -rf artifacts/ cache/ multisig.batch.tmp.json
 
 # Run node
 npx hardhat node --fork $NODE_URL --fork-block-number $BLOCK_NUMBER --no-deploy

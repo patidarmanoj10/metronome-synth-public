@@ -425,6 +425,15 @@ abstract contract CrossChains_Test is Test {
     }
 
     function _executeSgSwapArrivalTx(Vm.Log memory Swap, Vm.Log memory Packet, Vm.Log memory RelayerParams) internal {
+        _executeSgSwapArrivalTx(Swap, Packet, RelayerParams, true);
+    }
+
+    function _executeSgSwapArrivalTx(
+        Vm.Log memory Swap,
+        Vm.Log memory Packet,
+        Vm.Log memory RelayerParams,
+        bool doAirdrop
+    ) internal {
         (
             uint16 srcChainId,
             address from,
@@ -454,7 +463,9 @@ abstract contract CrossChains_Test is Test {
 
         vm.selectFork(fork);
 
-        _doNativeAirdropIfNeeded(RelayerParams);
+        if (doAirdrop) {
+            _doNativeAirdropIfNeeded(RelayerParams);
+        }
         uint64 nonce = lz.getInboundNonce(srcChainId, abi.encode(from)) + 1;
 
         vm.prank(sg.bridge());
@@ -476,10 +487,24 @@ abstract contract CrossChains_Test is Test {
         Vm.Log memory Packet,
         Vm.Log memory RelayerParams
     ) internal {
+        _executeOftTransferArrivalTx(SendToChain, Packet, RelayerParams, true);
+    }
+
+    function _executeOftTransferArrivalTx(
+        Vm.Log memory SendToChain,
+        Vm.Log memory Packet,
+        Vm.Log memory RelayerParams,
+        bool doAirdrop
+    ) internal {
         // TODO get from/to from trusted path
         // (uint16 _dstChainId, address from, address to) = _decodeSendToChainEvent(SendToChain);
         (uint16 _dstChainId, , ) = _decodeSendToChainEvent(SendToChain);
-        (uint64 _dstGasForCall, bytes memory payload) = _decodeOftPacketEvent(Packet);
+        (, bytes memory payload) = _decodeOftPacketEvent(Packet);
+
+        // Note: Adapter params uses (uint16 version, uint256 gasAmount, uint256 nativeForDst, address addressOnDst)
+        // See more: https://layerzero.gitbook.io/docs/evm-guides/advanced/relayer-adapter-parameters
+        (bytes memory adapterParams, ) = abi.decode(RelayerParams.data, (bytes, uint16));
+        uint256 _dstGasForCall = adapterParams.toUint256(2);
 
         uint256 fork;
         uint16 _srcChainId;
@@ -503,7 +528,9 @@ abstract contract CrossChains_Test is Test {
 
         vm.selectFork(fork);
 
-        _doNativeAirdropIfNeeded(RelayerParams);
+        if (doAirdrop) {
+            _doNativeAirdropIfNeeded(RelayerParams);
+        }
 
         uint64 nonce = lz.getInboundNonce(_srcChainId, abi.encode(from)) + 1;
 
@@ -653,6 +680,26 @@ abstract contract CrossChains_Test is Test {
         to = address(uint160(uint256(CallOFTReceivedFailure.topics[2]))); // address indexed to
     }
 
+    function _decodePayloadStoredEvent(
+        Vm.Log memory PayloadStored
+    )
+        internal
+        pure
+        returns (
+            uint16 srcChainId,
+            bytes memory srcAddress,
+            address dstAddress,
+            uint64 nonce,
+            bytes memory payload,
+            bytes memory reason
+        )
+    {
+        (srcChainId, srcAddress, dstAddress, nonce, payload, reason) = abi.decode(
+            PayloadStored.data,
+            (uint16, bytes, address, uint64, bytes, bytes)
+        );
+    }
+
     function _decodeCachedSwapSavedEvent(
         Vm.Log memory CachedSwapSaved
     )
@@ -744,7 +791,7 @@ abstract contract CrossChains_Test is Test {
 
     function _getOftTransferErrorEvents()
         internal
-        returns (Vm.Log memory MessageFailed, Vm.Log memory CallOFTReceivedFailure)
+        returns (Vm.Log memory MessageFailed, Vm.Log memory CallOFTReceivedFailure, Vm.Log memory PayloadStored)
     {
         Vm.Log[] memory entries = vm.getRecordedLogs();
         for (uint256 i; i < entries.length; ++i) {
@@ -760,6 +807,10 @@ abstract contract CrossChains_Test is Test {
                 // Note: Emitted from OFT when `onOFTReceived()` fails
                 // event CallOFTReceivedFailure(uint16 indexed _srcChainId, bytes _srcAddress, uint64 _nonce, bytes _from, address indexed _to, uint _amount, bytes _payload, bytes _reason);
                 CallOFTReceivedFailure = entry;
+            } else if (entry.topics[0] == keccak256("PayloadStored(uint16,bytes,address,uint64,bytes,bytes)")) {
+                // Note: Emitted from `LzApp` when message fails on the destination
+                // event PayloadStored(uint16 srcChainId, bytes srcAddress, address dstAddress, uint64 nonce, bytes payload, bytes reason);
+                PayloadStored = entry;
             }
         }
     }

@@ -15,7 +15,7 @@ abstract contract SmartFarmingManagerStorageV1 is ISmartFarmingManager {
         IDepositToken depositToken;
         ISyntheticToken syntheticToken;
         uint256 bridgeTokenAmountIn;
-        uint256 syntheticTokenIssued;
+        uint256 debtAmount;
         uint256 depositAmountMin;
         address account;
         bool finished;

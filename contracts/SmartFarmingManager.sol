@@ -229,7 +229,6 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         CrossChainFlashRepay memory _request = crossChainFlashRepays[id_];
 
         if (_request.account == address(0)) revert CrossChainRequestInvalidKey();
-        if (msg.sender != address(crossChainDispatcher())) revert SenderIsNotCrossChainDispatcher();
         if (_request.finished) revert CrossChainRequestCompletedAlready();
 
         // 1. update state
@@ -281,22 +280,22 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         if (leverage_ > uint256(1e18).wadDiv(1e18 - depositToken_.collateralFactor())) revert LeverageTooHigh();
         if (address(_tokenIn) == address(0)) revert TokenInIsNull();
 
-        ICrossChainDispatcher _crossChainDispatcher = crossChainDispatcher();
+        uint256 _debtAmount;
         uint256 _issued;
         {
             // 1. deposit tokenIn
             amountIn_ = _safeTransferFrom(_tokenIn, msg.sender, amountIn_);
 
             // 2. mint synth
-            uint256 _amount = _calculateLeverageDebtAmount(_tokenIn, syntheticToken_, amountIn_, leverage_);
-            (_issued, ) = pool.debtTokenOf(syntheticToken_).flashIssue(address(_crossChainDispatcher), _amount);
+            _debtAmount = _calculateLeverageDebtAmount(_tokenIn, syntheticToken_, amountIn_, leverage_);
+            (_issued, ) = pool.debtTokenOf(syntheticToken_).flashIssue(address(crossChainDispatcher()), _debtAmount);
         }
 
         // 3. store request and trigger swap
         _triggerCrossChainLeverageSwap({
-            crossChainDispatcher_: _crossChainDispatcher,
             depositToken_: depositToken_,
             depositedAmount_: amountIn_,
+            debtAmount_: _debtAmount,
             tokenIn_: syntheticToken_,
             tokenOut_: _tokenIn,
             swapAmountIn_: _issued,
@@ -310,9 +309,9 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
      * @dev Stores leverage cross-chain request and triggers swap on the destination chain
      */
     function _triggerCrossChainLeverageSwap(
-        ICrossChainDispatcher crossChainDispatcher_,
         IDepositToken depositToken_,
         uint256 depositedAmount_,
+        uint256 debtAmount_,
         ISyntheticToken tokenIn_,
         IERC20 tokenOut_,
         uint256 swapAmountIn_,
@@ -332,13 +331,13 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
                 syntheticToken: tokenIn_,
                 depositAmountMin: depositAmountMin_,
                 bridgeTokenAmountIn: depositedAmount_,
-                syntheticTokenIssued: swapAmountIn_,
+                debtAmount: debtAmount_,
                 account: msg.sender,
                 finished: false
             });
         }
 
-        crossChainDispatcher_.triggerLeverageSwap{value: msg.value}({
+        crossChainDispatcher().triggerLeverageSwap{value: msg.value}({
             id_: _id,
             account_: payable(msg.sender),
             tokenIn_: address(tokenIn_),
@@ -365,7 +364,6 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         CrossChainLeverage memory _request = crossChainLeverages[id_];
 
         if (_request.account == address(0)) revert CrossChainRequestInvalidKey();
-        if (msg.sender != address(crossChainDispatcher())) revert SenderIsNotCrossChainDispatcher();
         if (_request.finished) revert CrossChainRequestCompletedAlready();
         IERC20 _collateral = _collateralOf(_request.depositToken);
 
@@ -389,7 +387,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
 
         // 5. mint debt
         IPool _pool = pool;
-        _pool.debtTokenOf(_request.syntheticToken).mint(_request.account, _request.syntheticTokenIssued);
+        _pool.debtTokenOf(_request.syntheticToken).mint(_request.account, _request.debtAmount);
 
         // 6. check the health of the outcome position
         (bool _isHealthy, , , , ) = _pool.debtPositionOf(_request.account);

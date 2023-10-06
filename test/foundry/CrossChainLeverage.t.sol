@@ -111,6 +111,14 @@ contract CrossChainLeverage_Test is CrossChains_Test {
         assertEq(alice.balance, 0, "fee-estimation-is-not-accurate");
     }
 
+    function _executeSwapAndTriggerCallbackWithoutAirdrop(
+        Vm.Log memory SendToChain,
+        Vm.Log memory Packet,
+        Vm.Log memory RelayerParams
+    ) internal {
+        _executeOftTransferArrivalTx(SendToChain, Packet, RelayerParams, false);
+    }
+
     function _executeSwapAndTriggerCallback(
         Vm.Log memory SendToChain,
         Vm.Log memory Packet,
@@ -214,7 +222,7 @@ contract CrossChainLeverage_Test is CrossChains_Test {
 
         // tx2 - fail
         _executeSwapAndTriggerCallback(SendToChain, Packet, RelayerParams);
-        (Vm.Log memory MessageFailed, ) = _getOftTransferErrorEvents();
+        (Vm.Log memory MessageFailed, , ) = _getOftTransferErrorEvents();
         (uint16 _srcChainId, bytes memory _srcAddress, uint64 _nonce, bytes memory _payload, bytes memory reason) = abi
             .decode(MessageFailed.data, (uint16, bytes, uint64, bytes, bytes));
         assertEq(reason, abi.encodeWithSignature("SurpassMaxBridgingSupply()"));
@@ -257,7 +265,7 @@ contract CrossChainLeverage_Test is CrossChains_Test {
 
         // tx2 - fail
         _executeSwapAndTriggerCallback(SendToChain, Packet, RelayerParams);
-        (, Vm.Log memory CallOFTReceivedFailure) = _getOftTransferErrorEvents();
+        (, Vm.Log memory CallOFTReceivedFailure, ) = _getOftTransferErrorEvents();
         (
             uint16 srcChainId,
             address to,
@@ -459,7 +467,7 @@ contract CrossChainLeverage_Test is CrossChains_Test {
 
         // tx2 - fail
         _executeSwapAndTriggerCallback(SendToChain, Packet, RelayerParams);
-        (, Vm.Log memory CallOFTReceivedFailure) = _getOftTransferErrorEvents();
+        (, Vm.Log memory CallOFTReceivedFailure, ) = _getOftTransferErrorEvents();
         assertGt(CallOFTReceivedFailure.data.length, 0);
         (
             uint16 srcChainId,
@@ -509,13 +517,13 @@ contract CrossChainLeverage_Test is CrossChains_Test {
 
         // tx2 - fail
         _executeSwapAndTriggerCallback(SendToChain, Packet, RelayerParams);
-        (, Vm.Log memory CallOFTReceivedFailure) = _getOftTransferErrorEvents();
+        (, Vm.Log memory CallOFTReceivedFailure, ) = _getOftTransferErrorEvents();
         (
             uint16 srcChainId,
-            address to,
+            ,
             bytes memory srcAddress,
             uint64 nonce,
-            bytes memory from,
+            ,
             uint amount,
             bytes memory payload,
             bytes memory reason
@@ -538,6 +546,146 @@ contract CrossChainLeverage_Test is CrossChains_Test {
 
         // tx3
         _executeCallback(SwapTx2, PacketTx2, RelayerParamsTx2);
+
+        //
+        // then
+        //
+        (, uint256 _depositInUsdAfter, uint256 _debtInUsdAfter, , ) = pool_optimism.debtPositionOf(alice);
+        assertApproxEqAbs(_depositInUsdAfter, 1500e18, 1e18);
+        assertEq(_debtInUsdAfter, 500e18);
+    }
+
+    function test_failedTx2_whenOOG() external {
+        //
+        // given
+        //
+        vm.selectFork(optimismFork);
+        (, uint256 _depositInUsdBefore, uint256 _debtInUsdBefore, , ) = pool_optimism.debtPositionOf(alice);
+        assertEq(_depositInUsdBefore, 0);
+        assertEq(_debtInUsdBefore, 0);
+        vm.selectFork(mainnetFork);
+        crossChainDispatcher_mainnet.updateLeverageSwapTxGasLimit(100_000);
+
+        //
+        // when
+        //
+
+        // tx1
+        _crossChainLeverage({amountIn_: 1000e6, swapAmountOutMin_: 0, leverage_: 1.5e18, depositAmountMin_: 1450e18});
+        (Vm.Log memory SendToChain, Vm.Log memory Packet, Vm.Log memory RelayerParams) = _getOftTransferEvents();
+
+        // tx2 - fail
+        _executeSwapAndTriggerCallback(SendToChain, Packet, RelayerParams);
+        (, Vm.Log memory CallOFTReceivedFailure, ) = _getOftTransferErrorEvents();
+        (
+            uint16 srcChainId,
+            address to,
+            bytes memory srcAddress,
+            uint64 nonce,
+            bytes memory from,
+            uint amount,
+            bytes memory payload,
+            bytes memory reason
+        ) = _decodeCallOFTReceivedFailureEvent(CallOFTReceivedFailure);
+        assertEq(reason, ""); // OOG
+
+        // tx2
+        proxyOFT_msUSD_mainnet.retryOFTReceived(srcChainId, srcAddress, nonce, from, to, amount, payload);
+        (Vm.Log memory Swap, Vm.Log memory Packet_Tx2, Vm.Log memory RelayerParams_Tx2) = _getSgSwapEvents();
+
+        // tx3
+        _executeCallback(Swap, Packet_Tx2, RelayerParams_Tx2);
+
+        //
+        // then
+        //
+        (, uint256 _depositInUsdAfter, uint256 _debtInUsdAfter, , ) = pool_optimism.debtPositionOf(alice);
+        assertApproxEqAbs(_depositInUsdAfter, 1500e18, 1e18);
+        assertEq(_debtInUsdAfter, 500e18);
+    }
+
+    function test_failedTx3_whenOOG() external {
+        //
+        // given
+        //
+        vm.selectFork(optimismFork);
+        (, uint256 _depositInUsdBefore, uint256 _debtInUsdBefore, , ) = pool_optimism.debtPositionOf(alice);
+        assertEq(_depositInUsdBefore, 0);
+        assertEq(_debtInUsdBefore, 0);
+        vm.selectFork(mainnetFork);
+        crossChainDispatcher_mainnet.updateLeverageCallbackTxGasLimit(100_000);
+
+        //
+        // when
+        //
+
+        // tx1
+        _crossChainLeverage({amountIn_: 1000e6, swapAmountOutMin_: 0, leverage_: 1.5e18, depositAmountMin_: 1450e18});
+        (Vm.Log memory SendToChain, Vm.Log memory Packet, Vm.Log memory RelayerParams) = _getOftTransferEvents();
+
+        // tx2
+        _executeSwapAndTriggerCallback(SendToChain, Packet, RelayerParams);
+        (Vm.Log memory Swap, Vm.Log memory Packet_Tx2, Vm.Log memory RelayerParams_Tx2) = _getSgSwapEvents();
+
+        // tx3 - fail
+        _executeCallback(Swap, Packet_Tx2, RelayerParams_Tx2);
+        (Vm.Log memory CachedSwapSaved, ) = _getSgSwapErrorEvents();
+        (uint16 chainId, bytes memory srcAddress, uint256 nonce, , , , , bytes memory reason) = abi.decode(
+            CachedSwapSaved.data,
+            (uint16, bytes, uint256, address, uint256, address, bytes, bytes)
+        );
+        assertEq(reason, ""); // OOG
+
+        // tx3
+        sgRouter_optimism.clearCachedSwap(chainId, srcAddress, nonce);
+
+        //
+        // then
+        //
+        (, uint256 _depositInUsdAfter, uint256 _debtInUsdAfter, , ) = pool_optimism.debtPositionOf(alice);
+        assertApproxEqAbs(_depositInUsdAfter, 1500e18, 1e18);
+        assertEq(_debtInUsdAfter, 500e18);
+    }
+
+    function test_failedTx2_whenLowAirdrop() external {
+        //
+        // given
+        //
+        vm.selectFork(optimismFork);
+        (, uint256 _depositInUsdBefore, uint256 _debtInUsdBefore, , ) = pool_optimism.debtPositionOf(alice);
+        assertEq(_depositInUsdBefore, 0);
+        assertEq(_debtInUsdBefore, 0);
+
+        //
+        // when
+        //
+
+        // tx1
+        _crossChainLeverage({amountIn_: 1000e6, swapAmountOutMin_: 0, leverage_: 1.5e18, depositAmountMin_: 1450e18});
+        (Vm.Log memory SendToChain, Vm.Log memory Packet, Vm.Log memory RelayerParams) = _getOftTransferEvents();
+
+        // tx2 - fail
+        _executeSwapAndTriggerCallbackWithoutAirdrop(SendToChain, Packet, RelayerParams);
+        (, Vm.Log memory CallOFTReceivedFailure, ) = _getOftTransferErrorEvents();
+        (
+            uint16 srcChainId,
+            address to,
+            bytes memory srcAddress,
+            uint64 nonce,
+            bytes memory from,
+            uint amount,
+            bytes memory payload,
+            bytes memory reason
+        ) = _decodeCallOFTReceivedFailureEvent(CallOFTReceivedFailure);
+        assertEq(reason, ""); // OOF
+
+        // tx2
+        deal(address(crossChainDispatcher_mainnet), 1 ether);
+        proxyOFT_msUSD_mainnet.retryOFTReceived(srcChainId, srcAddress, nonce, from, to, amount, payload);
+        (Vm.Log memory Swap, Vm.Log memory Packet_Tx2, Vm.Log memory RelayerParams_Tx2) = _getSgSwapEvents();
+
+        // tx3
+        _executeCallback(Swap, Packet_Tx2, RelayerParams_Tx2);
 
         //
         // then

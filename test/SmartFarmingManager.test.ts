@@ -1055,7 +1055,7 @@ describe('SmartFarmingManager', function () {
       expect(request.depositToken).eq(depositToken)
       expect(request.syntheticToken).eq(syntheticToken)
       expect(request.depositAmountMin).eq(depositAmountMin)
-      expect(request.syntheticTokenIssued).eq(expectedToIssue)
+      expect(request.debtAmount).eq(expectedToIssue)
       expect(request.account).eq(alice.address)
       expect(request.finished).eq(false)
       expect(crossChainDispatcher.triggerLeverageSwap)
@@ -1177,7 +1177,7 @@ describe('SmartFarmingManager', function () {
 
     it('should finish L2 leverage flow', async function () {
       // given
-      const {syntheticTokenIssued} = await smartFarmingManager.crossChainLeverages(id)
+      const {debtAmount} = await smartFarmingManager.crossChainLeverages(id)
 
       // when
       const swapAmountOut = parseEther('4.1')
@@ -1186,7 +1186,7 @@ describe('SmartFarmingManager', function () {
       // then
       await expect(tx)
         .changeTokenBalance(dai, crossChainDispatcher.address, swapAmountOut.mul('-1'))
-        .changeTokenBalance(msUsdDebtToken, alice.address, syntheticTokenIssued)
+        .changeTokenBalance(msUsdDebtToken, alice.address, debtAmount)
       const {finished} = await smartFarmingManager.crossChainLeverages(id)
       expect(finished).true
     })

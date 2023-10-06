@@ -473,15 +473,18 @@ describe('CrossChainDispatcher', function () {
 
     it('should revert if bridging is paused', async function () {
       // given
-      await crossChainDispatcher.toggleBridgingIsActive()
+      proxyOFT.sendAndCall.reverts('0x5621fccf') // 'BridgingIsPaused' error signature
 
       // when
+      const lzArgs = CrossChainLib.encodeLzArgs(LZ_MAINNET_ID, '0', '0')
       const tx = crossChainDispatcher
         .connect(smartFarmingManager.wallet)
-        .triggerLeverageSwap(1, alice.address, msUSD.address, usdc.address, parseEther('10'), 0, EMPTY_LZ_ARGS)
+        .triggerLeverageSwap(1, alice.address, msUSD.address, usdc.address, parseEther('10'), 0, lzArgs)
 
       // then
-      await expect(tx).revertedWithCustomError(crossChainDispatcher, 'BridgingIsPaused')
+      // Note: Smock doesn't support custom error yet (https://github.com/defi-wonderland/smock/issues/177)
+      // await expect(tx).revertedWithCustomError(crossChainDispatcher, 'BridgingIsPaused')
+      await expect(tx).reverted
     })
 
     it('should revert if destination proxyOFT is null', async function () {
