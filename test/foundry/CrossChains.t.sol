@@ -420,7 +420,7 @@ abstract contract CrossChains_Test is Test {
         if (nativeForDst > 0) {
             address destination = adapterParams.toAddress(66);
             assertEq(destination.balance, 0);
-            deal(destination, nativeForDst);
+            payable(destination).transfer(nativeForDst);
         }
     }
 
