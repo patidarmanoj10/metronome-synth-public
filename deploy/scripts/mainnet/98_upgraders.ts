@@ -14,23 +14,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {deployer} = await getNamedAccounts()
 
   // Note: Keep this array empty if there isn't upgrader contract to upgrade
-  const upgraders = [
-    {
-      currentUpgrader: 'PoolUpgraderV2',
-      newUpgrader: 'PoolUpgraderV3',
-      targetProxies: ['Pool'],
-    },
-    {
-      currentUpgrader: 'SyntheticTokenUpgrader',
-      newUpgrader: 'SyntheticTokenUpgraderV2',
-      targetProxies: ['MsUSDSynthetic', 'MsETHSynthetic', 'MsBTCSynthetic'],
-    },
-    {
-      currentUpgrader: 'PoolRegistryUpgrader',
-      newUpgrader: 'PoolRegistryUpgraderV2',
-      targetProxies: ['PoolRegistry'],
-    },
-  ]
+  const upgraders: {currentUpgrader: string; newUpgrader: string; targetProxies: string[]}[] = []
 
   for (const {currentUpgrader, newUpgrader, targetProxies: proxies} of upgraders) {
     // 1. Deploy new version of upgrader

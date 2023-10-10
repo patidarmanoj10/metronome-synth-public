@@ -3,6 +3,7 @@ import {DeployFunction} from 'hardhat-deploy/types'
 import {UpgradableContracts, deployUpgradable, updateParamIfNeeded} from '../../helpers'
 import Address from '../../../helpers/address'
 import Constants from '../../../helpers/constants'
+import {address as opCrossChainDispatcherAddress} from '../../../deployments/optimism/CrossChainDispatcher.json'
 
 const {
   CrossChainDispatcher: {alias: CrossChainDispatcher},
@@ -39,8 +40,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     contract: CrossChainDispatcher,
     readMethod: 'isBridgingActive',
     writeMethod: 'toggleBridgingIsActive',
-    // Note: We won't activate bridging by default
-    isCurrentValueUpdated: (isActive: boolean) => !isActive,
+    isCurrentValueUpdated: (isActive: boolean) => isActive,
   })
 
   await updateParamIfNeeded(hre, {
@@ -49,19 +49,17 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     readArgs: [Constants.LZ_OP_CHAIN_ID],
     writeMethod: 'toggleDestinationChainIsActive',
     writeArgs: [Constants.LZ_OP_CHAIN_ID],
-    // Note: We won't activate mainnet->optimism route by default
-    isCurrentValueUpdated: (isSupported: boolean) => !isSupported,
+    isCurrentValueUpdated: (isSupported: boolean) => isSupported,
   })
 
-  // TODO: Uncomment after having optimism contracts upgraded
-  // await updateParamIfNeeded(hre, {
-  //   contract: CrossChainDispatcher,
-  //   readMethod: 'crossChainDispatcherOf',
-  //   readArgs: [Constants.LZ_OP_CHAIN_ID],
-  //   writeMethod: 'updateCrossChainDispatcherOf',
-  //   writeArgs: [Constants.LZ_OP_CHAIN_ID, '0xTODO'],
-  //   isCurrentValueUpdated: (currentAddress: boolean, [, newAddress]) => currentAddress == newAddress,
-  // })
+  await updateParamIfNeeded(hre, {
+    contract: CrossChainDispatcher,
+    readMethod: 'crossChainDispatcherOf',
+    readArgs: [Constants.LZ_OP_CHAIN_ID],
+    writeMethod: 'updateCrossChainDispatcherOf',
+    writeArgs: [Constants.LZ_OP_CHAIN_ID, opCrossChainDispatcherAddress],
+    isCurrentValueUpdated: (currentAddress: boolean, [, newAddress]) => currentAddress == newAddress,
+  })
 
   await updateParamIfNeeded(hre, {
     contract: CrossChainDispatcher,
