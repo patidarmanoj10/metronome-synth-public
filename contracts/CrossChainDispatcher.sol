@@ -119,9 +119,7 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
         _disableInitializers();
     }
 
-    receive() external payable {
-        if (msg.sender != weth && msg.sender != sgeth) revert InvalidETHSender();
-    }
+    receive() external payable {}
 
     function initialize(IPoolRegistry poolRegistry_, address weth_, address sgeth_) external initializer {
         if (address(poolRegistry_) == address(0)) revert AddressIsNull();
