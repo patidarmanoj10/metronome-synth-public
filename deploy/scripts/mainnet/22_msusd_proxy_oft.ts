@@ -4,6 +4,8 @@ import {DeployFunction} from 'hardhat-deploy/types'
 import {UpgradableContracts, deployUpgradable, updateParamIfNeeded} from '../../helpers'
 import Address from '../../../helpers/address'
 import Constants from '../../../helpers/constants'
+import {address as opMsUSDProxyOFTAddress} from '../../../deployments/optimism/MsUSDProxyOFT.json'
+import {parseEther} from '../../../helpers'
 
 const {
   Pool: {alias: Pool},
@@ -37,16 +39,14 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     contract: MsUSDSynthetic,
     readMethod: 'maxBridgedInSupply',
     writeMethod: 'updateMaxBridgedInSupply',
-    // Note: We won't activate bridge-in by default
-    writeArgs: ['0'],
+    writeArgs: [parseEther('1000').toString()],
   })
 
   await updateParamIfNeeded(hre, {
     contract: MsUSDSynthetic,
     readMethod: 'maxBridgedOutSupply',
     writeMethod: 'updateMaxBridgedOutSupply',
-    // Note: We won't activate bridge-out by default
-    writeArgs: ['0'],
+    writeArgs: [parseEther('1000').toString()],
   })
 
   await updateParamIfNeeded(hre, {
@@ -66,18 +66,17 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     isCurrentValueUpdated: (currentMinGas: BigNumber, [, , newMinGas]) => currentMinGas.eq(newMinGas),
   })
 
-  // TODO: Uncomment after having optimism contracts upgraded
-  // await updateParamIfNeeded(hre, {
-  //   contract: MsUSDProxyOFT,
-  //   readMethod: 'trustedRemoteLookup',
-  //   readArgs: [Constants.LZ_OP_CHAIN_ID],
-  //   writeMethod: 'setTrustedRemote',
-  //   writeArgs: [
-  //     Constants.LZ_OP_CHAIN_ID,
-  //     ethers.utils.solidityPack(['address', 'address'], ['0xOptimismProxyOFT', proxyOFTAddress]),
-  //   ],
-  //   isCurrentValueUpdated: (currentPath: string, [, newPath]) => currentPath == newPath,
-  // })
+  await updateParamIfNeeded(hre, {
+    contract: MsUSDProxyOFT,
+    readMethod: 'trustedRemoteLookup',
+    readArgs: [Constants.LZ_OP_CHAIN_ID],
+    writeMethod: 'setTrustedRemote',
+    writeArgs: [
+      Constants.LZ_OP_CHAIN_ID,
+      ethers.utils.solidityPack(['address', 'address'], [opMsUSDProxyOFTAddress, proxyOFTAddress]),
+    ],
+    isCurrentValueUpdated: (currentPath: string, [, newPath]) => currentPath == newPath,
+  })
 }
 
 export default func

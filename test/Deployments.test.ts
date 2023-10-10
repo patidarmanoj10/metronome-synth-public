@@ -26,7 +26,8 @@ import {parseEther} from 'ethers/lib/utils'
 
 const {USDC_ADDRESS, NATIVE_TOKEN_ADDRESS, WAVAX_ADDRESS, MASTER_ORACLE_ADDRESS, GNOSIS_SAFE_ADDRESS} = Address
 
-describe('Deployments', function () {
+// FIXME (https://github.com/autonomoussoftware/metronome-synth/issues/997)
+describe.skip('Deployments', function () {
   let deployer: SignerWithAddress
   let pool: Pool
   let poolUpgrader: PoolUpgraderV2

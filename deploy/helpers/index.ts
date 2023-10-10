@@ -58,11 +58,11 @@ interface DeployUpgradableFunctionProps {
 }
 
 export const UpgradableContracts: UpgradableContractsConfig = {
-  PoolRegistry: {alias: 'PoolRegistry', contract: 'PoolRegistry', adminContract: 'PoolRegistryUpgrader'},
-  Pool: {alias: 'Pool', contract: 'contracts/Pool.sol:Pool', adminContract: 'PoolUpgraderV2'},
+  PoolRegistry: {alias: 'PoolRegistry', contract: 'PoolRegistry', adminContract: 'PoolRegistryUpgraderV2'},
+  Pool: {alias: 'Pool', contract: 'contracts/Pool.sol:Pool', adminContract: 'PoolUpgraderV3'},
   Treasury: {alias: 'Treasury', contract: 'Treasury', adminContract: 'TreasuryUpgrader'},
   DepositToken: {alias: '', contract: 'DepositToken', adminContract: 'DepositTokenUpgrader'},
-  SyntheticToken: {alias: '', contract: 'SyntheticToken', adminContract: 'SyntheticTokenUpgrader'},
+  SyntheticToken: {alias: '', contract: 'SyntheticToken', adminContract: 'SyntheticTokenUpgraderV2'},
   DebtToken: {alias: '', contract: 'DebtToken', adminContract: 'DebtTokenUpgrader'},
   MetRewardsDistributor: {
     alias: 'MetRewardsDistributor',

@@ -24,17 +24,8 @@ read
 # Prepare deployment data
 cp -r deployments/$network deployments/localhost
 
-# Deployment (1/2)
-npx hardhat deploy --network localhost #> DEPLOYMENT_TEST_OUTPUT.log
-
-# Update upgraders
-patch deploy/helpers/index.ts docs/update-upgraders.patch
-
-# Deployment (2/2)
-npx hardhat deploy --network localhost #>> DEPLOYMENT_TEST_OUTPUT.log
-
-# Undo upgraders' update
-mv deploy/helpers/index.ts.orig deploy/helpers/index.ts
+# Deployment
+npx hardhat deploy --network localhost > DEPLOYMENT_TEST_OUTPUT.log
 
 # Test next release
 npx hardhat test --network localhost test/E2E.$network.next.test.ts
