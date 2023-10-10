@@ -1,0 +1,11 @@
+--- deploy/helpers/index.ts	2023-10-10 20:23:41.083602389 +0100
++++ deploy/helpers/index.new.ts	2023-10-10 21:36:00.805851491 +0100
+@@ -85,7 +85,7 @@
+   CrossChainDispatcher: {
+     alias: 'CrossChainDispatcher',
+     contract: 'CrossChainDispatcher',
+-    adminContract: 'CrossChainDispatcherUpgrader',
++    adminContract: 'CrossChainDispatcherUpgraderV2',
+   },
+ }
+ 

@@ -622,7 +622,7 @@ describe.skip('E2E tests (next optimism release)', function () {
 
       it('crossChainLeverage', async function () {
         // given
-        expect(await smartFarmingManager.crossChainRequestsLength()).eq(0)
+        const idBefore = await smartFarmingManager.crossChainRequestsLength()
 
         // when
         const amountIn = parseUnits('1', 18)
@@ -649,7 +649,7 @@ describe.skip('E2E tests (next optimism release)', function () {
         )
 
         // then
-        expect(await smartFarmingManager.crossChainRequestsLength()).eq(1)
+        expect(await smartFarmingManager.crossChainRequestsLength()).eq(idBefore.add(1))
       })
 
       describe('crossChainFlashRepay', function () {
@@ -665,7 +665,7 @@ describe.skip('E2E tests (next optimism release)', function () {
 
         it('crossChainFlashRepay', async function () {
           // given
-          expect(await smartFarmingManager.crossChainRequestsLength()).eq(0)
+          const idBefore = await smartFarmingManager.crossChainRequestsLength()
 
           // when
           const withdrawAmount = parseUnits('0.3', 18)
@@ -692,7 +692,7 @@ describe.skip('E2E tests (next optimism release)', function () {
           )
 
           // then
-          expect(await smartFarmingManager.crossChainRequestsLength()).eq(1)
+          expect(await smartFarmingManager.crossChainRequestsLength()).eq(idBefore.add(1))
         })
       })
     })
