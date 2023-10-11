@@ -85,7 +85,7 @@ export const UpgradableContracts: UpgradableContractsConfig = {
   CrossChainDispatcher: {
     alias: 'CrossChainDispatcher',
     contract: 'CrossChainDispatcher',
-    adminContract: 'CrossChainDispatcherUpgrader',
+    adminContract: 'CrossChainDispatcherUpgraderV2',
   },
 }
 
