@@ -1411,7 +1411,7 @@ describe('SmartFarmingManager', function () {
     it('should update depositAmountMin and retry', async function () {
       // given
       const stargateRouter = await smock.fake('IStargateRouter')
-      const stargateComposer = await smock.fake('IStargateComposer')
+      const stargateComposer = await smock.fake('IStargateComposerWithRetry')
       stargateComposer.stargateRouter.returns(stargateRouter.address)
       crossChainDispatcher.stargateComposer.returns(stargateComposer.address)
       const {depositAmountMin: before} = await smartFarmingManager.crossChainLeverages(id)

@@ -16,7 +16,7 @@ import {
   ERC20,
   SyntheticToken,
   CrossChainDispatcher,
-  IStargateComposer,
+  IStargateComposerWithRetry,
 } from '../typechain'
 import {FakeContract, smock} from '@defi-wonderland/smock'
 import {CrossChainLib} from './helpers/CrossChainLib'
@@ -52,7 +52,7 @@ describe('CrossChainDispatcher', function () {
   let swapper: FakeContract<ISwapper>
   let smartFarmingManager: FakeContract<SmartFarmingManager>
   let stargateRouter: FakeContract<IStargateRouter>
-  let stargateComposer: FakeContract<IStargateComposer>
+  let stargateComposer: FakeContract<IStargateComposerWithRetry>
   let quoter: FakeContract<Quoter>
   let crossChainDispatcher: CrossChainDispatcher
 
@@ -68,7 +68,7 @@ describe('CrossChainDispatcher', function () {
     smartFarmingManager = await smock.fake('SmartFarmingManager')
     quoter = await smock.fake('Quoter')
     stargateRouter = await smock.fake('IStargateRouter')
-    stargateComposer = await smock.fake('IStargateComposer')
+    stargateComposer = await smock.fake('IStargateComposerWithRetry')
     proxyOFT = await smock.fake('ProxyOFT')
 
     await setBalance(stargateRouter.address, parseEther('10'))
