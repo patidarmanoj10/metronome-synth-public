@@ -4,6 +4,7 @@ pragma solidity 0.8.9;
 
 import "./utils/ReentrancyGuard.sol";
 import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
+import "./interfaces/external/IStargateComposerWithRetry.sol";
 import "./access/Manageable.sol";
 import "./storage/SmartFarmingManagerStorage.sol";
 import "./lib/WadRayMath.sol";
@@ -554,13 +555,15 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
      * @param srcChainId_ The source chain of failed tx
      * @param srcAddress_ The source path of failed tx
      * @param nonce_ The nonce of failed tx
+     * @param sgReceiveCallData_ The sgReceive calldata
      */
     function retryCrossChainLeverageCallback(
         uint256 id_,
         uint256 newDepositAmountMin_,
         uint16 srcChainId_,
         bytes calldata srcAddress_,
-        uint256 nonce_
+        uint64 nonce_,
+        bytes memory sgReceiveCallData_
     ) external {
         CrossChainLeverage memory _request = crossChainLeverages[id_];
 
@@ -570,7 +573,15 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
 
         crossChainLeverages[id_].depositAmountMin = newDepositAmountMin_;
 
-        crossChainDispatcher().stargateComposer().stargateRouter().clearCachedSwap(srcChainId_, srcAddress_, nonce_);
+        ICrossChainDispatcher _crossChainDispatcher = crossChainDispatcher();
+
+        IStargateComposerWithRetry(address(_crossChainDispatcher.stargateComposer())).clearCachedSwap(
+            srcChainId_,
+            srcAddress_,
+            nonce_,
+            address(_crossChainDispatcher),
+            sgReceiveCallData_
+        );
     }
 
     /**

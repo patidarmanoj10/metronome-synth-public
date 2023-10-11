@@ -1320,6 +1320,8 @@ describe('SmartFarmingManager', function () {
     const srcChainId = 101
     const srcAddress = '0x0000000000000000000000000000000000000001'
     const nonce = 123
+    const amountIn = parseEther('10')
+    let sgReceiveCallData: string
 
     beforeEach(async function () {
       await dai.connect(alice).approve(smartFarmingManager.address, ethers.constants.MaxUint256)
@@ -1328,7 +1330,6 @@ describe('SmartFarmingManager', function () {
       const underlying = dai.address
       const depositToken = msdVaDAI.address
       const syntheticToken = msUSD.address
-      const amountIn = parseEther('10')
       const leverage = parseEther('1.5')
       const layer1SwapAmountOutMin = parseEther('4.5')
       const depositAmountMin = parseEther('14')
@@ -1349,6 +1350,15 @@ describe('SmartFarmingManager', function () {
 
       expect(await smartFarmingManager.crossChainRequestsLength()).eq(length)
 
+      sgReceiveCallData = crossChainDispatcher.interface.encodeFunctionData('sgReceive', [
+        srcChainId,
+        ethers.utils.solidityPack(['address'], [crossChainDispatcher.address]),
+        nonce,
+        msUSD.address,
+        amountIn,
+        CrossChainLib.encodeLeverageCallbackPayload(smartFarmingManager.address, id),
+      ])
+
       await dai.mint(crossChainDispatcher.address, parseEther('10000'))
       await dai.connect(crossChainDispatcherSigner).approve(smartFarmingManager.address, ethers.constants.MaxUint256)
     })
@@ -1358,12 +1368,14 @@ describe('SmartFarmingManager', function () {
       const invalidId = 2
 
       // when
+
       const tx = smartFarmingManager.retryCrossChainLeverageCallback(
         invalidId,
         newDepositAmountMin,
         srcChainId,
         srcAddress,
-        nonce
+        nonce,
+        sgReceiveCallData
       )
 
       // then
@@ -1374,7 +1386,7 @@ describe('SmartFarmingManager', function () {
       // when
       const tx = smartFarmingManager
         .connect(bob)
-        .retryCrossChainLeverageCallback(id, newDepositAmountMin, srcChainId, srcAddress, nonce)
+        .retryCrossChainLeverageCallback(id, newDepositAmountMin, srcChainId, srcAddress, nonce, sgReceiveCallData)
 
       // then
       await expect(tx).revertedWithCustomError(smartFarmingManager, 'SenderIsNotAccount')
@@ -1390,7 +1402,7 @@ describe('SmartFarmingManager', function () {
       // when
       const tx = smartFarmingManager
         .connect(alice)
-        .retryCrossChainLeverageCallback(id, newDepositAmountMin, srcChainId, srcAddress, nonce)
+        .retryCrossChainLeverageCallback(id, newDepositAmountMin, srcChainId, srcAddress, nonce, sgReceiveCallData)
 
       // then
       await expect(tx).revertedWithCustomError(smartFarmingManager, 'CrossChainRequestCompletedAlready')
@@ -1407,12 +1419,18 @@ describe('SmartFarmingManager', function () {
       // when
       await smartFarmingManager
         .connect(alice)
-        .retryCrossChainLeverageCallback(id, newDepositAmountMin, srcChainId, srcAddress, nonce)
+        .retryCrossChainLeverageCallback(id, newDepositAmountMin, srcChainId, srcAddress, nonce, sgReceiveCallData)
 
       // then
       const {depositAmountMin: after} = await smartFarmingManager.crossChainLeverages(id)
       expect(after).not.eq(before)
-      expect(stargateRouter.clearCachedSwap).calledWith(srcChainId, srcAddress, nonce)
+      expect(stargateComposer.clearCachedSwap).calledOnceWith(
+        srcChainId,
+        srcAddress,
+        nonce,
+        crossChainDispatcher.address,
+        sgReceiveCallData
+      )
     })
   })
 })

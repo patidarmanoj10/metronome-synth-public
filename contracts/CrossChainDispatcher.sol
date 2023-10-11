@@ -5,6 +5,7 @@ pragma solidity 0.8.9;
 import "./utils/ReentrancyGuard.sol";
 import "./dependencies/@layerzerolabs/solidity-examples/util/BytesLib.sol";
 import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
+import "./interfaces/external/IStargateComposerWithRetry.sol";
 import "./interfaces/external/IWETH.sol";
 import "./interfaces/external/IStargatePool.sol";
 import "./interfaces/external/IStargateFactory.sol";
@@ -24,7 +25,7 @@ error NewValueIsSameAsCurrent();
 error SenderIsNotGovernor();
 error DestinationChainNotAllowed();
 error InvalidOperationType();
-error InvalidETHSender();
+error InvalidCallData();
 error InvalidPayload();
 
 /**
@@ -105,8 +106,8 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
         _;
     }
 
-    modifier onlyIfStargateRouter() {
-        if (msg.sender != address(stargateComposer.stargateRouter())) revert InvalidMsgSender();
+    modifier onlyIfStargateComposer() {
+        if (msg.sender != address(stargateComposer)) revert InvalidMsgSender();
         _;
     }
 
@@ -230,7 +231,7 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
      * @param srcAddress_ The remote Bridge address
      * @param token_ The token contract on the local chain
      * @param amountLD_ The qty of local _token contract tokens
-     * @param sgPayload_ The original payload encoded with further data added by StargateComposer
+     * @param payload_ The payload
      */
     function sgReceive(
         uint16 srcChainId_,
@@ -238,31 +239,25 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
         uint256 /*nonce_*/,
         address token_,
         uint256 amountLD_,
-        bytes memory sgPayload_
-    ) external override onlyIfStargateRouter {
+        bytes memory payload_
+    ) external override onlyIfStargateComposer {
         // Note: Stargate uses SGETH as `token_` when receiving native ETH
         if (token_ == sgeth) {
             IWETH(weth).deposit{value: amountLD_}();
             token_ = weth;
         }
 
-        address _srcAddress = abi.decode(srcAddress_, (address));
-        (address _to, address _sender, bytes memory _payload) = _decodePayloadFromSgComposer(sgPayload_);
+        address _srcAddress = srcAddress_.toAddress(0);
 
-        if (
-            _srcAddress == address(0) ||
-            _srcAddress != stargateComposer.peers(srcChainId_) ||
-            _sender != crossChainDispatcherOf[srcChainId_]
-        ) revert InvalidFromAddress();
+        if (_srcAddress == address(0) || _srcAddress != crossChainDispatcherOf[srcChainId_])
+            revert InvalidFromAddress();
 
-        if (_to == address(0) || _to != address(this)) revert InvalidToAddress();
-
-        uint8 _op = CrossChainLib.getOperationType(_payload);
+        uint8 _op = CrossChainLib.getOperationType(payload_);
 
         if (_op == CrossChainLib.LEVERAGE) {
-            _crossChainLeverageCallback(token_, amountLD_, _payload);
+            _crossChainLeverageCallback(token_, amountLD_, payload_);
         } else if (_op == CrossChainLib.FLASH_REPAY) {
-            _swapAndTriggerFlashRepayCallback(srcChainId_, token_, amountLD_, _payload);
+            _swapAndTriggerFlashRepayCallback(srcChainId_, token_, amountLD_, payload_);
         } else {
             revert InvalidOperationType();
         }
@@ -364,14 +359,32 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
     function retrySwapAndTriggerFlashRepayCallback(
         uint16 srcChainId_,
         bytes calldata srcAddress_,
-        uint256 nonce_,
-        uint256 newAmountOutMin_
+        uint64 nonce_,
+        address token_,
+        uint256 amount_,
+        uint256 newAmountOutMin_,
+        bytes calldata sgPayload_
     ) external nonReentrant {
-        IStargateRouter _stargateRouter = stargateComposer.stargateRouter();
+        IStargateComposerWithRetry _stargateComposer = IStargateComposerWithRetry(address(stargateComposer));
 
-        (, , , bytes memory _sgPayload) = _stargateRouter.cachedSwapLookup(srcChainId_, srcAddress_, nonce_);
+        bytes memory _sgReceiveCallData;
+        {
+            _sgReceiveCallData = abi.encodeWithSelector(
+                IStargateReceiver.sgReceive.selector,
+                srcChainId_,
+                abi.encodePacked(sgPayload_.toAddress(20)), // use the caller as the srcAddress (the msg.sender caller the StargateComposer at the source)
+                nonce_,
+                token_,
+                amount_,
+                sgPayload_.slice(40, sgPayload_.length - 40)
+            );
 
-        (, , bytes memory _payload) = _decodePayloadFromSgComposer(_sgPayload);
+            bytes32 _hash = keccak256(abi.encodePacked(address(this), _sgReceiveCallData));
+
+            if (_hash != _stargateComposer.payloadHashes(srcChainId_, srcAddress_, nonce_)) revert InvalidCallData();
+        }
+
+        (, , bytes memory _payload) = _decodePayloadFromSgComposer(sgPayload_);
 
         (, , uint256 _requestId, address _account, ) = CrossChainLib.decodeFlashRepaySwapPayload(_payload);
 
@@ -379,7 +392,7 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
 
         swapAmountOutMin[_requestId] = newAmountOutMin_;
 
-        _stargateRouter.clearCachedSwap(srcChainId_, srcAddress_, nonce_);
+        _stargateComposer.clearCachedSwap(srcChainId_, srcAddress_, nonce_, address(this), _sgReceiveCallData);
     }
 
     /**

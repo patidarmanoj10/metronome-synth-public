@@ -87,6 +87,34 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     writeArgs: [Address.FRAX_ADDRESS, Constants.SG_FRAX_POOL_ID],
     isCurrentValueUpdated: (currentPoolId: boolean, [, newPoolId]) => currentPoolId == newPoolId,
   })
+
+  await updateParamIfNeeded(hre, {
+    contract: CrossChainDispatcher,
+    readMethod: 'flashRepayCallbackTxGasLimit',
+    writeMethod: 'updateFlashRepayCallbackTxGasLimit',
+    writeArgs: ['1500000'],
+  })
+
+  await updateParamIfNeeded(hre, {
+    contract: CrossChainDispatcher,
+    readMethod: 'flashRepaySwapTxGasLimit',
+    writeMethod: 'updateFlashRepaySwapTxGasLimit',
+    writeArgs: ['1500000'],
+  })
+
+  await updateParamIfNeeded(hre, {
+    contract: CrossChainDispatcher,
+    readMethod: 'leverageCallbackTxGasLimit',
+    writeMethod: 'updateLeverageCallbackTxGasLimit',
+    writeArgs: ['1500000'],
+  })
+
+  await updateParamIfNeeded(hre, {
+    contract: CrossChainDispatcher,
+    readMethod: 'leverageSwapTxGasLimit',
+    writeMethod: 'updateLeverageSwapTxGasLimit',
+    writeArgs: ['1500000'],
+  })
 }
 
 export default func
