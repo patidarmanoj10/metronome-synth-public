@@ -14,7 +14,13 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {deployer} = await getNamedAccounts()
 
   // Note: Keep this array empty if there isn't upgrader contract to upgrade
-  const upgraders: {currentUpgrader: string; newUpgrader: string; targetProxies: string[]}[] = []
+  const upgraders: {currentUpgrader: string; newUpgrader: string; targetProxies: string[]}[] = [
+    {
+      currentUpgrader: 'CrossChainDispatcherUpgrader',
+      newUpgrader: 'CrossChainDispatcherUpgraderV2',
+      targetProxies: ['CrossChainDispatcher'],
+    },
+  ]
 
   for (const {currentUpgrader, newUpgrader, targetProxies: proxies} of upgraders) {
     // 1. Deploy new version of upgrader
