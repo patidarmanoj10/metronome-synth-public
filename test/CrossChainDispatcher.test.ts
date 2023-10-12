@@ -107,6 +107,7 @@ describe('CrossChainDispatcher', function () {
     await crossChainDispatcher.toggleBridgingIsActive()
     await crossChainDispatcher.updateStargatePoolIdOf(usdc.address, SG_USDC_POOL_ID)
     await crossChainDispatcher.updateCrossChainDispatcherOf(LZ_MAINNET_ID, crossChainDispatcher.address)
+    await crossChainDispatcher.updateCrossChainDispatcherOf(LZ_OPTIMISM_ID, crossChainDispatcher.address)
     await crossChainDispatcher.updateStargateComposer(stargateComposer.address)
     await crossChainDispatcher.updateStargateSlippage(0)
     await crossChainDispatcher.toggleDestinationChainIsActive(LZ_MAINNET_ID)
@@ -612,11 +613,6 @@ describe('CrossChainDispatcher', function () {
         amountOutMin
       )
 
-      const sgPayload = ethers.utils.solidityPack(
-        ['address', 'address', 'bytes'],
-        [crossChainDispatcher.address, crossChainDispatcher.address, payload]
-      )
-
       const sgReceiveCallData = crossChainDispatcher.interface.encodeFunctionData('sgReceive', [
         LZ_OPTIMISM_ID,
         ethers.utils.solidityPack(['address'], [crossChainDispatcher.address]),
@@ -641,8 +637,8 @@ describe('CrossChainDispatcher', function () {
           nonce,
           msUSD.address,
           amountIn,
-          newAmountOutMin,
-          sgPayload
+          payload,
+          newAmountOutMin
         )
 
       // then
@@ -665,11 +661,6 @@ describe('CrossChainDispatcher', function () {
         requestId,
         account,
         amountOutMin
-      )
-
-      const sgPayload = ethers.utils.solidityPack(
-        ['address', 'address', 'bytes'],
-        [crossChainDispatcher.address, crossChainDispatcher.address, payload]
       )
 
       const sgReceiveCallData = crossChainDispatcher.interface.encodeFunctionData('sgReceive', [
@@ -699,8 +690,8 @@ describe('CrossChainDispatcher', function () {
           nonce,
           msUSD.address,
           amountIn,
-          newAmountOutMin,
-          sgPayload
+          payload,
+          newAmountOutMin
         )
 
       // then

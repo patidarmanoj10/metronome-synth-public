@@ -351,9 +351,12 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
 
     /**
      * @notice Retry swap underlying and trigger callback.
-     * @param srcChainId_ srcChainId
-     * @param srcAddress_ srcAddress
-     * @param nonce_ nonce
+     * @param srcChainId_ The source chain of failed tx
+     * @param srcAddress_ The source path of failed tx
+     * @param nonce_ The nonce of failed tx
+     * @param token_ The token of failed tx
+     * @param amount_ The amountIn of failed tx
+     * @param payload_ The payload of failed tx
      * @param newAmountOutMin_ If swap failed due to slippage, caller may send lower newAmountOutMin_
      */
     function retrySwapAndTriggerFlashRepayCallback(
@@ -362,31 +365,26 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
         uint64 nonce_,
         address token_,
         uint256 amount_,
-        uint256 newAmountOutMin_,
-        bytes calldata sgPayload_
+        bytes calldata payload_,
+        uint256 newAmountOutMin_
     ) external nonReentrant {
         IStargateComposerWithRetry _stargateComposer = IStargateComposerWithRetry(address(stargateComposer));
 
-        bytes memory _sgReceiveCallData;
-        {
-            _sgReceiveCallData = abi.encodeWithSelector(
-                IStargateReceiver.sgReceive.selector,
-                srcChainId_,
-                abi.encodePacked(sgPayload_.toAddress(20)), // use the caller as the srcAddress (the msg.sender caller the StargateComposer at the source)
-                nonce_,
-                token_,
-                amount_,
-                sgPayload_.slice(40, sgPayload_.length - 40)
-            );
+        bytes memory _sgReceiveCallData = abi.encodeWithSelector(
+            IStargateReceiver.sgReceive.selector,
+            srcChainId_,
+            abi.encodePacked(crossChainDispatcherOf[srcChainId_]), // use the caller as the srcAddress (the msg.sender caller the StargateComposer at the source)
+            nonce_,
+            token_,
+            amount_,
+            payload_
+        );
 
-            bytes32 _hash = keccak256(abi.encodePacked(address(this), _sgReceiveCallData));
+        bytes32 _hash = keccak256(abi.encodePacked(address(this), _sgReceiveCallData));
 
-            if (_hash != _stargateComposer.payloadHashes(srcChainId_, srcAddress_, nonce_)) revert InvalidCallData();
-        }
+        if (_hash != _stargateComposer.payloadHashes(srcChainId_, srcAddress_, nonce_)) revert InvalidCallData();
 
-        (, , bytes memory _payload) = _decodePayloadFromSgComposer(sgPayload_);
-
-        (, , uint256 _requestId, address _account, ) = CrossChainLib.decodeFlashRepaySwapPayload(_payload);
+        (, , uint256 _requestId, address _account, ) = CrossChainLib.decodeFlashRepaySwapPayload(payload_);
 
         if (msg.sender != _account) revert InvalidMsgSender();
 
@@ -397,18 +395,18 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
 
     /**
      * @notice Retry swap and trigger callback.
-     * @param srcChainId_ srcChainId
-     * @param srcAddress_ srcAddress
-     * @param nonce_ nonce
-     * @param amount_ amount
-     * @param payload_ payload
+     * @param srcChainId_ The source chain of failed tx
+     * @param srcAddress_ The source path of failed tx
+     * @param nonce_ The nonce of failed tx
+     * @param amount_ The amountIn of failed tx
+     * @param payload_ The payload of failed tx
      * @param newAmountOutMin_ If swap failed due to slippage, caller may send lower newAmountOutMin_
      */
     function retrySwapAndTriggerLeverageCallback(
         uint16 srcChainId_,
         bytes calldata srcAddress_,
         uint64 nonce_,
-        uint amount_,
+        uint256 amount_,
         bytes calldata payload_,
         uint256 newAmountOutMin_
     ) external nonReentrant {
@@ -548,17 +546,6 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
                 nativeFee: msg.value
             })
         );
-    }
-
-    /**
-     * @dev The `StargateComposer` contract adds further addresses to the original payload
-     */
-    function _decodePayloadFromSgComposer(
-        bytes memory payload_
-    ) private pure returns (address _to, address _sender, bytes memory _payload) {
-        _to = payload_.toAddress(0); // The original `swap()` `_to` arg
-        _sender = payload_.toAddress(20); // The address who called the `StargateComposer`
-        _payload = payload_.slice(40, payload_.length - 40);
     }
 
     /**

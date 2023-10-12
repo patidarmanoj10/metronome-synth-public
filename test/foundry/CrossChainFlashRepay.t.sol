@@ -321,7 +321,7 @@ contract CrossChainFlashRepay_Test is CrossChains_Test {
 
         // tx2
         // Retry will work after amending slippage
-        (, , uint256 _amount, , uint256 dstPoolId, , , bytes memory payload) = _decodeSgSwapEvents(Swap, Packet);
+        (, , uint256 _amount, , uint256 dstPoolId, , , bytes memory sgPayload) = _decodeSgSwapEvents(Swap, Packet);
         address _token = IStargatePool(IStargateFactory(sgComposer_mainnet.factory()).getPool(dstPoolId)).token();
 
         vm.prank(alice);
@@ -331,8 +331,8 @@ contract CrossChainFlashRepay_Test is CrossChains_Test {
             uint64(nonce),
             _token,
             _amount,
-            480e18, // Correct slippage
-            payload
+            sgPayload.slice(40, sgPayload.length - 40),
+            480e18 // Correct slippage
         );
 
         (Vm.Log memory SendToChain, Vm.Log memory PacketTx2, Vm.Log memory RelayerParamsTx2) = _getOftTransferEvents();
@@ -447,13 +447,12 @@ contract CrossChainFlashRepay_Test is CrossChains_Test {
         // Retry will work after fix slippage
         vm.prank(alice);
         smartFarmingManager_optimism.retryCrossChainFlashRepayCallback(
-            uint256(keccak256(abi.encode(10, 1))), // request id
-            490e18, // correct `repayAmountMin_`
             srcChainId,
             srcAddress,
             nonce,
             amount,
-            payload
+            payload,
+            490e18 // correct `repayAmountMin_`
         );
 
         //

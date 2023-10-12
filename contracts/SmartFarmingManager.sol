@@ -508,30 +508,30 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
     /**
      * @notice Retry cross-chain flash repay callback
      * @dev This function is used to recover from callback failures due to slippage
-     * @param id_ The id of the request
-     * @param newRepayAmountMin_ Updated slippage check param
      * @param srcChainId_ The source chain of failed tx
      * @param srcAddress_ The source path of failed tx
      * @param nonce_ The nonce of failed tx
      * @param amount_ The amount of failed tx
      * @param payload_ The payload of failed tx
+     * @param newRepayAmountMin_ If repayment failed due to slippage, caller may send lower newRepayAmountMin_
      */
     function retryCrossChainFlashRepayCallback(
-        uint256 id_,
-        uint256 newRepayAmountMin_,
         uint16 srcChainId_,
         bytes calldata srcAddress_,
         uint64 nonce_,
-        uint amount_,
-        bytes calldata payload_
+        uint256 amount_,
+        bytes calldata payload_,
+        uint256 newRepayAmountMin_
     ) external {
-        CrossChainFlashRepay memory _request = crossChainFlashRepays[id_];
+        (, , uint256 _requestId) = CrossChainLib.decodeFlashRepayCallbackPayload(payload_);
+
+        CrossChainFlashRepay memory _request = crossChainFlashRepays[_requestId];
 
         if (_request.account == address(0)) revert CrossChainRequestInvalidKey();
         if (msg.sender != _request.account) revert SenderIsNotAccount();
         if (_request.finished) revert CrossChainRequestCompletedAlready();
 
-        crossChainFlashRepays[id_].repayAmountMin = newRepayAmountMin_;
+        crossChainFlashRepays[_requestId].repayAmountMin = newRepayAmountMin_;
 
         ICrossChainDispatcher _crossChainDispatcher = crossChainDispatcher();
         bytes memory _from = abi.encodePacked(_crossChainDispatcher.crossChainDispatcherOf(srcChainId_));
@@ -550,37 +550,52 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
     /**
      * @notice Retry cross-chain leverage callback
      * @dev This function is used to recover from callback failures due to slippage
-     * @param id_ The id of the request
-     * @param newDepositAmountMin_ Updated slippage check param
      * @param srcChainId_ The source chain of failed tx
      * @param srcAddress_ The source path of failed tx
      * @param nonce_ The nonce of failed tx
-     * @param sgReceiveCallData_ The sgReceive calldata
+     * @param token_ The token of failed tx
+     * @param amount_ The amountIn of failed tx
+     * @param payload_ The payload of failed tx
+     * @param newDepositAmountMin_ If deposit failed due to slippage, caller may send lower newDepositAmountMin_
      */
     function retryCrossChainLeverageCallback(
-        uint256 id_,
-        uint256 newDepositAmountMin_,
         uint16 srcChainId_,
         bytes calldata srcAddress_,
         uint64 nonce_,
-        bytes memory sgReceiveCallData_
+        address token_,
+        uint256 amount_,
+        bytes calldata payload_,
+        uint256 newDepositAmountMin_
     ) external {
-        CrossChainLeverage memory _request = crossChainLeverages[id_];
+        (, uint256 _requestId) = CrossChainLib.decodeLeverageCallbackPayload(payload_);
+
+        CrossChainLeverage memory _request = crossChainLeverages[_requestId];
 
         if (_request.account == address(0)) revert CrossChainRequestInvalidKey();
         if (msg.sender != _request.account) revert SenderIsNotAccount();
         if (_request.finished) revert CrossChainRequestCompletedAlready();
 
-        crossChainLeverages[id_].depositAmountMin = newDepositAmountMin_;
+        crossChainLeverages[_requestId].depositAmountMin = newDepositAmountMin_;
 
         ICrossChainDispatcher _crossChainDispatcher = crossChainDispatcher();
+
+        address _from = _crossChainDispatcher.crossChainDispatcherOf(srcChainId_);
+        bytes memory _sgReceiveCallData = abi.encodeWithSelector(
+            IStargateReceiver.sgReceive.selector,
+            srcChainId_,
+            abi.encodePacked(_from), // use the caller as the srcAddress (the msg.sender caller the StargateComposer at the source)
+            nonce_,
+            token_,
+            amount_,
+            payload_
+        );
 
         IStargateComposerWithRetry(address(_crossChainDispatcher.stargateComposer())).clearCachedSwap(
             srcChainId_,
             srcAddress_,
             nonce_,
             address(_crossChainDispatcher),
-            sgReceiveCallData_
+            _sgReceiveCallData
         );
     }
 

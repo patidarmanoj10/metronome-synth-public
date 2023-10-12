@@ -399,7 +399,6 @@ contract CrossChainLeverage_Test is CrossChains_Test {
         // Same state, retry will fail too
         (, , , , uint256 dstPoolId, , , bytes memory sgPayload_) = _decodeSgSwapEvents(Swap, PacketTx2);
         bytes memory _payload = sgPayload_.slice(40, sgPayload_.length - 40);
-        (, uint256 _requestId) = CrossChainLib.decodeLeverageCallbackPayload(_payload);
         address _token = IStargatePool(IStargateFactory(sgComposer_optimism.factory()).getPool(dstPoolId)).token();
         bytes memory _sgReceiveCallData = abi.encodeWithSelector(
             IStargateReceiver.sgReceive.selector,
@@ -408,7 +407,7 @@ contract CrossChainLeverage_Test is CrossChains_Test {
             nonce,
             _token,
             amount,
-            sgPayload_.slice(40, sgPayload_.length - 40)
+            _payload
         );
         vm.expectRevert();
         sgComposer_optimism.clearCachedSwap(
@@ -423,12 +422,13 @@ contract CrossChainLeverage_Test is CrossChains_Test {
         // Retry will work with right slippage
         vm.prank(alice);
         smartFarmingManager_optimism.retryCrossChainLeverageCallback(
-            _requestId,
-            1450e18, // Correct slippage
             chainId,
             srcAddress,
             uint64(nonce),
-            _sgReceiveCallData
+            _token,
+            amount,
+            _payload,
+            1450e18 // Correct slippage
         );
 
         //
