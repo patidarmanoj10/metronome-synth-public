@@ -7,7 +7,10 @@ import {ILayerZeroReceiver} from "../../contracts/dependencies/@layerzerolabs/so
 import {ILayerZeroEndpoint} from "../../contracts/dependencies/@layerzerolabs/solidity-examples/interfaces/ILayerZeroEndpoint.sol";
 import {Pool as StargatePool} from "../../contracts/dependencies/stargate-protocol/Pool.sol";
 import {IStargateRouter} from "../../contracts/dependencies/stargate-protocol/interfaces/IStargateRouter.sol";
-import {IStargateComposer} from "../../contracts/dependencies/stargate-protocol/interfaces/IStargateComposer.sol";
+import {IStargateReceiver} from "../../contracts/dependencies/stargate-protocol/interfaces/IStargateReceiver.sol";
+import {IStargateFactory} from "../../contracts/interfaces/external/IStargateFactory.sol";
+import {IStargatePool} from "../../contracts/interfaces/external/IStargatePool.sol";
+import {IStargateComposerWithRetry} from "../../contracts/interfaces/external/IStargateComposerWithRetry.sol";
 import {PoolRegistry} from "../../contracts/PoolRegistry.sol";
 import {Pool, ISyntheticToken, IERC20} from "../../contracts/Pool.sol";
 import {SmartFarmingManager} from "../../contracts/SmartFarmingManager.sol";
@@ -82,7 +85,8 @@ abstract contract CrossChains_Test is Test {
     ILayerZeroEndpointExtended lzEndpoint_optimism =
         ILayerZeroEndpointExtended(0x3c2269811836af69497E5F486A85D7316753cf62);
     IStargateRouterExtended sgRouter_optimism = IStargateRouterExtended(0xB0D502E938ed5f4df2E681fE6E419ff29631d62b);
-    IStargateComposer sgComposer_optimism = IStargateComposer(0xeCc19E177d24551aA7ed6Bc6FE566eCa726CC8a9);
+    IStargateComposerWithRetry sgComposer_optimism =
+        IStargateComposerWithRetry(0xeCc19E177d24551aA7ed6Bc6FE566eCa726CC8a9);
     MasterOracleMock masterOracle_optimism;
     SwapperMock swapper_optimism;
     PoolRegistry poolRegistry_optimism;
@@ -105,7 +109,8 @@ abstract contract CrossChains_Test is Test {
     ILayerZeroEndpointExtended lzEndpoint_mainnet =
         ILayerZeroEndpointExtended(0x66A71Dcef29A0fFBDBE3c6a460a3B5BC225Cd675);
     IStargateRouterExtended sgRouter_mainnet = IStargateRouterExtended(0x8731d54E9D02c286767d56ac03e8037C07e01e98);
-    IStargateComposer sgComposer_mainnet = IStargateComposer(0xeCc19E177d24551aA7ed6Bc6FE566eCa726CC8a9);
+    IStargateComposerWithRetry sgComposer_mainnet =
+        IStargateComposerWithRetry(0xeCc19E177d24551aA7ed6Bc6FE566eCa726CC8a9);
     MasterOracleMock masterOracle_mainnet;
     SwapperMock swapper_mainnet;
     Treasury treasury_mainnet;
@@ -123,8 +128,8 @@ abstract contract CrossChains_Test is Test {
     function setUp() public virtual {
         // TODO: Get from .env
         // Refs: https://github.com/autonomoussoftware/metronome-synth/issues/874
-        mainnetFork = vm.createSelectFork("https://eth.connect.bloq.cloud/v1/peace-blood-actress");
-        // mainnetFork = vm.createSelectFork("https://eth-mainnet.alchemyapi.io/v2/NbZ2px662CNSwdw3ZxdaZNe31yZbyddK");
+        //mainnetFork = vm.createSelectFork("https://eth.connect.bloq.cloud/v1/peace-blood-actress");
+        mainnetFork = vm.createSelectFork("https://eth-mainnet.alchemyapi.io/v2/NbZ2px662CNSwdw3ZxdaZNe31yZbyddK");
         vm.rollFork(mainnetFork, 18262880);
 
         optimismFork = vm.createSelectFork("https://optimism-mainnet.infura.io/v3/9989c2cf77a24bddaa43103463cb8047");
@@ -437,6 +442,7 @@ abstract contract CrossChains_Test is Test {
         (
             uint16 srcChainId,
             address from,
+            ,
             uint256 srcPoolId,
             uint256 dstPoolId,
             uint256 dstGasForCall,
@@ -453,12 +459,12 @@ abstract contract CrossChains_Test is Test {
             fork = mainnetFork;
             lz = lzEndpoint_mainnet;
             sg = sgRouter_mainnet;
-            to = address(crossChainDispatcher_mainnet);
+            to = address(sgComposer_mainnet);
         } else {
             fork = optimismFork;
             lz = lzEndpoint_optimism;
             sg = sgRouter_optimism;
-            to = address(crossChainDispatcher_optimism);
+            to = address(sgComposer_optimism);
         }
 
         vm.selectFork(fork);
@@ -619,6 +625,7 @@ abstract contract CrossChains_Test is Test {
         returns (
             uint16 srcChainId,
             address from,
+            uint256 amount,
             uint256 srcPoolId,
             uint256 dstPoolId,
             uint256 dstGasForCall,
@@ -627,7 +634,7 @@ abstract contract CrossChains_Test is Test {
         )
     {
         {
-            (, , from, , , , , ) = abi.decode(
+            (, , from, amount, , , , ) = abi.decode(
                 Swap.data,
                 (uint16, uint256, address, uint256, uint256, uint256, uint256, uint256)
             );
@@ -700,7 +707,8 @@ abstract contract CrossChains_Test is Test {
         );
     }
 
-    function _decodeCachedSwapSavedEvent(
+    // Emitted by StargateRouter (deprecated)
+    function _decodeCachedSwapSavedSgRouterEvent(
         Vm.Log memory CachedSwapSaved
     )
         internal
@@ -720,6 +728,19 @@ abstract contract CrossChains_Test is Test {
             CachedSwapSaved.data,
             (uint16, bytes, uint256, address, uint256, address, bytes, bytes)
         );
+    }
+
+    // Emitted by StargateComposer
+    function _decodeCachedSwapSavedSgComposerEvent(
+        Vm.Log memory CachedSwapSaved,
+        Vm.Log memory SwapRemote
+    )
+        internal
+        pure
+        returns (uint16 chainId, bytes memory srcAddress, uint256 amount, uint256 nonce, bytes memory reason)
+    {
+        (chainId, srcAddress, nonce, reason) = abi.decode(CachedSwapSaved.data, (uint16, bytes, uint256, bytes));
+        (, amount, , ) = abi.decode(SwapRemote.data, (address, uint256, uint256, uint256));
     }
 
     function _getSgSwapEvents()
@@ -770,7 +791,15 @@ abstract contract CrossChains_Test is Test {
         }
     }
 
-    function _getSgSwapErrorEvents() internal returns (Vm.Log memory CachedSwapSaved, Vm.Log memory Revert) {
+    function _getSgSwapErrorEvents()
+        internal
+        returns (
+            Vm.Log memory CachedSwapSavedSgRouter, // deprecated
+            Vm.Log memory CachedSwapSavedSgComposer,
+            Vm.Log memory Revert,
+            Vm.Log memory SwapRemote
+        )
+    {
         Vm.Log[] memory entries = vm.getRecordedLogs();
         for (uint256 i; i < entries.length; ++i) {
             Vm.Log memory entry = entries[i];
@@ -780,11 +809,20 @@ abstract contract CrossChains_Test is Test {
             ) {
                 // Note: Emitted from SG Router when `sgReceive()` fails
                 // event CachedSwapSaved(uint16 chainId, bytes srcAddress, uint256 nonce, address token, uint256 amountLD, address to, bytes payload, bytes reason);
-                CachedSwapSaved = entry;
+                CachedSwapSavedSgRouter = entry;
+            }
+            if (entry.topics[0] == keccak256("CachedSwapSaved(uint16,bytes,uint256,bytes)")) {
+                // Note: Emitted from SG Composer when `sgReceive()` fails
+                // event CachedSwapSaved(uint16 chainId, bytes srcAddress, uint256 nonce, bytes reason);
+                CachedSwapSavedSgComposer = entry;
             } else if (entry.topics[0] == keccak256("Revert(uint8,uint16,bytes,uint256)")) {
                 // Note: Emitted from SG Router when swap fails on the destination
                 // event Revert(uint8 bridgeFunctionType, uint16 chainId, bytes srcAddress, uint256 nonce);
                 Revert = entry;
+            } else if (entry.topics[0] == keccak256("SwapRemote(address,uint256,uint256,uint256)")) {
+                // Note: Emitted when SG swap arrives to the Pool
+                // event SwapRemote(address to, uint256 amountSD, uint256 protocolFee, uint256 dstFee);
+                SwapRemote = entry;
             }
         }
     }

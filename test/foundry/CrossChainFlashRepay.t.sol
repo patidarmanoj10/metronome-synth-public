@@ -261,14 +261,14 @@ contract CrossChainFlashRepay_Test is CrossChains_Test {
 
         // tx2 - fail
         _executeSwapAndTriggerCallback(Swap, Packet, RelayerParams);
-        (, Vm.Log memory Revert) = _getSgSwapErrorEvents();
+        (, , Vm.Log memory Revert, ) = _getSgSwapErrorEvents();
         assertGt(Revert.data.length, 0); // Emitted `Revert` event
         (uint16 chainId, bytes memory srcAddress, uint256 nonce) = _decodeRevertEvent(Revert);
 
         // tx2 - fail
         // Same state, retry will fail too
         sgRouter_mainnet.retryRevert(chainId, srcAddress, nonce);
-        (, Revert) = _getSgSwapErrorEvents();
+        (, , Revert, ) = _getSgSwapErrorEvents();
         assertGt(Revert.data.length, 0); // Emitted `Revert` event
 
         // tx2
@@ -312,19 +312,26 @@ contract CrossChainFlashRepay_Test is CrossChains_Test {
 
         // tx2 - fail
         _executeSwapAndTriggerCallback(Swap, Packet, RelayerParams);
-        (Vm.Log memory CachedSwapSaved, ) = _getSgSwapErrorEvents();
+        (, Vm.Log memory CachedSwapSaved, , Vm.Log memory SwapRemote) = _getSgSwapErrorEvents();
         assertGt(CachedSwapSaved.data.length, 0); // Emitted `Revert` event
-        (uint16 chainId, bytes memory srcAddress, uint256 nonce, , , , , ) = _decodeCachedSwapSavedEvent(
-            CachedSwapSaved
+        (uint16 chainId, bytes memory srcAddress, , uint256 nonce, ) = _decodeCachedSwapSavedSgComposerEvent(
+            CachedSwapSaved,
+            SwapRemote
         );
 
         // tx2
         // Retry will work after amending slippage
+        (, , uint256 _amount, , uint256 dstPoolId, , , bytes memory sgPayload) = _decodeSgSwapEvents(Swap, Packet);
+        address _token = IStargatePool(IStargateFactory(sgComposer_mainnet.factory()).getPool(dstPoolId)).token();
+
         vm.prank(alice);
         crossChainDispatcher_mainnet.retrySwapAndTriggerFlashRepayCallback(
             chainId,
             srcAddress,
-            nonce,
+            uint64(nonce),
+            _token,
+            _amount,
+            sgPayload.slice(40, sgPayload.length - 40),
             480e18 // Correct slippage
         );
 
@@ -440,13 +447,12 @@ contract CrossChainFlashRepay_Test is CrossChains_Test {
         // Retry will work after fix slippage
         vm.prank(alice);
         smartFarmingManager_optimism.retryCrossChainFlashRepayCallback(
-            uint256(keccak256(abi.encode(10, 1))), // request id
-            490e18, // correct `repayAmountMin_`
             srcChainId,
             srcAddress,
             nonce,
             amount,
-            payload
+            payload,
+            490e18 // correct `repayAmountMin_`
         );
 
         //
@@ -476,15 +482,36 @@ contract CrossChainFlashRepay_Test is CrossChains_Test {
 
         // tx2 - fail
         _executeSwapAndTriggerCallback(Swap, Packet, RelayerParams);
-        (Vm.Log memory CachedSwapSaved, ) = _getSgSwapErrorEvents();
-        (uint16 chainId, bytes memory srcAddress, uint256 nonce, , , , , bytes memory reason) = abi.decode(
-            CachedSwapSaved.data,
-            (uint16, bytes, uint256, address, uint256, address, bytes, bytes)
-        );
+        (, Vm.Log memory CachedSwapSaved, , Vm.Log memory SwapRemote) = _getSgSwapErrorEvents();
+        (
+            uint16 chainId,
+            bytes memory srcAddress,
+            ,
+            uint256 nonce,
+            bytes memory reason
+        ) = _decodeCachedSwapSavedSgComposerEvent(CachedSwapSaved, SwapRemote);
         assertEq(reason, ""); // OOG
 
         // tx2
-        sgRouter_mainnet.clearCachedSwap(chainId, srcAddress, nonce);
+        (, , uint256 _amount, , uint256 dstPoolId, , , bytes memory sgPayload_) = _decodeSgSwapEvents(Swap, Packet);
+        address _token = IStargatePool(IStargateFactory(sgComposer_mainnet.factory()).getPool(dstPoolId)).token();
+
+        bytes memory _sgReceiveCallData = abi.encodeWithSelector(
+            IStargateReceiver.sgReceive.selector,
+            chainId,
+            abi.encodePacked(sgPayload_.toAddress(20)), // use the caller as the srcAddress (the msg.sender caller the StargateComposer at the source)
+            nonce,
+            _token,
+            _amount,
+            sgPayload_.slice(40, sgPayload_.length - 40)
+        );
+        sgComposer_mainnet.clearCachedSwap(
+            chainId,
+            srcAddress,
+            uint64(nonce),
+            address(crossChainDispatcher_mainnet),
+            _sgReceiveCallData
+        );
         (Vm.Log memory SendToChain, Vm.Log memory PacketTx2, Vm.Log memory RelayerParamsTx2) = _getOftTransferEvents();
 
         // tx3
@@ -567,16 +594,38 @@ contract CrossChainFlashRepay_Test is CrossChains_Test {
 
         // tx2 - fail
         _executeSwapAndTriggerCallbackWithoutAirdrop(Swap, Packet, RelayerParams);
-        (Vm.Log memory CachedSwapSaved, ) = _getSgSwapErrorEvents();
-        (uint16 chainId, bytes memory srcAddress, uint256 nonce, , , , , bytes memory reason) = abi.decode(
-            CachedSwapSaved.data,
-            (uint16, bytes, uint256, address, uint256, address, bytes, bytes)
-        );
+        (, Vm.Log memory CachedSwapSaved, , Vm.Log memory SwapRemote) = _getSgSwapErrorEvents();
+        (
+            uint16 chainId,
+            bytes memory srcAddress,
+            ,
+            uint256 nonce,
+            bytes memory reason
+        ) = _decodeCachedSwapSavedSgComposerEvent(CachedSwapSaved, SwapRemote);
         assertEq(reason, ""); // OOF
 
         // tx2
+        (, , uint256 _amount, , uint256 dstPoolId, , , bytes memory sgPayload_) = _decodeSgSwapEvents(Swap, Packet);
+        address _token = IStargatePool(IStargateFactory(sgComposer_mainnet.factory()).getPool(dstPoolId)).token();
+
+        bytes memory _sgReceiveCallData = abi.encodeWithSelector(
+            IStargateReceiver.sgReceive.selector,
+            chainId,
+            abi.encodePacked(sgPayload_.toAddress(20)), // use the caller as the srcAddress (the msg.sender caller the StargateComposer at the source)
+            nonce,
+            _token,
+            _amount,
+            sgPayload_.slice(40, sgPayload_.length - 40)
+        );
+
         deal(address(crossChainDispatcher_mainnet), 1 ether);
-        sgRouter_mainnet.clearCachedSwap(chainId, srcAddress, nonce);
+        sgComposer_mainnet.clearCachedSwap(
+            chainId,
+            srcAddress,
+            uint64(nonce),
+            address(crossChainDispatcher_mainnet),
+            _sgReceiveCallData
+        );
         (Vm.Log memory SendToChain, Vm.Log memory PacketTx2, Vm.Log memory RelayerParamsTx2) = _getOftTransferEvents();
 
         // tx3

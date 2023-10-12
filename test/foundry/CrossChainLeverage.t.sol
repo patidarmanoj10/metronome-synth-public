@@ -334,14 +334,14 @@ contract CrossChainLeverage_Test is CrossChains_Test {
 
         // tx2 - fail
         _executeCallback(Swap, PacketTx2, RelayerParamsTx2);
-        (, Vm.Log memory Revert) = _getSgSwapErrorEvents();
+        (, , Vm.Log memory Revert, ) = _getSgSwapErrorEvents();
         assertGt(Revert.data.length, 0);
         (uint16 chainId, bytes memory srcAddress, uint256 nonce) = _decodeRevertEvent(Revert);
 
         // tx2 - fail
         // Same state, retry will fail too
         sgRouter_optimism.retryRevert(chainId, srcAddress, nonce);
-        (, Revert) = _getSgSwapErrorEvents();
+        (, , Revert, ) = _getSgSwapErrorEvents();
         assertGt(Revert.data.length, 0); // Emitted `Revert` event
 
         // tx3
@@ -383,37 +383,52 @@ contract CrossChainLeverage_Test is CrossChains_Test {
 
         // tx3 - fail
         _executeCallback(Swap, PacketTx2, RelayerParamsTx2);
-        (Vm.Log memory CachedSwapSaved, ) = _getSgSwapErrorEvents();
+        (, Vm.Log memory CachedSwapSaved, , Vm.Log memory SwapRemote) = _getSgSwapErrorEvents();
         (
             uint16 chainId,
             bytes memory srcAddress,
+            uint256 amount,
             uint256 nonce,
-            ,
-            ,
-            ,
-            bytes memory sgPayload,
             bytes memory reason
-        ) = abi.decode(CachedSwapSaved.data, (uint16, bytes, uint256, address, uint256, address, bytes, bytes));
+        ) = _decodeCachedSwapSavedSgComposerEvent(CachedSwapSaved, SwapRemote);
         assertEq(reason, abi.encodeWithSignature("LeverageSlippageTooHigh()"));
         // Even if `sgReceive` fails, the collateral amount is sent
         assertGt(usdc_optimism.balanceOf(address(crossChainDispatcher_optimism)), 0);
 
         // tx3 - fail
         // Same state, retry will fail too
+        (, , , , uint256 dstPoolId, , , bytes memory sgPayload_) = _decodeSgSwapEvents(Swap, PacketTx2);
+        bytes memory _payload = sgPayload_.slice(40, sgPayload_.length - 40);
+        address _token = IStargatePool(IStargateFactory(sgComposer_optimism.factory()).getPool(dstPoolId)).token();
+        bytes memory _sgReceiveCallData = abi.encodeWithSelector(
+            IStargateReceiver.sgReceive.selector,
+            chainId,
+            abi.encodePacked(sgPayload_.toAddress(20)), // use the caller as the srcAddress (the msg.sender caller the StargateComposer at the source)
+            nonce,
+            _token,
+            amount,
+            _payload
+        );
         vm.expectRevert();
-        sgRouter_optimism.clearCachedSwap(chainId, srcAddress, nonce);
+        sgComposer_optimism.clearCachedSwap(
+            chainId,
+            srcAddress,
+            uint64(nonce),
+            address(crossChainDispatcher_optimism),
+            _sgReceiveCallData
+        );
 
         // tx3
         // Retry will work with right slippage
-        bytes memory _payload = sgPayload.slice(40, sgPayload.length - 40);
-        (, uint256 _requestId) = CrossChainLib.decodeLeverageCallbackPayload(_payload);
         vm.prank(alice);
         smartFarmingManager_optimism.retryCrossChainLeverageCallback(
-            _requestId,
-            1450e18, // Correct slippage
             chainId,
             srcAddress,
-            nonce
+            uint64(nonce),
+            _token,
+            amount,
+            _payload,
+            1450e18 // Correct slippage
         );
 
         //
@@ -629,15 +644,36 @@ contract CrossChainLeverage_Test is CrossChains_Test {
 
         // tx3 - fail
         _executeCallback(Swap, Packet_Tx2, RelayerParams_Tx2);
-        (Vm.Log memory CachedSwapSaved, ) = _getSgSwapErrorEvents();
-        (uint16 chainId, bytes memory srcAddress, uint256 nonce, , , , , bytes memory reason) = abi.decode(
-            CachedSwapSaved.data,
-            (uint16, bytes, uint256, address, uint256, address, bytes, bytes)
-        );
+        (, Vm.Log memory CachedSwapSaved, , Vm.Log memory SwapRemote) = _getSgSwapErrorEvents();
+        (
+            uint16 chainId,
+            bytes memory srcAddress,
+            uint256 amount,
+            uint256 nonce,
+            bytes memory reason
+        ) = _decodeCachedSwapSavedSgComposerEvent(CachedSwapSaved, SwapRemote);
         assertEq(reason, ""); // OOG
 
         // tx3
-        sgRouter_optimism.clearCachedSwap(chainId, srcAddress, nonce);
+        (, , , , uint256 dstPoolId, , , bytes memory sgPayload_) = _decodeSgSwapEvents(Swap, Packet_Tx2);
+        address _token = IStargatePool(IStargateFactory(sgComposer_optimism.factory()).getPool(dstPoolId)).token();
+        bytes memory _sgReceiveCallData = abi.encodeWithSelector(
+            IStargateReceiver.sgReceive.selector,
+            chainId,
+            abi.encodePacked(sgPayload_.toAddress(20)), // use the caller as the srcAddress (the msg.sender caller the StargateComposer at the source)
+            nonce,
+            _token,
+            amount,
+            sgPayload_.slice(40, sgPayload_.length - 40)
+        );
+
+        sgComposer_optimism.clearCachedSwap(
+            chainId,
+            srcAddress,
+            uint64(nonce),
+            address(crossChainDispatcher_optimism),
+            _sgReceiveCallData
+        );
 
         //
         // then
