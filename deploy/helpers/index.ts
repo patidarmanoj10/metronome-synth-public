@@ -153,17 +153,21 @@ export const deployUpgradable = async ({
   // Note: `hardhat-deploy` is partially not working when upgrading an implementation used by many proxies
   // It deploy the new implementation contract, updates the deployment JSON files but isn't properly calling `upgrade()`
   // See more: https://github.com/wighawag/hardhat-deploy/issues/284#issuecomment-1139971427
-  const actualImpl = await read(adminContract, 'getProxyImplementation', address)
+  const usesManyProxies = ['DepositToken', 'DebtToken', 'SyntheticToken'].includes(contract)
 
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  if (getAddress(actualImpl) !== getAddress(implementationAddress!)) {
-    const multiSigUpgradeTx = await catchUnknownSigner(
-      execute(adminContract, {from: GNOSIS_SAFE_ADDRESS, log: true}, 'upgrade', address, implementationAddress),
-      {log: true}
-    )
+  if (usesManyProxies) {
+    const actualImpl = await read(adminContract, 'getProxyImplementation', address)
 
-    if (multiSigUpgradeTx) {
-      await saveForMultiSigBatchExecution(multiSigUpgradeTx)
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    if (getAddress(actualImpl) !== getAddress(implementationAddress!)) {
+      const multiSigUpgradeTx = await catchUnknownSigner(
+        execute(adminContract, {from: GNOSIS_SAFE_ADDRESS, log: true}, 'upgrade', address, implementationAddress),
+        {log: true}
+      )
+
+      if (multiSigUpgradeTx) {
+        await saveForMultiSigBatchExecution(multiSigUpgradeTx)
+      }
     }
   }
 
