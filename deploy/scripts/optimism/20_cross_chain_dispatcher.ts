@@ -106,14 +106,14 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     contract: CrossChainDispatcher,
     readMethod: 'leverageCallbackTxGasLimit',
     writeMethod: 'updateLeverageCallbackTxGasLimit',
-    writeArgs: ['1500000'],
+    writeArgs: ['1750000'],
   })
 
   await updateParamIfNeeded(hre, {
     contract: CrossChainDispatcher,
     readMethod: 'leverageSwapTxGasLimit',
     writeMethod: 'updateLeverageSwapTxGasLimit',
-    writeArgs: ['1500000'],
+    writeArgs: ['1750000'],
   })
 }
 
