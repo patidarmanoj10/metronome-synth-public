@@ -27,7 +27,7 @@ error DestinationChainNotAllowed();
 error InvalidOperationType();
 error InvalidCallData();
 error InvalidPayload();
-error TokenNotSupported(address token);
+error BridgeTokenNotSupported();
 
 /**
  * @title Cross-chain dispatcher
@@ -543,7 +543,7 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
 
             if (_dstProxyOFT == address(0)) revert AddressIsNull();
             if (!isDestinationChainSupported[_dstChainId]) revert DestinationChainNotAllowed();
-            if (_sgPoolId == 0) revert TokenNotSupported(_tokenOut);
+            if (_sgPoolId == 0) revert BridgeTokenNotSupported();
 
             _payload = CrossChainLib.encodeLeverageSwapPayload({
                 srcSmartFarmingManager_: msg.sender,
@@ -597,7 +597,7 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
         }
 
         uint256 _poolId = stargatePoolIdOf[params_.tokenIn];
-        if (_poolId == 0) revert TokenNotSupported(params_.tokenIn);
+        if (_poolId == 0) revert BridgeTokenNotSupported();
         uint256 _amountOutMin = (params_.amountIn * (MAX_BPS - stargateSlippage)) / MAX_BPS;
         bytes memory _payload = params_.payload;
 

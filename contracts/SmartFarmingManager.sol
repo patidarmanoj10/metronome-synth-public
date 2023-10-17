@@ -382,6 +382,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         swapAmountOut_ = _safeTransferFrom(_request.bridgeToken, msg.sender, swapAmountOut_);
 
         // 3. swap received tokens for collateral if needed
+        // Note: The internal `_swap()` doesn't swap if `tokenIn` and `tokenOut` are the same
         uint256 _depositAmount;
         if (_request.tokenIn == _request.bridgeToken) {
             _depositAmount = _swap(swapper(), _request.tokenIn, _collateral, _request.amountIn + swapAmountOut_, 0);
