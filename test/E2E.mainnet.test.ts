@@ -20,6 +20,7 @@ import {
   CrossChainDispatcher,
   Quoter,
   ProxyOFT,
+  SmartFarmingManager__factory,
 } from '../typechain'
 import {CrossChainLib} from './helpers/CrossChainLib'
 import {address as POOL_REGISTRY_ADDRESS} from '../deployments/mainnet/PoolRegistry.json'
@@ -77,7 +78,7 @@ describe('E2E tests (mainnet)', function () {
   let masterOracle: Contract
   let poolRegistry: PoolRegistry
   let nativeGateway: NativeTokenGateway
-  let smartFarmingManager: SmartFarmingManager
+  let smartFarmingManager: Contract
   let crossChainDispatcher: CrossChainDispatcher
   let quoter: Quoter
   let pool: Pool
@@ -156,6 +157,16 @@ describe('E2E tests (mainnet)', function () {
     msETHProxyOFT = await ethers.getContractAt('ProxyOFT', MSETH_PROXYOFT_ADDRESS, alice)
 
     smartFarmingManager = await ethers.getContractAt('SmartFarmingManager', SMART_FARMING_MANAGER_ADDRESS, alice)
+
+    smartFarmingManager = new ethers.Contract(
+      SMART_FARMING_MANAGER_ADDRESS,
+      [
+        ...SmartFarmingManager__factory.abi,
+        'function crossChainLeverage(address,address,address,uint256,uint256,uint256,uint256,bytes) payable external',
+      ],
+      alice
+    )
+
     crossChainDispatcher = await ethers.getContractAt('CrossChainDispatcher', CROSS_CHAIN_DISPATCHER_ADDRESS, alice)
     quoter = await ethers.getContractAt('Quoter', QUOTER_ADDRESS, alice)
 
@@ -769,7 +780,7 @@ describe('E2E tests (mainnet)', function () {
 
         const fee = parseEther('0.5')
         await dai.connect(alice).approve(smartFarmingManager.address, MaxUint256)
-        await smartFarmingManager.crossChainLeverage(
+        await smartFarmingManager['crossChainLeverage(address,address,address,uint256,uint256,uint256,uint256,bytes)'](
           dai.address,
           msdVaUSDC.address,
           msUSD.address,

@@ -834,8 +834,9 @@ describe.skip('E2E tests (next mainnet release)', function () {
         await dai.connect(alice).approve(smartFarmingManager.address, MaxUint256)
         await smartFarmingManager.crossChainLeverage(
           dai.address,
-          msdVaUSDC.address,
           msUSD.address,
+          dai.address,
+          msdVaUSDC.address,
           amountIn,
           leverage,
           swapAmountOutMin,
