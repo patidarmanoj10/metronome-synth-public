@@ -27,6 +27,7 @@ error DestinationChainNotAllowed();
 error InvalidOperationType();
 error InvalidCallData();
 error InvalidPayload();
+error TokenNotSupported(address token);
 
 /**
  * @title Cross-chain dispatcher
@@ -384,11 +385,19 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
 
         if (_hash != _stargateComposer.payloadHashes(srcChainId_, srcAddress_, nonce_)) revert InvalidCallData();
 
-        (, , uint256 _requestId, address _account, ) = CrossChainLib.decodeFlashRepaySwapPayload(payload_);
+        {
+            (, , uint256 _requestId, address _account, uint256 _amountOutMin) = CrossChainLib
+                .decodeFlashRepaySwapPayload(payload_);
 
-        if (msg.sender != _account) revert InvalidMsgSender();
+            // Note: Only user can change slippage param
+            uint256 _storedAmountOutMin = swapAmountOutMin[_requestId];
+            uint256 _currentAmountOutMin = _storedAmountOutMin > 0 ? _storedAmountOutMin : _amountOutMin;
+            if (newAmountOutMin_ != _currentAmountOutMin) {
+                if (msg.sender != _account) revert InvalidMsgSender();
 
-        swapAmountOutMin[_requestId] = newAmountOutMin_;
+                swapAmountOutMin[_requestId] = newAmountOutMin_;
+            }
+        }
 
         _stargateComposer.clearCachedSwap(srcChainId_, srcAddress_, nonce_, address(this), _sgReceiveCallData);
     }
@@ -410,14 +419,24 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
         bytes calldata payload_,
         uint256 newAmountOutMin_
     ) external nonReentrant {
-        (, address _dstProxyOFT, uint256 _requestId, , address _account, ) = CrossChainLib.decodeLeverageSwapPayload(
-            payload_
-        );
+        address _dstProxyOFT;
+        {
+            uint256 _requestId;
+            address _account;
+            uint256 _amountOutMin;
+            (, _dstProxyOFT, _requestId, , _account, _amountOutMin) = CrossChainLib.decodeLeverageSwapPayload(payload_);
 
-        if (!_isValidProxyOFT(_dstProxyOFT)) revert InvalidPayload();
-        if (msg.sender != _account) revert InvalidMsgSender();
+            if (!_isValidProxyOFT(_dstProxyOFT)) revert InvalidPayload();
 
-        swapAmountOutMin[_requestId] = newAmountOutMin_;
+            // Note: Only user can change slippage param
+            uint256 _storedAmountOutMin = swapAmountOutMin[_requestId];
+            uint256 _currentAmountOutMin = _storedAmountOutMin > 0 ? _storedAmountOutMin : _amountOutMin;
+            if (newAmountOutMin_ != _currentAmountOutMin) {
+                if (msg.sender != _account) revert InvalidMsgSender();
+
+                swapAmountOutMin[_requestId] = newAmountOutMin_;
+            }
+        }
 
         // Note: `retryOFTReceived()` has checks to ensure that the args are consistent
         bytes memory _from = abi.encodePacked(crossChainDispatcherOf[srcChainId_]);
@@ -515,20 +534,22 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
 
         bytes memory _payload;
         {
+            address _tokenOut = tokenOut_; // stack too deep
+            uint256 _requestId = requestId_; // stack too deep
+            uint256 _amountOutMin = amountOutMin_; // stack too deep
+
             address _dstProxyOFT = ISyntheticToken(tokenIn_).proxyOFT().getProxyOFTOf(_dstChainId);
+            uint256 _sgPoolId = stargatePoolIdOf[_tokenOut];
 
             if (_dstProxyOFT == address(0)) revert AddressIsNull();
             if (!isDestinationChainSupported[_dstChainId]) revert DestinationChainNotAllowed();
-
-            uint256 _requestId = requestId_; // stack too deep
-            address _tokenOut = tokenOut_; // stack too deep
-            uint256 _amountOutMin = amountOutMin_; // stack too deep
+            if (_sgPoolId == 0) revert TokenNotSupported(_tokenOut);
 
             _payload = CrossChainLib.encodeLeverageSwapPayload({
                 srcSmartFarmingManager_: msg.sender,
                 dstProxyOFT_: _dstProxyOFT,
                 requestId_: _requestId,
-                sgPoolId_: stargatePoolIdOf[_tokenOut],
+                sgPoolId_: _sgPoolId,
                 account_: _account,
                 amountOutMin_: _amountOutMin
             });
@@ -576,6 +597,7 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
         }
 
         uint256 _poolId = stargatePoolIdOf[params_.tokenIn];
+        if (_poolId == 0) revert TokenNotSupported(params_.tokenIn);
         uint256 _amountOutMin = (params_.amountIn * (MAX_BPS - stargateSlippage)) / MAX_BPS;
         bytes memory _payload = params_.payload;
 

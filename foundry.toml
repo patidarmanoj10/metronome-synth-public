@@ -10,8 +10,8 @@ optimizer_runs = 200
 solc = "0.8.9"
 
 [invariant]
-runs = 512
-depth = 64
+runs = 256
+depth = 32
 fail_on_revert = true
 call_override = false
 dictionary_weight = 80

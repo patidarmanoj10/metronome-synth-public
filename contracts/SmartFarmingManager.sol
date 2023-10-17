@@ -528,10 +528,14 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         CrossChainFlashRepay memory _request = crossChainFlashRepays[_requestId];
 
         if (_request.account == address(0)) revert CrossChainRequestInvalidKey();
-        if (msg.sender != _request.account) revert SenderIsNotAccount();
         if (_request.finished) revert CrossChainRequestCompletedAlready();
 
-        crossChainFlashRepays[_requestId].repayAmountMin = newRepayAmountMin_;
+        // Note: Only user can change slippage param
+        if (newRepayAmountMin_ != crossChainFlashRepays[_requestId].repayAmountMin) {
+            if (msg.sender != _request.account) revert SenderIsNotAccount();
+
+            crossChainFlashRepays[_requestId].repayAmountMin = newRepayAmountMin_;
+        }
 
         ICrossChainDispatcher _crossChainDispatcher = crossChainDispatcher();
         bytes memory _from = abi.encodePacked(_crossChainDispatcher.crossChainDispatcherOf(srcChainId_));
@@ -572,10 +576,14 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         CrossChainLeverage memory _request = crossChainLeverages[_requestId];
 
         if (_request.account == address(0)) revert CrossChainRequestInvalidKey();
-        if (msg.sender != _request.account) revert SenderIsNotAccount();
         if (_request.finished) revert CrossChainRequestCompletedAlready();
 
-        crossChainLeverages[_requestId].depositAmountMin = newDepositAmountMin_;
+        // Note: Only user can change slippage param
+        if (newDepositAmountMin_ != crossChainLeverages[_requestId].depositAmountMin) {
+            if (msg.sender != _request.account) revert SenderIsNotAccount();
+
+            crossChainLeverages[_requestId].depositAmountMin = newDepositAmountMin_;
+        }
 
         ICrossChainDispatcher _crossChainDispatcher = crossChainDispatcher();
 

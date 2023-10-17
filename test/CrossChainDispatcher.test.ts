@@ -566,6 +566,7 @@ describe('CrossChainDispatcher', function () {
 
     it('should update amountOutMin and retry', async function () {
       // given
+      proxyOFT.retryOFTReceived.reset()
       const srcAddress = crossChainDispatcher.address
       const nonce = '0'
       const amountIn = parseEther('10') // msUSD amount
@@ -591,6 +592,36 @@ describe('CrossChainDispatcher', function () {
 
       // then
       expect(await crossChainDispatcher.swapAmountOutMin(requestId)).eq(newAmountOutMin)
+      expect(proxyOFT.retryOFTReceived).calledOnce
+    })
+
+    it('should be called by anyone if not updating amountOutMin', async function () {
+      // given
+      proxyOFT.retryOFTReceived.reset()
+      const srcAddress = crossChainDispatcher.address
+      const nonce = '0'
+      const amountIn = parseEther('10') // msUSD amount
+      const requestId = 1
+      const underlyingPoolId = 1
+      const account = alice.address
+      const amountOutMin = parseUnits('8', 6) // USDC amount
+      const payload = CrossChainLib.encodeLeverageSwapPayload(
+        smartFarmingManager.address,
+        proxyOFT.address,
+        requestId,
+        underlyingPoolId,
+        account,
+        amountOutMin
+      )
+      expect(await crossChainDispatcher.swapAmountOutMin(requestId)).eq(0)
+
+      // when
+      await crossChainDispatcher
+        .connect(bob)
+        .retrySwapAndTriggerLeverageCallback(LZ_MAINNET_ID, srcAddress, nonce, amountIn, payload, amountOutMin)
+
+      // then
+      expect(await crossChainDispatcher.swapAmountOutMin(requestId)).eq(0)
       expect(proxyOFT.retryOFTReceived).calledOnce
     })
   })
@@ -703,6 +734,66 @@ describe('CrossChainDispatcher', function () {
         sgReceiveCallData
       )
       expect(await crossChainDispatcher.swapAmountOutMin(requestId)).eq(newAmountOutMin)
+    })
+
+    it('should retry by anyone if not updating amountOutMin', async function () {
+      // given
+      stargateComposer.clearCachedSwap.reset()
+      const srcChainId = BigNumber.from(LZ_MAINNET_ID)
+      const srcAddress = ethers.utils.solidityPack(['address'], [crossChainDispatcher.address])
+      const nonce = BigNumber.from('123')
+      const amountIn = parseUnits('10', 6) // USDC amount
+      const requestId = 1
+      const account = alice.address
+      const amountOutMin = parseEther('8') // msUSD amount
+      const payload = CrossChainLib.encodeFlashRepaySwapPayload(
+        smartFarmingManager.address,
+        proxyOFT.address,
+        requestId,
+        account,
+        amountOutMin
+      )
+
+      const sgReceiveCallData = crossChainDispatcher.interface.encodeFunctionData('sgReceive', [
+        srcChainId,
+        ethers.utils.solidityPack(['address'], [crossChainDispatcher.address]),
+        nonce,
+        msUSD.address,
+        amountIn,
+        payload,
+      ])
+      const hash = ethers.utils.solidityKeccak256(
+        ['bytes'],
+        [ethers.utils.solidityPack(['address', 'bytes'], [crossChainDispatcher.address, sgReceiveCallData])]
+      )
+
+      stargateComposer.payloadHashes.returns(hash)
+
+      expect(await crossChainDispatcher.swapAmountOutMin(requestId)).eq(0)
+      stargateRouter.cachedSwapLookup.returns([usdc.address, amountIn, crossChainDispatcher.address, payload])
+
+      // when
+      await crossChainDispatcher
+        .connect(bob)
+        .retrySwapAndTriggerFlashRepayCallback(
+          srcChainId,
+          srcAddress,
+          nonce,
+          msUSD.address,
+          amountIn,
+          payload,
+          amountOutMin
+        )
+
+      // then
+      expect(stargateComposer.clearCachedSwap).calledOnceWith(
+        srcChainId,
+        srcAddress,
+        nonce,
+        crossChainDispatcher.address,
+        sgReceiveCallData
+      )
+      expect(await crossChainDispatcher.swapAmountOutMin(requestId)).eq(0)
     })
   })
 
