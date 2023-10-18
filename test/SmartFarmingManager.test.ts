@@ -1278,16 +1278,6 @@ describe('SmartFarmingManager', function () {
       await expect(tx).revertedWithCustomError(smartFarmingManager, 'CrossChainRequestInvalidKey')
     })
 
-    it('should revert if changing slippage and the caller is not the correct account', async function () {
-      // when
-      const tx = smartFarmingManager
-        .connect(bob)
-        .retryCrossChainFlashRepayCallback(srcChainId, srcAddress, nonce, amount, payload, newRepayAmountMin)
-
-      // then
-      await expect(tx).revertedWithCustomError(smartFarmingManager, 'SenderIsNotAccount')
-    })
-
     it('should revert if request already finished', async function () {
       // given
       const swapAmountOut = parseEther('10')
@@ -1304,7 +1294,7 @@ describe('SmartFarmingManager', function () {
       await expect(tx).revertedWithCustomError(smartFarmingManager, 'CrossChainRequestCompletedAlready')
     })
 
-    it('should retry by anyone if not updating repayAmountMin ', async function () {
+    it('should retry by anyone (not updates repayAmountMin)', async function () {
       // given
       const {repayAmountMin: before} = await smartFarmingManager.crossChainFlashRepays(id)
       crossChainDispatcher.crossChainDispatcherOf.returns(crossChainDispatcher.address)
@@ -1312,7 +1302,7 @@ describe('SmartFarmingManager', function () {
       // when
       await smartFarmingManager
         .connect(bob)
-        .retryCrossChainFlashRepayCallback(srcChainId, srcAddress, nonce, amount, payload, before)
+        .retryCrossChainFlashRepayCallback(srcChainId, srcAddress, nonce, amount, payload, newRepayAmountMin)
 
       // then
       const {repayAmountMin: after} = await smartFarmingManager.crossChainFlashRepays(id)
@@ -1420,16 +1410,6 @@ describe('SmartFarmingManager', function () {
       await expect(tx).revertedWithCustomError(smartFarmingManager, 'CrossChainRequestInvalidKey')
     })
 
-    it('should revert if updating slippage and the caller is not the correct account', async function () {
-      // when
-      const tx = smartFarmingManager
-        .connect(bob)
-        .retryCrossChainLeverageCallback(srcChainId, srcAddress, nonce, token, amountIn, payload, newDepositAmountMin)
-
-      // then
-      await expect(tx).revertedWithCustomError(smartFarmingManager, 'SenderIsNotAccount')
-    })
-
     it('should revert if request already finished', async function () {
       // given
       const swapAmountOut = parseEther('10')
@@ -1446,7 +1426,7 @@ describe('SmartFarmingManager', function () {
       await expect(tx).revertedWithCustomError(smartFarmingManager, 'CrossChainRequestCompletedAlready')
     })
 
-    it('should retry by anyone if not updating depositAmountMin', async function () {
+    it('should retry by anyone (not updates depositAmountMin)', async function () {
       // given
       const stargateRouter = await smock.fake('IStargateRouter')
       const stargateComposer = await smock.fake('IStargateComposerWithRetry')
@@ -1465,7 +1445,7 @@ describe('SmartFarmingManager', function () {
       // when
       await smartFarmingManager
         .connect(bob)
-        .retryCrossChainLeverageCallback(srcChainId, srcAddress, nonce, token, amountIn, payload, before)
+        .retryCrossChainLeverageCallback(srcChainId, srcAddress, nonce, token, amountIn, payload, newDepositAmountMin)
 
       // then
       const {depositAmountMin: after} = await smartFarmingManager.crossChainLeverages(id)

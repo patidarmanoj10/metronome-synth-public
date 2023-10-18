@@ -536,7 +536,7 @@ describe('CrossChainDispatcher', function () {
   })
 
   describe('retrySwapAndTriggerLeverageCallback', function () {
-    it('should revert if caller is not account aka user', async function () {
+    it('should revert when setting 0 to amountOutMin', async function () {
       // given
       const fromAddress = proxyOFT.address
       const nonce = 123
@@ -545,7 +545,7 @@ describe('CrossChainDispatcher', function () {
       const underlyingPoolId = 1
       const account = alice.address
       const amountOutMin = parseUnits('8', 6) // USDC amount
-      const newAmountOutMin = parseUnits('7', 6) // USDC amount
+      const newAmountOutMin = 0 // USDC amount
       const payload = CrossChainLib.encodeLeverageSwapPayload(
         smartFarmingManager.address,
         proxyOFT.address,
@@ -557,11 +557,11 @@ describe('CrossChainDispatcher', function () {
 
       // when
       const tx = crossChainDispatcher
-        .connect(bob)
+        .connect(alice)
         .retrySwapAndTriggerLeverageCallback(LZ_OPTIMISM_ID, fromAddress, nonce, amountIn, payload, newAmountOutMin)
 
       // then
-      await expect(tx).to.revertedWithCustomError(crossChainDispatcher, 'InvalidMsgSender')
+      await expect(tx).to.revertedWithCustomError(crossChainDispatcher, 'InvalidSlippageParam')
     })
 
     it('should update amountOutMin and retry', async function () {
@@ -595,7 +595,7 @@ describe('CrossChainDispatcher', function () {
       expect(proxyOFT.retryOFTReceived).calledOnce
     })
 
-    it('should be called by anyone if not updating amountOutMin', async function () {
+    it('should be called by anyone (not updates amountOutMin)', async function () {
       // given
       proxyOFT.retryOFTReceived.reset()
       const srcAddress = crossChainDispatcher.address
@@ -605,6 +605,7 @@ describe('CrossChainDispatcher', function () {
       const underlyingPoolId = 1
       const account = alice.address
       const amountOutMin = parseUnits('8', 6) // USDC amount
+      const newAmountOutMin = 0 // will be ignored
       const payload = CrossChainLib.encodeLeverageSwapPayload(
         smartFarmingManager.address,
         proxyOFT.address,
@@ -618,7 +619,7 @@ describe('CrossChainDispatcher', function () {
       // when
       await crossChainDispatcher
         .connect(bob)
-        .retrySwapAndTriggerLeverageCallback(LZ_MAINNET_ID, srcAddress, nonce, amountIn, payload, amountOutMin)
+        .retrySwapAndTriggerLeverageCallback(LZ_MAINNET_ID, srcAddress, nonce, amountIn, payload, newAmountOutMin)
 
       // then
       expect(await crossChainDispatcher.swapAmountOutMin(requestId)).eq(0)
@@ -627,7 +628,7 @@ describe('CrossChainDispatcher', function () {
   })
 
   describe('retrySwapAndTriggerFlashRepayCallback', function () {
-    it('should revert if caller is not account aka user', async function () {
+    it('should revert when setting 0 to amountOutMin', async function () {
       // given
       const fromAddress = proxyOFT.address
       const nonce = 123
@@ -635,7 +636,7 @@ describe('CrossChainDispatcher', function () {
       const requestId = 1
       const account = alice.address
       const amountOutMin = parseEther('8') // msUSD amount
-      const newAmountOutMin = parseEther('7') // msUSD amount
+      const newAmountOutMin = 0 // msUSD amount
       const payload = CrossChainLib.encodeFlashRepaySwapPayload(
         smartFarmingManager.address,
         proxyOFT.address,
@@ -661,7 +662,7 @@ describe('CrossChainDispatcher', function () {
 
       // when
       const tx = crossChainDispatcher
-        .connect(bob)
+        .connect(alice)
         .retrySwapAndTriggerFlashRepayCallback(
           LZ_OPTIMISM_ID,
           fromAddress,
@@ -673,7 +674,7 @@ describe('CrossChainDispatcher', function () {
         )
 
       // then
-      await expect(tx).to.revertedWithCustomError(crossChainDispatcher, 'InvalidMsgSender')
+      await expect(tx).to.revertedWithCustomError(crossChainDispatcher, 'InvalidSlippageParam')
     })
 
     it('should update amountOutMin and retry', async function () {
@@ -736,7 +737,7 @@ describe('CrossChainDispatcher', function () {
       expect(await crossChainDispatcher.swapAmountOutMin(requestId)).eq(newAmountOutMin)
     })
 
-    it('should retry by anyone if not updating amountOutMin', async function () {
+    it('should retry by anyone (not updates amountOutMin)', async function () {
       // given
       stargateComposer.clearCachedSwap.reset()
       const srcChainId = BigNumber.from(LZ_MAINNET_ID)
@@ -746,6 +747,7 @@ describe('CrossChainDispatcher', function () {
       const requestId = 1
       const account = alice.address
       const amountOutMin = parseEther('8') // msUSD amount
+      const newAmountOutMin = 0 // will be ignored
       const payload = CrossChainLib.encodeFlashRepaySwapPayload(
         smartFarmingManager.address,
         proxyOFT.address,
@@ -782,7 +784,7 @@ describe('CrossChainDispatcher', function () {
           msUSD.address,
           amountIn,
           payload,
-          amountOutMin
+          newAmountOutMin
         )
 
       // then

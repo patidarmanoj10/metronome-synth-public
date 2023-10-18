@@ -27,7 +27,6 @@ error SenderIsNotCrossChainDispatcher();
 error CrossChainRequestCompletedAlready();
 error TokenInIsNull();
 error BridgeTokenIsNull();
-error SenderIsNotAccount();
 
 /**
  * @title SmartFarmingManager contract
@@ -387,7 +386,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         if (_request.tokenIn == _request.bridgeToken) {
             _depositAmount = _swap(swapper(), _request.tokenIn, _collateral, _request.amountIn + swapAmountOut_, 0);
         } else {
-            _depositAmount += _swap(swapper(), _request.tokenIn, _collateral, _request.amountIn, 0);
+            _depositAmount = _swap(swapper(), _request.tokenIn, _collateral, _request.amountIn, 0);
             _depositAmount += _swap(swapper(), _request.bridgeToken, _collateral, swapAmountOut_, 0);
         }
 
@@ -543,9 +542,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         if (_request.finished) revert CrossChainRequestCompletedAlready();
 
         // Note: Only user can change slippage param
-        if (newRepayAmountMin_ != crossChainFlashRepays[_requestId].repayAmountMin) {
-            if (msg.sender != _request.account) revert SenderIsNotAccount();
-
+        if (msg.sender == _request.account) {
             crossChainFlashRepays[_requestId].repayAmountMin = newRepayAmountMin_;
         }
 
@@ -591,9 +588,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         if (_request.finished) revert CrossChainRequestCompletedAlready();
 
         // Note: Only user can change slippage param
-        if (newDepositAmountMin_ != crossChainLeverages[_requestId].depositAmountMin) {
-            if (msg.sender != _request.account) revert SenderIsNotAccount();
-
+        if (msg.sender == _request.account) {
             crossChainLeverages[_requestId].depositAmountMin = newDepositAmountMin_;
         }
 
