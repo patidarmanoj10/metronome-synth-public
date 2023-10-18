@@ -200,8 +200,9 @@ contract MultiPool_Test is CrossChains_Test {
         usdc_optimism.approve(address(smartFarmingManager_B_optimism), type(uint256).max);
         smartFarmingManager_B_optimism.crossChainLeverage{value: fee}({
             tokenIn_: usdc_optimism,
-            depositToken_: msdVaUSDC_B_optimism,
             syntheticToken_: msUSD_optimism,
+            bridgeToken_: usdc_optimism,
+            depositToken_: msdVaUSDC_B_optimism,
             amountIn_: _amountIn,
             leverage_: 1.5e18,
             depositAmountMin_: 0,
