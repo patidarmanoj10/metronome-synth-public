@@ -21,7 +21,8 @@ contract CrossChainLeverage_Test is CrossChains_Test {
         });
 
         _crossChainLeverage({
-            underlying_: usdc_optimism,
+            tokenIn_: usdc_optimism,
+            bridgeToken_: usdc_optimism,
             depositToken_: msdVaUSDC_optimism,
             amountIn_: amountIn_,
             swapAmountOutMin_: swapAmountOutMin_,
@@ -32,7 +33,8 @@ contract CrossChainLeverage_Test is CrossChains_Test {
     }
 
     function _crossChainLeverage(
-        IERC20 underlying_,
+        IERC20 tokenIn_,
+        IERC20 bridgeToken_,
         DepositToken depositToken_,
         uint256 amountIn_,
         uint256 swapAmountOutMin_,
@@ -46,7 +48,8 @@ contract CrossChainLeverage_Test is CrossChains_Test {
         });
 
         _crossChainLeverage({
-            underlying_: underlying_,
+            tokenIn_: tokenIn_,
+            bridgeToken_: bridgeToken_,
             depositToken_: depositToken_,
             amountIn_: amountIn_,
             swapAmountOutMin_: swapAmountOutMin_,
@@ -64,7 +67,8 @@ contract CrossChainLeverage_Test is CrossChains_Test {
         bytes memory lzArgs_
     ) private {
         _crossChainLeverage({
-            underlying_: usdc_optimism,
+            tokenIn_: usdc_optimism,
+            bridgeToken_: usdc_optimism,
             depositToken_: msdVaUSDC_optimism,
             amountIn_: amountIn_,
             swapAmountOutMin_: swapAmountOutMin_,
@@ -75,7 +79,8 @@ contract CrossChainLeverage_Test is CrossChains_Test {
     }
 
     function _crossChainLeverage(
-        IERC20 underlying_,
+        IERC20 tokenIn_,
+        IERC20 bridgeToken_,
         DepositToken depositToken_,
         uint256 amountIn_,
         uint256 swapAmountOutMin_,
@@ -92,12 +97,13 @@ contract CrossChainLeverage_Test is CrossChains_Test {
         });
 
         deal(alice, fee);
-        deal(address(underlying_), alice, amountIn_);
+        deal(address(tokenIn_), alice, amountIn_);
 
         vm.startPrank(alice);
-        underlying_.approve(address(smartFarmingManager_optimism), type(uint256).max);
+        tokenIn_.approve(address(smartFarmingManager_optimism), type(uint256).max);
         smartFarmingManager_optimism.crossChainLeverage{value: fee}({
-            tokenIn_: underlying_,
+            tokenIn_: tokenIn_,
+            bridgeToken_: bridgeToken_,
             depositToken_: depositToken_,
             syntheticToken_: msUSD_optimism,
             amountIn_: amountIn_,
@@ -164,6 +170,47 @@ contract CrossChainLeverage_Test is CrossChains_Test {
         assertEq(_debtInUsdAfter, 500e18);
     }
 
+    function test_crossChainLeverage_with_vaUSDC() external {
+        //
+        // given
+        //
+        vm.selectFork(optimismFork);
+        (, uint256 _depositInUsdBefore, uint256 _debtInUsdBefore, , ) = pool_optimism.debtPositionOf(alice);
+        assertEq(_depositInUsdBefore, 0);
+        assertEq(_debtInUsdBefore, 0);
+
+        //
+        // when
+        //
+
+        // tx1
+        _crossChainLeverage({
+            tokenIn_: vaUSDC_optimism,
+            bridgeToken_: usdc_optimism,
+            depositToken_: msdVaUSDC_optimism,
+            amountIn_: 1000e18,
+            swapAmountOutMin_: 0,
+            leverage_: 1.5e18,
+            depositAmountMin_: 1450e18
+        });
+        (Vm.Log memory SendToChain, Vm.Log memory Packet, Vm.Log memory RelayerParams) = _getOftTransferEvents();
+
+        // tx2
+        _executeSwapAndTriggerCallback(SendToChain, Packet, RelayerParams);
+        (Vm.Log memory Swap, Vm.Log memory Packet_Tx2, Vm.Log memory RelayerParams_Tx2) = _getSgSwapEvents();
+        assertEq(address(proxyOFT_msUSD_mainnet).balance, 0, "fee-estimation-is-not-accurate");
+
+        // tx3
+        _executeCallback(Swap, Packet_Tx2, RelayerParams_Tx2);
+
+        //
+        // then
+        //
+        (, uint256 _depositInUsdAfter, uint256 _debtInUsdAfter, , ) = pool_optimism.debtPositionOf(alice);
+        assertApproxEqAbs(_depositInUsdAfter, 1500e18, 1e18);
+        assertEq(_debtInUsdAfter, 500e18);
+    }
+
     function test_crossChainLeverage_with_weth() external {
         //
         // given
@@ -179,7 +226,8 @@ contract CrossChainLeverage_Test is CrossChains_Test {
 
         // tx1
         _crossChainLeverage({
-            underlying_: weth_optimism,
+            tokenIn_: weth_optimism,
+            bridgeToken_: weth_optimism,
             depositToken_: msdVaETH_optimism,
             amountIn_: 0.5e18,
             swapAmountOutMin_: 0,
@@ -268,10 +316,10 @@ contract CrossChainLeverage_Test is CrossChains_Test {
         (, Vm.Log memory CallOFTReceivedFailure, ) = _getOftTransferErrorEvents();
         (
             uint16 srcChainId,
-            address to,
+            ,
             bytes memory srcAddress,
             uint64 nonce,
-            bytes memory from,
+            ,
             uint amount,
             bytes memory payload,
             bytes memory reason
@@ -281,7 +329,14 @@ contract CrossChainLeverage_Test is CrossChains_Test {
         // tx2 - fail
         // Same state, retry will fail too
         vm.expectRevert();
-        proxyOFT_msUSD_mainnet.retryOFTReceived(srcChainId, srcAddress, nonce, from, to, amount, payload);
+        crossChainDispatcher_mainnet.retrySwapAndTriggerLeverageCallback(
+            srcChainId,
+            srcAddress,
+            nonce,
+            amount,
+            payload,
+            501e6 // Wrong slippage
+        );
 
         // tx2
         // Retry will work with right slippage
@@ -307,7 +362,7 @@ contract CrossChainLeverage_Test is CrossChains_Test {
         assertEq(_debtInUsdAfter, 500e18);
     }
 
-    function test_failedTx3_whenUnderlyingTransferReverted() external {
+    function test_failedTx3_whenBridgeTransferReverted() external {
         //
         // given
         //
@@ -400,22 +455,15 @@ contract CrossChainLeverage_Test is CrossChains_Test {
         (, , , , uint256 dstPoolId, , , bytes memory sgPayload_) = _decodeSgSwapEvents(Swap, PacketTx2);
         bytes memory _payload = sgPayload_.slice(40, sgPayload_.length - 40);
         address _token = IStargatePool(IStargateFactory(sgComposer_optimism.factory()).getPool(dstPoolId)).token();
-        bytes memory _sgReceiveCallData = abi.encodeWithSelector(
-            IStargateReceiver.sgReceive.selector,
-            chainId,
-            abi.encodePacked(sgPayload_.toAddress(20)), // use the caller as the srcAddress (the msg.sender caller the StargateComposer at the source)
-            nonce,
-            _token,
-            amount,
-            _payload
-        );
         vm.expectRevert();
-        sgComposer_optimism.clearCachedSwap(
+        smartFarmingManager_optimism.retryCrossChainLeverageCallback(
             chainId,
             srcAddress,
             uint64(nonce),
-            address(crossChainDispatcher_optimism),
-            _sgReceiveCallData
+            _token,
+            amount,
+            _payload,
+            9999e18 // Same slippage
         );
 
         // tx3
@@ -486,10 +534,10 @@ contract CrossChainLeverage_Test is CrossChains_Test {
         assertGt(CallOFTReceivedFailure.data.length, 0);
         (
             uint16 srcChainId,
-            address to,
+            ,
             bytes memory srcAddress,
             uint64 nonce,
-            bytes memory from,
+            ,
             uint amount,
             bytes memory payload,
             bytes memory reason
@@ -498,8 +546,16 @@ contract CrossChainLeverage_Test is CrossChains_Test {
 
         // tx2
         // Works after top-up with enough ether
-        deal(address(crossChainDispatcher_mainnet), address(crossChainDispatcher_mainnet).balance + (2 * missingFee)); // Sending more than needed
-        proxyOFT_msUSD_mainnet.retryOFTReceived(srcChainId, srcAddress, nonce, from, to, amount, payload);
+        uint256 _extraFee = 2 * missingFee; // Sending more than needed
+        crossChainDispatcher_mainnet.retrySwapAndTriggerLeverageCallback{value: _extraFee}(
+            srcChainId,
+            srcAddress,
+            nonce,
+            amount,
+            payload,
+            0
+        );
+
         assertEq(address(crossChainDispatcher_mainnet).balance, missingFee); // Should refund excess
 
         (Vm.Log memory Swap, Vm.Log memory Packet_Tx2, Vm.Log memory RelayerParams_Tx2) = _getSgSwapEvents();
@@ -594,10 +650,10 @@ contract CrossChainLeverage_Test is CrossChains_Test {
         (, Vm.Log memory CallOFTReceivedFailure, ) = _getOftTransferErrorEvents();
         (
             uint16 srcChainId,
-            address to,
+            ,
             bytes memory srcAddress,
             uint64 nonce,
-            bytes memory from,
+            ,
             uint amount,
             bytes memory payload,
             bytes memory reason
@@ -605,7 +661,14 @@ contract CrossChainLeverage_Test is CrossChains_Test {
         assertEq(reason, ""); // OOG
 
         // tx2
-        proxyOFT_msUSD_mainnet.retryOFTReceived(srcChainId, srcAddress, nonce, from, to, amount, payload);
+        crossChainDispatcher_mainnet.retrySwapAndTriggerLeverageCallback(
+            srcChainId,
+            srcAddress,
+            nonce,
+            amount,
+            payload,
+            0
+        );
         (Vm.Log memory Swap, Vm.Log memory Packet_Tx2, Vm.Log memory RelayerParams_Tx2) = _getSgSwapEvents();
 
         // tx3
@@ -656,23 +719,16 @@ contract CrossChainLeverage_Test is CrossChains_Test {
 
         // tx3
         (, , , , uint256 dstPoolId, , , bytes memory sgPayload_) = _decodeSgSwapEvents(Swap, Packet_Tx2);
-        address _token = IStargatePool(IStargateFactory(sgComposer_optimism.factory()).getPool(dstPoolId)).token();
-        bytes memory _sgReceiveCallData = abi.encodeWithSelector(
-            IStargateReceiver.sgReceive.selector,
-            chainId,
-            abi.encodePacked(sgPayload_.toAddress(20)), // use the caller as the srcAddress (the msg.sender caller the StargateComposer at the source)
-            nonce,
-            _token,
-            amount,
-            sgPayload_.slice(40, sgPayload_.length - 40)
-        );
-
-        sgComposer_optimism.clearCachedSwap(
+        address token = IStargatePool(IStargateFactory(sgComposer_optimism.factory()).getPool(dstPoolId)).token();
+        bytes memory payload = sgPayload_.slice(40, sgPayload_.length - 40);
+        smartFarmingManager_optimism.retryCrossChainLeverageCallback(
             chainId,
             srcAddress,
             uint64(nonce),
-            address(crossChainDispatcher_optimism),
-            _sgReceiveCallData
+            token,
+            amount,
+            payload,
+            1450e18
         );
 
         //
@@ -705,10 +761,10 @@ contract CrossChainLeverage_Test is CrossChains_Test {
         (, Vm.Log memory CallOFTReceivedFailure, ) = _getOftTransferErrorEvents();
         (
             uint16 srcChainId,
-            address to,
+            ,
             bytes memory srcAddress,
             uint64 nonce,
-            bytes memory from,
+            ,
             uint amount,
             bytes memory payload,
             bytes memory reason
@@ -716,8 +772,14 @@ contract CrossChainLeverage_Test is CrossChains_Test {
         assertEq(reason, ""); // OOF
 
         // tx2
-        deal(address(crossChainDispatcher_mainnet), 1 ether);
-        proxyOFT_msUSD_mainnet.retryOFTReceived(srcChainId, srcAddress, nonce, from, to, amount, payload);
+        crossChainDispatcher_mainnet.retrySwapAndTriggerLeverageCallback{value: 1 ether}(
+            srcChainId,
+            srcAddress,
+            nonce,
+            amount,
+            payload,
+            0
+        );
         (Vm.Log memory Swap, Vm.Log memory Packet_Tx2, Vm.Log memory RelayerParams_Tx2) = _getSgSwapEvents();
 
         // tx3

@@ -900,7 +900,8 @@ describe('SmartFarmingManager', function () {
 
       // when
       const fee = parseEther('0.1')
-      const underlying = dai.address
+      const bridgeToken = dai.address
+      const tokenIn = dai.address
       const depositToken = msdVaDAI.address
       const syntheticToken = msUSD.address
       const amountIn = parseEther('10')
@@ -911,9 +912,10 @@ describe('SmartFarmingManager', function () {
       const tx = smartFarmingManager
         .connect(alice)
         .crossChainLeverage(
-          underlying,
-          depositToken,
+          tokenIn,
           syntheticToken,
+          bridgeToken,
+          depositToken,
           amountIn,
           leverage,
           layer1SwapAmountOutMin,
@@ -929,7 +931,8 @@ describe('SmartFarmingManager', function () {
     it('should revert if leverage is too low', async function () {
       // when
       const fee = parseEther('0.1')
-      const underlying = dai.address
+      const tokenIn = dai.address
+      const bridgeToken = dai.address
       const depositToken = msdVaDAI.address
       const syntheticToken = msUSD.address
       const amountIn = parseEther('10')
@@ -940,9 +943,10 @@ describe('SmartFarmingManager', function () {
       const tx = smartFarmingManager
         .connect(alice)
         .crossChainLeverage(
-          underlying,
-          depositToken,
+          tokenIn,
           syntheticToken,
+          bridgeToken,
+          depositToken,
           amountIn,
           leverage,
           layer1SwapAmountOutMin,
@@ -958,7 +962,8 @@ describe('SmartFarmingManager', function () {
     it('should revert if leverage is too high', async function () {
       // when
       const fee = parseEther('0.1')
-      const underlying = dai.address
+      const tokenIn = dai.address
+      const bridgeToken = dai.address
       const depositToken = msdVaDAI.address
       const syntheticToken = msUSD.address
       const amountIn = parseEther('10')
@@ -969,9 +974,10 @@ describe('SmartFarmingManager', function () {
       const tx = smartFarmingManager
         .connect(alice)
         .crossChainLeverage(
-          underlying,
-          depositToken,
+          tokenIn,
           syntheticToken,
+          bridgeToken,
+          depositToken,
           amountIn,
           leverage,
           layer1SwapAmountOutMin,
@@ -984,10 +990,11 @@ describe('SmartFarmingManager', function () {
       await expect(tx).revertedWithCustomError(smartFarmingManager, 'LeverageTooHigh')
     })
 
-    it('should revert if underlying is null', async function () {
+    it('should revert if bridgeToken is null', async function () {
       // when
       const fee = parseEther('0.1')
-      const underlying = ethers.constants.AddressZero
+      const tokenIn = ethers.constants.AddressZero
+      const bridgeToken = ethers.constants.AddressZero
       const depositToken = msdVaDAI.address
       const syntheticToken = msUSD.address
       const amountIn = parseEther('10')
@@ -998,9 +1005,10 @@ describe('SmartFarmingManager', function () {
       const tx = smartFarmingManager
         .connect(alice)
         .crossChainLeverage(
-          underlying,
-          depositToken,
+          tokenIn,
           syntheticToken,
+          bridgeToken,
+          depositToken,
           amountIn,
           leverage,
           layer1SwapAmountOutMin,
@@ -1020,6 +1028,7 @@ describe('SmartFarmingManager', function () {
       // when
       const fee = parseEther('0.1')
       const tokenIn = dai.address
+      const bridgeToken = dai.address
       const depositToken = msdVaDAI.address
       const syntheticToken = msUSD.address
       const amountIn = parseEther('10')
@@ -1032,8 +1041,9 @@ describe('SmartFarmingManager', function () {
         .connect(alice)
         .crossChainLeverage(
           tokenIn,
-          depositToken,
           syntheticToken,
+          bridgeToken,
+          depositToken,
           amountIn,
           leverage,
           swapAmountOutMin,
@@ -1072,7 +1082,8 @@ describe('SmartFarmingManager', function () {
       await dai.connect(alice).approve(smartFarmingManager.address, ethers.constants.MaxUint256)
 
       const fee = parseEther('0.1')
-      const underlying = dai.address
+      const tokenIn = dai.address
+      const bridgeToken = dai.address
       const depositToken = msdVaDAI.address
       const syntheticToken = msUSD.address
       const amountIn = parseEther('10')
@@ -1083,9 +1094,10 @@ describe('SmartFarmingManager', function () {
       await smartFarmingManager
         .connect(alice)
         .crossChainLeverage(
-          underlying,
-          depositToken,
+          tokenIn,
           syntheticToken,
+          bridgeToken,
+          depositToken,
           amountIn,
           leverage,
           swapAmountOutMin,
@@ -1153,10 +1165,10 @@ describe('SmartFarmingManager', function () {
 
     it('should revert if swapAmountOut slippage is too high', async function () {
       // given
-      const {depositAmountMin, bridgeTokenAmountIn} = await smartFarmingManager.crossChainLeverages(id)
+      const {depositAmountMin, amountIn} = await smartFarmingManager.crossChainLeverages(id)
 
       // when
-      const swapAmountOut = depositAmountMin.sub(bridgeTokenAmountIn).sub('1')
+      const swapAmountOut = depositAmountMin.sub(amountIn).sub('1')
       const tx = smartFarmingManager.connect(crossChainDispatcherSigner).crossChainLeverageCallback(id, swapAmountOut)
 
       // then
@@ -1266,16 +1278,6 @@ describe('SmartFarmingManager', function () {
       await expect(tx).revertedWithCustomError(smartFarmingManager, 'CrossChainRequestInvalidKey')
     })
 
-    it('should revert if caller is not the correct account', async function () {
-      // when
-      const tx = smartFarmingManager
-        .connect(bob)
-        .retryCrossChainFlashRepayCallback(srcChainId, srcAddress, nonce, amount, payload, newRepayAmountMin)
-
-      // then
-      await expect(tx).revertedWithCustomError(smartFarmingManager, 'SenderIsNotAccount')
-    })
-
     it('should revert if request already finished', async function () {
       // given
       const swapAmountOut = parseEther('10')
@@ -1290,6 +1292,30 @@ describe('SmartFarmingManager', function () {
 
       // then
       await expect(tx).revertedWithCustomError(smartFarmingManager, 'CrossChainRequestCompletedAlready')
+    })
+
+    it('should retry by anyone (not updates repayAmountMin)', async function () {
+      // given
+      const {repayAmountMin: before} = await smartFarmingManager.crossChainFlashRepays(id)
+      crossChainDispatcher.crossChainDispatcherOf.returns(crossChainDispatcher.address)
+
+      // when
+      await smartFarmingManager
+        .connect(bob)
+        .retryCrossChainFlashRepayCallback(srcChainId, srcAddress, nonce, amount, payload, newRepayAmountMin)
+
+      // then
+      const {repayAmountMin: after} = await smartFarmingManager.crossChainFlashRepays(id)
+      expect(after).eq(before)
+      expect(proxyOFT.retryOFTReceived).calledWith(
+        srcChainId,
+        srcAddress,
+        nonce,
+        ethers.utils.solidityPack(['address'], [crossChainDispatcher.address]),
+        crossChainDispatcher.address,
+        amount,
+        payload
+      )
     })
 
     it('should update repayAmountMin and retry', async function () {
@@ -1332,7 +1358,8 @@ describe('SmartFarmingManager', function () {
       await dai.connect(alice).approve(smartFarmingManager.address, ethers.constants.MaxUint256)
 
       const fee = parseEther('0.1')
-      const underlying = dai.address
+      const tokenIn = dai.address
+      const bridgeToken = dai.address
       const depositToken = msdVaDAI.address
       const syntheticToken = msUSD.address
       const leverage = parseEther('1.5')
@@ -1342,9 +1369,10 @@ describe('SmartFarmingManager', function () {
       await smartFarmingManager
         .connect(alice)
         .crossChainLeverage(
-          underlying,
-          depositToken,
+          tokenIn,
           syntheticToken,
+          bridgeToken,
+          depositToken,
           amountIn,
           leverage,
           layer1SwapAmountOutMin,
@@ -1356,7 +1384,7 @@ describe('SmartFarmingManager', function () {
       expect(await smartFarmingManager.crossChainRequestsLength()).eq(length)
 
       payload = CrossChainLib.encodeLeverageCallbackPayload(smartFarmingManager.address, id)
-      token = underlying
+      token = bridgeToken
 
       await dai.mint(crossChainDispatcher.address, parseEther('10000'))
       await dai.connect(crossChainDispatcherSigner).approve(smartFarmingManager.address, ethers.constants.MaxUint256)
@@ -1382,16 +1410,6 @@ describe('SmartFarmingManager', function () {
       await expect(tx).revertedWithCustomError(smartFarmingManager, 'CrossChainRequestInvalidKey')
     })
 
-    it('should revert if caller is not the correct account', async function () {
-      // when
-      const tx = smartFarmingManager
-        .connect(bob)
-        .retryCrossChainLeverageCallback(srcChainId, srcAddress, nonce, token, amountIn, payload, newDepositAmountMin)
-
-      // then
-      await expect(tx).revertedWithCustomError(smartFarmingManager, 'SenderIsNotAccount')
-    })
-
     it('should revert if request already finished', async function () {
       // given
       const swapAmountOut = parseEther('10')
@@ -1406,6 +1424,39 @@ describe('SmartFarmingManager', function () {
 
       // then
       await expect(tx).revertedWithCustomError(smartFarmingManager, 'CrossChainRequestCompletedAlready')
+    })
+
+    it('should retry by anyone (not updates depositAmountMin)', async function () {
+      // given
+      const stargateRouter = await smock.fake('IStargateRouter')
+      const stargateComposer = await smock.fake('IStargateComposerWithRetry')
+      stargateComposer.stargateRouter.returns(stargateRouter.address)
+      crossChainDispatcher.stargateComposer.returns(stargateComposer.address)
+      const {depositAmountMin: before} = await smartFarmingManager.crossChainLeverages(id)
+      const sgReceiveCallData = crossChainDispatcher.interface.encodeFunctionData('sgReceive', [
+        srcChainId,
+        ethers.utils.solidityPack(['address'], [crossChainDispatcher.address]),
+        nonce,
+        token,
+        amountIn,
+        payload,
+      ])
+
+      // when
+      await smartFarmingManager
+        .connect(bob)
+        .retryCrossChainLeverageCallback(srcChainId, srcAddress, nonce, token, amountIn, payload, newDepositAmountMin)
+
+      // then
+      const {depositAmountMin: after} = await smartFarmingManager.crossChainLeverages(id)
+      expect(after).eq(before)
+      expect(stargateComposer.clearCachedSwap).calledOnceWith(
+        srcChainId,
+        srcAddress,
+        nonce,
+        crossChainDispatcher.address,
+        sgReceiveCallData
+      )
     })
 
     it('should update depositAmountMin and retry', async function () {

@@ -4,6 +4,7 @@ pragma solidity 0.8.9;
 
 import "./utils/ReentrancyGuard.sol";
 import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
+import "./dependencies/openzeppelin/utils/math/Math.sol";
 import "./interfaces/external/IStargateComposerWithRetry.sol";
 import "./access/Manageable.sol";
 import "./storage/SmartFarmingManagerStorage.sol";
@@ -26,7 +27,7 @@ error CrossChainRequestInvalidKey();
 error SenderIsNotCrossChainDispatcher();
 error CrossChainRequestCompletedAlready();
 error TokenInIsNull();
-error SenderIsNotAccount();
+error BridgeTokenIsNull();
 
 /**
  * @title SmartFarmingManager contract
@@ -170,9 +171,9 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         // 3. store request and trigger swap
         _triggerFlashRepaySwap({
             crossChainDispatcher_: _crossChainDispatcher,
-            tokenIn_: bridgeToken_,
-            tokenOut_: syntheticToken_,
-            amountIn_: _amountIn,
+            swapTokenIn_: bridgeToken_,
+            swapTokenOut_: syntheticToken_,
+            swapAmountIn_: _amountIn,
             swapAmountOutMin_: swapAmountOutMin_,
             repayAmountMin_: repayAmountMin_,
             lzArgs_: lzArgs_
@@ -184,9 +185,9 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
      */
     function _triggerFlashRepaySwap(
         ICrossChainDispatcher crossChainDispatcher_,
-        IERC20 tokenIn_,
-        ISyntheticToken tokenOut_,
-        uint256 amountIn_,
+        IERC20 swapTokenIn_,
+        ISyntheticToken swapTokenOut_,
+        uint256 swapAmountIn_,
         uint256 swapAmountOutMin_,
         uint256 repayAmountMin_,
         bytes calldata lzArgs_
@@ -197,7 +198,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
 
         crossChainFlashRepays[_id] = CrossChainFlashRepay({
             dstChainId: _dstChainId,
-            syntheticToken: tokenOut_,
+            syntheticToken: swapTokenOut_,
             repayAmountMin: repayAmountMin_,
             account: msg.sender,
             finished: false
@@ -206,9 +207,9 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         crossChainDispatcher_.triggerFlashRepaySwap{value: msg.value}({
             id_: _id,
             account_: payable(msg.sender),
-            tokenIn_: address(tokenIn_),
-            tokenOut_: address(tokenOut_),
-            amountIn_: amountIn_,
+            tokenIn_: address(swapTokenIn_),
+            tokenOut_: address(swapTokenOut_),
+            amountIn_: swapAmountIn_,
             amountOutMin_: swapAmountOutMin_,
             lzArgs_: lzArgs_
         });
@@ -239,8 +240,16 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         swapAmountOut_ = _safeTransferFrom(_request.syntheticToken, msg.sender, swapAmountOut_);
 
         // 3. repay debt
-        (_repaid, ) = pool.debtTokenOf(_request.syntheticToken).repay(_request.account, swapAmountOut_);
+        IDebtToken _debtToken = pool.debtTokenOf(_request.syntheticToken);
+        (uint256 _maxRepayAmount, ) = _debtToken.quoteRepayIn(_debtToken.balanceOf(_request.account));
+        uint256 _repayAmount = Math.min(swapAmountOut_, _maxRepayAmount);
+        (_repaid, ) = _debtToken.repay(_request.account, _repayAmount);
         if (_repaid < _request.repayAmountMin) revert FlashRepaySlippageTooHigh();
+
+        // 4. refund synthetic token in excess
+        if (swapAmountOut_ > _repayAmount) {
+            _request.syntheticToken.safeTransfer(_request.account, swapAmountOut_ - _repayAmount);
+        }
 
         emit CrossChainFlashRepayFinished(id_);
     }
@@ -248,9 +257,10 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
     /***
      * @notice Cross-chain Leverage
      * @dev Not calling `whenNotShutdown` here because nested function already does it
-     * @param tokenIn_ The asset to deposit and that'll be bridged in after swapping from msAsset
-     * @param depositToken_ The collateral to deposit
+     * @param tokenIn_ The token to transfer
      * @param syntheticToken_ The msAsset to mint
+     * @param bridgeToken_ The asset that will be used to swap from msAsset and bridged back
+     * @param depositToken_ The collateral to deposit
      * @param amountIn_ The amount to deposit
      * @param leverage_ The leverage X param (e.g. 1.5e18 for 1.5X)
      * @param swapAmountOutMin_ The minimum amount out from msAsset->bridgeToken swap (slippage check)
@@ -259,8 +269,9 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
      */
     function crossChainLeverage(
         IERC20 tokenIn_,
-        IDepositToken depositToken_,
         ISyntheticToken syntheticToken_,
+        IERC20 bridgeToken_,
+        IDepositToken depositToken_,
         uint256 amountIn_,
         uint256 leverage_,
         uint256 swapAmountOutMin_,
@@ -280,11 +291,12 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         if (leverage_ <= 1e18) revert LeverageTooLow();
         if (leverage_ > uint256(1e18).wadDiv(1e18 - depositToken_.collateralFactor())) revert LeverageTooHigh();
         if (address(_tokenIn) == address(0)) revert TokenInIsNull();
+        if (address(bridgeToken_) == address(0)) revert BridgeTokenIsNull();
 
         uint256 _debtAmount;
         uint256 _issued;
         {
-            // 1. deposit tokenIn
+            // 1. transfer tokenIn
             amountIn_ = _safeTransferFrom(_tokenIn, msg.sender, amountIn_);
 
             // 2. mint synth
@@ -292,15 +304,16 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
             (_issued, ) = pool.debtTokenOf(syntheticToken_).flashIssue(address(crossChainDispatcher()), _debtAmount);
         }
 
+        bytes memory _swapArgs = abi.encode(syntheticToken_, bridgeToken_, _issued, swapAmountOutMin_); // stack too deep
+        IDepositToken _depositToken = depositToken_; // stack too deep
+
         // 3. store request and trigger swap
         _triggerCrossChainLeverageSwap({
-            depositToken_: depositToken_,
-            depositedAmount_: amountIn_,
+            tokenIn_: _tokenIn,
+            amountIn_: amountIn_,
             debtAmount_: _debtAmount,
-            tokenIn_: syntheticToken_,
-            tokenOut_: _tokenIn,
-            swapAmountIn_: _issued,
-            swapAmountOutMin_: swapAmountOutMin_,
+            swapArgs_: _swapArgs,
+            depositToken_: _depositToken,
             depositAmountMin_: depositAmountMin_,
             lzArgs_: lzArgs_
         });
@@ -310,29 +323,31 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
      * @dev Stores leverage cross-chain request and triggers swap on the destination chain
      */
     function _triggerCrossChainLeverageSwap(
-        IDepositToken depositToken_,
-        uint256 depositedAmount_,
+        IERC20 tokenIn_,
+        uint256 amountIn_,
         uint256 debtAmount_,
-        ISyntheticToken tokenIn_,
-        IERC20 tokenOut_,
-        uint256 swapAmountIn_,
-        uint256 swapAmountOutMin_,
+        bytes memory swapArgs_,
+        IDepositToken depositToken_,
         uint256 depositAmountMin_,
         bytes calldata lzArgs_
     ) private {
         uint256 _id = _nextCrossChainRequestId();
+
+        (ISyntheticToken _swapTokenIn, IERC20 _swapTokenOut, uint256 _swapAmountIn, uint256 _swapAmountOutMin) = abi
+            .decode(swapArgs_, (ISyntheticToken, IERC20, uint256, uint256));
 
         {
             (uint16 _dstChainId, , ) = CrossChainLib.decodeLzArgs(lzArgs_);
 
             crossChainLeverages[_id] = CrossChainLeverage({
                 dstChainId: _dstChainId,
-                bridgeToken: tokenOut_,
+                tokenIn: tokenIn_,
+                syntheticToken: _swapTokenIn,
+                bridgeToken: _swapTokenOut,
                 depositToken: depositToken_,
-                syntheticToken: tokenIn_,
-                depositAmountMin: depositAmountMin_,
-                bridgeTokenAmountIn: depositedAmount_,
+                amountIn: amountIn_,
                 debtAmount: debtAmount_,
+                depositAmountMin: depositAmountMin_,
                 account: msg.sender,
                 finished: false
             });
@@ -341,10 +356,10 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         crossChainDispatcher().triggerLeverageSwap{value: msg.value}({
             id_: _id,
             account_: payable(msg.sender),
-            tokenIn_: address(tokenIn_),
-            tokenOut_: address(tokenOut_),
-            amountIn_: swapAmountIn_,
-            amountOutMin: swapAmountOutMin_,
+            tokenIn_: address(_swapTokenIn),
+            tokenOut_: address(_swapTokenOut),
+            amountIn_: _swapAmountIn,
+            amountOutMin: _swapAmountOutMin,
             lzArgs_: lzArgs_
         });
 
@@ -374,11 +389,16 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         // 2. transfer swap's tokenOut (aka bridged token)
         swapAmountOut_ = _safeTransferFrom(_request.bridgeToken, msg.sender, swapAmountOut_);
 
-        // 3. swap bridged token for collateral if needed
-        uint256 _bridgeTokenAmount = _request.bridgeTokenAmountIn + swapAmountOut_;
-        uint256 _depositAmount = _request.bridgeToken == _collateral
-            ? _bridgeTokenAmount
-            : _swap(swapper(), _request.bridgeToken, _collateral, _bridgeTokenAmount, 0);
+        // 3. swap received tokens for collateral if needed
+        // Note: The internal `_swap()` doesn't swap if `tokenIn` and `tokenOut` are the same
+        uint256 _depositAmount;
+        if (_request.tokenIn == _request.bridgeToken) {
+            _depositAmount = _swap(swapper(), _request.tokenIn, _collateral, _request.amountIn + swapAmountOut_, 0);
+        } else {
+            _depositAmount = _swap(swapper(), _request.tokenIn, _collateral, _request.amountIn, 0);
+            _depositAmount += _swap(swapper(), _request.bridgeToken, _collateral, swapAmountOut_, 0);
+        }
+
         if (_depositAmount < _request.depositAmountMin) revert LeverageSlippageTooHigh();
 
         // 4. deposit collateral
@@ -528,10 +548,12 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         CrossChainFlashRepay memory _request = crossChainFlashRepays[_requestId];
 
         if (_request.account == address(0)) revert CrossChainRequestInvalidKey();
-        if (msg.sender != _request.account) revert SenderIsNotAccount();
         if (_request.finished) revert CrossChainRequestCompletedAlready();
 
-        crossChainFlashRepays[_requestId].repayAmountMin = newRepayAmountMin_;
+        // Note: Only user can change slippage param
+        if (msg.sender == _request.account) {
+            crossChainFlashRepays[_requestId].repayAmountMin = newRepayAmountMin_;
+        }
 
         ICrossChainDispatcher _crossChainDispatcher = crossChainDispatcher();
         bytes memory _from = abi.encodePacked(_crossChainDispatcher.crossChainDispatcherOf(srcChainId_));
@@ -572,10 +594,12 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         CrossChainLeverage memory _request = crossChainLeverages[_requestId];
 
         if (_request.account == address(0)) revert CrossChainRequestInvalidKey();
-        if (msg.sender != _request.account) revert SenderIsNotAccount();
         if (_request.finished) revert CrossChainRequestCompletedAlready();
 
-        crossChainLeverages[_requestId].depositAmountMin = newDepositAmountMin_;
+        // Note: Only user can change slippage param
+        if (msg.sender == _request.account) {
+            crossChainLeverages[_requestId].depositAmountMin = newDepositAmountMin_;
+        }
 
         ICrossChainDispatcher _crossChainDispatcher = crossChainDispatcher();
 

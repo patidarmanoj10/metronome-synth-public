@@ -112,8 +112,8 @@ contract CrossChainDebug_Test is Test {
     address constant MANOJ_WALLET = 0xdf826ff6518e609E4cEE86299d40611C148099d5;
 
     function setUp() public {
-        mainnetFork = vm.createSelectFork("https://eth.connect.bloq.cloud/v1/peace-blood-actress");
-        // mainnetFork = vm.createSelectFork("https://eth-mainnet.alchemyapi.io/v2/NbZ2px662CNSwdw3ZxdaZNe31yZbyddK");
+        // mainnetFork = vm.createSelectFork("https://eth.connect.bloq.cloud/v1/peace-blood-actress");
+        mainnetFork = vm.createSelectFork("https://eth-mainnet.alchemyapi.io/v2/NbZ2px662CNSwdw3ZxdaZNe31yZbyddK");
         vm.rollFork(mainnetFork, 18328826);
 
         optimismFork = vm.createSelectFork("https://optimism-mainnet.infura.io/v3/9989c2cf77a24bddaa43103463cb8047");
@@ -144,42 +144,6 @@ contract CrossChainDebug_Test is Test {
             _IMPLEMENTATION_SLOT,
             bytes32(uint256(uint160(address(crossChainDispatcher_mainnet_NEW_IMPL))))
         );
-    }
-
-    // tx1->tx2: https://layerzeroscan.com/111/address/0xc2c433d36d7184192e442a243b351a9e3055fd5f/message/101/address/0xf37982e3f33ac007c690ed6266f3402d24aa27ea/nonce/1
-    // tx1: https://optimistic.etherscan.io/tx/0xb44d54f300ee88ca5fe6be45a9c5e1093e9e65dc6a0c415ad5c5ae212dd71127
-    // tx2 (failed): https://etherscan.com/tx/0x2e5441cc0f9985dfdf1a0c6c41c5a22c46d294e7d035a7850c13a54ce6993f0e
-    // tx2 (retry ok): https://etherscan.com/tx/0x8267ab45e876ae1b62bd8336b6a812596b6e6558adf2ba782e5ea827a1d79c49
-    // tx2->tx3: https://layerzeroscan.com/101/address/0x296f55f8fb28e498b858d0bcda06d955b2cb3f97/message/111/address/0x701a95707a0290ac8b90b3719e8ee5b210360883/nonce/69734
-    // tx3 (failed): https://optimistic.etherscan.io/tx/0xa8e01afe59353e6321a066dac31b6f96c5cdc54d0ac17d8bf9c6248360c8273d
-    function test_nonce1_retry() external {
-        // Retry tx3
-        vm.selectFork(optimismFork);
-
-        bytes
-            memory sgPayload_ = hex"cea698cf2420433e21bec006f1718216c6198b528bd81c99a2d349f6fb8e8a0b32c81704e3fe7302000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000040000000000000000000000000696ee5a8c82e621eccc4909ff020950b146351a02a32391a76c35a36352b711f9152c0d0a340cd686850c8ef25fbb11c71b89e7b";
-        uint16 srcChainId = 101;
-        uint256 nonce = 69734;
-        address token = 0x7F5c764cBc14f9669B88837ca1490cCa17c31607;
-        uint256 amount = 49801468;
-
-        bytes memory _sgReceiveCallData = abi.encodeWithSelector(
-            IStargateReceiver.sgReceive.selector,
-            srcChainId,
-            abi.encodePacked(sgPayload_.toAddress(20)), // use the caller as the srcAddress (the msg.sender caller the StargateComposer at the source)
-            nonce,
-            token,
-            amount,
-            sgPayload_.slice(40, sgPayload_.length - 40)
-        );
-
-        sgComposer_optimism.clearCachedSwap({
-            _srcChainId: srcChainId,
-            _srcAddress: hex"296f55f8fb28e498b858d0bcda06d955b2cb3f97701a95707a0290ac8b90b3719e8ee5b210360883",
-            _nonce: uint64(nonce),
-            _receiver: address(crossChainDispatcher_optimism),
-            _sgReceiveCallData: _sgReceiveCallData
-        });
     }
 
     // tx1: https://optimistic.etherscan.io/tx/0x354cf0e6c2ce80c4fd20892abfcd3ed620ecdb7e6e4d6e68b20abc5c8a97a664
