@@ -20,6 +20,13 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     writeMethod: 'updateSwapper',
     writeArgs: [Address.SWAPPER],
   })
+
+  await updateParamIfNeeded(hre, {
+    contract: PoolRegistry,
+    readMethod: 'isCrossChainFlashRepayActive',
+    writeMethod: 'toggleCrossChainFlashRepayIsActive',
+    isCurrentValueUpdated: (isActive: boolean) => isActive,
+  })
 }
 
 export default func

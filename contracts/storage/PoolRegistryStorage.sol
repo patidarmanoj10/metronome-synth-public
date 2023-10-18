@@ -53,3 +53,10 @@ abstract contract PoolRegistryStorageV2 is PoolRegistryStorageV1 {
      */
     ICrossChainDispatcher public crossChainDispatcher;
 }
+
+abstract contract PoolRegistryStorageV3 is PoolRegistryStorageV2 {
+    /**
+     * @notice Flag that pause/unpause all cross-chain flash repay operations
+     */
+    bool public isCrossChainFlashRepayActive;
+}

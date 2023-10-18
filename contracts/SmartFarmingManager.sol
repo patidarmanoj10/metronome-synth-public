@@ -28,6 +28,13 @@ error SenderIsNotCrossChainDispatcher();
 error CrossChainRequestCompletedAlready();
 error TokenInIsNull();
 error BridgeTokenIsNull();
+error CrossChainFlashRepayInactive();
+
+// Note: The `IPoolRegistry` wasn't updated to avoid changing interface
+// Refs: https://github.com/autonomoussoftware/metronome-synth/issues/877
+interface IPoolRegistryV3 is IPoolRegistry {
+    function isCrossChainFlashRepayActive() external view returns (bool);
+}
 
 /**
  * @title SmartFarmingManager contract
@@ -141,6 +148,8 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         onlyIfSyntheticTokenExists(syntheticToken_)
     {
         if (withdrawAmount_ == 0) revert AmountIsZero();
+        if (!IPoolRegistryV3(address(pool.poolRegistry())).isCrossChainFlashRepayActive())
+            revert CrossChainFlashRepayInactive();
 
         ICrossChainDispatcher _crossChainDispatcher;
         {
@@ -254,6 +263,23 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         emit CrossChainFlashRepayFinished(id_);
     }
 
+    /**
+     * @dev Keep this function to avoid changing interface
+     * Refs: https://github.com/autonomoussoftware/metronome-synth/issues/877
+     */
+    function crossChainLeverage(
+        IERC20,
+        IDepositToken,
+        ISyntheticToken,
+        uint256,
+        uint256,
+        uint256,
+        uint256,
+        bytes calldata
+    ) external payable override {
+        revert("deprecated");
+    }
+
     /***
      * @notice Cross-chain Leverage
      * @dev Not calling `whenNotShutdown` here because nested function already does it
@@ -280,7 +306,9 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
     )
         external
         payable
-        override
+        // Note: Not adding this function to the `ISmartFarmingInterface` to avoid changing interface
+        // Refs: https://github.com/autonomoussoftware/metronome-synth/issues/877
+        // override
         nonReentrant
         onlyIfDepositTokenExists(depositToken_)
         onlyIfSyntheticTokenExists(syntheticToken_)
