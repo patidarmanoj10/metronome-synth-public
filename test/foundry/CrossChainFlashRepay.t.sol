@@ -636,4 +636,42 @@ contract CrossChainFlashRepay_Test is CrossChains_Test {
         assertApproxEqAbs(_depositInUsdAfter, 1500e18, 1e18);
         assertApproxEqAbs(_debtInUsdAfter, 0, 1e18);
     }
+
+    function test_failedTx3_whenSwapOutIsTooHigh() external {
+        //
+        // given
+        //
+        _depositAndIssue({depositAmount_: 2000e18, issueAmount_: 500e18});
+        (, uint256 _depositInUsdBefore, uint256 _debtInUsdBefore, , ) = pool_optimism.debtPositionOf(alice);
+        assertApproxEqAbs(_depositInUsdBefore, 2000e18, 1e18);
+        assertApproxEqAbs(_debtInUsdBefore, 500e18, 1e18);
+        uint256 msUSD_before = msUSD_optimism.balanceOf(alice);
+
+        //
+        // when
+        //
+
+        // tx1
+        _crossChainFlashRepay({
+            withdrawAmount_: 600e18, // $100 in excess
+            swapAmountOutMin_: 0,
+            repayAmountMin_: 0
+        });
+        (Vm.Log memory Swap, Vm.Log memory Packet, Vm.Log memory RelayerParams) = _getSgSwapEvents();
+
+        // tx2
+        _executeSwapAndTriggerCallback(Swap, Packet, RelayerParams);
+        (Vm.Log memory SendToChain, Vm.Log memory PacketTx2, Vm.Log memory RelayerParamsTx2) = _getOftTransferEvents();
+
+        // tx3
+        _executeCallback(SendToChain, PacketTx2, RelayerParamsTx2);
+
+        //
+        // then
+        //
+        (, uint256 _depositInUsdAfter, uint256 _debtInUsdAfter, , ) = pool_optimism.debtPositionOf(alice);
+        assertApproxEqAbs(_depositInUsdAfter, 1400e18, 1e18);
+        assertApproxEqAbs(_debtInUsdAfter, 0, 1e18);
+        assertApproxEqAbs(msUSD_optimism.balanceOf(alice), msUSD_before + 100e18, 1e18); // refunded excess amount
+    }
 }

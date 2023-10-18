@@ -4,6 +4,7 @@ pragma solidity 0.8.9;
 
 import "./utils/ReentrancyGuard.sol";
 import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
+import "./dependencies/openzeppelin/utils/math/Math.sol";
 import "./interfaces/external/IStargateComposerWithRetry.sol";
 import "./access/Manageable.sol";
 import "./storage/SmartFarmingManagerStorage.sol";
@@ -239,8 +240,16 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         swapAmountOut_ = _safeTransferFrom(_request.syntheticToken, msg.sender, swapAmountOut_);
 
         // 3. repay debt
-        (_repaid, ) = pool.debtTokenOf(_request.syntheticToken).repay(_request.account, swapAmountOut_);
+        IDebtToken _debtToken = pool.debtTokenOf(_request.syntheticToken);
+        (uint256 _maxRepayAmount, ) = _debtToken.quoteRepayIn(_debtToken.balanceOf(_request.account));
+        uint256 _repayAmount = Math.min(swapAmountOut_, _maxRepayAmount);
+        (_repaid, ) = _debtToken.repay(_request.account, _repayAmount);
         if (_repaid < _request.repayAmountMin) revert FlashRepaySlippageTooHigh();
+
+        // 4. refund synthetic token in excess
+        if (swapAmountOut_ > _repayAmount) {
+            _request.syntheticToken.safeTransfer(_request.account, swapAmountOut_ - _repayAmount);
+        }
 
         emit CrossChainFlashRepayFinished(id_);
     }
