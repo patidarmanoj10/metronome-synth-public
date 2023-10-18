@@ -1,3 +1,4 @@
+/* eslint-disable no-unexpected-multiline */
 /* eslint-disable camelcase */
 /* eslint-disable new-cap */
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
@@ -167,6 +168,7 @@ describe('SmartFarmingManager', function () {
     await poolRegistry.registerPool(pool.address)
     await poolRegistry.updateSwapper(swapper.address)
     await poolRegistry.updateCrossChainDispatcher(crossChainDispatcher.address)
+    await poolRegistry.toggleCrossChainFlashRepayIsActive()
 
     const esMET = await smock.fake('IESMET')
 
@@ -551,6 +553,36 @@ describe('SmartFarmingManager', function () {
       await expect(tx).revertedWithCustomError(smartFarmingManager, 'IsShutdown')
     })
 
+    it('should revert if cross-chain flash repay is inactive', async function () {
+      // given
+      await poolRegistry.toggleCrossChainFlashRepayIsActive()
+
+      // when
+      const fee = parseEther('0.1')
+      const syntheticToken = msUSD.address
+      const withdrawAmount = parseEther('10')
+      const underlyingAmountMin = parseEther('10')
+      const layer1SwapAmountOutMin = parseEther('9.5')
+      const repayAmountMin = parseEther('9')
+      const lzArgs = '0x'
+      const tx = smartFarmingManager
+        .connect(alice)
+        .crossChainFlashRepay(
+          syntheticToken,
+          msdVaDAI.address,
+          withdrawAmount,
+          dai.address,
+          underlyingAmountMin,
+          layer1SwapAmountOutMin,
+          repayAmountMin,
+          lzArgs,
+          {value: fee}
+        )
+
+      // then
+      await expect(tx).revertedWithCustomError(smartFarmingManager, 'CrossChainFlashRepayInactive')
+    })
+
     it('should revert if amount to withdraw is zero', async function () {
       // when
       const fee = parseEther('0.1')
@@ -911,7 +943,7 @@ describe('SmartFarmingManager', function () {
       const lzArgs = '0x'
       const tx = smartFarmingManager
         .connect(alice)
-        .crossChainLeverage(
+        ['crossChainLeverage(address,address,address,address,uint256,uint256,uint256,uint256,bytes)'](
           tokenIn,
           syntheticToken,
           bridgeToken,
@@ -942,7 +974,7 @@ describe('SmartFarmingManager', function () {
       const lzArgs = '0x'
       const tx = smartFarmingManager
         .connect(alice)
-        .crossChainLeverage(
+        ['crossChainLeverage(address,address,address,address,uint256,uint256,uint256,uint256,bytes)'](
           tokenIn,
           syntheticToken,
           bridgeToken,
@@ -973,7 +1005,7 @@ describe('SmartFarmingManager', function () {
       const lzArgs = '0x'
       const tx = smartFarmingManager
         .connect(alice)
-        .crossChainLeverage(
+        ['crossChainLeverage(address,address,address,address,uint256,uint256,uint256,uint256,bytes)'](
           tokenIn,
           syntheticToken,
           bridgeToken,
@@ -1004,7 +1036,7 @@ describe('SmartFarmingManager', function () {
       const lzArgs = '0x'
       const tx = smartFarmingManager
         .connect(alice)
-        .crossChainLeverage(
+        ['crossChainLeverage(address,address,address,address,uint256,uint256,uint256,uint256,bytes)'](
           tokenIn,
           syntheticToken,
           bridgeToken,
@@ -1039,7 +1071,7 @@ describe('SmartFarmingManager', function () {
       const expectedToIssue = parseEther('5')
       const tx = smartFarmingManager
         .connect(alice)
-        .crossChainLeverage(
+        ['crossChainLeverage(address,address,address,address,uint256,uint256,uint256,uint256,bytes)'](
           tokenIn,
           syntheticToken,
           bridgeToken,
@@ -1093,7 +1125,7 @@ describe('SmartFarmingManager', function () {
       const lzArgs = CrossChainLib.encodeLzArgs(LZ_MAINNET_ID, parseEther('0.25'), '250000')
       await smartFarmingManager
         .connect(alice)
-        .crossChainLeverage(
+        ['crossChainLeverage(address,address,address,address,uint256,uint256,uint256,uint256,bytes)'](
           tokenIn,
           syntheticToken,
           bridgeToken,
@@ -1368,7 +1400,7 @@ describe('SmartFarmingManager', function () {
       const lzArgs = CrossChainLib.encodeLzArgs(LZ_MAINNET_ID, parseEther('0.25'), '250000')
       await smartFarmingManager
         .connect(alice)
-        .crossChainLeverage(
+        ['crossChainLeverage(address,address,address,address,uint256,uint256,uint256,uint256,bytes)'](
           tokenIn,
           syntheticToken,
           bridgeToken,

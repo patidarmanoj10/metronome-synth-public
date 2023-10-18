@@ -30,9 +30,8 @@ interface ISmartFarmingManager {
 
     function crossChainLeverage(
         IERC20 tokenIn_,
-        ISyntheticToken syntheticToken_,
-        IERC20 bridgeToken_,
         IDepositToken depositToken_,
+        ISyntheticToken syntheticToken_,
         uint256 amountIn_,
         uint256 leverage_,
         uint256 swapAmountOutMin_,

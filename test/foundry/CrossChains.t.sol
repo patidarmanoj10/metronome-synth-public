@@ -330,6 +330,7 @@ abstract contract CrossChains_Test is Test {
         poolRegistry_optimism.registerPool(address(pool_optimism));
         poolRegistry_optimism.registerPool(address(pool_B_optimism));
         poolRegistry_optimism.updateSwapper(swapper_optimism);
+        poolRegistry_optimism.toggleCrossChainFlashRepayIsActive();
         pool_optimism.updateFeeProvider(feeProvider_optimism);
         pool_optimism.updateTreasury(treasury_optimism);
         pool_optimism.updateSmartFarmingManager(smartFarmingManager_optimism);

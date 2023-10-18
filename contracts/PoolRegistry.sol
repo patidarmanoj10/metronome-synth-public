@@ -19,7 +19,7 @@ error NewValueIsSameAsCurrent();
 /**
  * @title PoolRegistry contract
  */
-contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV2 {
+contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV3 {
     using WadRayMath for uint256;
     using EnumerableSet for EnumerableSet.AddressSet;
 
@@ -51,6 +51,9 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV2 {
         ICrossChainDispatcher oldCrossChainDispatcher,
         ICrossChainDispatcher newCrossChainDispatcher
     );
+
+    /// @notice Emitted when flag for pause cross-chain flash repay is toggled
+    event CrossChainFlashRepayActiveUpdated(bool newIsActive);
 
     constructor() {
         _disableInitializers();
@@ -190,5 +193,14 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV2 {
 
         emit CrossChainDispatcherUpdated(_current, crossChainDispatcher_);
         crossChainDispatcher = crossChainDispatcher_;
+    }
+
+    /**
+     * @notice Pause/Unpause bridge transfers
+     */
+    function toggleCrossChainFlashRepayIsActive() external onlyGovernor {
+        bool _newIsCrossChainFlashRepayActive = !isCrossChainFlashRepayActive;
+        emit CrossChainFlashRepayActiveUpdated(_newIsCrossChainFlashRepayActive);
+        isCrossChainFlashRepayActive = _newIsCrossChainFlashRepayActive;
     }
 }

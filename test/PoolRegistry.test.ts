@@ -282,4 +282,19 @@ describe('PoolRegistry', function () {
       expect(await poolRegistry.swapper()).eq(after)
     })
   })
+
+  describe('toggleCrossChainFlashRepayIsActive', function () {
+    it('should toggle isCrossChainFlashRepayActive flag', async function () {
+      const before = await poolRegistry.isCrossChainFlashRepayActive()
+      const after = !before
+      const tx = poolRegistry.toggleCrossChainFlashRepayIsActive()
+      await expect(tx).emit(poolRegistry, 'CrossChainFlashRepayActiveUpdated').withArgs(after)
+      expect(await poolRegistry.isCrossChainFlashRepayActive()).eq(after)
+    })
+
+    it('should revert if not governor', async function () {
+      const tx = poolRegistry.connect(alice).toggleCrossChainFlashRepayIsActive()
+      await expect(tx).revertedWithCustomError(poolRegistry, 'SenderIsNotGovernor')
+    })
+  })
 })
