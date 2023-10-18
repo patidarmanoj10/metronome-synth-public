@@ -91,14 +91,23 @@ abstract contract CrossChains_Test is Test {
     SwapperMock swapper_optimism;
     PoolRegistry poolRegistry_optimism;
     FeeProvider feeProvider_optimism;
+    FeeProvider feeProvider_B_optimism;
     Pool pool_optimism;
+    Pool pool_B_optimism;
     SmartFarmingManager smartFarmingManager_optimism;
+    SmartFarmingManager smartFarmingManager_B_optimism;
     CrossChainDispatcher crossChainDispatcher_optimism;
     Treasury treasury_optimism;
     SyntheticToken msUSD_optimism;
+    SyntheticToken msBTC_optimism;
+    SyntheticToken msETH_optimism;
     DebtToken msUSDDebt_optimism;
+    DebtToken msBTCDebt_optimism;
+    DebtToken msUSDDebt_B_optimism;
+    DebtToken msETHDebt_B_optimism;
     DepositToken msdUSDC_optimism;
     DepositToken msdVaUSDC_optimism;
+    DepositToken msdVaUSDC_B_optimism;
     DepositToken msdVaETH_optimism;
     ProxyOFT proxyOFT_msUSD_optimism;
     Quoter quoter_optimism;
@@ -149,14 +158,23 @@ abstract contract CrossChains_Test is Test {
         feeProvider_optimism = new FeeProvider();
         vm.store(address(feeProvider_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
 
+        feeProvider_B_optimism = new FeeProvider();
+        vm.store(address(feeProvider_B_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
+
         treasury_optimism = new Treasury();
         vm.store(address(treasury_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
 
         pool_optimism = new Pool();
         vm.store(address(pool_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
 
+        pool_B_optimism = new Pool();
+        vm.store(address(pool_B_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
+
         smartFarmingManager_optimism = new SmartFarmingManager();
         vm.store(address(smartFarmingManager_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
+
+        smartFarmingManager_B_optimism = new SmartFarmingManager();
+        vm.store(address(smartFarmingManager_B_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
 
         crossChainDispatcher_optimism = new CrossChainDispatcher();
         vm.store(address(crossChainDispatcher_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
@@ -164,14 +182,32 @@ abstract contract CrossChains_Test is Test {
         msUSD_optimism = new SyntheticToken();
         vm.store(address(msUSD_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
 
+        msBTC_optimism = new SyntheticToken();
+        vm.store(address(msBTC_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
+
+        msETH_optimism = new SyntheticToken();
+        vm.store(address(msETH_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
+
         msUSDDebt_optimism = new DebtToken();
         vm.store(address(msUSDDebt_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
+
+        msBTCDebt_optimism = new DebtToken();
+        vm.store(address(msBTCDebt_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
+
+        msUSDDebt_B_optimism = new DebtToken();
+        vm.store(address(msUSDDebt_B_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
+
+        msETHDebt_B_optimism = new DebtToken();
+        vm.store(address(msETHDebt_B_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
 
         msdUSDC_optimism = new DepositToken();
         vm.store(address(msdUSDC_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
 
         msdVaUSDC_optimism = new DepositToken();
         vm.store(address(msdVaUSDC_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
+
+        msdVaUSDC_B_optimism = new DepositToken();
+        vm.store(address(msdVaUSDC_B_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
 
         msdVaETH_optimism = new DepositToken();
         vm.store(address(msdVaETH_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
@@ -187,19 +223,22 @@ abstract contract CrossChains_Test is Test {
         poolRegistry_optimism.updateQuoter(quoter_optimism);
         poolRegistry_optimism.updateCrossChainDispatcher(crossChainDispatcher_optimism);
         feeProvider_optimism.initialize({poolRegistry_: poolRegistry_optimism, esMET_: IESMET(address(0))});
+        feeProvider_B_optimism.initialize({poolRegistry_: poolRegistry_optimism, esMET_: IESMET(address(0))});
         pool_optimism.initialize(poolRegistry_optimism);
+        pool_B_optimism.initialize(poolRegistry_optimism);
         crossChainDispatcher_optimism.initialize(poolRegistry_optimism, WETH_OP, SGETH_OP);
         crossChainDispatcher_optimism.toggleBridgingIsActive();
         crossChainDispatcher_optimism.toggleDestinationChainIsActive(LZ_MAINNET_CHAIN_ID);
         smartFarmingManager_optimism.initialize(pool_optimism);
+        smartFarmingManager_B_optimism.initialize(pool_B_optimism);
         treasury_optimism.initialize(pool_optimism);
         quoter_optimism.initialize(poolRegistry_optimism);
 
         msdUSDC_optimism.initialize({
             underlying_: usdc_optimism,
             pool_: pool_optimism,
-            name_: "msdUSDC",
-            symbol_: "msdUSDC",
+            name_: "msdUSDC-1",
+            symbol_: "msdUSDC-1",
             decimals_: 6,
             collateralFactor_: 0.5e18,
             maxTotalSupply_: type(uint256).max
@@ -208,8 +247,18 @@ abstract contract CrossChains_Test is Test {
         msdVaUSDC_optimism.initialize({
             underlying_: vaUSDC_optimism,
             pool_: pool_optimism,
-            name_: "msdVaUSDC",
-            symbol_: "msdVaUSDC",
+            name_: "msdVaUSDC-1",
+            symbol_: "msdVaUSDC-1",
+            decimals_: 18,
+            collateralFactor_: 0.5e18,
+            maxTotalSupply_: type(uint256).max
+        });
+
+        msdVaUSDC_B_optimism.initialize({
+            underlying_: vaUSDC_optimism,
+            pool_: pool_B_optimism,
+            name_: "msdVaUSDC-2",
+            symbol_: "msdVaUSDC-2",
             decimals_: 18,
             collateralFactor_: 0.5e18,
             maxTotalSupply_: type(uint256).max
@@ -218,8 +267,8 @@ abstract contract CrossChains_Test is Test {
         msdVaETH_optimism.initialize({
             underlying_: vaETH_optimism,
             pool_: pool_optimism,
-            name_: "msdVaETH",
-            symbol_: "msdVaETH",
+            name_: "msdVaETH-1",
+            symbol_: "msdVaETH-1",
             decimals_: 18,
             collateralFactor_: 0.5e18,
             maxTotalSupply_: type(uint256).max
@@ -232,15 +281,54 @@ abstract contract CrossChains_Test is Test {
             poolRegistry_: pool_optimism.poolRegistry()
         });
         msUSDDebt_optimism.initialize({
-            name_: "msUSD-Debt",
-            symbol_: "msUSD-Debt",
+            name_: "msUSD-Debt-1",
+            symbol_: "msUSD-Debt-1",
             pool_: pool_optimism,
             syntheticToken_: msUSD_optimism,
             interestRate_: 0,
             maxTotalSupply_: type(uint256).max
         });
+        msUSDDebt_B_optimism.initialize({
+            name_: "msUSD-Debt-2",
+            symbol_: "msUSD-Debt-2",
+            pool_: pool_B_optimism,
+            syntheticToken_: msUSD_optimism,
+            interestRate_: 0,
+            maxTotalSupply_: type(uint256).max
+        });
+
+        msBTC_optimism.initialize({
+            name_: "msBTC",
+            symbol_: "msBTC",
+            decimals_: 8,
+            poolRegistry_: pool_optimism.poolRegistry()
+        });
+        msBTCDebt_optimism.initialize({
+            name_: "msBTC-Debt-1",
+            symbol_: "msBTC-Debt-1",
+            pool_: pool_optimism,
+            syntheticToken_: msBTC_optimism,
+            interestRate_: 0,
+            maxTotalSupply_: type(uint256).max
+        });
+
+        msETH_optimism.initialize({
+            name_: "msETH",
+            symbol_: "msETH",
+            decimals_: 18,
+            poolRegistry_: pool_optimism.poolRegistry()
+        });
+        msETHDebt_B_optimism.initialize({
+            name_: "msETH-Debt-2",
+            symbol_: "msETH-Debt-2",
+            pool_: pool_B_optimism,
+            syntheticToken_: msETH_optimism,
+            interestRate_: 0,
+            maxTotalSupply_: type(uint256).max
+        });
 
         poolRegistry_optimism.registerPool(address(pool_optimism));
+        poolRegistry_optimism.registerPool(address(pool_B_optimism));
         poolRegistry_optimism.updateSwapper(swapper_optimism);
         pool_optimism.updateFeeProvider(feeProvider_optimism);
         pool_optimism.updateTreasury(treasury_optimism);
@@ -249,11 +337,21 @@ abstract contract CrossChains_Test is Test {
         pool_optimism.addDepositToken(address(msdVaUSDC_optimism));
         pool_optimism.addDepositToken(address(msdVaETH_optimism));
         pool_optimism.addDebtToken(msUSDDebt_optimism);
+        pool_optimism.addDebtToken(msBTCDebt_optimism);
+        pool_B_optimism.updateFeeProvider(feeProvider_B_optimism);
+        pool_B_optimism.updateTreasury(treasury_optimism);
+        pool_B_optimism.updateSmartFarmingManager(smartFarmingManager_B_optimism);
+        pool_B_optimism.addDepositToken(address(msdVaUSDC_B_optimism));
+        pool_B_optimism.addDebtToken(msUSDDebt_B_optimism);
+        pool_B_optimism.addDebtToken(msETHDebt_B_optimism);
+        pool_B_optimism.toggleIsSwapActive();
         masterOracle_optimism.updatePrice(address(usdc_optimism), 1e18);
         masterOracle_optimism.updatePrice(address(vaUSDC_optimism), 1e18);
         masterOracle_optimism.updatePrice(address(vaETH_optimism), 2000e18);
         masterOracle_optimism.updatePrice(address(weth_optimism), 2000e18);
         masterOracle_optimism.updatePrice(address(msUSD_optimism), 1e18);
+        masterOracle_optimism.updatePrice(address(msETH_optimism), 2000e18);
+        masterOracle_optimism.updatePrice(address(msBTC_optimism), 30000e18);
         crossChainDispatcher_optimism.updateStargateComposer(sgComposer_optimism);
         proxyOFT_msUSD_optimism.setUseCustomAdapterParams(true);
         proxyOFT_msUSD_optimism.setMinDstGas(LZ_MAINNET_CHAIN_ID, proxyOFT_msUSD_optimism.PT_SEND(), 200_000);
@@ -366,6 +464,8 @@ abstract contract CrossChains_Test is Test {
         vm.label(address(sgRouter_optimism), "SgRouter OP");
         vm.label(address(lzEndpoint_optimism), "LzEndpoint OP");
         vm.label(address(msUSD_optimism), "msUSD OP");
+        vm.label(address(msBTC_optimism), "msBTC OP");
+        vm.label(address(msETH_optimism), "msETH OP");
         vm.label(address(usdc_optimism), "USDC OP");
         vm.label(address(vaUSDC_optimism), "vaUSDC OP");
         vm.label(address(sgComposer_optimism), "SgComposer");
