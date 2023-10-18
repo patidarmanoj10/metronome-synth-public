@@ -369,7 +369,7 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
         uint256 amount_,
         bytes calldata payload_,
         uint256 newAmountOutMin_
-    ) external nonReentrant {
+    ) external payable nonReentrant {
         IStargateComposerWithRetry _stargateComposer = IStargateComposerWithRetry(address(stargateComposer));
 
         bytes memory _sgReceiveCallData = abi.encodeWithSelector(
@@ -413,7 +413,7 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
         uint256 amount_,
         bytes calldata payload_,
         uint256 newAmountOutMin_
-    ) external nonReentrant {
+    ) external payable nonReentrant {
         (, address _dstProxyOFT, uint256 _requestId, , address _account, ) = CrossChainLib.decodeLeverageSwapPayload(
             payload_
         );
