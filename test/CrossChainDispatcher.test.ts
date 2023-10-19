@@ -536,6 +536,38 @@ describe('CrossChainDispatcher', function () {
   })
 
   describe('retrySwapAndTriggerLeverageCallback', function () {
+    it('should revert when using a invalid dstProxyOFT', async function () {
+      // given
+      const fakeProxyOFT = await smock.fake('IProxyOFT')
+      fakeProxyOFT.token.returns(msUSD.address)
+      fakeProxyOFT.retryOFTReceived.returns(null) // won't reject fake payload
+
+      const srcAddress = crossChainDispatcher.address
+      const nonce = '0'
+      const amountIn = parseEther('10') // msUSD amount
+      const requestId = 1
+      const sgPoolId = 1
+      const account = alice.address
+      const amountOutMin = parseUnits('8', 6) // USDC amount
+      const newAmountOutMin = parseUnits('7', 6) // USDC amount
+      const fakePayload = CrossChainLib.encodeLeverageSwapPayload(
+        smartFarmingManager.address,
+        fakeProxyOFT.address,
+        requestId,
+        sgPoolId,
+        account,
+        amountOutMin
+      )
+
+      // when
+      const tx = crossChainDispatcher
+        .connect(alice)
+        .retrySwapAndTriggerLeverageCallback(LZ_OPTIMISM_ID, srcAddress, nonce, amountIn, fakePayload, newAmountOutMin)
+
+      // then
+      await expect(tx).to.revertedWithCustomError(crossChainDispatcher, 'InvalidPayload')
+    })
+
     it('should revert when setting 0 to amountOutMin', async function () {
       // given
       const fromAddress = proxyOFT.address

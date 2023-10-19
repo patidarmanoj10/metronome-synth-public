@@ -27,6 +27,7 @@ error DestinationChainNotAllowed();
 error InvalidOperationType();
 error BridgeTokenNotSupported();
 error InvalidSlippageParam();
+error InvalidPayload();
 
 /**
  * @title Cross-chain dispatcher
@@ -411,6 +412,8 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
         (, address _dstProxyOFT, uint256 _requestId, , address _account, ) = CrossChainLib.decodeLeverageSwapPayload(
             payload_
         );
+
+        if (!_isValidProxyOFT(_dstProxyOFT)) revert InvalidPayload();
 
         if (msg.sender == _account) {
             // Note: If `swapAmountOutMin[_requestId]` is `0` (default value), swap function will use payload's slippage param
