@@ -36,12 +36,13 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     writeArgs: [Address.STARGATE_COMPOSER],
   })
 
-  await updateParamIfNeeded(hre, {
-    contract: CrossChainDispatcher,
-    readMethod: 'isBridgingActive',
-    writeMethod: 'toggleBridgingIsActive',
-    isCurrentValueUpdated: (isActive: boolean) => isActive,
-  })
+  // Note: Keeps current value because we pause before and unpause after the deployment
+  // await updateParamIfNeeded(hre, {
+  //   contract: CrossChainDispatcher,
+  //   readMethod: 'isBridgingActive',
+  //   writeMethod: 'toggleBridgingIsActive',
+  //   isCurrentValueUpdated: (isActive: boolean) => isActive,
+  // })
 
   await updateParamIfNeeded(hre, {
     contract: CrossChainDispatcher,

@@ -583,41 +583,42 @@ describe.skip('E2E tests (next optimism release)', function () {
 
     describe('cross-chain operations', function () {
       const LZ_MAINNET_ID = 101
-      const LZ_OP_ID = 111
 
       beforeEach(async function () {
-        //
-        // Note: The setup below are temporary just to make tests to pass
-        // TODO: Move to deployment scripts as soon we have final values to set
-        //
-        if (!(await crossChainDispatcher.isBridgingActive())) {
+        const isBridgingActive = await crossChainDispatcher.isBridgingActive()
+        if (!isBridgingActive) {
           await crossChainDispatcher.connect(governor).toggleBridgingIsActive()
         }
+      })
 
-        if (!(await crossChainDispatcher.isDestinationChainSupported(LZ_MAINNET_ID))) {
-          await crossChainDispatcher.connect(governor).toggleDestinationChainIsActive(LZ_MAINNET_ID)
-        }
+      it('crossChainLeverages', async function () {
+        // when
+        const id = '19085876106743701664961649015242405312216082383703184670357774050142071594619'
 
-        if ((await crossChainDispatcher.crossChainDispatcherOf(LZ_MAINNET_ID)) !== crossChainDispatcher.address) {
-          await crossChainDispatcher
-            .connect(governor)
-            .updateCrossChainDispatcherOf(LZ_MAINNET_ID, crossChainDispatcher.address)
-        }
+        const {
+          dstChainId,
+          bridgeToken,
+          depositToken,
+          syntheticToken,
+          amountIn,
+          debtAmount,
+          depositAmountMin,
+          account,
+          finished,
+          tokenIn,
+        } = await smartFarmingManager.crossChainLeverages(id)
 
-        if (!(await msETH.maxBridgedInSupply()).eq(ethers.constants.MaxUint256)) {
-          await msETH.connect(governor).updateMaxBridgedInSupply(ethers.constants.MaxUint256)
-        }
-
-        if (!(await msETH.maxBridgedOutSupply()).eq(ethers.constants.MaxUint256)) {
-          await msETH.connect(governor).updateMaxBridgedOutSupply(ethers.constants.MaxUint256)
-        }
-
-        await msETHProxyOFT
-          .connect(governor)
-          .setTrustedRemote(
-            LZ_MAINNET_ID,
-            ethers.utils.solidityPack(['address', 'address'], [msETHProxyOFT.address, msETHProxyOFT.address])
-          )
+        // then
+        expect(dstChainId).eq(LZ_MAINNET_ID)
+        expect(bridgeToken).eq(usdc.address)
+        expect(depositToken).eq(msdVaUSDC.address)
+        expect(syntheticToken).eq(msUSD.address)
+        expect(amountIn).eq('100000000')
+        expect(debtAmount).eq('49987031500000000000')
+        expect(depositAmountMin).eq(1)
+        expect(account).eq('0xdf826ff6518e609E4cEE86299d40611C148099d5')
+        expect(finished).eq(true)
+        expect(tokenIn).eq(ethers.constants.AddressZero)
       })
 
       it('crossChainLeverage', async function () {
@@ -636,10 +637,13 @@ describe.skip('E2E tests (next optimism release)', function () {
 
         const fee = parseEther('0.5')
         await weth.connect(alice).approve(smartFarmingManager.address, MaxUint256)
-        await smartFarmingManager.crossChainLeverage(
+        await smartFarmingManager[
+          'crossChainLeverage(address,address,address,address,uint256,uint256,uint256,uint256,bytes)'
+        ](
+          weth.address,
+          msETH.address,
           weth.address,
           msdVaETH.address,
-          msETH.address,
           amountIn,
           leverage,
           swapAmountOutMin,
@@ -661,6 +665,21 @@ describe.skip('E2E tests (next optimism release)', function () {
           const leverage = parseEther('1.5')
           await vaETH.connect(alice).approve(smartFarmingManager.address, MaxUint256)
           await smartFarmingManager.leverage(vaETH.address, msdVaETH.address, msETH.address, amountIn, leverage, 0)
+        })
+
+        it('crossChainFlashRepays', async function () {
+          // when
+          const id = '35117077778332083854144850921247747581371777455700725226394469105255657687432'
+
+          const {dstChainId, syntheticToken, repayAmountMin, account, finished} =
+            await smartFarmingManager.crossChainFlashRepays(id)
+
+          // then
+          expect(dstChainId).eq(LZ_MAINNET_ID)
+          expect(syntheticToken).eq(msUSD.address)
+          expect(repayAmountMin).eq(1)
+          expect(account).eq('0xdf826ff6518e609E4cEE86299d40611C148099d5')
+          expect(finished).eq(true)
         })
 
         it('crossChainFlashRepay', async function () {

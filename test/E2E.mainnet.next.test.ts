@@ -778,64 +778,67 @@ describe.skip('E2E tests (next mainnet release)', function () {
     })
 
     describe('cross-chain operations', function () {
-      const LZ_MAINNET_ID = 101
-      const LZ_OP_ID = 111
+      const LZ_OPTIMISM_ID = 111
 
       beforeEach(async function () {
-        //
-        // Note: The setup below are temporary just to make tests to pass
-        // TODO: Move to deployment scripts as soon we have final values to set
-        //
-        if (!(await crossChainDispatcher.isBridgingActive())) {
+        const isBridgingActive = await crossChainDispatcher.isBridgingActive()
+        if (!isBridgingActive) {
           await crossChainDispatcher.connect(governor).toggleBridgingIsActive()
         }
+      })
 
-        if (!(await crossChainDispatcher.isDestinationChainSupported(LZ_OP_ID))) {
-          await crossChainDispatcher.connect(governor).toggleDestinationChainIsActive(LZ_OP_ID)
-        }
+      it('crossChainLeverages', async function () {
+        // when
+        const id = '92458281274488595289803937127152923398167637295201432141969818930235769911599'
 
-        if ((await crossChainDispatcher.crossChainDispatcherOf(LZ_OP_ID)) !== crossChainDispatcher.address) {
-          await crossChainDispatcher
-            .connect(governor)
-            .updateCrossChainDispatcherOf(LZ_OP_ID, crossChainDispatcher.address)
-        }
+        const {
+          dstChainId,
+          bridgeToken,
+          depositToken,
+          syntheticToken,
+          amountIn,
+          debtAmount,
+          depositAmountMin,
+          account,
+          finished,
+          tokenIn,
+        } = await smartFarmingManager.crossChainLeverages(id)
 
-        if (!(await msUSD.maxBridgedInSupply()).eq(ethers.constants.MaxUint256)) {
-          await msUSD.connect(governor).updateMaxBridgedInSupply(ethers.constants.MaxUint256)
-        }
-
-        if (!(await msUSD.maxBridgedOutSupply()).eq(ethers.constants.MaxUint256)) {
-          await msUSD.connect(governor).updateMaxBridgedOutSupply(ethers.constants.MaxUint256)
-        }
-
-        await msUSDProxyOFT
-          .connect(governor)
-          .setTrustedRemote(
-            LZ_OP_ID,
-            ethers.utils.solidityPack(['address', 'address'], [msUSDProxyOFT.address, msUSDProxyOFT.address])
-          )
+        // then
+        expect(dstChainId).eq(LZ_OPTIMISM_ID)
+        expect(bridgeToken).eq(usdc.address)
+        expect(depositToken).eq(msdVaUSDC.address)
+        expect(syntheticToken).eq(msUSD.address)
+        expect(amountIn).eq('10000000')
+        expect(debtAmount).eq('10001755800000000000')
+        expect(depositAmountMin).eq(1)
+        expect(account).eq('0xdf826ff6518e609E4cEE86299d40611C148099d5')
+        expect(finished).eq(true)
+        expect(tokenIn).eq(ethers.constants.AddressZero)
       })
 
       it('crossChainLeverage', async function () {
         // given
-        expect(await smartFarmingManager.crossChainRequestsLength()).eq(0)
+        const idBefore = await smartFarmingManager.crossChainRequestsLength()
 
         // when
-        const amountIn = parseUnits('100', 18)
+        const amountIn = parseUnits('100', 6)
         const leverage = parseEther('1.5')
         const swapAmountOutMin = 0
         const depositAmountOutMin = 0
         // Note: This call must be called from the OP chain
         // const lzArgs = await quoter.getLeverageSwapAndCallbackLzArgs(LZ_MAINNET_ID, LZ_OP_ID)
         // Using hard-coded values to make test pass
-        const lzArgs = CrossChainLib.encodeLzArgs(LZ_OP_ID, parseEther('0.1'), '750000')
+        const lzArgs = CrossChainLib.encodeLzArgs(LZ_OPTIMISM_ID, parseEther('0.1'), '750000')
 
         const fee = parseEther('0.5')
-        await dai.connect(alice).approve(smartFarmingManager.address, MaxUint256)
-        await smartFarmingManager.crossChainLeverage(
-          dai.address,
+        await usdc.connect(alice).approve(smartFarmingManager.address, MaxUint256)
+        await smartFarmingManager[
+          'crossChainLeverage(address,address,address,address,uint256,uint256,uint256,uint256,bytes)'
+        ](
+          usdc.address,
           msUSD.address,
-          dai.address,
+          usdc.address,
           msdVaUSDC.address,
           amountIn,
           leverage,
@@ -846,7 +849,7 @@ describe.skip('E2E tests (next mainnet release)', function () {
         )
 
         // then
-        expect(await smartFarmingManager.crossChainRequestsLength()).eq(1)
+        expect(await smartFarmingManager.crossChainRequestsLength()).eq(idBefore.add(1))
       })
 
       describe('crossChainFlashRepay', function () {
@@ -860,9 +863,24 @@ describe.skip('E2E tests (next mainnet release)', function () {
           await smartFarmingManager.leverage(vaUSDC.address, msdVaUSDC.address, msUSD.address, amountIn, leverage, 0)
         })
 
+        it('crossChainFlashRepays', async function () {
+          // when
+          const id = '9247535584797915451057180664748820695544591120644449140157971996739901653371'
+
+          const {dstChainId, syntheticToken, repayAmountMin, account, finished} =
+            await smartFarmingManager.crossChainFlashRepays(id)
+
+          // then
+          expect(dstChainId).eq(LZ_OPTIMISM_ID)
+          expect(syntheticToken).eq(msETH.address)
+          expect(repayAmountMin).eq(0)
+          expect(account).eq('0xdf826ff6518e609E4cEE86299d40611C148099d5')
+          expect(finished).eq(true)
+        })
+
         it('crossChainFlashRepay', async function () {
           // given
-          expect(await smartFarmingManager.crossChainRequestsLength()).eq(0)
+          const idBefore = await smartFarmingManager.crossChainRequestsLength()
 
           // when
           const withdrawAmount = parseUnits('30', 18)
@@ -872,7 +890,7 @@ describe.skip('E2E tests (next mainnet release)', function () {
           // Note: This call must be called from the OP chain
           // const lzArgs = await quoter.getLeverageSwapAndCallbackLzArgs(LZ_MAINNET_ID, LZ_OP_ID)
           // Using hard-coded values to make test pass
-          const lzArgs = CrossChainLib.encodeLzArgs(LZ_OP_ID, parseEther('0.1'), '750000')
+          const lzArgs = CrossChainLib.encodeLzArgs(LZ_OPTIMISM_ID, parseEther('0.1'), '750000')
 
           const fee = parseEther('0.5')
 
@@ -889,7 +907,7 @@ describe.skip('E2E tests (next mainnet release)', function () {
           )
 
           // then
-          expect(await smartFarmingManager.crossChainRequestsLength()).eq(1)
+          expect(await smartFarmingManager.crossChainRequestsLength()).eq(idBefore.add(1))
         })
       })
     })

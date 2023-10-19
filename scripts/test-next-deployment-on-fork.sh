@@ -24,7 +24,10 @@ read
 # Prepare deployment data
 cp -r deployments/$network deployments/localhost
 
-# Deployment
+# Deployment (1/2)
+npx hardhat deploy --network localhost #> DEPLOYMENT_TEST_OUTPUT.log
+
+# Deployment (2/2): enables cc flash repay
 npx hardhat deploy --network localhost #> DEPLOYMENT_TEST_OUTPUT.log
 
 # Test next release
