@@ -3,14 +3,23 @@ import {ethers} from 'ethers'
 import Safe from '@safe-global/safe-core-sdk'
 import SafeServiceClient from '@safe-global/safe-service-client'
 import EthersAdapter from '@safe-global/safe-ethers-lib'
+import dotenv from 'dotenv'
+
+dotenv.config()
+
+const MAINNET_VESPER_SAFE_ = '0x9520b477Aa81180E6DdC006Fc09Fb6d3eb4e807A'
+const MAINNET_METRONOME_SAFE_ = '0xd1DE3F9CD4AE2F23DA941a67cA4C739f8dD9Af33'
+const OP_METRONOME_SAFE_ = '0xE01Df4ac1E1e57266900E62C37F12C986495A618'
 
 const main = async () => {
-  const safeAddress = '0x9520b477Aa81180E6DdC006Fc09Fb6d3eb4e807A' // Vesper Safe
-  const provider = new ethers.providers.JsonRpcProvider('https://eth.connect.bloq.cloud/v1/witness-open-trouble')
+  // chain setup
+  const safeAddress = OP_METRONOME_SAFE_
+  const chain = 'optimism'
+  const provider = new ethers.providers.JsonRpcProvider('https://optimism.llamarpc.com')
+
   const delegate = ethers.Wallet.fromMnemonic(process.env.MNEMONIC!).connect(provider)
   const ethAdapter = new EthersAdapter({ethers, signerOrProvider: delegate})
   const safeSDK = await Safe.create({ethAdapter, safeAddress})
-  const chain = 'mainnet'
   const txServiceUrl = `https://safe-transaction-${chain}.safe.global`
   const safeClient = new SafeServiceClient({txServiceUrl, ethAdapter})
   const delegateAddress = await safeSDK.getEthAdapter().getSignerAddress()
@@ -20,17 +29,18 @@ const main = async () => {
 
   // TODO: Use `encodeFunctionData` instead
   const txs: MetaTransactionData[] = [
+    // mainnet
+    // {
+    //   to: '0x8BD81c99a2D349F6fB8E8a0B32C81704e3FE7302', // CCD mainnet
+    //   value: '0',
+    //   // toggleBridgingIsActive()
+    //   data: '0x833667df',
+    // },
     {
-      to: '0xf9231D28B34CD77A08542f73ca87c4411B1b8B56', // AaveV3_Sommelier_Xy_RETH_WETH
+      to: '0xCEA698Cf2420433E21BeC006F1718216c6198B52', // CCD op
       value: '0',
-      // updateSwapper(0x229f19942612A8dbdec3643CB23F88685CCd56A5)
-      data: '0xd3033c39000000000000000000000000229f19942612a8dbdec3643cb23f88685ccd56a5',
-    },
-    {
-      to: '0x1572f7f1a5e4c2168ab007efc0a817750e814682', // AaveV3_Vesper_Xy_CBETH_WETH
-      value: '0',
-      // updateSwapper(0x229f19942612A8dbdec3643CB23F88685CCd56A5)
-      data: '0xd3033c39000000000000000000000000229f19942612a8dbdec3643cb23f88685ccd56a5',
+      // toggleBridgingIsActive()
+      data: '0x833667df',
     },
   ]
   const safeTransactionData: MetaTransactionData[] = txs.map((tx) => ({...tx, operation: OperationType.Call}))

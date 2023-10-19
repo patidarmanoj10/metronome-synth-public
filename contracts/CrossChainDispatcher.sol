@@ -25,10 +25,9 @@ error NewValueIsSameAsCurrent();
 error SenderIsNotGovernor();
 error DestinationChainNotAllowed();
 error InvalidOperationType();
-error InvalidCallData();
-error InvalidPayload();
 error BridgeTokenNotSupported();
 error InvalidSlippageParam();
+error InvalidPayload();
 
 /**
  * @title Cross-chain dispatcher
@@ -192,20 +191,19 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
             address _srcSmartFarmingManager,
             address _dstProxyOFT,
             uint256 _requestId,
-            uint256 _underlyingPoolId,
+            uint256 _sgPoolId,
             address _account,
             uint256 _amountOutMin
         ) = CrossChainLib.decodeLeverageSwapPayload(payload_);
 
-        address _underlying = IStargatePool(IStargateFactory(stargateComposer.factory()).getPool(_underlyingPoolId))
-            .token();
+        address _bridgeToken = IStargatePool(IStargateFactory(stargateComposer.factory()).getPool(_sgPoolId)).token();
 
-        if (_underlying == sgeth) _underlying = weth;
+        if (_bridgeToken == sgeth) _bridgeToken = weth;
 
         amountIn_ = _swap({
             requestId_: _requestId,
             tokenIn_: IProxyOFT(_dstProxyOFT).token(),
-            tokenOut_: _underlying,
+            tokenOut_: _bridgeToken,
             amountIn_: amountIn_,
             amountOutMin_: _amountOutMin
         });
@@ -215,7 +213,7 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
 
         _sendUsingStargate(
             LayerZeroParams({
-                tokenIn: _underlying,
+                tokenIn: _bridgeToken,
                 dstChainId: _srcChainId,
                 amountIn: amountIn_,
                 nativeFee: poolRegistry.quoter().quoteLeverageCallbackNativeFee(_srcChainId),
@@ -268,10 +266,10 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
     /**
      * @dev Finalize cross-chain leverage process. The callback may fail due to slippage.
      */
-    function _crossChainLeverageCallback(address token_, uint256 amount_, bytes memory payload_) private {
+    function _crossChainLeverageCallback(address bridgeToken_, uint256 amount_, bytes memory payload_) private {
         (address _smartFarmingManager, uint256 _requestId) = CrossChainLib.decodeLeverageCallbackPayload(payload_);
-        IERC20(token_).safeApprove(_smartFarmingManager, 0);
-        IERC20(token_).safeApprove(_smartFarmingManager, amount_);
+        IERC20(bridgeToken_).safeApprove(_smartFarmingManager, 0);
+        IERC20(bridgeToken_).safeApprove(_smartFarmingManager, amount_);
         ISmartFarmingManager(_smartFarmingManager).crossChainLeverageCallback(_requestId, amount_);
     }
 
@@ -375,25 +373,22 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
         bytes memory _sgReceiveCallData = abi.encodeWithSelector(
             IStargateReceiver.sgReceive.selector,
             srcChainId_,
-            abi.encodePacked(crossChainDispatcherOf[srcChainId_]), // use the caller as the srcAddress (the msg.sender caller the StargateComposer at the source)
+            abi.encodePacked(crossChainDispatcherOf[srcChainId_]),
             nonce_,
             token_,
             amount_,
             payload_
         );
 
-        bytes32 _hash = keccak256(abi.encodePacked(address(this), _sgReceiveCallData));
-
-        if (_hash != _stargateComposer.payloadHashes(srcChainId_, srcAddress_, nonce_)) revert InvalidCallData();
-
         (, , uint256 _requestId, address _account, ) = CrossChainLib.decodeFlashRepaySwapPayload(payload_);
 
         if (msg.sender == _account) {
-            // Note: If `swapAmountOutMin[_requestId]` is `0` (default value), swap function uses payload's slippage param
+            // Note: If `swapAmountOutMin[_requestId]` is `0` (default value), swap function will use payload's slippage param
             if (newAmountOutMin_ == 0) revert InvalidSlippageParam();
             swapAmountOutMin[_requestId] = newAmountOutMin_;
         }
 
+        // Note: `clearCachedSwap()` has checks to ensure that the args are consistent
         _stargateComposer.clearCachedSwap(srcChainId_, srcAddress_, nonce_, address(this), _sgReceiveCallData);
     }
 
@@ -421,7 +416,7 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
         if (!_isValidProxyOFT(_dstProxyOFT)) revert InvalidPayload();
 
         if (msg.sender == _account) {
-            // Note: If `swapAmountOutMin[_requestId]` is `0` (default value), swap function uses payload's slippage param
+            // Note: If `swapAmountOutMin[_requestId]` is `0` (default value), swap function will use payload's slippage param
             if (newAmountOutMin_ == 0) revert InvalidSlippageParam();
             swapAmountOutMin[_requestId] = newAmountOutMin_;
         }

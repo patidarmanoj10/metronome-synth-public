@@ -635,7 +635,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         bytes memory _sgReceiveCallData = abi.encodeWithSelector(
             IStargateReceiver.sgReceive.selector,
             srcChainId_,
-            abi.encodePacked(_from), // use the caller as the srcAddress (the msg.sender caller the StargateComposer at the source)
+            abi.encodePacked(_from),
             nonce_,
             token_,
             amount_,
