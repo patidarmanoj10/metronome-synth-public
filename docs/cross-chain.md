@@ -136,6 +136,24 @@ In order to cover the `dstChain` tx gas cost, the `LayerZero` protocol charges a
 All native fees are charged from the user, meaning that the CC functions are payable and expect to receive native coin (i.e., `ETH`).<br/>
 We have some quote functions to estimate the exact amount the user should pay.<br/>
 
+# Flags and caps
+
+Metronome Synth has some flags and caps related to cross-chain functionalities:
+
+`CrossChainDispatcher.isBridgingActive()`: When `false` all bridging-related activities (synthetic token transfers, CC leverage and CC flash repay) are disabled
+
+`PoolRegistry.isCrossChainFlashRepayActive()`: When `false` the CC flash repay feature is disabled.
+
+`CrossChainDispatcher.isDestinationChainSupported(uint16 lzDstChainId)`: Users can only use the destination chain if it's supported (i.e., return `true`). Note: `lzDstChainId` **isn't** EVM chain's id but the LZ chain's id (Refs: [https://stargateprotocol.gitbook.io/stargate/developers/chain-ids](https://stargateprotocol.gitbook.io/stargate/developers/chain-ids))
+
+`SyntheticToken.maxBridgedInSupply()`: Maximum supply amount that was received from other chains.
+
+`SyntheticToken.maxBridgedOutSupply()`: Maximum supply amount that was sent to other chains.
+
+`SyntheticToken.bridgedInSupply()`: Returns current supply amount that was received from other chains.
+
+`SyntheticToken.bridgedOutSupply()`: Returns current supply amount that was sent to other chains.
+
 # Swapper routings
 
 Both operations perform token swaps, and it's a good idea to ensure that all routings are configured before sending the tx1.
