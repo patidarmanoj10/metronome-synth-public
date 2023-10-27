@@ -12,6 +12,7 @@ contract PoolRegistryFuzz_Test is TestHelpers {
 
     function _setUp() public override {
         poolRegistry = new PoolRegistry();
+        vm.store(address(poolRegistry), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
         poolRegistry.initialize({masterOracle_: IMasterOracle(address(1)), feeCollector_: address(2)});
     }
 

@@ -4,7 +4,7 @@ pragma solidity 0.8.9;
 
 import "./dependencies/openzeppelin/utils/math/SafeCast.sol";
 import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
-import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
+import "./utils/ReentrancyGuard.sol";
 import "./interfaces/IDebtToken.sol";
 import "./interfaces/IDepositToken.sol";
 import "./access/Manageable.sol";
@@ -36,7 +36,7 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     using SafeCast for uint256;
     using WadRayMath for uint256;
 
-    string public constant VERSION = "1.2.0";
+    string public constant VERSION = "1.3.0";
 
     /// @notice The initial index
     uint224 public constant INITIAL_INDEX = 1e18;
@@ -83,6 +83,10 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
             revert InvalidToken();
         }
         _;
+    }
+
+    constructor() {
+        _disableInitializers();
     }
 
     function initialize(IPool pool_, IERC20 rewardToken_) external initializer {

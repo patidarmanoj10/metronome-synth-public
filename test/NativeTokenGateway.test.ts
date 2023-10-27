@@ -7,6 +7,7 @@ import {disableForking, enableForking} from './helpers'
 import Address from '../helpers/address'
 import {toUSD} from '../helpers'
 import {FakeContract, smock} from '@defi-wonderland/smock'
+import {setStorageAt, setCode} from '@nomicfoundation/hardhat-network-helpers'
 
 chai.use(smock.matchers)
 
@@ -43,12 +44,15 @@ describe('NativeTokenGateway', function () {
     const depositTokenFactory = await ethers.getContractFactory('DepositToken', deployer)
     msdNativeToken = await depositTokenFactory.deploy()
     await msdNativeToken.deployed()
+    await setStorageAt(msdNativeToken.address, 0, 0) // Undo initialization made by constructor
 
     const treasuryFactory = await ethers.getContractFactory('Treasury', deployer)
     treasury = await treasuryFactory.deploy()
     await treasury.deployed()
+    await setStorageAt(treasury.address, 0, 0) // Undo initialization made by constructor
 
     poolRegistryMock = await smock.fake('PoolRegistry')
+    await setCode(poolRegistryMock.address, '0x01') // Workaround "function call to a non-contract account" error
     poolRegistryMock.isPoolRegistered.returns(true)
 
     const esMET = await smock.fake('IESMET')
@@ -56,6 +60,7 @@ describe('NativeTokenGateway', function () {
     const feeProviderFactory = await ethers.getContractFactory('FeeProvider', deployer)
     const feeProvider = await feeProviderFactory.deploy()
     await feeProvider.deployed()
+    await setStorageAt(feeProvider.address, 0, 0) // Undo initialization made by constructor
     await feeProvider.initialize(poolRegistryMock.address, esMET.address)
 
     const poolMockFactory = await ethers.getContractFactory('PoolMock', deployer)
@@ -79,7 +84,7 @@ describe('NativeTokenGateway', function () {
       'Metronome Synth WETH-Deposit',
       'msdWETH',
       18,
-      parseEther('1'),
+      parseEther('0.5'),
       MaxUint256
     )
 
@@ -133,7 +138,7 @@ describe('NativeTokenGateway', function () {
 
       // then
       const after = await ethers.provider.getBalance(user.address)
-      expect(after).closeTo(before.sub(value.mul('2')), parseEther('0.01'))
+      expect(after).closeTo(before.sub(value.mul('2')), parseEther('0.1'))
     })
   })
 

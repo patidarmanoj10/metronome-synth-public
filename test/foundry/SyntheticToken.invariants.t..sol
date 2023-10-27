@@ -27,21 +27,26 @@ contract SyntheticTokenInvariant_Test is Test {
 
     function setUp() public {
         poolRegistry = new PoolRegistry();
+        vm.store(address(poolRegistry), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
         poolRegistry.initialize({masterOracle_: masterOracle, feeCollector_: feeCollector});
 
         feeProvider = new FeeProvider();
+        vm.store(address(feeProvider), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
         feeProvider.initialize({poolRegistry_: poolRegistry, esMET_: esMET});
 
         pool = new Pool();
+        vm.store(address(pool), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
         pool.initialize(poolRegistry);
         pool.updateFeeProvider(feeProvider);
         poolRegistry.registerPool(address(pool));
 
         syntheticToken = new SyntheticToken();
+        vm.store(address(syntheticToken), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
         syntheticToken.initialize({name_: "msUSD", symbol_: "msUSD", decimals_: 18, poolRegistry_: poolRegistry});
         syntheticToken.updateMaxTotalSupply(type(uint64).max);
 
         debtToken = new DebtToken();
+        vm.store(address(debtToken), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
         debtToken.initialize({
             name_: "msUSD-Debt",
             symbol_: "msUSD-Debt",

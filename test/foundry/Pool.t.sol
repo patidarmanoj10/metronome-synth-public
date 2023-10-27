@@ -36,9 +36,11 @@ contract Pool_Test is TestHelpers {
         masterOracle.updatePrice(address(msETH), 1000e18);
 
         poolRegistry = new PoolRegistry();
+        vm.store(address(poolRegistry), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
         poolRegistry.initialize({masterOracle_: masterOracle, feeCollector_: address(2)});
 
         feeProvider = new FeeProvider();
+        vm.store(address(feeProvider), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
         feeProvider.initialize({poolRegistry_: poolRegistry, esMET_: IESMET(address(esMET))});
         FeeProviderStorageV1.Tier[] memory tiers = new FeeProviderStorageV1.Tier[](4);
         tiers[0] = FeeProviderStorageV1.Tier({min: 500e18, discount: 0.2e18});
@@ -48,6 +50,7 @@ contract Pool_Test is TestHelpers {
         feeProvider.updateTiers(tiers);
 
         pool = new Pool();
+        vm.store(address(pool), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
         pool.initialize(poolRegistry);
         pool.updateFeeProvider(feeProvider);
     }

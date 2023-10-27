@@ -6,6 +6,7 @@ import {DepositToken, ERC20Mock, PoolMock, MasterOracleMock, VesperGateway, Trea
 import {disableForking, enableForking} from './helpers'
 import {parseUnits, toUSD} from '../helpers'
 import {FakeContract, smock} from '@defi-wonderland/smock'
+import {setStorageAt, setCode} from '@nomicfoundation/hardhat-network-helpers'
 
 chai.use(smock.matchers)
 
@@ -38,18 +39,22 @@ describe('VesperGateway', function () {
     const depositTokenFactory = await ethers.getContractFactory('DepositToken', deployer)
     msdVaUSDC = await depositTokenFactory.deploy()
     await msdVaUSDC.deployed()
+    await setStorageAt(msdVaUSDC.address, 0, 0) // Undo initialization made by constructor
 
     const treasuryFactory = await ethers.getContractFactory('Treasury', deployer)
     treasury = await treasuryFactory.deploy()
     await treasury.deployed()
+    await setStorageAt(treasury.address, 0, 0) // Undo initialization made by constructor
 
     poolRegistryMock = await smock.fake('PoolRegistry')
+    await setCode(poolRegistryMock.address, '0x01') // Workaround "function call to a non-contract account" error
     poolRegistryMock.isPoolRegistered.returns(true)
 
     const esMET = await smock.fake('IESMET')
     const feeProviderFactory = await ethers.getContractFactory('FeeProvider', deployer)
     const feeProvider = await feeProviderFactory.deploy()
     await feeProvider.deployed()
+    await setStorageAt(feeProvider.address, 0, 0) // Undo initialization made by constructor
     await feeProvider.initialize(poolRegistryMock.address, esMET.address)
 
     const poolMockFactory = await ethers.getContractFactory('PoolMock', deployer)
@@ -80,7 +85,7 @@ describe('VesperGateway', function () {
       'Metronome Synth vaUSDC-Deposit',
       'msdUSDC',
       18,
-      parseEther('1'),
+      parseEther('0.5'),
       MaxUint256
     )
 

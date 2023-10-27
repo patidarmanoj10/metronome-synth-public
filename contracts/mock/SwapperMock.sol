@@ -22,11 +22,9 @@ contract SwapperMock is ISwapper {
         address receiver_
     ) external returns (uint256 _amountOut) {
         IERC20(tokenIn_).transferFrom(msg.sender, address(this), amountIn_);
-
         _amountOut = (masterOracle.quote(tokenIn_, tokenOut_, amountIn_) * rate) / 1e18;
         require(_amountOut >= amountOutMin_, "swapper-mock-slippage");
         require(_amountOut > 100, "amount-out-zero");
-
         IERC20(tokenOut_).transfer(receiver_, _amountOut);
     }
 

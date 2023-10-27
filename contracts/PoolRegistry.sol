@@ -2,16 +2,16 @@
 
 pragma solidity 0.8.9;
 
-import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
+import "./utils/ReentrancyGuard.sol";
 import "./lib/WadRayMath.sol";
 import "./storage/PoolRegistryStorage.sol";
 import "./interfaces/IPool.sol";
 import "./utils/Pauseable.sol";
 
+error AddressIsNull();
 error OracleIsNull();
 error FeeCollectorIsNull();
 error NativeTokenGatewayIsNull();
-error AddressIsNull();
 error AlreadyRegistered();
 error UnregisteredPool();
 error NewValueIsSameAsCurrent();
@@ -19,11 +19,11 @@ error NewValueIsSameAsCurrent();
 /**
  * @title PoolRegistry contract
  */
-contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
+contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV3 {
     using WadRayMath for uint256;
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    string public constant VERSION = "1.2.0";
+    string public constant VERSION = "1.3.0";
 
     /// @notice Emitted when fee collector is updated
     event FeeCollectorUpdated(address indexed oldFeeCollector, address indexed newFeeCollector);
@@ -40,6 +40,25 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
     /// @notice Emitted when a pool is unregistered
     event PoolUnregistered(uint256 indexed id, address indexed pool);
 
+    /// @notice Emitted when Swapper contract is updated
+    event SwapperUpdated(ISwapper oldSwapFee, ISwapper newSwapFee);
+
+    /// @notice Emitted when Quoter contract is updated
+    event QuoterUpdated(IQuoter oldQuoter, IQuoter newQuoter);
+
+    /// @notice Emitted when Cross-chain dispatcher contract is updated
+    event CrossChainDispatcherUpdated(
+        ICrossChainDispatcher oldCrossChainDispatcher,
+        ICrossChainDispatcher newCrossChainDispatcher
+    );
+
+    /// @notice Emitted when flag for pause cross-chain flash repay is toggled
+    event CrossChainFlashRepayActiveUpdated(bool newIsActive);
+
+    constructor() {
+        _disableInitializers();
+    }
+
     function initialize(IMasterOracle masterOracle_, address feeCollector_) external initializer {
         if (address(masterOracle_) == address(0)) revert OracleIsNull();
         if (feeCollector_ == address(0)) revert FeeCollectorIsNull();
@@ -51,6 +70,20 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
         feeCollector = feeCollector_;
 
         nextPoolId = 1;
+    }
+
+    /**
+     * @notice Check if any pool has the token as part of its offerings
+     * @param syntheticToken_ Asset to check
+     * @return _exists Return true if exists
+     */
+    function doesSyntheticTokenExist(ISyntheticToken syntheticToken_) external view returns (bool _exists) {
+        uint256 _length = pools.length();
+        for (uint256 i; i < _length; ++i) {
+            if (IPool(pools.at(i)).doesSyntheticTokenExist(syntheticToken_)) {
+                return true;
+            }
+        }
     }
 
     /**
@@ -107,7 +140,7 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
     /**
      * @notice Update master oracle contract
      */
-    function updateMasterOracle(IMasterOracle newMasterOracle_) external override onlyGovernor {
+    function updateMasterOracle(IMasterOracle newMasterOracle_) external onlyGovernor {
         if (address(newMasterOracle_) == address(0)) revert OracleIsNull();
         IMasterOracle _currentMasterOracle = masterOracle;
         if (newMasterOracle_ == _currentMasterOracle) revert NewValueIsSameAsCurrent();
@@ -118,11 +151,56 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV1 {
     /**
      * @notice Update native token gateway
      */
-    function updateNativeTokenGateway(address newGateway_) external override onlyGovernor {
+    function updateNativeTokenGateway(address newGateway_) external onlyGovernor {
         if (address(newGateway_) == address(0)) revert NativeTokenGatewayIsNull();
         address _currentGateway = nativeTokenGateway;
         if (newGateway_ == _currentGateway) revert NewValueIsSameAsCurrent();
         emit NativeTokenGatewayUpdated(_currentGateway, newGateway_);
         nativeTokenGateway = newGateway_;
+    }
+
+    /**
+     * @notice Update Swapper contract
+     */
+    function updateSwapper(ISwapper newSwapper_) external onlyGovernor {
+        if (address(newSwapper_) == address(0)) revert AddressIsNull();
+        ISwapper _currentSwapper = swapper;
+        if (newSwapper_ == _currentSwapper) revert NewValueIsSameAsCurrent();
+
+        emit SwapperUpdated(_currentSwapper, newSwapper_);
+        swapper = newSwapper_;
+    }
+
+    /**
+     * @notice Update Quoter contract
+     */
+    function updateQuoter(IQuoter newQuoter_) external onlyGovernor {
+        if (address(newQuoter_) == address(0)) revert AddressIsNull();
+        IQuoter _currentQuoter = quoter;
+        if (newQuoter_ == _currentQuoter) revert NewValueIsSameAsCurrent();
+
+        emit QuoterUpdated(_currentQuoter, newQuoter_);
+        quoter = newQuoter_;
+    }
+
+    /**
+     * @notice Update Cross-chain dispatcher contract
+     */
+    function updateCrossChainDispatcher(ICrossChainDispatcher crossChainDispatcher_) external onlyGovernor {
+        if (address(crossChainDispatcher_) == address(0)) revert AddressIsNull();
+        ICrossChainDispatcher _current = crossChainDispatcher;
+        if (crossChainDispatcher_ == _current) revert NewValueIsSameAsCurrent();
+
+        emit CrossChainDispatcherUpdated(_current, crossChainDispatcher_);
+        crossChainDispatcher = crossChainDispatcher_;
+    }
+
+    /**
+     * @notice Pause/Unpause bridge transfers
+     */
+    function toggleCrossChainFlashRepayIsActive() external onlyGovernor {
+        bool _newIsCrossChainFlashRepayActive = !isCrossChainFlashRepayActive;
+        emit CrossChainFlashRepayActiveUpdated(_newIsCrossChainFlashRepayActive);
+        isCrossChainFlashRepayActive = _newIsCrossChainFlashRepayActive;
     }
 }

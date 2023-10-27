@@ -118,7 +118,7 @@ const config: HardhatUserConfig = {
     apiKey: process.env.ETHERSCAN_API_KEY,
   },
   spdxLicenseIdentifier: {
-    overwrite: true,
+    overwrite: false,
     runOnCompile: true,
   },
   typechain: {

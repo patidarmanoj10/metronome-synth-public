@@ -2,12 +2,11 @@
 
 pragma solidity 0.8.9;
 
-import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
+import "./utils/ReentrancyGuard.sol";
 import "./storage/PoolStorage.sol";
 import "./lib/WadRayMath.sol";
 import "./utils/Pauseable.sol";
 
-error CollateralDoesNotExist();
 error SyntheticDoesNotExist();
 error SenderIsNotDebtToken();
 error SenderIsNotDepositToken();
@@ -15,11 +14,6 @@ error UserReachedMaxTokens();
 error PoolRegistryIsNull();
 error DebtTokenAlreadyExists();
 error DepositTokenAlreadyExists();
-error FlashRepaySlippageTooHigh();
-error LeverageTooLow();
-error LeverageTooHigh();
-error LeverageSlippageTooHigh();
-error PositionIsNotHealthy();
 error AmountIsZero();
 error CanNotLiquidateOwnPosition();
 error PositionIsHealthy();
@@ -39,20 +33,19 @@ error RewardDistributorAlreadyExists();
 error RewardDistributorDoesNotExist();
 error TotalSupplyIsNotZero();
 error NewValueIsSameAsCurrent();
-error FeeIsGreaterThanTheMax();
 error MaxLiquidableTooHigh();
 
 /**
  * @title Pool contract
  */
-contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
+contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
     using SafeERC20 for IERC20;
     using SafeERC20 for ISyntheticToken;
     using WadRayMath for uint256;
     using EnumerableSet for EnumerableSet.AddressSet;
     using MappedEnumerableSet for MappedEnumerableSet.AddressSet;
 
-    string public constant VERSION = "1.2.0";
+    string public constant VERSION = "1.3.0";
 
     /**
      * @notice Maximum tokens per pool a user may have
@@ -96,11 +89,14 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
     /// @notice Emitted when rewards distributor contract is removed
     event RewardsDistributorRemoved(IRewardsDistributor _distributor);
 
+    /// @notice Emitted when SmartFarmingManager contract is updated
+    event SmartFarmingManagerUpdated(
+        ISmartFarmingManager oldSmartFarmingManager,
+        ISmartFarmingManager newSmartFarmingManager
+    );
+
     /// @notice Emitted when the swap active flag is updated
     event SwapActiveUpdated(bool newActive);
-
-    /// @notice Emitted when swapper contract is updated
-    event SwapperUpdated(ISwapper oldSwapFee, ISwapper newSwapFee);
 
     /// @notice Emitted when synthetic token is swapped
     event SyntheticTokenSwapped(
@@ -129,7 +125,7 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
      * @dev Throws if deposit token doesn't exist
      */
     modifier onlyIfDepositTokenExists(IDepositToken depositToken_) {
-        if (!doesDepositTokenExist(depositToken_)) revert CollateralDoesNotExist();
+        if (!doesDepositTokenExist(depositToken_)) revert DepositTokenDoesNotExist();
         _;
     }
 
@@ -155,6 +151,10 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
     modifier onlyIfMsgSenderIsDepositToken() {
         if (!doesDepositTokenExist(IDepositToken(msg.sender))) revert SenderIsNotDepositToken();
         _;
+    }
+
+    constructor() {
+        _disableInitializers();
     }
 
     function initialize(IPoolRegistry poolRegistry_) public initializer {
@@ -206,46 +206,6 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
                 _debtToken.balanceOf(account_)
             );
         }
-    }
-
-    /**
-     * @notice Flash debt repayment
-     * @param syntheticToken_ The debt token to repay
-     * @param depositToken_ The collateral to withdraw
-     * @param withdrawAmount_ The amount to withdraw
-     * @param repayAmountMin_ The minimum amount to repay (slippage check)
-     */
-    function flashRepay(
-        ISyntheticToken syntheticToken_,
-        IDepositToken depositToken_,
-        uint256 withdrawAmount_,
-        uint256 repayAmountMin_
-    )
-        external
-        override
-        whenNotShutdown
-        nonReentrant
-        onlyIfDepositTokenExists(depositToken_)
-        onlyIfSyntheticTokenExists(syntheticToken_)
-        returns (uint256 _withdrawn, uint256 _repaid)
-    {
-        if (withdrawAmount_ > depositToken_.balanceOf(msg.sender)) revert AmountIsTooHigh();
-        IDebtToken _debtToken = debtTokenOf[syntheticToken_];
-        if (repayAmountMin_ > _debtToken.balanceOf(msg.sender)) revert AmountIsTooHigh();
-
-        // 1. withdraw collateral
-        (_withdrawn, ) = depositToken_.flashWithdraw(msg.sender, withdrawAmount_);
-
-        // 2. swap for synth
-        uint256 _amountToRepay = _swap(swapper, depositToken_.underlying(), syntheticToken_, _withdrawn, 0);
-
-        // 3. repay debt
-        (_repaid, ) = _debtToken.repay(msg.sender, _amountToRepay);
-        if (_repaid < repayAmountMin_) revert FlashRepaySlippageTooHigh();
-
-        // 4. check the health of the outcome position
-        (bool _isHealthy, , , , ) = debtPositionOf(msg.sender);
-        if (!_isHealthy) revert PositionIsNotHealthy();
     }
 
     /**
@@ -536,65 +496,6 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
     }
 
     /**
-     * @notice Leverage yield position
-     * @param tokenIn_ The token to transfer
-     * @param depositToken_ The collateral to deposit
-     * @param syntheticToken_ The msAsset to mint
-     * @param amountIn_ The amount to deposit
-     * @param leverage_ The leverage X param (e.g. 1.5e18 for 1.5X)
-     * @param depositAmountMin_ The min final deposit amount (slippage)
-     */
-    function leverage(
-        IERC20 tokenIn_,
-        IDepositToken depositToken_,
-        ISyntheticToken syntheticToken_,
-        uint256 amountIn_,
-        uint256 leverage_,
-        uint256 depositAmountMin_
-    )
-        external
-        override
-        whenNotShutdown
-        nonReentrant
-        onlyIfDepositTokenExists(depositToken_)
-        onlyIfSyntheticTokenExists(syntheticToken_)
-        returns (uint256 _deposited, uint256 _issued)
-    {
-        if (leverage_ <= 1e18) revert LeverageTooLow();
-        if (leverage_ > uint256(1e18).wadDiv(1e18 - depositToken_.collateralFactor())) revert LeverageTooHigh();
-        ISwapper _swapper = swapper;
-
-        // 1. transfer collateral
-        IERC20 _collateral = depositToken_.underlying();
-        if (address(tokenIn_) == address(0)) tokenIn_ = _collateral;
-        tokenIn_.safeTransferFrom(msg.sender, address(this), amountIn_);
-        if (tokenIn_ != _collateral) {
-            amountIn_ = _swap(_swapper, tokenIn_, _collateral, amountIn_, 0);
-        }
-
-        // 2. mint synth
-        uint256 _debtAmount = masterOracle().quote(
-            address(_collateral),
-            address(syntheticToken_),
-            (leverage_ - 1e18).wadMul(amountIn_)
-        );
-        (_issued, ) = debtTokenOf[syntheticToken_].flashIssue(msg.sender, _debtAmount);
-
-        // 3. swap synth for collateral
-        uint256 _depositAmount = amountIn_ + _swap(_swapper, syntheticToken_, _collateral, _issued, 0);
-        if (_depositAmount < depositAmountMin_) revert LeverageSlippageTooHigh();
-
-        // 4. deposit collateral
-        _collateral.safeApprove(address(depositToken_), 0);
-        _collateral.safeApprove(address(depositToken_), _depositAmount);
-        (_deposited, ) = depositToken_.deposit(_depositAmount, msg.sender);
-
-        // 5. check the health of the outcome position
-        (bool _isHealthy, , , , ) = debtPositionOf(msg.sender);
-        if (!_isHealthy) revert PositionIsNotHealthy();
-    }
-
-    /**
      * @notice Burn synthetic token, unlock deposit token and send liquidator incentive
      * @param syntheticToken_ The msAsset to use for repayment
      * @param account_ The account with an unhealthy position
@@ -735,29 +636,6 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
     }
 
     /**
-     * @notice Swap assets using Swapper contract
-     * @param swapper_ The Swapper contract
-     * @param tokenIn_ The token to swap from
-     * @param tokenOut_ The token to swap to
-     * @param amountIn_ The amount in
-     * @param amountOutMin_ The minimum amount out (slippage check)
-     * @return _amountOut The actual amount out
-     */
-    function _swap(
-        ISwapper swapper_,
-        IERC20 tokenIn_,
-        IERC20 tokenOut_,
-        uint256 amountIn_,
-        uint256 amountOutMin_
-    ) private returns (uint256 _amountOut) {
-        tokenIn_.safeApprove(address(swapper_), 0);
-        tokenIn_.safeApprove(address(swapper_), amountIn_);
-        uint256 _tokenOutBefore = tokenOut_.balanceOf(address(this));
-        swapper_.swapExactInput(address(tokenIn_), address(tokenOut_), amountIn_, amountOutMin_, address(this));
-        return tokenOut_.balanceOf(address(this)) - _tokenOutBefore;
-    }
-
-    /**
      * @notice Add debt token to offerings
      * @dev Must keep `debtTokenOf` mapping updated
      */
@@ -893,14 +771,14 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV2 {
     }
 
     /**
-     * @notice Update swapper contract
+     * @notice Update SmartFarmingManager contract
      */
-    function updateSwapper(ISwapper newSwapper_) external onlyGovernor {
-        if (address(newSwapper_) == address(0)) revert AddressIsNull();
-        ISwapper _currentSwapper = swapper;
-        if (newSwapper_ == _currentSwapper) revert NewValueIsSameAsCurrent();
+    function updateSmartFarmingManager(ISmartFarmingManager newSmartFarmingManager_) external onlyGovernor {
+        if (address(newSmartFarmingManager_) == address(0)) revert AddressIsNull();
+        ISmartFarmingManager _current = smartFarmingManager;
+        if (newSmartFarmingManager_ == _current) revert NewValueIsSameAsCurrent();
 
-        emit SwapperUpdated(_currentSwapper, newSwapper_);
-        swapper = newSwapper_;
+        emit SmartFarmingManagerUpdated(_current, newSmartFarmingManager_);
+        smartFarmingManager = newSmartFarmingManager_;
     }
 }

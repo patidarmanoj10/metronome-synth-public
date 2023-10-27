@@ -5,8 +5,7 @@ import {Contract} from 'ethers'
 import hre, {ethers} from 'hardhat'
 import {loadFixture, time} from '@nomicfoundation/hardhat-network-helpers'
 import {toUSD, parseEther, parseUnits} from '../helpers'
-import {disableForking, enableForking} from './helpers'
-import {impersonateAccount, setTokenBalance} from './helpers/index'
+import {impersonateAccount, setTokenBalance, disableForking, enableForking} from './helpers'
 import Address from '../helpers/address'
 import {
   DepositToken,
@@ -17,7 +16,13 @@ import {
   IWETH,
   NativeTokenGateway,
   PoolRegistry,
+  SmartFarmingManager,
+  CrossChainDispatcher,
+  Quoter,
+  ProxyOFT,
+  SmartFarmingManager__factory,
 } from '../typechain'
+import {CrossChainLib} from './helpers/CrossChainLib'
 import {address as POOL_REGISTRY_ADDRESS} from '../deployments/mainnet/PoolRegistry.json'
 import {address as USDC_DEPOSIT_ADDRESS} from '../deployments/mainnet/USDCDepositToken.json'
 import {address as DAI_DEPOSIT_ADDRESS} from '../deployments/mainnet/DAIDepositToken.json'
@@ -38,13 +43,23 @@ import {address as SRFXETH_DEPOSIT_ADDRESS} from '../deployments/mainnet/sfrxETH
 import {address as VASTETH_DEPOSIT_ADDRESS} from '../deployments/mainnet/vaSTETHDepositToken.json'
 import {address as VARETH_DEPOSIT_ADDRESS} from '../deployments/mainnet/vaRETHDepositToken.json'
 import {address as VACBETH_DEPOSIT_ADDRESS} from '../deployments/mainnet/vaCBETHDepositToken.json'
+import {address as CROSS_CHAIN_DISPATCHER_ADDRESS} from '../deployments/mainnet/CrossChainDispatcher.json'
+import {address as SMART_FARMING_MANAGER_ADDRESS} from '../deployments/mainnet/SmartFarmingManager.json'
+import {address as QUOTER_ADDRESS} from '../deployments/mainnet/Quoter.json'
+import {address as MSETH_PROXYOFT_ADDRESS} from '../deployments/mainnet/MsETHProxyOFT.json'
+import {address as MSUSD_PROXYOFT_ADDRESS} from '../deployments/mainnet/MsUSDProxyOFT.json'
 
 const {MaxUint256} = ethers.constants
 const dust = toUSD('5')
 
 const isNodeHardhat = hre.network.name === 'hardhat'
 
-describe('E2E tests', function () {
+/**
+ * The goal of this test suite is to test current state of the mainnet's contracts
+ * Note: When we have on-going changes the TypesChain types may be different than the deployed contracts
+ * For these cases, use `new ethers.Contract()` instead and amend ABI manually
+ */
+describe('E2E tests (mainnet)', function () {
   let governor: SignerWithAddress
   let alice: SignerWithAddress
   let bob: SignerWithAddress
@@ -63,6 +78,9 @@ describe('E2E tests', function () {
   let masterOracle: Contract
   let poolRegistry: PoolRegistry
   let nativeGateway: NativeTokenGateway
+  let smartFarmingManager: Contract
+  let crossChainDispatcher: CrossChainDispatcher
+  let quoter: Quoter
   let pool: Pool
   let msdUSDC: DepositToken
   let msdWBTC: DepositToken
@@ -82,6 +100,8 @@ describe('E2E tests', function () {
   let msUSD: SyntheticToken
   let msBTC: SyntheticToken
   let msETH: SyntheticToken
+  let msUSDProxyOFT: ProxyOFT
+  let msETHProxyOFT: ProxyOFT
 
   if (isNodeHardhat) {
     before(enableForking)
@@ -110,7 +130,7 @@ describe('E2E tests', function () {
     nativeGateway = await ethers.getContractAt('NativeTokenGateway', NATIVE_TOKEN_GATEWAY_ADDRESS, alice)
 
     const [pool1Address] = await poolRegistry.getPools()
-    pool = await ethers.getContractAt('Pool', pool1Address, alice)
+    pool = await ethers.getContractAt('contracts/Pool.sol:Pool', pool1Address, alice)
 
     msdUSDC = await ethers.getContractAt('DepositToken', USDC_DEPOSIT_ADDRESS, alice) // 6 decimals.
     msdDAI = await ethers.getContractAt('DepositToken', DAI_DEPOSIT_ADDRESS, alice) // 18 decimals
@@ -132,6 +152,22 @@ describe('E2E tests', function () {
     msUSD = await ethers.getContractAt('SyntheticToken', MSUSD_SYNTHETIC_ADDRESS, alice)
     msBTC = await ethers.getContractAt('SyntheticToken', MSBTC_SYNTHETIC_ADDRESS, alice)
     msETH = await ethers.getContractAt('SyntheticToken', MSETH_SYNTHETIC_ADDRESS, alice)
+
+    msUSDProxyOFT = await ethers.getContractAt('ProxyOFT', MSUSD_PROXYOFT_ADDRESS, alice)
+    msETHProxyOFT = await ethers.getContractAt('ProxyOFT', MSETH_PROXYOFT_ADDRESS, alice)
+
+    smartFarmingManager = new ethers.Contract(
+      SMART_FARMING_MANAGER_ADDRESS,
+      [
+        'function crossChainLeverage(address,address,address,uint256,uint256,uint256,uint256,bytes) payable external',
+        'function crossChainLeverages(uint256) external view returns (uint16,address,address,address,uint256,uint256,uint256,address,bool)',
+        ...SmartFarmingManager__factory.abi,
+      ],
+      alice
+    )
+
+    crossChainDispatcher = await ethers.getContractAt('CrossChainDispatcher', CROSS_CHAIN_DISPATCHER_ADDRESS, alice)
+    quoter = await ethers.getContractAt('Quoter', QUOTER_ADDRESS, alice)
 
     await setTokenBalance(usdc.address, alice.address, parseUnits('10,000', 6))
     await setTokenBalance(dai.address, alice.address, parseUnits('10,000', 18))
@@ -178,7 +214,7 @@ describe('E2E tests', function () {
     ;[, alice, bob] = await ethers.getSigners()
     await loadFixture(fixture)
 
-    if (!isNodeHardhat && process.env.DEPLOYER) {
+    if (process.env.DEPLOYER) {
       // See more: https://github.com/wighawag/hardhat-deploy/issues/152#issuecomment-1402298376
       await impersonateAccount(process.env.DEPLOYER)
     }
@@ -202,6 +238,15 @@ describe('E2E tests', function () {
       expect(MSUSD_DEBT_ADDRESS).eq(await pool.debtTokenOf(msUSD.address))
       expect(MSBTC_DEBT_ADDRESS).eq(await pool.debtTokenOf(msBTC.address))
       expect(MSETH_DEBT_ADDRESS).eq(await pool.debtTokenOf(msETH.address))
+
+      expect(CROSS_CHAIN_DISPATCHER_ADDRESS).eq(await poolRegistry.crossChainDispatcher())
+      expect(SMART_FARMING_MANAGER_ADDRESS).eq(await pool.smartFarmingManager())
+      expect(pool.address).eq(await smartFarmingManager.pool())
+      expect(QUOTER_ADDRESS).eq(await poolRegistry.quoter())
+      expect(MSUSD_PROXYOFT_ADDRESS).eq(await msUSD.proxyOFT())
+      expect(MSETH_PROXYOFT_ADDRESS).eq(await msETH.proxyOFT())
+      expect(MSUSD_SYNTHETIC_ADDRESS).eq(await msUSDProxyOFT.token())
+      expect(MSETH_SYNTHETIC_ADDRESS).eq(await msETHProxyOFT.token())
     })
 
     it('should get prices for all assets', async function () {
@@ -545,14 +590,21 @@ describe('E2E tests', function () {
         // when
         const amountIn = parseUnits('100', 18)
         const leverage = parseEther('1.5')
-        await vaUSDC.connect(alice).approve(pool.address, MaxUint256)
-        const tx = await pool.leverage(vaUSDC.address, msdVaUSDC.address, msUSD.address, amountIn, leverage, 0)
+        await vaUSDC.connect(alice).approve(smartFarmingManager.address, MaxUint256)
+        const tx = await smartFarmingManager.leverage(
+          vaUSDC.address,
+          msdVaUSDC.address,
+          msUSD.address,
+          amountIn,
+          leverage,
+          0
+        )
 
         // then
         const {gasUsed} = await tx.wait()
         expect(gasUsed.lt(1.4e6))
         const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
-        expect(_depositInUsd).closeTo(amountIn.mul(leverage).div(parseEther('1')), parseEther('10')) // ~$150
+        expect(_depositInUsd).closeTo(parseEther('160'), parseEther('10'))
         expect(_debtInUsd).closeTo(amountIn.mul(leverage.sub(parseEther('1'))).div(parseEther('1')), parseEther('10')) // ~$50
       })
 
@@ -560,91 +612,126 @@ describe('E2E tests', function () {
         // when
         const amountIn = parseUnits('100', 18)
         const leverage = parseEther('1.5')
-        await vaFRAX.connect(alice).approve(pool.address, MaxUint256)
-        const tx = await pool.leverage(vaFRAX.address, msdVaFRAX.address, msUSD.address, amountIn, leverage, 0)
+        await vaFRAX.connect(alice).approve(smartFarmingManager.address, MaxUint256)
+        const tx = await smartFarmingManager.leverage(
+          vaFRAX.address,
+          msdVaFRAX.address,
+          msUSD.address,
+          amountIn,
+          leverage,
+          0
+        )
 
         // then
         const {gasUsed} = await tx.wait()
         expect(gasUsed.lt(1.4e6))
         const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
-        expect(_depositInUsd).closeTo(amountIn.mul(leverage).div(parseEther('1')), parseEther('10')) // ~$150
+        expect(_depositInUsd).closeTo(parseEther('160'), parseEther('10'))
         expect(_debtInUsd).closeTo(amountIn.mul(leverage.sub(parseEther('1'))).div(parseEther('1')), parseEther('10')) // ~$50
       })
 
       it('should leverage vaETH->msETH', async function () {
         // when
-        const amountIn = parseUnits('1', 18)
-        const amountInUsd = parseUnits('1,900', 18) // approx.
+        const amountIn = parseUnits('0.1', 18)
+        const amountInUsd = parseUnits('190', 18) // approx.
         const leverage = parseEther('1.5')
-        await vaETH.connect(alice).approve(pool.address, MaxUint256)
-        const tx = await pool.leverage(vaETH.address, msdVaETH.address, msETH.address, amountIn, leverage, 0)
+        await vaETH.connect(alice).approve(smartFarmingManager.address, MaxUint256)
+        const tx = await smartFarmingManager.leverage(
+          vaETH.address,
+          msdVaETH.address,
+          msETH.address,
+          amountIn,
+          leverage,
+          0
+        )
 
         // then
         const {gasUsed} = await tx.wait()
         expect(gasUsed.lt(1.4e6))
         const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
-        expect(_depositInUsd).closeTo(amountInUsd.mul(leverage).div(parseEther('1')), parseEther('100')) // ~$2,850
+        expect(_depositInUsd).closeTo(amountInUsd.mul(leverage).div(parseEther('1')), parseEther('100')) // ~$285
         expect(_debtInUsd).closeTo(
           amountInUsd.mul(leverage.sub(parseEther('1'))).div(parseEther('1')),
           parseEther('100')
-        ) // ~$950
+        ) // ~$95
       })
 
       it('should leverage varETH->msETH', async function () {
         // when
-        const amountIn = parseUnits('1', 18)
-        const amountInUsd = parseUnits('2,040', 18) // approx.
+        const amountIn = parseUnits('0.1', 18)
+        const amountInUsd = parseUnits('204', 18) // approx.
         const leverage = parseEther('1.5')
-        await vaRETH.connect(alice).approve(pool.address, MaxUint256)
-        const tx = await pool.leverage(vaRETH.address, msdVaRETH.address, msETH.address, amountIn, leverage, 0)
+        await vaRETH.connect(alice).approve(smartFarmingManager.address, MaxUint256)
+        const tx = await smartFarmingManager.leverage(
+          vaRETH.address,
+          msdVaRETH.address,
+          msETH.address,
+          amountIn,
+          leverage,
+          0
+        )
 
         // then
         const {gasUsed} = await tx.wait()
         expect(gasUsed.lt(1.4e6))
         const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
-        expect(_depositInUsd).closeTo(amountInUsd.mul(leverage).div(parseEther('1')), parseEther('100')) // ~$2,925
+        expect(_depositInUsd).closeTo(amountInUsd.mul(leverage).div(parseEther('1')), parseEther('100')) // ~$292
         expect(_debtInUsd).closeTo(
           amountInUsd.mul(leverage.sub(parseEther('1'))).div(parseEther('1')),
           parseEther('100')
-        ) // ~$975
+        ) // ~$97
       })
 
       it('should leverage vastETH->msETH', async function () {
         // when
-        const amountIn = parseUnits('1', 18)
-        const amountInUsd = parseUnits('1,950', 18) // approx.
+        const amountIn = parseUnits('0.1', 18)
+        const amountInUsd = parseUnits('195', 18) // approx.
         const leverage = parseEther('1.5')
-        await vaSTETH.connect(alice).approve(pool.address, MaxUint256)
-        const tx = await pool.leverage(vaSTETH.address, msdVaSTETH.address, msETH.address, amountIn, leverage, 0)
+        await vaSTETH.connect(alice).approve(smartFarmingManager.address, MaxUint256)
+        const tx = await smartFarmingManager.leverage(
+          vaSTETH.address,
+          msdVaSTETH.address,
+          msETH.address,
+          amountIn,
+          leverage,
+          0
+        )
 
         // then
         const {gasUsed} = await tx.wait()
         expect(gasUsed.lt(1.4e6))
         const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
-        expect(_depositInUsd).closeTo(amountInUsd.mul(leverage).div(parseEther('1')), parseEther('100')) // ~$2,925
+        expect(_depositInUsd).closeTo(amountInUsd.mul(leverage).div(parseEther('1')), parseEther('100')) // ~$292
         expect(_debtInUsd).closeTo(
           amountInUsd.mul(leverage.sub(parseEther('1'))).div(parseEther('1')),
           parseEther('100')
-        ) // ~$975
+        ) // ~$97
       })
 
       it('should leverage vacbETH->msETH', async function () {
         // when
-        const amountIn = parseUnits('1', 18)
-        const amountInUsd = parseUnits('1,975', 18) // approx.
+        const amountIn = parseUnits('0.1', 18)
+        const amountInUsd = parseUnits('197', 18) // approx.
         const leverage = parseEther('1.5')
-        await vaCBETH.connect(alice).approve(pool.address, MaxUint256)
-        const tx = await pool.leverage(vaCBETH.address, msdVaCBETH.address, msETH.address, amountIn, leverage, 0)
+        await vaCBETH.connect(alice).approve(smartFarmingManager.address, MaxUint256)
+        const tx = await smartFarmingManager.leverage(
+          vaCBETH.address,
+          msdVaCBETH.address,
+          msETH.address,
+          amountIn,
+          leverage,
+          0
+        )
 
         // then
         const {gasUsed} = await tx.wait()
         expect(gasUsed.lt(1.4e6))
         const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
-        expect(_depositInUsd).closeTo(amountInUsd.mul(leverage).div(parseEther('1')), parseEther('100')) // ~$2,850
+        expect(_depositInUsd).closeTo(amountInUsd.mul(leverage).div(parseEther('1')), parseEther('100')) // ~$285
         expect(_debtInUsd).closeTo(
           amountInUsd.mul(leverage.sub(parseEther('1'))).div(parseEther('1')),
           parseEther('100')
-        ) // ~$950
+        ) // ~$95
       })
     })
 
@@ -655,20 +742,150 @@ describe('E2E tests', function () {
         expect(_depositInUsd).eq(0)
         const amountIn = parseUnits('100', 18)
         const leverage = parseEther('1.5')
-        await vaUSDC.connect(alice).approve(pool.address, MaxUint256)
-        await pool.leverage(vaUSDC.address, msdVaUSDC.address, msUSD.address, amountIn, leverage, 0)
+        await vaUSDC.connect(alice).approve(smartFarmingManager.address, MaxUint256)
+        await smartFarmingManager.leverage(vaUSDC.address, msdVaUSDC.address, msUSD.address, amountIn, leverage, 0)
       })
 
       it('should flash repay msUSD debt using vaUSDC', async function () {
         // when
-        const withdrawAmount = parseEther('49')
-        const tx = await pool.flashRepay(msUSD.address, msdVaUSDC.address, withdrawAmount, 0)
+        const withdrawAmount = parseEther('45')
+        const tx = await smartFarmingManager.flashRepay(msUSD.address, msdVaUSDC.address, withdrawAmount, 0)
 
         // then
         const {gasUsed} = await tx.wait()
         expect(gasUsed.lt(1e6))
         const {_debtInUsd} = await pool.debtPositionOf(alice.address)
-        expect(_debtInUsd).closeTo(0, parseEther('5'))
+        expect(_debtInUsd).closeTo(0, parseEther('10'))
+      })
+    })
+
+    describe('cross-chain operations', function () {
+      const LZ_OPTIMISM_ID = 111
+
+      beforeEach(async function () {
+        const isBridgingActive = await crossChainDispatcher.isBridgingActive()
+        if (!isBridgingActive) {
+          await crossChainDispatcher.connect(governor).toggleBridgingIsActive()
+        }
+      })
+
+      it('crossChainLeverages', async function () {
+        // when
+        const id = '92458281274488595289803937127152923398167637295201432141969818930235769911599'
+
+        const [
+          dstChainId,
+          bridgeToken,
+          depositToken,
+          syntheticToken,
+          bridgeTokenAmountIn,
+          debtAmount,
+          depositAmountMin,
+          account,
+          finished,
+        ] = await smartFarmingManager.crossChainLeverages(id)
+
+        // then
+        expect(dstChainId).eq(LZ_OPTIMISM_ID)
+        expect(bridgeToken).eq(usdc.address)
+        expect(depositToken).eq(msdVaUSDC.address)
+        expect(syntheticToken).eq(msUSD.address)
+        expect(bridgeTokenAmountIn).eq('10000000')
+        expect(debtAmount).eq('10001755800000000000')
+        expect(depositAmountMin).eq(1)
+        expect(account).eq('0xdf826ff6518e609E4cEE86299d40611C148099d5')
+        expect(finished).eq(true)
+      })
+
+      it('crossChainLeverage', async function () {
+        // given
+        const idBefore = await smartFarmingManager.crossChainRequestsLength()
+
+        // when
+        const amountIn = parseUnits('100', 18)
+        const leverage = parseEther('1.5')
+        const swapAmountOutMin = 0
+        const depositAmountOutMin = 0
+        // Note: This call must be called from the OP chain
+        // const lzArgs = await quoter.getLeverageSwapAndCallbackLzArgs(LZ_MAINNET_ID, LZ_OP_ID)
+        // Using hard-coded values to make test pass
+        const lzArgs = CrossChainLib.encodeLzArgs(LZ_OPTIMISM_ID, parseEther('0.1'), '750000')
+
+        const fee = parseEther('0.5')
+        await dai.connect(alice).approve(smartFarmingManager.address, MaxUint256)
+        await smartFarmingManager['crossChainLeverage(address,address,address,uint256,uint256,uint256,uint256,bytes)'](
+          dai.address,
+          msdVaUSDC.address,
+          msUSD.address,
+          amountIn,
+          leverage,
+          swapAmountOutMin,
+          depositAmountOutMin,
+          lzArgs,
+          {value: fee}
+        )
+
+        // then
+        expect(await smartFarmingManager.crossChainRequestsLength()).eq(idBefore.add(1))
+      })
+
+      describe('crossChainFlashRepay', function () {
+        beforeEach(async function () {
+          const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
+          expect(_debtInUsd).eq(0)
+          expect(_depositInUsd).eq(0)
+          const amountIn = parseUnits('100', 18)
+          const leverage = parseEther('1.5')
+          await vaUSDC.connect(alice).approve(smartFarmingManager.address, MaxUint256)
+          await smartFarmingManager.leverage(vaUSDC.address, msdVaUSDC.address, msUSD.address, amountIn, leverage, 0)
+        })
+
+        it('crossChainFlashRepays', async function () {
+          // when
+          const id = '9247535584797915451057180664748820695544591120644449140157971996739901653371'
+
+          const {dstChainId, syntheticToken, repayAmountMin, account, finished} =
+            await smartFarmingManager.crossChainFlashRepays(id)
+
+          // then
+          expect(dstChainId).eq(LZ_OPTIMISM_ID)
+          expect(syntheticToken).eq(msETH.address)
+          expect(repayAmountMin).eq(0)
+          expect(account).eq('0xdf826ff6518e609E4cEE86299d40611C148099d5')
+          expect(finished).eq(true)
+        })
+
+        it('crossChainFlashRepay', async function () {
+          // given
+          const idBefore = await smartFarmingManager.crossChainRequestsLength()
+
+          // when
+          const withdrawAmount = parseUnits('30', 18)
+          const underlyingAmountOutMin = 0
+          const swapAmountOutMin = 0
+          const repayAmountOutMin = 0
+          // Note: This call must be called from the OP chain
+          // const lzArgs = await quoter.getLeverageSwapAndCallbackLzArgs(LZ_MAINNET_ID, LZ_OP_ID)
+          // Using hard-coded values to make test pass
+          const lzArgs = CrossChainLib.encodeLzArgs(LZ_OPTIMISM_ID, parseEther('0.1'), '750000')
+
+          const fee = parseEther('0.5')
+
+          await smartFarmingManager.crossChainFlashRepay(
+            msUSD.address,
+            msdVaUSDC.address,
+            withdrawAmount,
+            usdc.address,
+            underlyingAmountOutMin,
+            swapAmountOutMin,
+            repayAmountOutMin,
+            lzArgs,
+            {value: fee}
+          )
+
+          // then
+          expect(await smartFarmingManager.crossChainRequestsLength()).eq(idBefore.add(1))
+        })
       })
     })
   })

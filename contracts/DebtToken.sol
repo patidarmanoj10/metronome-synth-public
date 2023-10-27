@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.9;
 
-import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
+import "./utils/ReentrancyGuard.sol";
 import "./utils/TokenHolder.sol";
 import "./access/Manageable.sol";
 import "./storage/DebtTokenStorage.sol";
@@ -27,6 +27,7 @@ error BurnAmountExceedsBalance();
 error MintToNullAddress();
 error SurpassMaxDebtSupply();
 error NewValueIsSameAsCurrent();
+error SenderIsNotSmartFarmingManager();
 
 /**
  * @title Non-transferable token that represents users' debts
@@ -34,10 +35,10 @@ error NewValueIsSameAsCurrent();
 contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorageV2 {
     using WadRayMath for uint256;
 
+    string public constant VERSION = "1.3.0";
+
     uint256 public constant SECONDS_PER_YEAR = 365.25 days;
     uint256 private constant HUNDRED_PERCENT = 1e18;
-
-    string public constant VERSION = "1.2.0";
 
     /// @notice Emitted when synthetic's debt is repaid
     event DebtRepaid(address indexed payer, address indexed account, uint256 amount, uint256 repaid, uint256 fee);
@@ -61,10 +62,10 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
     );
 
     /**
-     * @dev Throws if sender can't burn
+     * @dev Throws if sender is not SmartFarmingManager
      */
-    modifier onlyIfPool() {
-        if (msg.sender != address(pool)) revert SenderIsNotPool();
+    modifier onlyIfSmartFarmingManager() {
+        if (msg.sender != address(pool.smartFarmingManager())) revert SenderIsNotSmartFarmingManager();
         _;
     }
 
@@ -77,11 +78,18 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
     }
 
     /**
+     * @dev Throws if debt token isn't enabled
+     */
+    modifier onlyIfDebtTokenIsActive() {
+        if (!isActive) revert DebtTokenInactive();
+        _;
+    }
+
+    /**
      * @dev Throws if synthetic token isn't enabled
      */
     modifier onlyIfSyntheticTokenIsActive() {
         if (!syntheticToken.isActive()) revert SyntheticIsInactive();
-        if (!isActive) revert DebtTokenInactive();
         _;
     }
 
@@ -97,6 +105,10 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
             IRewardsDistributor(_rewardsDistributors[i]).updateBeforeMintOrBurn(_syntheticToken, account_);
         }
         _;
+    }
+
+    constructor() {
+        _disableInitializers();
     }
 
     function initialize(
@@ -186,7 +198,7 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
      * @param from_ The account to burn from
      * @param amount_ The amount to burn
      */
-    function burn(address from_, uint256 amount_) external override onlyIfPool {
+    function burn(address from_, uint256 amount_) external override onlyPool {
         _burn(from_, amount_);
     }
 
@@ -217,7 +229,6 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
         whenNotShutdown
         nonReentrant
         onlyIfSyntheticTokenExists
-        onlyIfSyntheticTokenIsActive
         returns (uint256 _issued, uint256 _fee)
     {
         if (amount_ == 0) revert AmountIsZero();
@@ -235,37 +246,49 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
             revert NotEnoughCollateral();
         }
 
-        return _issue(_pool, _masterOracle, _syntheticToken, msg.sender, amount_, to_);
+        _mint(_pool, _masterOracle, msg.sender, amount_);
+
+        (_issued, _fee) = quoteIssueOut(amount_);
+        if (_fee > 0) {
+            _syntheticToken.mint(_pool.feeCollector(), _fee);
+        }
+        _syntheticToken.mint(to_, _issued);
+
+        emit SyntheticTokenIssued(msg.sender, to_, amount_, _issued, _fee);
     }
 
     /**
-     * @notice Issue synth without checking collateral
+     * @notice Issue synth without checking collateral and without minting debt tokens
      * @dev The healthy of outcome position must be done afterhand
-     * @param borrower_ The debtor account
+     * @param to_ The beneficiary account
      * @param amount_ The amount to mint
      * @return _issued The amount issued after fees
      * @return _fee The fee amount collected
      */
     function flashIssue(
-        address borrower_,
+        address to_,
         uint256 amount_
     )
         external
         override
-        onlyIfPool
+        onlyIfSmartFarmingManager
         whenNotShutdown
         nonReentrant
         onlyIfSyntheticTokenExists
-        onlyIfSyntheticTokenIsActive
+        onlyIfDebtTokenIsActive
         returns (uint256 _issued, uint256 _fee)
     {
         if (amount_ == 0) revert AmountIsZero();
 
         accrueInterest();
 
-        IPool _pool = pool;
+        ISyntheticToken _syntheticToken = syntheticToken;
 
-        return _issue(_pool, _pool.masterOracle(), syntheticToken, borrower_, amount_, msg.sender);
+        (_issued, _fee) = quoteIssueOut(amount_);
+        if (_fee > 0) {
+            _syntheticToken.mint(pool.feeCollector(), _fee);
+        }
+        _syntheticToken.mint(to_, _issued);
     }
 
     /**
@@ -273,6 +296,30 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
      */
     function interestRatePerSecond() public view override returns (uint256) {
         return interestRate / SECONDS_PER_YEAR;
+    }
+
+    /**
+     * @notice onlySmartFarmingManager:: Mint `amount_` of debtToken at `to_`.
+     * @param to_ Receiver address
+     * @param amount_ Token amount to mint
+     */
+    function mint(
+        address to_,
+        uint256 amount_
+    )
+        external
+        override
+        onlyIfSmartFarmingManager
+        whenNotShutdown
+        nonReentrant
+        onlyIfSyntheticTokenExists
+        onlyIfSyntheticTokenIsActive
+    {
+        accrueInterest();
+
+        IPool _pool = pool;
+
+        _mint(_pool, _pool.masterOracle(), to_, amount_);
     }
 
     /**
@@ -495,53 +542,26 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
     }
 
     /**
-     * @notice Internal function for mint synthetic token
-     * @dev Not getting contracts from storage in order to save gas
-     * @param pool_ The pool
-     * @param masterOracle_  The oracle
-     * @param syntheticToken_ The synthetic token
-     * @param borrower_ The debtor account
-     * @param amount_ The amount to mint
-     * @param to_ The beneficiary account
-     * @return _issued The amount issued after fees
-     * @return _fee The fee amount collected
+     * @dev Create `amount` tokens and assigns them to `account`, increasing
+     * the total supply
      */
-    function _issue(
+    function _mint(
         IPool pool_,
         IMasterOracle masterOracle_,
-        ISyntheticToken syntheticToken_,
-        address borrower_,
-        uint256 amount_,
-        address to_
-    ) private returns (uint256 _issued, uint256 _fee) {
+        address account_,
+        uint256 amount_
+    ) private onlyIfDebtTokenIsActive updateRewardsBeforeMintOrBurn(account_) {
+        if (account_ == address(0)) revert MintToNullAddress();
+
         uint256 _debtFloorInUsd = pool_.debtFloorInUsd();
+        uint256 _balanceBefore = balanceOf(account_);
 
         if (
             _debtFloorInUsd > 0 &&
-            masterOracle_.quoteTokenToUsd(address(syntheticToken), balanceOf(borrower_) + amount_) < _debtFloorInUsd
+            masterOracle_.quoteTokenToUsd(address(syntheticToken), _balanceBefore + amount_) < _debtFloorInUsd
         ) {
             revert DebtLowerThanTheFloor();
         }
-
-        (_issued, _fee) = quoteIssueOut(amount_);
-        if (_fee > 0) {
-            syntheticToken_.mint(pool_.feeCollector(), _fee);
-        }
-
-        syntheticToken_.mint(to_, _issued);
-        _mint(borrower_, amount_);
-
-        emit SyntheticTokenIssued(borrower_, to_, amount_, _issued, _fee);
-    }
-
-    /**
-     * @notice Create `amount` tokens and assigns them to `account`, increasing
-     * the total supply
-     */
-    function _mint(address account_, uint256 amount_) private updateRewardsBeforeMintOrBurn(account_) {
-        if (account_ == address(0)) revert MintToNullAddress();
-
-        uint256 _balanceBefore = balanceOf(account_);
 
         totalSupply_ += amount_;
         if (totalSupply_ > maxTotalSupply) revert SurpassMaxDebtSupply();

@@ -1,8 +1,6 @@
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
-import {UpgradableContracts, deployUpgradable} from '../../helpers'
-import {executeUsingMultiSig, saveForMultiSigBatchExecution} from '../../helpers/multisig-helpers'
-import Address from '../../../helpers/address'
+import {UpgradableContracts, deployUpgradable, updateParamIfNeeded} from '../../helpers'
 
 const {
   Pool: {alias: Pool},
@@ -11,7 +9,7 @@ const {
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {deployments} = hre
-  const {get, read, execute, catchUnknownSigner} = deployments
+  const {get} = deployments
 
   const poolRegistry = await get(PoolRegistry)
 
@@ -21,39 +19,14 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     initializeArgs: [poolRegistry.address],
   })
 
-  const isRegistered = await read(PoolRegistry, 'isPoolRegistered', poolAddress)
-
-  if (!isRegistered) {
-    const governor = await read(PoolRegistry, 'governor')
-
-    const multiSigTx = await catchUnknownSigner(
-      execute(PoolRegistry, {from: governor, log: true}, 'registerPool', poolAddress),
-      {
-        log: true,
-      }
-    )
-
-    if (multiSigTx) {
-      await executeUsingMultiSig(hre, multiSigTx)
-    }
-  }
-
-  const currentSwapper = await read(Pool, 'swapper')
-
-  if (currentSwapper !== Address.SWAPPER) {
-    const governor = await read(Pool, 'governor')
-
-    const multiSigTx = await catchUnknownSigner(
-      execute(Pool, {from: governor, log: true}, 'updateSwapper', Address.SWAPPER),
-      {
-        log: true,
-      }
-    )
-
-    if (multiSigTx) {
-      await saveForMultiSigBatchExecution(multiSigTx)
-    }
-  }
+  await updateParamIfNeeded(hre, {
+    contract: PoolRegistry,
+    readMethod: 'isPoolRegistered',
+    readArgs: [poolAddress],
+    writeMethod: 'registerPool',
+    writeArgs: [poolAddress],
+    isCurrentValueUpdated: (currentValue: boolean) => currentValue,
+  })
 }
 
 export default func
