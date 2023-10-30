@@ -1,30 +1,19 @@
-/* eslint-disable camelcase */
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
-import {loadFixture} from '@nomicfoundation/hardhat-network-helpers'
+import {loadFixture, setStorageAt} from '@nomicfoundation/hardhat-network-helpers'
 import {toUSD, parseEther, parseUnits} from '../helpers'
 import {disableForking, enableForking, setTokenBalance} from './helpers'
 import Address from '../helpers/address'
 import {
   DepositToken,
-  DepositToken__factory,
   SyntheticToken,
-  SyntheticToken__factory,
   Pool,
-  Pool__factory,
   IERC20,
-  DebtToken__factory,
   DebtToken,
-  MasterOracleMock__factory,
-  Treasury__factory,
-  PoolRegistry__factory,
   MasterOracleMock,
   PoolRegistry,
-  FeeProvider__factory,
   FeeProvider,
-  IERC20__factory,
-  IESMET__factory,
 } from '../typechain'
 
 const {MaxUint256} = ethers.constants
@@ -34,26 +23,28 @@ const INTEREST_RATE = parseEther('0')
 async function fixture() {
   const [deployer, feeCollector, alice, bob] = await ethers.getSigners()
 
-  const poolRegistryFactory = new PoolRegistry__factory(deployer)
-  const poolFactory = new Pool__factory(deployer)
-  const masterOracleFactory = new MasterOracleMock__factory(deployer)
-  const treasuryFactory = new Treasury__factory(deployer)
-  const depositTokenFactory = new DepositToken__factory(deployer)
-  const debtTokenFactory = new DebtToken__factory(deployer)
-  const syntheticTokenFactory = new SyntheticToken__factory(deployer)
-  const feeProviderFactory = new FeeProvider__factory(deployer)
+  const poolRegistryFactory = await ethers.getContractFactory('PoolRegistry', deployer)
+  const poolFactory = await ethers.getContractFactory('contracts/Pool.sol:Pool', deployer)
+  const masterOracleFactory = await ethers.getContractFactory('MasterOracleMock', deployer)
+  const treasuryFactory = await ethers.getContractFactory('Treasury', deployer)
+  const depositTokenFactory = await ethers.getContractFactory('DepositToken', deployer)
+  const debtTokenFactory = await ethers.getContractFactory('DebtToken', deployer)
+  const syntheticTokenFactory = await ethers.getContractFactory('SyntheticToken', deployer)
+  const feeProviderFactory = await ethers.getContractFactory('FeeProvider', deployer)
 
-  const dai = IERC20__factory.connect(Address.DAI_ADDRESS, alice)
-  const met = IERC20__factory.connect(Address.MET_ADDRESS, alice)
+  const dai = await ethers.getContractAt('IERC20', Address.DAI_ADDRESS, alice)
+  const met = await ethers.getContractAt('IERC20', Address.MET_ADDRESS, alice)
 
   const masterOracle = await masterOracleFactory.deploy()
   await masterOracle.deployed()
 
   const poolRegistry = await poolRegistryFactory.deploy()
   await poolRegistry.deployed()
+  await setStorageAt(poolRegistry.address, 0, 0) // Undo initialization made by constructor
 
   const feeProvider = await feeProviderFactory.deploy()
   await feeProvider.deployed()
+  await setStorageAt(feeProvider.address, 0, 0) // Undo initialization made by constructor
   await feeProvider.initialize(poolRegistry.address, Address.ESMET)
 
   // Set fee discount tiers
@@ -65,47 +56,61 @@ async function fixture() {
 
   const msETH = await syntheticTokenFactory.deploy()
   await msETH.deployed()
+  await setStorageAt(msETH.address, 0, 0) // Undo initialization made by constructor
 
   const msDOGE = await syntheticTokenFactory.deploy()
   await msDOGE.deployed()
+  await setStorageAt(msDOGE.address, 0, 0) // Undo initialization made by constructor
 
   const msUSD = await syntheticTokenFactory.deploy()
   await msUSD.deployed()
+  await setStorageAt(msUSD.address, 0, 0) // Undo initialization made by constructor
 
   // Pool A: Deposit [MET,DAI], Mint [msETH,msDOGE,msUSD]
   const poolA = await poolFactory.deploy()
   await poolA.deployed()
+  await setStorageAt(poolA.address, 0, 0) // Undo initialization made by constructor
 
   const treasuryA = await treasuryFactory.deploy()
   await treasuryA.deployed()
+  await setStorageAt(treasuryA.address, 0, 0) // Undo initialization made by constructor
 
   const msdMET_A = await depositTokenFactory.deploy()
   await msdMET_A.deployed()
+  await setStorageAt(msdMET_A.address, 0, 0) // Undo initialization made by constructor
 
   const msdDAI_A = await depositTokenFactory.deploy()
   await msdDAI_A.deployed()
+  await setStorageAt(msdDAI_A.address, 0, 0) // Undo initialization made by constructor
 
   const msETH_Debt_A = await debtTokenFactory.deploy()
   await msETH_Debt_A.deployed()
+  await setStorageAt(msETH_Debt_A.address, 0, 0) // Undo initialization made by constructor
 
   const msDOGE_Debt_A = await debtTokenFactory.deploy()
   await msDOGE_Debt_A.deployed()
+  await setStorageAt(msDOGE_Debt_A.address, 0, 0) // Undo initialization made by constructor
 
   const msUSD_Debt_A = await debtTokenFactory.deploy()
   await msUSD_Debt_A.deployed()
+  await setStorageAt(msUSD_Debt_A.address, 0, 0) // Undo initialization made by constructor
 
   // Pool B: Deposit [DAI], Mint [msUSD]
   const poolB = await poolFactory.deploy()
   await poolB.deployed()
+  await setStorageAt(poolB.address, 0, 0) // Undo initialization made by constructor
 
   const treasuryB = await treasuryFactory.deploy()
   await treasuryB.deployed()
+  await setStorageAt(treasuryB.address, 0, 0) // Undo initialization made by constructor
 
   const msdDAI_B = await depositTokenFactory.deploy()
   await msdDAI_B.deployed()
+  await setStorageAt(msdDAI_B.address, 0, 0) // Undo initialization made by constructor
 
   const msUSD_Debt_B = await debtTokenFactory.deploy()
   await msUSD_Debt_B.deployed()
+  await setStorageAt(msUSD_Debt_B.address, 0, 0) // Undo initialization made by constructor
 
   await poolRegistry.initialize(masterOracle.address, feeCollector.address)
   await msUSD.initialize('Metronome Synth USD', 'msUSD', 18, poolRegistry.address)
@@ -327,7 +332,7 @@ describe('Integration tests', function () {
           const defaultSwapFee = await feeProvider.defaultSwapFee()
           expect(await feeProvider.swapFeeFor(alice.address)).eq(defaultSwapFee)
 
-          const esMET = IESMET__factory.connect(Address.ESMET, alice)
+          const esMET = await ethers.getContractAt('IESMET', Address.ESMET, alice)
           await met.connect(alice).approve(esMET.address, parseEther('100'))
           await esMET.connect(alice).lock(parseEther('10'), 8 * 24 * 60 * 60)
           await expect(await esMET.balanceOf(alice.address)).gt(0)

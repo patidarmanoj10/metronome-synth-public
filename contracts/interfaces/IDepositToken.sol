@@ -13,6 +13,8 @@ interface IDepositToken is IERC20Metadata {
 
     function lockedBalanceOf(address account_) external view returns (uint256);
 
+    function flashWithdraw(address account_, uint256 amount_) external returns (uint256 _withdrawn, uint256 _fee);
+
     function deposit(uint256 amount_, address onBehalfOf_) external returns (uint256 _deposited, uint256 _fee);
 
     function quoteDepositIn(uint256 amountToDeposit_) external view returns (uint256 _amount, uint256 _fee);
@@ -36,4 +38,6 @@ interface IDepositToken is IERC20Metadata {
     function maxTotalSupply() external view returns (uint256);
 
     function updateMaxTotalSupply(uint256 newMaxTotalSupply_) external;
+
+    function withdrawFrom(address from_, uint256 amount_) external returns (uint256 _withdrawn, uint256 _fee);
 }

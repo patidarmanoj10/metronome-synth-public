@@ -13,6 +13,7 @@ contract PoolRegistryInvariant_Test is Test {
 
     function setUp() public {
         poolRegistry = new PoolRegistry();
+        vm.store(address(poolRegistry), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
         poolRegistry.initialize({masterOracle_: IMasterOracle(address(1)), feeCollector_: address(2)});
 
         handler = new PoolRegistryHandler(poolRegistry, POOLS_SET);

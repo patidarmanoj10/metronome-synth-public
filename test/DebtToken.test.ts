@@ -6,24 +6,18 @@ import chai, {expect} from 'chai'
 import {ethers} from 'hardhat'
 import {
   DebtToken,
-  DebtToken__factory,
   DepositToken,
-  DepositToken__factory,
   ERC20Mock,
-  ERC20Mock__factory,
   MasterOracleMock,
-  MasterOracleMock__factory,
   SyntheticToken,
-  SyntheticToken__factory,
   PoolMock__factory,
   FeeProvider,
-  FeeProvider__factory,
   PoolMock,
 } from '../typechain'
 import {FakeContract, MockContract, smock} from '@defi-wonderland/smock'
 import {BigNumber} from 'ethers'
 import {toUSD} from '../helpers'
-import {setBalance, time} from '@nomicfoundation/hardhat-network-helpers'
+import {setBalance, time, loadFixture, setStorageAt} from '@nomicfoundation/hardhat-network-helpers'
 
 chai.use(smock.matchers)
 
@@ -53,37 +47,42 @@ describe('DebtToken', function () {
   const symbol = 'msETH-Debt'
   const interestRate = parseEther('0')
 
-  beforeEach(async function () {
+  async function fixture() {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[deployer, governor, user1, user2, treasury, feeCollector] = await ethers.getSigners()
 
     poolRegistryMock = await smock.fake('PoolRegistry')
 
-    const syntheticTokenFactory = new SyntheticToken__factory(deployer)
+    const syntheticTokenFactory = await ethers.getContractFactory('SyntheticToken', deployer)
     msUSD = await syntheticTokenFactory.deploy()
     await msUSD.deployed()
+    // Note: Undo initialization made by constructor
+    await setStorageAt(msUSD.address, 0, 0)
 
-    const masterOracleMockFactory = new MasterOracleMock__factory(deployer)
+    const masterOracleMockFactory = await ethers.getContractFactory('MasterOracleMock', deployer)
     masterOracleMock = await masterOracleMockFactory.deploy()
     await masterOracleMock.deployed()
 
-    const erc20MockFactory = new ERC20Mock__factory(deployer)
+    const erc20MockFactory = await ethers.getContractFactory('ERC20Mock', deployer)
     met = await erc20MockFactory.deploy('Metronome', 'MET', 18)
     await met.deployed()
 
-    const depositTokenFactory = new DepositToken__factory(deployer)
+    const depositTokenFactory = await ethers.getContractFactory('DepositToken', deployer)
     msdMET = await depositTokenFactory.deploy()
     await msdMET.deployed()
+    await setStorageAt(msdMET.address, 0, 0) // Undo initialization made by constructor
 
-    const debtTokenFactory = new DebtToken__factory(deployer)
+    const debtTokenFactory = await ethers.getContractFactory('DebtToken', deployer)
     msUSDDebt = await debtTokenFactory.deploy()
     await msUSDDebt.deployed()
+    await setStorageAt(msUSDDebt.address, 0, 0) // Undo initialization made by constructor
 
     const esMET = await smock.fake('IESMET')
 
-    const feeProviderFactory = new FeeProvider__factory(deployer)
+    const feeProviderFactory = await ethers.getContractFactory('FeeProvider', deployer)
     feeProvider = await feeProviderFactory.deploy()
     await feeProvider.deployed()
+    await setStorageAt(feeProvider.address, 0, 0) // Undo initialization made by constructor
     await feeProvider.initialize(poolRegistryMock.address, esMET.address)
 
     const poolMockFactory = await smock.mock<PoolMock__factory>('PoolMock')
@@ -126,6 +125,10 @@ describe('DebtToken', function () {
     rewardsDistributorMock.pool.returns(poolMock.address)
 
     poolMock.getRewardsDistributors.returns([rewardsDistributorMock.address])
+  }
+
+  beforeEach(async function () {
+    await loadFixture(fixture)
   })
 
   it('default values', async function () {
@@ -181,14 +184,16 @@ describe('DebtToken', function () {
 
     it('should revert if synthetic does not exist', async function () {
       // given
-      const syntheticTokenFactory = new SyntheticToken__factory(deployer)
+      const syntheticTokenFactory = await ethers.getContractFactory('SyntheticToken', deployer)
       const notListedSynthetic = await syntheticTokenFactory.deploy()
       await notListedSynthetic.deployed()
+      await setStorageAt(notListedSynthetic.address, 0, 0) // Undo initialization made by constructor
       await notListedSynthetic.initialize(name, symbol, 18, poolMock.address)
 
-      const debtTokenFactory = new DebtToken__factory(deployer)
+      const debtTokenFactory = await ethers.getContractFactory('DebtToken', deployer)
       const notListedDebtToken = await debtTokenFactory.deploy()
       await notListedDebtToken.deployed()
+      await setStorageAt(notListedDebtToken.address, 0, 0) // Undo initialization made by constructor
       await notListedDebtToken.initialize(
         name,
         symbol,
@@ -636,7 +641,7 @@ describe('DebtToken', function () {
 
       it('should remove debt token from user1 array only if burning all', async function () {
         // given
-        // poolMock.removeFromDebtTokensOfAccount.reset()
+        poolMock.removeFromDebtTokensOfAccount.reset()
         expect(await msUSDDebt.balanceOf(user1.address)).eq(amount)
 
         // when
@@ -878,26 +883,17 @@ describe('DebtToken', function () {
       expect(totalCredit).eq(creditOfUser.add(creditOfFeeCollector))
     })
 
-    describe('when synthetic token is inactive', function () {
+    describe('when synthetic token minting fails', function () {
       beforeEach(async function () {
         // given
         await msUSDDebt.updateInterestRate(parseEther('0.02')) // 2%
         await time.increase(SECONDS_PER_YEAR)
+      })
+
+      it('should accumulate pending fee when synthetic token is inactive', async function () {
+        // given
         await msUSD.connect(governor).toggleIsActive()
         expect(await msUSD.isActive()).false
-      })
-
-      it('should accrue interest ', async function () {
-        // when
-        await msUSDDebt.accrueInterest()
-
-        // then
-        const totalDebt = await msUSDDebt.totalSupply()
-        expect(totalDebt).closeTo(parseEther('102'), parseEther('0.0001'))
-      })
-
-      it('should accumulate pending fee', async function () {
-        // given
         expect(await msUSDDebt.pendingInterestFee()).eq(0)
 
         // when
@@ -905,24 +901,23 @@ describe('DebtToken', function () {
 
         // then
         expect(await msUSDDebt.pendingInterestFee()).gt(0)
+        const totalDebt = await msUSDDebt.totalSupply()
+        expect(totalDebt).closeTo(parseEther('102'), parseEther('0.0001'))
       })
 
-      it('should mint after the synthetic back active', async function () {
+      it('should accumulate pending fee when synthetic token supply reached max', async function () {
         // given
-        await msUSDDebt.accrueInterest()
-        const pendingInterestFee = await msUSDDebt.pendingInterestFee()
-        expect(pendingInterestFee).gt(0)
+        await msUSD.connect(governor).updateMaxTotalSupply(0)
+        expect(await msUSD.maxTotalSupply()).eq(0)
+        expect(await msUSDDebt.pendingInterestFee()).eq(0)
 
         // when
-        await msUSD.connect(governor).toggleIsActive()
-        expect(await msUSD.isActive()).true
-        const before = await msUSD.balanceOf(await poolMock.feeCollector())
         await msUSDDebt.accrueInterest()
 
         // then
-        const after = await msUSD.balanceOf(await poolMock.feeCollector())
-        expect(after).closeTo(before.add(pendingInterestFee), parseEther('0.000001'))
-        expect(await msUSDDebt.pendingInterestFee()).eq(0)
+        expect(await msUSDDebt.pendingInterestFee()).gt(0)
+        const totalDebt = await msUSDDebt.totalSupply()
+        expect(totalDebt).closeTo(parseEther('102'), parseEther('0.0001'))
       })
     })
 

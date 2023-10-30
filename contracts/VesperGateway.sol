@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.9;
 
-import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
+import "./utils/ReentrancyGuard.sol";
 import "./utils/TokenHolder.sol";
 import "./interfaces/IVesperGateway.sol";
 import "./interfaces/IDepositToken.sol";
@@ -25,7 +25,7 @@ contract VesperGateway is ReentrancyGuard, TokenHolder, IVesperGateway {
         _;
     }
 
-    constructor(IPoolRegistry poolRegistry_) {
+    constructor(IPoolRegistry poolRegistry_) initializer {
         // Note: This contract isn't upgradable but extends `ReentrancyGuard` therefore we need to initialize it
         __ReentrancyGuard_init();
         poolRegistry = poolRegistry_;

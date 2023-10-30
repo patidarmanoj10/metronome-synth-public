@@ -3,7 +3,7 @@ import {BigNumber} from '@ethersproject/bignumber'
 import {parseEther} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {ethers, network} from 'hardhat'
-import {Pool, DepositToken, FeeProvider__factory} from '../../typechain'
+import {Pool, DepositToken} from '../../typechain'
 import Address from '../../helpers/address'
 import {
   impersonateAccount as impersonate,
@@ -45,7 +45,7 @@ export const getMinLiquidationAmountInUsd = async function (
   accountAddress: string,
   depositToken: DepositToken
 ): Promise<BigNumber> {
-  const feeProvider = FeeProvider__factory.connect(await pool.feeProvider(), pool.provider)
+  const feeProvider = await ethers.getContractAt('FeeProvider', await pool.feeProvider(), pool.signer)
   const {_issuableLimitInUsd, _debtInUsd} = await pool.debtPositionOf(accountAddress)
 
   const [liquidatorIncentive, protocolFee] = await feeProvider.liquidationFees()
@@ -69,9 +69,9 @@ export const enableForking = async (): Promise<void> => {
     params: [
       {
         forking: {
-          jsonRpcUrl: process.env.NODE_URL,
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           blockNumber: parseInt(process.env.BLOCK_NUMBER!),
+          jsonRpcUrl: process.env.NODE_URL,
         },
       },
     ],
@@ -115,6 +115,15 @@ const getBalancesSlot = (token: string) => {
       [Address.USDC_ADDRESS]: 0,
       [Address.DAI_ADDRESS]: 0,
       [Address.USDT_ADDRESS]: 0,
+    },
+    [10]: {
+      [Address.USDC_ADDRESS]: 0,
+      [Address.OP_ADDRESS]: 0,
+      [Address.WETH_ADDRESS]: 3,
+      [Address.VAUSDC_ADDRESS]: 0,
+      [Address.VAETH_ADDRESS]: 0,
+      [Address.VAWSTETH_ADDRESS]: 0,
+      [Address.VAOP_ADDRESS]: 0,
     },
   }
 

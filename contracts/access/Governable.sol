@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.9;
 
-import "../dependencies/openzeppelin/proxy/utils/Initializable.sol";
+import "../dependencies/openzeppelin-upgradeable/proxy/utils/Initializable.sol";
 import "../utils/TokenHolder.sol";
 import "../interfaces/IGovernable.sol";
 
@@ -44,7 +44,7 @@ abstract contract Governable is IGovernable, TokenHolder, Initializable {
      * __Governable_init() function to initialization this contract
      */
     // solhint-disable-next-line func-name-mixedcase
-    function __Governable_init() internal initializer {
+    function __Governable_init() internal onlyInitializing {
         governor = msg.sender;
         emit UpdatedGovernor(address(0), msg.sender);
     }

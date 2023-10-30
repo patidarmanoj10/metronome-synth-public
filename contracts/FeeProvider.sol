@@ -2,13 +2,12 @@
 
 pragma solidity 0.8.9;
 
-import "./dependencies/openzeppelin/proxy/utils/Initializable.sol";
+import "./dependencies/openzeppelin-upgradeable/proxy/utils/Initializable.sol";
 import "./storage/FeeProviderStorage.sol";
 import "./lib/WadRayMath.sol";
 
 error SenderIsNotGovernor();
 error PoolRegistryIsNull();
-error EscrowMETIsNull();
 error NewValueIsSameAsCurrent();
 error FeeIsGreaterThanTheMax();
 error TierDiscountTooHigh();
@@ -20,7 +19,7 @@ error TiersNotOrderedByMin();
 contract FeeProvider is Initializable, FeeProviderStorageV1 {
     using WadRayMath for uint256;
 
-    string public constant VERSION = "1.1.0";
+    string public constant VERSION = "1.3.0";
 
     uint256 internal constant MAX_FEE_VALUE = 0.25e18; // 25%
     uint256 internal constant MAX_FEE_DISCOUNT = 1e18; // 100%
@@ -57,9 +56,12 @@ contract FeeProvider is Initializable, FeeProviderStorageV1 {
         _;
     }
 
+    constructor() {
+        _disableInitializers();
+    }
+
     function initialize(IPoolRegistry poolRegistry_, IESMET esMET_) public initializer {
         if (address(poolRegistry_) == address(0)) revert PoolRegistryIsNull();
-        if (address(esMET_) == address(0)) revert EscrowMETIsNull();
 
         poolRegistry = poolRegistry_;
         esMET = esMET_;

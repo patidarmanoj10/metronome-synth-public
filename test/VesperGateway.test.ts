@@ -1,28 +1,12 @@
-/* eslint-disable camelcase */
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import chai, {expect} from 'chai'
 import {parseEther} from 'ethers/lib/utils'
 import {ethers} from 'hardhat'
-import {
-  DepositToken,
-  DepositToken__factory,
-  ERC20Mock,
-  ERC20Mock__factory,
-  PoolMock,
-  PoolMock__factory,
-  MasterOracleMock,
-  MasterOracleMock__factory,
-  VesperGateway,
-  VesperGateway__factory,
-  Treasury__factory,
-  Treasury,
-  FeeProvider__factory,
-  VPoolMock__factory,
-  VPoolMock,
-} from '../typechain'
+import {DepositToken, ERC20Mock, PoolMock, MasterOracleMock, VesperGateway, Treasury, VPoolMock} from '../typechain'
 import {disableForking, enableForking} from './helpers'
 import {parseUnits, toUSD} from '../helpers'
 import {FakeContract, smock} from '@defi-wonderland/smock'
+import {setStorageAt, setCode} from '@nomicfoundation/hardhat-network-helpers'
 
 chai.use(smock.matchers)
 
@@ -48,28 +32,32 @@ describe('VesperGateway', function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[deployer, user] = await ethers.getSigners()
 
-    const masterOracleMockFactory = new MasterOracleMock__factory(deployer)
+    const masterOracleMockFactory = await ethers.getContractFactory('MasterOracleMock', deployer)
     masterOracleMock = await masterOracleMockFactory.deploy()
     await masterOracleMock.deployed()
 
-    const depositTokenFactory = new DepositToken__factory(deployer)
+    const depositTokenFactory = await ethers.getContractFactory('DepositToken', deployer)
     msdVaUSDC = await depositTokenFactory.deploy()
     await msdVaUSDC.deployed()
+    await setStorageAt(msdVaUSDC.address, 0, 0) // Undo initialization made by constructor
 
-    const treasuryFactory = new Treasury__factory(deployer)
+    const treasuryFactory = await ethers.getContractFactory('Treasury', deployer)
     treasury = await treasuryFactory.deploy()
     await treasury.deployed()
+    await setStorageAt(treasury.address, 0, 0) // Undo initialization made by constructor
 
     poolRegistryMock = await smock.fake('PoolRegistry')
+    await setCode(poolRegistryMock.address, '0x01') // Workaround "function call to a non-contract account" error
     poolRegistryMock.isPoolRegistered.returns(true)
 
     const esMET = await smock.fake('IESMET')
-    const feeProviderFactory = new FeeProvider__factory(deployer)
+    const feeProviderFactory = await ethers.getContractFactory('FeeProvider', deployer)
     const feeProvider = await feeProviderFactory.deploy()
     await feeProvider.deployed()
+    await setStorageAt(feeProvider.address, 0, 0) // Undo initialization made by constructor
     await feeProvider.initialize(poolRegistryMock.address, esMET.address)
 
-    const poolMockFactory = new PoolMock__factory(deployer)
+    const poolMockFactory = await ethers.getContractFactory('PoolMock', deployer)
     poolMock = await poolMockFactory.deploy(
       msdVaUSDC.address,
       masterOracleMock.address,
@@ -80,14 +68,14 @@ describe('VesperGateway', function () {
     )
     await poolMock.deployed()
 
-    const erc20MockFactory = new ERC20Mock__factory(deployer)
+    const erc20MockFactory = await ethers.getContractFactory('ERC20Mock', deployer)
     usdcMock = await erc20MockFactory.deploy('USDC Mock', 'USDC', 6)
     await usdcMock.deployed()
 
-    const vPoolMockFactory = new VPoolMock__factory(deployer)
+    const vPoolMockFactory = await ethers.getContractFactory('VPoolMock', deployer)
     vaUSDCMock = await vPoolMockFactory.deploy('vaUSDC', 'vaUSDC', usdcMock.address)
 
-    const vesperGatewayFactory = new VesperGateway__factory(deployer)
+    const vesperGatewayFactory = await ethers.getContractFactory('VesperGateway', deployer)
     vesperGateway = await vesperGatewayFactory.deploy(poolRegistryMock.address)
     await vesperGateway.deployed()
 
@@ -97,7 +85,7 @@ describe('VesperGateway', function () {
       'Metronome Synth vaUSDC-Deposit',
       'msdUSDC',
       18,
-      parseEther('1'),
+      parseEther('0.5'),
       MaxUint256
     )
 

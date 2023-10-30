@@ -16,18 +16,6 @@ contract DebtTokenHandler is SynthHandlerBase {
 
     uint256 public debtBurnt;
 
-    modifier useActor(uint256 actorIndexSeed) override {
-        vm.stopPrank();
-        if (actors.length == 0) {
-            actors.push(msg.sender);
-        }
-        currentActor = _getRandActor(actorIndexSeed);
-
-        vm.startPrank(currentActor);
-        _;
-        vm.stopPrank();
-    }
-
     constructor(DebtToken debtToken_) SynthHandlerBase(debtToken_.pool()) {
         debtToken = debtToken_;
         poolRegistry = pool.poolRegistry();
@@ -66,7 +54,9 @@ contract DebtTokenHandler is SynthHandlerBase {
         debtToken.issue(amount, currentActor);
     }
 
-    function flashIssue(uint256 amount, uint256 actorSeed) public useActor(actorSeed) usePool countCall("flashIssue") {
+    function flashIssue(uint256 amount, uint256 actorSeed) public useActor(actorSeed) countCall("flashIssue") {
+        vm.startPrank(address(pool.smartFarmingManager()));
+
         (, , , , uint256 issuableInUsd) = pool.debtPositionOf(currentActor);
         uint256 max = poolRegistry.masterOracle().quoteUsdToToken(address(syntheticToken), issuableInUsd);
 
@@ -76,7 +66,7 @@ contract DebtTokenHandler is SynthHandlerBase {
             vm.expectRevert();
         }
 
-        // Note: debt goes to `currentActor` and synth goes to `Pool`
+        // Note: debt goes to `currentActor` and synth goes to `SmartFarmingManager`
         debtToken.flashIssue(currentActor, amount);
     }
 
@@ -112,12 +102,12 @@ contract DebtTokenHandler is SynthHandlerBase {
             toIssue = synthNeeded - synth;
 
             vm.stopPrank();
-            vm.startPrank(address(pool));
+            vm.startPrank(address(pool.smartFarmingManager()));
             (uint256 amountIn, ) = debtToken.quoteIssueIn(toIssue);
-            (uint256 issued, ) = debtToken.flashIssue(address(pool), amountIn);
+            (uint256 issued, ) = debtToken.flashIssue(address(pool.smartFarmingManager()), amountIn);
             syntheticToken.transfer(currentActor, issued);
             vm.stopPrank();
-            vm.prank(currentActor);
+            vm.startPrank(currentActor);
         }
 
         debtToken.repayAll(currentActor);

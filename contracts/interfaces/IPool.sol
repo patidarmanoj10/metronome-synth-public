@@ -8,6 +8,7 @@ import "./ITreasury.sol";
 import "./IRewardsDistributor.sol";
 import "./IPoolRegistry.sol";
 import "./IFeeProvider.sol";
+import "./ISmartFarmingManager.sol";
 import "./external/ISwapper.sol";
 import "../interfaces/IFeeProvider.sol";
 
@@ -18,8 +19,6 @@ interface IPool is IPauseable, IGovernable {
     function debtFloorInUsd() external view returns (uint256);
 
     function feeCollector() external view returns (address);
-
-    function swapper() external view returns (ISwapper);
 
     function feeProvider() external view returns (IFeeProvider);
 
@@ -57,15 +56,6 @@ interface IPool is IPauseable, IGovernable {
             uint256 _issuableLimitInUsd,
             uint256 _issuableInUsd
         );
-
-    function leverage(
-        IERC20 tokenIn_,
-        IDepositToken depositToken_,
-        ISyntheticToken syntheticToken_,
-        uint256 amountIn_,
-        uint256 leverage_,
-        uint256 depositAmountMin_
-    ) external;
 
     function liquidate(
         ISyntheticToken syntheticToken_,
@@ -129,4 +119,6 @@ interface IPool is IPauseable, IGovernable {
     function getDebtTokensOfAccount(address account_) external view returns (address[] memory);
 
     function isSwapActive() external view returns (bool);
+
+    function smartFarmingManager() external view returns (ISmartFarmingManager);
 }

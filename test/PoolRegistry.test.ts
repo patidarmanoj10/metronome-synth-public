@@ -1,9 +1,9 @@
-/* eslint-disable camelcase */
 import {FakeContract, smock} from '@defi-wonderland/smock'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {ethers} from 'hardhat'
-import {MasterOracleMock, MasterOracleMock__factory, PoolRegistry, PoolRegistry__factory} from '../typechain'
+import {MasterOracleMock, PoolRegistry, SwapperMock} from '../typechain'
+import {setStorageAt} from '@nomicfoundation/hardhat-network-helpers'
 
 describe('PoolRegistry', function () {
   let deployer: SignerWithAddress
@@ -13,21 +13,28 @@ describe('PoolRegistry', function () {
   let pool: FakeContract
   let poolRegistry: PoolRegistry
   let masterOracleMock: MasterOracleMock
+  let swapper: SwapperMock
 
   beforeEach(async function () {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[deployer, alice, bob, feeCollector] = await ethers.getSigners()
 
-    const masterOracleMockFactory = new MasterOracleMock__factory(deployer)
+    const masterOracleMockFactory = await ethers.getContractFactory('MasterOracleMock', deployer)
     masterOracleMock = await masterOracleMockFactory.deploy()
     await masterOracleMock.deployed()
 
-    pool = await smock.fake('Pool')
+    pool = await smock.fake('contracts/Pool.sol:Pool')
 
-    const poolRegistryFactory = new PoolRegistry__factory(deployer)
+    const swapperMockFactory = await ethers.getContractFactory('SwapperMock', deployer)
+    swapper = await swapperMockFactory.deploy(masterOracleMock.address)
+    await swapper.deployed()
+
+    const poolRegistryFactory = await ethers.getContractFactory('PoolRegistry', deployer)
     poolRegistry = await poolRegistryFactory.deploy()
     await poolRegistry.deployed()
+    await setStorageAt(poolRegistry.address, 0, 0) // Undo initialization made by constructor
     await poolRegistry.initialize(masterOracleMock.address, feeCollector.address)
+    await poolRegistry.updateSwapper(swapper.address)
   })
 
   describe('registerPool', function () {
@@ -231,6 +238,63 @@ describe('PoolRegistry', function () {
       // then
       await expect(tx).emit(poolRegistry, 'NativeTokenGatewayUpdated').withArgs(currentGateway, newGateway)
       expect(await poolRegistry.nativeTokenGateway()).eq(newGateway)
+    })
+  })
+
+  describe('updateSwapper', function () {
+    it('should revert if using the same address', async function () {
+      // given
+      expect(await poolRegistry.swapper()).eq(swapper.address)
+
+      // when
+      const tx = poolRegistry.updateSwapper(swapper.address)
+
+      // then
+      await expect(tx).revertedWithCustomError(poolRegistry, 'NewValueIsSameAsCurrent')
+    })
+
+    it('should revert if caller is not governor', async function () {
+      // when
+      const tx = poolRegistry.connect(alice).updateSwapper(swapper.address)
+
+      // then
+      await expect(tx).revertedWithCustomError(poolRegistry, 'SenderIsNotGovernor')
+    })
+
+    it('should revert if address is zero', async function () {
+      // when
+      const tx = poolRegistry.updateSwapper(ethers.constants.AddressZero)
+
+      // then
+      await expect(tx).revertedWithCustomError(poolRegistry, 'AddressIsNull')
+    })
+
+    it('should update swapper', async function () {
+      // given
+      const before = await poolRegistry.swapper()
+      const after = alice.address
+
+      // when
+      const tx = poolRegistry.updateSwapper(after)
+
+      // then
+      await expect(tx).emit(poolRegistry, 'SwapperUpdated').withArgs(before, after)
+      expect(await poolRegistry.swapper()).eq(after)
+    })
+  })
+
+  describe('toggleCrossChainFlashRepayIsActive', function () {
+    it('should toggle isCrossChainFlashRepayActive flag', async function () {
+      const before = await poolRegistry.isCrossChainFlashRepayActive()
+      const after = !before
+      const tx = poolRegistry.toggleCrossChainFlashRepayIsActive()
+      await expect(tx).emit(poolRegistry, 'CrossChainFlashRepayActiveUpdated').withArgs(after)
+      expect(await poolRegistry.isCrossChainFlashRepayActive()).eq(after)
+    })
+
+    it('should revert if not governor', async function () {
+      const tx = poolRegistry.connect(alice).toggleCrossChainFlashRepayIsActive()
+      await expect(tx).revertedWithCustomError(poolRegistry, 'SenderIsNotGovernor')
     })
   })
 })

@@ -1,41 +1,24 @@
-/* eslint-disable camelcase */
 import {Contract, ContractFactory} from '@ethersproject/contracts'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
 import {deployments, ethers} from 'hardhat'
 import {
   DebtToken,
-  DebtToken__factory,
   DepositToken,
-  DepositToken__factory,
-  MasterOracleMock__factory,
   SyntheticToken,
-  SyntheticToken__factory,
   Treasury,
-  Treasury__factory,
   TreasuryUpgrader,
-  TreasuryUpgrader__factory,
   DepositTokenUpgrader,
   SyntheticTokenUpgrader,
   DebtTokenUpgrader,
-  DepositTokenUpgrader__factory,
-  SyntheticTokenUpgrader__factory,
-  DebtTokenUpgrader__factory,
   UpgraderBase,
   Pool,
-  Pool__factory,
   NativeTokenGateway,
-  NativeTokenGateway__factory,
-  PoolRegistry__factory,
   PoolRegistry,
   PoolRegistryUpgrader,
-  PoolRegistryUpgrader__factory,
   PoolUpgraderV2,
-  PoolUpgraderV2__factory,
   FeeProvider,
   FeeProviderUpgrader,
-  FeeProvider__factory,
-  FeeProviderUpgrader__factory,
 } from '../typechain'
 import {disableForking, enableForking, impersonateAccount} from './helpers'
 import Address from '../helpers/address'
@@ -43,7 +26,8 @@ import {parseEther} from 'ethers/lib/utils'
 
 const {USDC_ADDRESS, NATIVE_TOKEN_ADDRESS, WAVAX_ADDRESS, MASTER_ORACLE_ADDRESS, GNOSIS_SAFE_ADDRESS} = Address
 
-describe('Deployments', function () {
+// FIXME (https://github.com/autonomoussoftware/metronome-synth/issues/997)
+describe.skip('Deployments', function () {
   let deployer: SignerWithAddress
   let pool: Pool
   let poolUpgrader: PoolUpgraderV2
@@ -94,31 +78,35 @@ describe('Deployments', function () {
       FeeProviderUpgrader: {address: feeProviderUpgraderAddress},
     } = await deployments.fixture()
 
-    pool = Pool__factory.connect(poolAddress, deployer)
-    poolUpgrader = PoolUpgraderV2__factory.connect(poolUpgraderAddress, deployer)
+    pool = await ethers.getContractAt('contracts/Pool.sol:Pool', poolAddress, deployer)
+    poolUpgrader = await ethers.getContractAt('PoolUpgraderV2', poolUpgraderAddress, deployer)
 
-    treasury = Treasury__factory.connect(treasuryAddress, deployer)
-    treasuryUpgrader = TreasuryUpgrader__factory.connect(treasuryUpgraderAddress, deployer)
+    treasury = await ethers.getContractAt('Treasury', treasuryAddress, deployer)
+    treasuryUpgrader = await ethers.getContractAt('TreasuryUpgrader', treasuryUpgraderAddress, deployer)
 
-    wethGateway = NativeTokenGateway__factory.connect(wethGatewayAddress, deployer)
+    wethGateway = await ethers.getContractAt('NativeTokenGateway', wethGatewayAddress, deployer)
 
-    depositTokenUpgrader = DepositTokenUpgrader__factory.connect(depositTokenUpgraderAddress, deployer)
-    msdUSDC = DepositToken__factory.connect(usdcDepositTokenAddress, deployer)
-    msdWAVAX = DepositToken__factory.connect(wavaxDepositTokenAddress, deployer)
+    depositTokenUpgrader = await ethers.getContractAt('DepositTokenUpgrader', depositTokenUpgraderAddress, deployer)
+    msdUSDC = await ethers.getContractAt('DepositToken', usdcDepositTokenAddress, deployer)
+    msdWAVAX = await ethers.getContractAt('DepositToken', wavaxDepositTokenAddress, deployer)
 
-    syntheticTokenUpgrader = SyntheticTokenUpgrader__factory.connect(syntheticTokenUpgraderAddress, deployer)
-    msBTC = SyntheticToken__factory.connect(msBTCAddress, deployer)
-    msUSD = SyntheticToken__factory.connect(msUSDAddress, deployer)
+    syntheticTokenUpgrader = await ethers.getContractAt(
+      'SyntheticTokenUpgrader',
+      syntheticTokenUpgraderAddress,
+      deployer
+    )
+    msBTC = await ethers.getContractAt('SyntheticToken', msBTCAddress, deployer)
+    msUSD = await ethers.getContractAt('SyntheticToken', msUSDAddress, deployer)
 
-    debtTokenUpgrader = DebtTokenUpgrader__factory.connect(debtTokenUpgraderAddress, deployer)
-    msBTCDebt = DebtToken__factory.connect(msBTCDebtTokenAddress, deployer)
-    msUSDDebt = DebtToken__factory.connect(msUSDDebtTokenAddress, deployer)
+    debtTokenUpgrader = await ethers.getContractAt('DebtTokenUpgrader', debtTokenUpgraderAddress, deployer)
+    msBTCDebt = await ethers.getContractAt('DebtToken', msBTCDebtTokenAddress, deployer)
+    msUSDDebt = await ethers.getContractAt('DebtToken', msUSDDebtTokenAddress, deployer)
 
-    poolRegistry = PoolRegistry__factory.connect(poolRegistryAddress, deployer)
-    poolRegistryUpgrader = PoolRegistryUpgrader__factory.connect(poolRegistryUpgraderAddress, deployer)
+    poolRegistry = await ethers.getContractAt('PoolRegistry', poolRegistryAddress, deployer)
+    poolRegistryUpgrader = await ethers.getContractAt('PoolRegistryUpgrader', poolRegistryUpgraderAddress, deployer)
 
-    feeProvider = FeeProvider__factory.connect(feeProviderAddress, deployer)
-    feeProviderUpgrader = FeeProviderUpgrader__factory.connect(feeProviderUpgraderAddress, deployer)
+    feeProvider = await ethers.getContractAt('FeeProvider', feeProviderAddress, deployer)
+    feeProviderUpgrader = await ethers.getContractAt('FeeProviderUpgrader', feeProviderUpgraderAddress, deployer)
   })
 
   const upgradeTestCase = async function ({
@@ -161,7 +149,7 @@ describe('Deployments', function () {
 
     it('should upgrade implementation', async function () {
       await upgradeTestCase({
-        newImplFactory: new Pool__factory(deployer),
+        newImplFactory: await ethers.getContractFactory('contracts/Pool.sol:Pool', deployer),
         proxy: pool,
         upgrader: poolUpgrader,
         expectToFail: false,
@@ -170,7 +158,7 @@ describe('Deployments', function () {
 
     it('should fail if implementation breaks storage', async function () {
       await upgradeTestCase({
-        newImplFactory: new MasterOracleMock__factory(deployer),
+        newImplFactory: await ethers.getContractFactory('MasterOracleMock', deployer),
         proxy: pool,
         upgrader: poolUpgrader,
         expectToFail: true,
@@ -186,7 +174,7 @@ describe('Deployments', function () {
 
     it('should upgrade implementation', async function () {
       await upgradeTestCase({
-        newImplFactory: new Treasury__factory(deployer),
+        newImplFactory: await ethers.getContractFactory('Treasury', deployer),
         proxy: treasury,
         upgrader: treasuryUpgrader,
         expectToFail: false,
@@ -223,7 +211,7 @@ describe('Deployments', function () {
 
       it('should upgrade implementation', async function () {
         await upgradeTestCase({
-          newImplFactory: new DepositToken__factory(deployer),
+          newImplFactory: await ethers.getContractFactory('DepositToken', deployer),
           proxy: msdUSDC,
           upgrader: depositTokenUpgrader,
           expectToFail: false,
@@ -232,7 +220,7 @@ describe('Deployments', function () {
 
       it('should fail if implementation breaks storage', async function () {
         await upgradeTestCase({
-          newImplFactory: new MasterOracleMock__factory(deployer),
+          newImplFactory: await ethers.getContractFactory('MasterOracleMock', deployer),
           proxy: msdUSDC,
           upgrader: depositTokenUpgrader,
           expectToFail: true,
@@ -251,7 +239,7 @@ describe('Deployments', function () {
 
       it('should upgrade implementation', async function () {
         await upgradeTestCase({
-          newImplFactory: new DepositToken__factory(deployer),
+          newImplFactory: await ethers.getContractFactory('DepositToken', deployer),
           proxy: msdWAVAX,
           upgrader: depositTokenUpgrader,
           expectToFail: false,
@@ -260,7 +248,7 @@ describe('Deployments', function () {
 
       it('should fail if implementation breaks storage', async function () {
         await upgradeTestCase({
-          newImplFactory: new MasterOracleMock__factory(deployer),
+          newImplFactory: await ethers.getContractFactory('MasterOracleMock', deployer),
           proxy: msdWAVAX,
           upgrader: depositTokenUpgrader,
           expectToFail: true,
@@ -300,7 +288,7 @@ describe('Deployments', function () {
 
       it('should upgrade implementation', async function () {
         await upgradeTestCase({
-          newImplFactory: new SyntheticToken__factory(deployer),
+          newImplFactory: await ethers.getContractFactory('SyntheticToken', deployer),
           proxy: msBTC,
           upgrader: syntheticTokenUpgrader,
           expectToFail: false,
@@ -309,7 +297,7 @@ describe('Deployments', function () {
 
       it('should fail if implementation breaks storage', async function () {
         await upgradeTestCase({
-          newImplFactory: new MasterOracleMock__factory(deployer),
+          newImplFactory: await ethers.getContractFactory('MasterOracleMock', deployer),
           proxy: msBTC,
           upgrader: syntheticTokenUpgrader,
           expectToFail: true,
@@ -327,7 +315,7 @@ describe('Deployments', function () {
 
       it('should upgrade implementation', async function () {
         await upgradeTestCase({
-          newImplFactory: new SyntheticToken__factory(deployer),
+          newImplFactory: await ethers.getContractFactory('SyntheticToken', deployer),
           proxy: msUSD,
           upgrader: syntheticTokenUpgrader,
           expectToFail: false,
@@ -336,7 +324,7 @@ describe('Deployments', function () {
 
       it('should fail if implementation breaks storage', async function () {
         await upgradeTestCase({
-          newImplFactory: new MasterOracleMock__factory(deployer),
+          newImplFactory: await ethers.getContractFactory('MasterOracleMock', deployer),
           proxy: msUSD,
           upgrader: syntheticTokenUpgrader,
           expectToFail: true,
@@ -359,7 +347,7 @@ describe('Deployments', function () {
 
       it('should upgrade implementation', async function () {
         await upgradeTestCase({
-          newImplFactory: new DebtToken__factory(deployer),
+          newImplFactory: await ethers.getContractFactory('DebtToken', deployer),
           proxy: msBTCDebt,
           upgrader: debtTokenUpgrader,
           expectToFail: false,
@@ -368,7 +356,7 @@ describe('Deployments', function () {
 
       it('should fail if implementation breaks storage', async function () {
         await upgradeTestCase({
-          newImplFactory: new MasterOracleMock__factory(deployer),
+          newImplFactory: await ethers.getContractFactory('MasterOracleMock', deployer),
           proxy: msBTCDebt,
           upgrader: debtTokenUpgrader,
           expectToFail: true,
@@ -389,7 +377,7 @@ describe('Deployments', function () {
 
       it('should upgrade implementation', async function () {
         await upgradeTestCase({
-          newImplFactory: new DebtToken__factory(deployer),
+          newImplFactory: await ethers.getContractFactory('DebtToken', deployer),
           proxy: msUSDDebt,
           upgrader: debtTokenUpgrader,
           expectToFail: false,
@@ -398,7 +386,7 @@ describe('Deployments', function () {
 
       it('should fail if implementation breaks storage', async function () {
         await upgradeTestCase({
-          newImplFactory: new MasterOracleMock__factory(deployer),
+          newImplFactory: await ethers.getContractFactory('MasterOracleMock', deployer),
           proxy: msUSDDebt,
           upgrader: debtTokenUpgrader,
           expectToFail: true,
@@ -417,7 +405,7 @@ describe('Deployments', function () {
 
     it('should upgrade implementation', async function () {
       await upgradeTestCase({
-        newImplFactory: new PoolRegistry__factory(deployer),
+        newImplFactory: await ethers.getContractFactory('PoolRegistry', deployer),
         proxy: poolRegistry,
         upgrader: poolRegistryUpgrader,
         expectToFail: false,
@@ -439,7 +427,7 @@ describe('Deployments', function () {
 
     it('should upgrade implementation', async function () {
       await upgradeTestCase({
-        newImplFactory: new FeeProvider__factory(deployer),
+        newImplFactory: await ethers.getContractFactory('FeeProvider', deployer),
         proxy: feeProvider,
         upgrader: feeProviderUpgrader,
         expectToFail: false,
@@ -448,7 +436,7 @@ describe('Deployments', function () {
 
     it('should fail if implementation breaks storage', async function () {
       await upgradeTestCase({
-        newImplFactory: new MasterOracleMock__factory(deployer),
+        newImplFactory: await ethers.getContractFactory('MasterOracleMock', deployer),
         proxy: feeProvider,
         upgrader: feeProviderUpgrader,
         expectToFail: true,

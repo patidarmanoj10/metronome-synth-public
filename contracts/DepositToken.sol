@@ -3,7 +3,7 @@
 pragma solidity 0.8.9;
 
 import "./dependencies/openzeppelin/utils/math/Math.sol";
-import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
+import "./utils/ReentrancyGuard.sol";
 import "./lib/WadRayMath.sol";
 import "./utils/TokenHolder.sol";
 import "./access/Manageable.sol";
@@ -17,6 +17,7 @@ error PoolIsNull();
 error SymbolIsNull();
 error DecimalsIsNull();
 error CollateralFactorTooHigh();
+error CollateralFactorTooLow();
 error DecreasedAllowanceBelowZero();
 error AmountIsZero();
 error BeneficiaryIsNull();
@@ -33,6 +34,7 @@ error TransferFromTheZeroAddress();
 error TransferToTheZeroAddress();
 error TransferAmountExceedsBalance();
 error NewValueIsSameAsCurrent();
+error SenderIsNotSmartFarmingManager();
 
 /**
  * @title Represents the users' deposits
@@ -41,7 +43,7 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
     using SafeERC20 for IERC20;
     using WadRayMath for uint256;
 
-    string public constant VERSION = "1.1.0";
+    string public constant VERSION = "1.3.0";
 
     /// @notice Emitted when collateral is deposited
     event CollateralDeposited(
@@ -69,6 +71,14 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
 
     /// @notice Emitted when max total supply is updated
     event MaxTotalSupplyUpdated(uint256 oldMaxTotalSupply, uint256 newMaxTotalSupply);
+
+    /**
+     * @dev Throws if sender is SmartFarmingManager
+     */
+    modifier onlyIfSmartFarmingManager() {
+        if (msg.sender != address(pool.smartFarmingManager())) revert SenderIsNotSmartFarmingManager();
+        _;
+    }
 
     /**
      * @dev Throws if sender can't seize
@@ -128,6 +138,10 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
         _;
     }
 
+    constructor() {
+        _disableInitializers();
+    }
+
     function initialize(
         IERC20 underlying_,
         IPool pool_,
@@ -141,7 +155,8 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
         if (address(pool_) == address(0)) revert PoolIsNull();
         if (bytes(symbol_).length == 0) revert SymbolIsNull();
         if (decimals_ == 0) revert DecimalsIsNull();
-        if (collateralFactor_ > 1e18) revert CollateralFactorTooHigh();
+        if (collateralFactor_ == 0) revert CollateralFactorTooLow();
+        if (collateralFactor_ >= 1e18) revert CollateralFactorTooHigh();
 
         __ReentrancyGuard_init();
         __Manageable_init(pool_);
@@ -205,6 +220,19 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
         _mint(onBehalfOf_, _deposited);
 
         emit CollateralDeposited(msg.sender, onBehalfOf_, amount_, _deposited, _fee);
+    }
+
+    /**
+     * @notice Burn msdTOKEN, withdraw collateral and transfer to `msg.sender` (i.e. SmartFarmingManager)
+     * @param account_ The account where deposit token will be burnt from
+     * @param amount_ The amount of collateral to withdraw
+     * @return _withdrawn The amount withdrawn after fees
+     */
+    function flashWithdraw(
+        address account_,
+        uint256 amount_
+    ) external override onlyIfSmartFarmingManager returns (uint256 _withdrawn, uint256 _fee) {
+        return _withdraw({account_: account_, amount_: amount_, to_: msg.sender});
     }
 
     /**
@@ -360,29 +388,28 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
     function withdraw(
         uint256 amount_,
         address to_
+    ) external override onlyIfUnlocked(msg.sender, amount_) returns (uint256 _withdrawn, uint256 _fee) {
+        if (to_ == address(0)) revert RecipientIsNull();
+        return _withdraw({account_: msg.sender, amount_: amount_, to_: to_});
+    }
+
+    /**
+     * @notice Burn msdTOKEN and withdraw collateral from a given account
+     * @param from_ The account to withdraw from
+     * @param amount_ The amount of collateral to withdraw
+     * @return _withdrawn The amount withdrawn after fees
+     */
+    function withdrawFrom(
+        address from_,
+        uint256 amount_
     )
         external
         override
-        whenNotShutdown
-        nonReentrant
-        onlyIfDepositTokenExists
-        onlyIfUnlocked(msg.sender, amount_)
+        onlyIfSmartFarmingManager
+        onlyIfUnlocked(from_, amount_)
         returns (uint256 _withdrawn, uint256 _fee)
     {
-        if (to_ == address(0)) revert RecipientIsNull();
-        if (amount_ == 0) revert AmountIsZero();
-
-        IPool _pool = pool;
-
-        (_withdrawn, _fee) = quoteWithdrawOut(amount_);
-        if (_fee > 0) {
-            _transfer(msg.sender, _pool.feeCollector(), _fee);
-        }
-
-        _burn(msg.sender, _withdrawn);
-        _pool.treasury().pull(to_, _withdrawn);
-
-        emit CollateralWithdrawn(msg.sender, to_, amount_, _withdrawn, _fee);
+        return _withdraw({account_: from_, amount_: amount_, to_: msg.sender});
     }
 
     /**
@@ -485,6 +512,34 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
     }
 
     /**
+     * @notice Burn msdTOKEN, withdraw collateral and transfer to `msg.sender` (i.e. Pool)
+     * @dev This function doesn't check if the amount is unlocked!
+     * @param account_ The account where deposit token will be burnt from
+     * @param amount_ The amount of collateral to withdraw
+     * @param to_ The account that will receive withdrawn collateral
+     * @return _withdrawn The amount withdrawn after fees
+     */
+    function _withdraw(
+        address account_,
+        uint256 amount_,
+        address to_
+    ) private whenNotShutdown nonReentrant onlyIfDepositTokenExists returns (uint256 _withdrawn, uint256 _fee) {
+        if (amount_ == 0) revert AmountIsZero();
+
+        IPool _pool = pool;
+
+        (_withdrawn, _fee) = quoteWithdrawOut(amount_);
+        if (_fee > 0) {
+            _transfer(account_, _pool.feeCollector(), _fee);
+        }
+
+        _burn(account_, _withdrawn);
+        _pool.treasury().pull(to_, _withdrawn);
+
+        emit CollateralWithdrawn(account_, to_, amount_, _withdrawn, _fee);
+    }
+
+    /**
      * @notice Enable/Disable the Deposit Token
      */
     function toggleIsActive() external override onlyGovernor {
@@ -498,7 +553,8 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
      * @param newCollateralFactor_ The new CF value
      */
     function updateCollateralFactor(uint128 newCollateralFactor_) external override onlyGovernor {
-        if (newCollateralFactor_ > 1e18) revert CollateralFactorTooHigh();
+        if (newCollateralFactor_ == 0) revert CollateralFactorTooLow();
+        if (newCollateralFactor_ >= 1e18) revert CollateralFactorTooHigh();
         uint256 _currentCollateralFactor = collateralFactor;
         if (newCollateralFactor_ == _currentCollateralFactor) revert NewValueIsSameAsCurrent();
         emit CollateralFactorUpdated(_currentCollateralFactor, newCollateralFactor_);

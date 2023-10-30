@@ -50,4 +50,29 @@ abstract contract SyntheticTokenStorageV1 is ISyntheticToken {
      * @notice The decimals of the token
      */
     uint8 public override decimals;
+
+    /**
+     * @notice The ProxyOFT contract
+     */
+    IProxyOFT public override proxyOFT;
+
+    /**
+     * @notice Track amount received cross-chain
+     */
+    uint256 public totalBridgedIn;
+
+    /**
+     * @notice Track amount sent cross-chain
+     */
+    uint256 public totalBridgedOut;
+
+    /**
+     * @notice Maximum allowed bridged-in (mint-related) supply
+     */
+    uint256 public maxBridgedInSupply;
+
+    /**
+     * @notice Maximum allowed bridged-out (burn-related) supply
+     */
+    uint256 public maxBridgedOutSupply;
 }

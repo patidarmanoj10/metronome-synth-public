@@ -4,12 +4,23 @@ pragma solidity 0.8.9;
 
 import "./dependencies/openzeppelin/utils/math/SafeCast.sol";
 import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
-import "./dependencies/openzeppelin/security/ReentrancyGuard.sol";
+import "./utils/ReentrancyGuard.sol";
 import "./interfaces/IDebtToken.sol";
 import "./interfaces/IDepositToken.sol";
 import "./access/Manageable.sol";
 import "./storage/RewardsDistributorStorage.sol";
 import "./lib/WadRayMath.sol";
+import "./interfaces/external/IVPool.sol";
+import "./interfaces/external/IPoolRewards.sol";
+
+/// @notice Updated to IPoolRewards will trigger treasury upgrade and we want to avoid it.
+/// Hence defining new interface here.
+interface IPoolRewardsExt is IPoolRewards {
+    function rewardRates(address rewardToken_) external returns (uint256);
+}
+
+error AddressIsNull();
+error NotTokenSpeedKeeper();
 
 error DistributorDoesNotExist();
 error InvalidToken();
@@ -20,12 +31,12 @@ error ArraysLengthDoNotMatch();
 /**
  * @title RewardsDistributor contract
  */
-contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorStorageV1 {
+contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorStorageV2 {
     using SafeERC20 for IERC20;
     using SafeCast for uint256;
     using WadRayMath for uint256;
 
-    string public constant VERSION = "1.1.0";
+    string public constant VERSION = "1.3.0";
 
     /// @notice The initial index
     uint224 public constant INITIAL_INDEX = 1e18;
@@ -74,6 +85,10 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
         _;
     }
 
+    constructor() {
+        _disableInitializers();
+    }
+
     function initialize(IPool pool_, IERC20 rewardToken_) external initializer {
         if (address(rewardToken_) == address(0)) revert RewardTokenIsNull();
 
@@ -87,23 +102,19 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
      * @notice Returns claimable amount consider all tokens
      */
     function claimable(address account_) external view override returns (uint256 _claimable) {
+        _claimable = tokensAccruedOf[account_];
         for (uint256 i; i < tokens.length; ++i) {
-            _claimable += claimable(account_, tokens[i]);
+            _claimable += _claimableRewards(account_, tokens[i]);
         }
     }
 
     /**
      * @notice Returns updated claimable amount for given token
+     * @dev Removing this function will change interface and will result
+     * updating other contracts using interface.
      */
-    function claimable(address account_, IERC20 token_) public view override returns (uint256 _claimable) {
-        TokenState memory _tokenState = tokenStates[token_];
-        (uint224 _newIndex, uint32 _newTimestamp) = _calculateTokenIndex(_tokenState, token_);
-        if (_newIndex > 0 && _newTimestamp > 0) {
-            _tokenState = TokenState({index: _newIndex, timestamp: _newTimestamp});
-        } else if (_newTimestamp > 0) {
-            _tokenState.timestamp = _newTimestamp;
-        }
-        (, , _claimable) = _calculateTokensAccruedOf(_tokenState, token_, account_);
+    function claimable(address, IERC20) public view override returns (uint256) {
+        revert("Unsupported");
     }
 
     /**
@@ -192,11 +203,11 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     /**
      * @notice Calculate updated account index and claimable values
      */
-    function _calculateTokensAccruedOf(
+    function _calculateTokenDelta(
         TokenState memory _tokenState,
         IERC20 token_,
         address account_
-    ) private view returns (uint256 _tokenIndex, uint256 _tokensDelta, uint256 _tokensAccruedOf) {
+    ) private view returns (uint256 _tokenIndex, uint256 _tokensDelta) {
         _tokenIndex = _tokenState.index;
         uint256 _accountIndex = accountIndexOf[token_][account_];
 
@@ -206,7 +217,17 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
 
         uint256 _deltaIndex = _tokenIndex - _accountIndex;
         _tokensDelta = token_.balanceOf(account_).wadMul(_deltaIndex);
-        _tokensAccruedOf = tokensAccruedOf[account_] + _tokensDelta;
+    }
+
+    function _claimableRewards(address account_, IERC20 token_) internal view returns (uint256 _claimableDelta) {
+        TokenState memory _tokenState = tokenStates[token_];
+        (uint224 _newIndex, uint32 _newTimestamp) = _calculateTokenIndex(_tokenState, token_);
+        if (_newIndex > 0 && _newTimestamp > 0) {
+            _tokenState = TokenState({index: _newIndex, timestamp: _newTimestamp});
+        } else if (_newTimestamp > 0) {
+            _tokenState.timestamp = _newTimestamp;
+        }
+        (, _claimableDelta) = _calculateTokenDelta(_tokenState, token_, account_);
     }
 
     /**
@@ -227,13 +248,9 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
      * @notice Calculate tokens accrued by an account
      */
     function _updateTokensAccruedOf(IERC20 token_, address account_) private {
-        (uint256 _tokenIndex, uint256 _tokensDelta, uint256 _tokensAccruedOf) = _calculateTokensAccruedOf(
-            tokenStates[token_],
-            token_,
-            account_
-        );
+        (uint256 _tokenIndex, uint256 _tokensDelta) = _calculateTokenDelta(tokenStates[token_], token_, account_);
         accountIndexOf[token_][account_] = _tokenIndex;
-        tokensAccruedOf[account_] = _tokensAccruedOf;
+        tokensAccruedOf[account_] = tokensAccruedOf[account_] + _tokensDelta;
         emit TokensAccruedUpdated(token_, account_, _tokensDelta, _tokenIndex);
     }
 
@@ -298,5 +315,23 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
         for (uint256 i; i < _tokensLength; ++i) {
             _updateTokenSpeed(tokens_[i], speeds_[i]);
         }
+    }
+
+    //********************************  TokenSpeed and RewardRate sync fix ***********************************/
+    /// @notice This is temporary fix to keep tokenSpeed and rewardRate from Vesper in sync.
+    function syncTokenSpeed(IDepositToken depositToken_) external {
+        if (msg.sender != tokenSpeedKeeper) revert NotTokenSpeedKeeper();
+
+        IVPool _vPool = IVPool(address(depositToken_.underlying()));
+        IPoolRewardsExt _rewards = IPoolRewardsExt(_vPool.poolRewards());
+        uint256 _speed = (_rewards.rewardRates(address(rewardToken)) * _vPool.balanceOf(address(pool.treasury()))) /
+            _vPool.totalSupply();
+        _updateTokenSpeed(IERC20(address(depositToken_)), _speed);
+    }
+
+    /// @notice This function is part of temporary fix to keep tokenSpeed and rewardRate in sync.
+    function updateTokenSpeedKeeper(address keeper_) external onlyGovernor {
+        if (keeper_ == address(0)) revert AddressIsNull();
+        tokenSpeedKeeper = keeper_;
     }
 }

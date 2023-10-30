@@ -23,7 +23,7 @@ contract PoolMock is IPool, Governable, Pauseable {
     IMasterOracle public masterOracle;
     IPoolRegistry public poolRegistry;
     IFeeProvider public feeProvider;
-    ISwapper public swapper;
+    ISmartFarmingManager public smartFarmingManager;
     uint256 public debtFloorInUsd;
     uint256 public maxLiquidable;
     bool public isSwapActive;
@@ -87,10 +87,6 @@ contract PoolMock is IPool, Governable, Pauseable {
         _debtInUsd = debtOf(_account);
         _issuableLimitInUsd = _depositInUsd.wadMul(depositToken.collateralFactor());
         _issuableInUsd = _debtInUsd < _issuableLimitInUsd ? _issuableLimitInUsd - _debtInUsd : 0;
-    }
-
-    function leverage(IERC20, IDepositToken, ISyntheticToken, uint256, uint256, uint256) external pure override {
-        revert("mock-does-not-implement");
     }
 
     function liquidate(

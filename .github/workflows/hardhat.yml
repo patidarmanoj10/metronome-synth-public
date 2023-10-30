@@ -1,0 +1,33 @@
+name: hardhat tests
+on:
+  pull_request:
+    paths:
+      - "test/*.ts"
+      - "contracts/**/*.sol"
+      - "deploy/**/*.ts"
+      - package*.json
+      - ".github/env.properties"
+      - ".github/workflows/hardhat.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2.3.1
+        with:
+          submodules: true
+      - run: cat "${GITHUB_WORKSPACE}/.github/env.properties" >> $GITHUB_ENV
+
+      - name: Use Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version-file: ".nvmrc"
+
+      - name: Run npm install
+        run: npm i
+
+      - name: Run npm run lint
+        run: npm run lint
+
+      - name: Running tests
+        run: npm t

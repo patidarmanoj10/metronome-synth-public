@@ -5,6 +5,7 @@ pragma solidity 0.8.9;
 import "../dependencies/openzeppelin/utils/structs/EnumerableSet.sol";
 import "../lib/MappedEnumerableSet.sol";
 import "../interfaces/IPool.sol";
+import "../interfaces/ISmartFarmingManager.sol";
 
 // solhint-disable var-name-mixedcase, max-states-count
 abstract contract PoolStorageV1 is IPool {
@@ -84,10 +85,7 @@ abstract contract PoolStorageV1 is IPool {
 }
 
 abstract contract PoolStorageV2 is PoolStorageV1 {
-    /**
-     * @notice Swapper contract
-     */
-    ISwapper public swapper;
+    ISwapper private swapper__DEPRECATED;
 
     /**
      * @notice FeeProvider contract
@@ -98,4 +96,11 @@ abstract contract PoolStorageV2 is PoolStorageV1 {
      * @notice RewardsDistributor contracts
      */
     EnumerableSet.AddressSet internal rewardsDistributors;
+}
+
+abstract contract PoolStorageV3 is PoolStorageV2 {
+    /**
+     * @notice SmartFarmingManager contract
+     */
+    ISmartFarmingManager public smartFarmingManager;
 }

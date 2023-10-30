@@ -1,0 +1,46 @@
+name: foundry tests
+on:
+  pull_request:
+    paths:
+      - "test/foundry/**/*.sol"
+      - "contracts/**/*.sol"
+      - package*.json
+      - ".github/env.properties"
+      - ".github/workflows/foundry.yml"
+
+env:
+  FOUNDRY_PROFILE: ci
+
+jobs:
+  check:
+    strategy:
+      fail-fast: true
+
+    name: Foundry project
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      - run: cat "${GITHUB_WORKSPACE}/.github/env.properties" >> $GITHUB_ENV
+
+      - uses: actions/setup-node@v2
+        with:
+          node-version-file: ".nvmrc"
+      - run: npm i
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Run Forge build
+        run: |
+          forge --version
+          forge build --sizes
+        id: build
+
+      - name: Run Forge tests
+        run: |
+          forge test -vvv
+        id: test

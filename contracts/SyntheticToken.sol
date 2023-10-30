@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.9;
 
-import "./dependencies/openzeppelin/proxy/utils/Initializable.sol";
+import "./dependencies/openzeppelin-upgradeable/proxy/utils/Initializable.sol";
 import "./interfaces/IPool.sol";
 import "./interfaces/IManageable.sol";
 import "./lib/WadRayMath.sol";
@@ -24,11 +24,13 @@ error ApproveToTheZeroAddress();
 error BurnFromTheZeroAddress();
 error BurnAmountExceedsBalance();
 error MintToTheZeroAddress();
+error SurpassMaxBridgingSupply();
 error SurpassMaxSynthSupply();
 error TransferFromTheZeroAddress();
 error TransferToTheZeroAddress();
 error TransferAmountExceedsBalance();
 error NewValueIsSameAsCurrent();
+error AddressIsNull();
 
 /**
  * @title Synthetic Token contract
@@ -36,13 +38,22 @@ error NewValueIsSameAsCurrent();
 contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
     using WadRayMath for uint256;
 
-    string public constant VERSION = "1.1.0";
+    string public constant VERSION = "1.3.0";
 
     /// @notice Emitted when active flag is updated
     event SyntheticTokenActiveUpdated(bool newActive);
 
     /// @notice Emitted when max total supply is updated
     event MaxTotalSupplyUpdated(uint256 oldMaxTotalSupply, uint256 newMaxTotalSupply);
+
+    /// @notice Emitted when max bridged-in supply is updated
+    event MaxBridgedInSupplyUpdated(uint256 oldMaxBridgedInSupply, uint256 newMaxBridgedInSupply);
+
+    /// @notice Emitted when max bridged-out supply is updated
+    event MaxBridgedOutSupplyUpdated(uint256 oldMaxBridgedOutSupply, uint256 newMaxBridgedOutSupply);
+
+    /// @notice Emitted when proxyOFT is updated
+    event ProxyOFTUpdated(IProxyOFT oldProxyOFT, IProxyOFT newProxyOFT);
 
     /**
      * @notice Throws if caller isn't the governor
@@ -56,7 +67,7 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
      * @dev Throws if sender can't burn
      */
     modifier onlyIfCanBurn() {
-        if (!_isMsgSenderPool() && !_isMsgSenderDebtToken()) revert SenderCanNotBurn();
+        if (!_isMsgSenderProxyOFT() && !_isMsgSenderPool() && !_isMsgSenderDebtToken()) revert SenderCanNotBurn();
         _;
     }
 
@@ -64,7 +75,7 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
      * @dev Throws if sender can't mint
      */
     modifier onlyIfCanMint() {
-        if (!_isMsgSenderPool() && !_isMsgSenderDebtToken()) revert SenderCanNotMint();
+        if (!_isMsgSenderProxyOFT() && !_isMsgSenderPool() && !_isMsgSenderDebtToken()) revert SenderCanNotMint();
         _;
     }
 
@@ -82,6 +93,10 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
     modifier onlyIfSyntheticTokenIsActive() {
         if (!isActive) revert SyntheticIsInactive();
         _;
+    }
+
+    constructor() {
+        _disableInitializers();
     }
 
     function initialize(
@@ -109,6 +124,32 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
     function approve(address spender_, uint256 amount_) external override returns (bool) {
         _approve(msg.sender, spender_, amount_);
         return true;
+    }
+
+    /**
+     * @notice Get net bridged-in circulating supply
+     * @dev The supply is calculated using `MAX(totalBridgedIn - totalBridgedOut, 0)`
+     */
+    function bridgedInSupply() public view returns (uint256 _supply) {
+        uint256 _totalBridgedIn = totalBridgedIn;
+        uint256 _totalBridgedOut = totalBridgedOut;
+
+        if (_totalBridgedIn > _totalBridgedOut) {
+            return _totalBridgedIn - _totalBridgedOut;
+        }
+    }
+
+    /**
+     * @notice Get net bridged-out circulating supply
+     * @dev The supply is calculated using `MAX(totalBridgedOut - totalBridgedIn, 0)`
+     */
+    function bridgedOutSupply() public view returns (uint256 _supply) {
+        uint256 _totalBridgedIn = totalBridgedIn;
+        uint256 _totalBridgedOut = totalBridgedOut;
+
+        if (_totalBridgedOut > _totalBridgedIn) {
+            return _totalBridgedOut - _totalBridgedIn;
+        }
     }
 
     /**
@@ -199,6 +240,11 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
     function _burn(address account_, uint256 amount_) private {
         if (account_ == address(0)) revert BurnFromTheZeroAddress();
 
+        if (_isMsgSenderProxyOFT()) {
+            totalBridgedOut += amount_;
+            if (bridgedOutSupply() > maxBridgedOutSupply) revert SurpassMaxBridgingSupply();
+        }
+
         uint256 _currentBalance = balanceOf[account_];
         if (_currentBalance < amount_) revert BurnAmountExceedsBalance();
         unchecked {
@@ -207,6 +253,13 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
         }
 
         emit Transfer(account_, address(0), amount_);
+    }
+
+    /**
+     * @dev Check if the sender is proxyOFT
+     */
+    function _isMsgSenderProxyOFT() private view returns (bool) {
+        return msg.sender == address(proxyOFT);
     }
 
     /**
@@ -234,6 +287,11 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
      */
     function _mint(address account_, uint256 amount_) private onlyIfSyntheticTokenIsActive {
         if (account_ == address(0)) revert MintToTheZeroAddress();
+
+        if (_isMsgSenderProxyOFT()) {
+            totalBridgedIn += amount_;
+            if (bridgedInSupply() > maxBridgedInSupply) revert SurpassMaxBridgingSupply();
+        }
 
         totalSupply += amount_;
         if (totalSupply > maxTotalSupply) revert SurpassMaxSynthSupply();
@@ -276,5 +334,37 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
         if (newMaxTotalSupply_ == _currentMaxTotalSupply) revert NewValueIsSameAsCurrent();
         emit MaxTotalSupplyUpdated(_currentMaxTotalSupply, newMaxTotalSupply_);
         maxTotalSupply = newMaxTotalSupply_;
+    }
+
+    /**
+     * @notice Update max bridged-in supply
+     */
+    function updateMaxBridgedInSupply(uint256 maxBridgedInSupply_) external onlyGovernor {
+        uint256 _currentMaxBridgedInBalance = maxBridgedInSupply;
+        if (maxBridgedInSupply_ == _currentMaxBridgedInBalance) revert NewValueIsSameAsCurrent();
+        emit MaxBridgedInSupplyUpdated(_currentMaxBridgedInBalance, maxBridgedInSupply_);
+        maxBridgedInSupply = maxBridgedInSupply_;
+    }
+
+    /**
+     * @notice Update max bridged-out supply
+     */
+    function updateMaxBridgedOutSupply(uint256 maxBridgedOutSupply_) external onlyGovernor {
+        uint256 _currentMaxBridgedOutBalance = maxBridgedOutSupply;
+        if (maxBridgedOutSupply_ == _currentMaxBridgedOutBalance) revert NewValueIsSameAsCurrent();
+        emit MaxBridgedOutSupplyUpdated(_currentMaxBridgedOutBalance, maxBridgedOutSupply_);
+        maxBridgedOutSupply = maxBridgedOutSupply_;
+    }
+
+    /**
+     * @notice Update proxyOFT
+     * @param newProxyOFT_ Address of new ProxyOFT
+     */
+    function updateProxyOFT(IProxyOFT newProxyOFT_) external override onlyGovernor {
+        if (address(newProxyOFT_) == address(0)) revert AddressIsNull();
+        IProxyOFT _currentProxyOFT = proxyOFT;
+        if (newProxyOFT_ == _currentProxyOFT) revert NewValueIsSameAsCurrent();
+        emit ProxyOFTUpdated(_currentProxyOFT, newProxyOFT_);
+        proxyOFT = newProxyOFT_;
     }
 }

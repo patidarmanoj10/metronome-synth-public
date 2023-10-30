@@ -6,11 +6,14 @@ import "./external/IMasterOracle.sol";
 import "./IPauseable.sol";
 import "./IGovernable.sol";
 import "./ISyntheticToken.sol";
+import "./external/ISwapper.sol";
+import "./IQuoter.sol";
+import "./ICrossChainDispatcher.sol";
 
 interface IPoolRegistry is IPauseable, IGovernable {
-    function isPoolRegistered(address pool_) external view returns (bool);
-
     function feeCollector() external view returns (address);
+
+    function isPoolRegistered(address pool_) external view returns (bool);
 
     function nativeTokenGateway() external view returns (address);
 
@@ -22,13 +25,17 @@ interface IPoolRegistry is IPauseable, IGovernable {
 
     function masterOracle() external view returns (IMasterOracle);
 
-    function updateMasterOracle(IMasterOracle newOracle_) external;
-
     function updateFeeCollector(address newFeeCollector_) external;
-
-    function updateNativeTokenGateway(address newGateway_) external;
 
     function idOfPool(address pool_) external view returns (uint256);
 
     function nextPoolId() external view returns (uint256);
+
+    function swapper() external view returns (ISwapper);
+
+    function quoter() external view returns (IQuoter);
+
+    function crossChainDispatcher() external view returns (ICrossChainDispatcher);
+
+    function doesSyntheticTokenExist(ISyntheticToken syntheticToken_) external view returns (bool _exists);
 }

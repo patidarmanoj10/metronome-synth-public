@@ -1,4 +1,4 @@
-import { task } from 'hardhat/config'
+import {task} from 'hardhat/config'
 
 import fs from 'fs'
 import _ from 'lodash'
@@ -65,7 +65,7 @@ function getPreviousRelease() {
 /* eslint-disable no-param-reassign */
 task('create-release', 'Create release file from deploy data')
   .addParam('release', 'Metronome Synth release semantic version, i.e 1.2.3')
-  .setAction(async function ({ release }, hre) {
+  .setAction(async function ({release}, hre) {
     const network = hre.network.name
     const networkDir = `./deployments/${network}`
 
@@ -90,7 +90,7 @@ task('create-release', 'Create release file from deploy data')
       // If this is new release
       // Create new release directory if doesn't exist
       if (!fs.existsSync(releaseDir)) {
-        fs.mkdirSync(releaseDir, { recursive: true })
+        fs.mkdirSync(releaseDir, {recursive: true})
       }
       // Copy data from previous release
       releaseData = prevReleaseData

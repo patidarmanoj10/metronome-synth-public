@@ -1,5 +1,0 @@
-{
-  "*.js": ["eslint"],
-  "*.ts": ["eslint"],
-  "*.sol": ["solhint"]
-}
