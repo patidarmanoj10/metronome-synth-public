@@ -24,10 +24,10 @@ read
 # Prepare deployment data
 cp -r deployments/$network deployments/localhost
 
-# Deployment (1/2)
+# Deployment (1/2) - Upgrade contracts
 npx hardhat deploy --network localhost #> DEPLOYMENT_TEST_OUTPUT.log
 
-# Deployment (2/2): enables cc flash repay
+# Deployment (2/2) - Call `Pool.toggleBridgingIsActive()`
 npx hardhat deploy --network localhost #> DEPLOYMENT_TEST_OUTPUT.log
 
 # Test next release
