@@ -20,31 +20,30 @@ import {
   CrossChainDispatcher,
   Quoter,
   ProxyOFT,
-  SmartFarmingManager__factory,
 } from '../typechain'
 import {CrossChainLib} from './helpers/CrossChainLib'
 import {address as POOL_REGISTRY_ADDRESS} from '../deployments/mainnet/PoolRegistry.json'
-import {address as USDC_DEPOSIT_ADDRESS} from '../deployments/mainnet/USDCDepositToken.json'
-import {address as DAI_DEPOSIT_ADDRESS} from '../deployments/mainnet/DAIDepositToken.json'
-import {address as WBTC_DEPOSIT_ADDRESS} from '../deployments/mainnet/WBTCDepositToken.json'
-import {address as FRAX_DEPOSIT_ADDRESS} from '../deployments/mainnet/FRAXDepositToken.json'
-import {address as WETH_DEPOSIT_ADDRESS} from '../deployments/mainnet/WETHDepositToken.json'
-import {address as VAFRAX_DEPOSIT_ADDRESS} from '../deployments/mainnet/vaFRAXDepositToken.json'
-import {address as VAUSDC_DEPOSIT_ADDRESS} from '../deployments/mainnet/vaUSDCDepositToken.json'
-import {address as VAETH_DEPOSIT_ADDRESS} from '../deployments/mainnet/vaETHDepositToken.json'
-import {address as MSUSD_DEBT_ADDRESS} from '../deployments/mainnet/MsUSDDebt.json'
-import {address as MSBTC_DEBT_ADDRESS} from '../deployments/mainnet/MsBTCDebt.json'
-import {address as MSETH_DEBT_ADDRESS} from '../deployments/mainnet/MsETHDebt.json'
+import {address as USDC_DEPOSIT_ADDRESS} from '../deployments/mainnet/USDCDepositToken_Pool1.json'
+import {address as DAI_DEPOSIT_ADDRESS} from '../deployments/mainnet/DAIDepositToken_Pool1.json'
+import {address as WBTC_DEPOSIT_ADDRESS} from '../deployments/mainnet/WBTCDepositToken_Pool1.json'
+import {address as FRAX_DEPOSIT_ADDRESS} from '../deployments/mainnet/FRAXDepositToken_Pool1.json'
+import {address as WETH_DEPOSIT_ADDRESS} from '../deployments/mainnet/WETHDepositToken_Pool1.json'
+import {address as VAFRAX_DEPOSIT_ADDRESS} from '../deployments/mainnet/VaFRAXDepositToken_Pool1.json'
+import {address as VAUSDC_DEPOSIT_ADDRESS} from '../deployments/mainnet/VaUSDCDepositToken_Pool1.json'
+import {address as VAETH_DEPOSIT_ADDRESS} from '../deployments/mainnet/VaETHDepositToken_Pool1.json'
+import {address as MSUSD_DEBT_ADDRESS} from '../deployments/mainnet/MsUSDDebt_Pool1.json'
+import {address as MSBTC_DEBT_ADDRESS} from '../deployments/mainnet/MsBTCDebt_Pool1.json'
+import {address as MSETH_DEBT_ADDRESS} from '../deployments/mainnet/MsETHDebt_Pool1.json'
 import {address as MSUSD_SYNTHETIC_ADDRESS} from '../deployments/mainnet/MsUSDSynthetic.json'
 import {address as MSBTC_SYNTHETIC_ADDRESS} from '../deployments/mainnet/MsBTCSynthetic.json'
 import {address as MSETH_SYNTHETIC_ADDRESS} from '../deployments/mainnet/MsETHSynthetic.json'
 import {address as NATIVE_TOKEN_GATEWAY_ADDRESS} from '../deployments/mainnet/NativeTokenGateway.json'
-import {address as SRFXETH_DEPOSIT_ADDRESS} from '../deployments/mainnet/sfrxETHDepositToken.json'
-import {address as VASTETH_DEPOSIT_ADDRESS} from '../deployments/mainnet/vaSTETHDepositToken.json'
-import {address as VARETH_DEPOSIT_ADDRESS} from '../deployments/mainnet/vaRETHDepositToken.json'
-import {address as VACBETH_DEPOSIT_ADDRESS} from '../deployments/mainnet/vaCBETHDepositToken.json'
+import {address as SRFXETH_DEPOSIT_ADDRESS} from '../deployments/mainnet/SfrxETHDepositToken_Pool1.json'
+import {address as VASTETH_DEPOSIT_ADDRESS} from '../deployments/mainnet/VaSTETHDepositToken_Pool1.json'
+import {address as VARETH_DEPOSIT_ADDRESS} from '../deployments/mainnet/VaRETHDepositToken_Pool1.json'
+import {address as VACBETH_DEPOSIT_ADDRESS} from '../deployments/mainnet/VaCBETHDepositToken_Pool1.json'
 import {address as CROSS_CHAIN_DISPATCHER_ADDRESS} from '../deployments/mainnet/CrossChainDispatcher.json'
-import {address as SMART_FARMING_MANAGER_ADDRESS} from '../deployments/mainnet/SmartFarmingManager.json'
+import {address as SMART_FARMING_MANAGER_ADDRESS} from '../deployments/mainnet/SmartFarmingManager_Pool1.json'
 import {address as QUOTER_ADDRESS} from '../deployments/mainnet/Quoter.json'
 import {address as MSETH_PROXYOFT_ADDRESS} from '../deployments/mainnet/MsETHProxyOFT.json'
 import {address as MSUSD_PROXYOFT_ADDRESS} from '../deployments/mainnet/MsUSDProxyOFT.json'
@@ -78,7 +77,7 @@ describe('E2E tests (mainnet)', function () {
   let masterOracle: Contract
   let poolRegistry: PoolRegistry
   let nativeGateway: NativeTokenGateway
-  let smartFarmingManager: Contract
+  let smartFarmingManager: SmartFarmingManager
   let crossChainDispatcher: CrossChainDispatcher
   let quoter: Quoter
   let pool: Pool
@@ -130,7 +129,7 @@ describe('E2E tests (mainnet)', function () {
     nativeGateway = await ethers.getContractAt('NativeTokenGateway', NATIVE_TOKEN_GATEWAY_ADDRESS, alice)
 
     const [pool1Address] = await poolRegistry.getPools()
-    pool = await ethers.getContractAt('contracts/Pool.sol:Pool', pool1Address, alice)
+    pool = <Pool>await ethers.getContractAt('contracts/Pool.sol:Pool', pool1Address, alice)
 
     msdUSDC = await ethers.getContractAt('DepositToken', USDC_DEPOSIT_ADDRESS, alice) // 6 decimals.
     msdDAI = await ethers.getContractAt('DepositToken', DAI_DEPOSIT_ADDRESS, alice) // 18 decimals
@@ -156,16 +155,7 @@ describe('E2E tests (mainnet)', function () {
     msUSDProxyOFT = await ethers.getContractAt('ProxyOFT', MSUSD_PROXYOFT_ADDRESS, alice)
     msETHProxyOFT = await ethers.getContractAt('ProxyOFT', MSETH_PROXYOFT_ADDRESS, alice)
 
-    smartFarmingManager = new ethers.Contract(
-      SMART_FARMING_MANAGER_ADDRESS,
-      [
-        'function crossChainLeverage(address,address,address,uint256,uint256,uint256,uint256,bytes) payable external',
-        'function crossChainLeverages(uint256) external view returns (uint16,address,address,address,uint256,uint256,uint256,address,bool)',
-        ...SmartFarmingManager__factory.abi,
-      ],
-      alice
-    )
-
+    smartFarmingManager = await ethers.getContractAt('SmartFarmingManager', SMART_FARMING_MANAGER_ADDRESS, alice)
     crossChainDispatcher = await ethers.getContractAt('CrossChainDispatcher', CROSS_CHAIN_DISPATCHER_ADDRESS, alice)
     quoter = await ethers.getContractAt('Quoter', QUOTER_ADDRESS, alice)
 
@@ -773,24 +763,24 @@ describe('E2E tests (mainnet)', function () {
         // when
         const id = '92458281274488595289803937127152923398167637295201432141969818930235769911599'
 
-        const [
+        const {
           dstChainId,
           bridgeToken,
           depositToken,
           syntheticToken,
-          bridgeTokenAmountIn,
+          amountIn,
           debtAmount,
           depositAmountMin,
           account,
           finished,
-        ] = await smartFarmingManager.crossChainLeverages(id)
+        } = await smartFarmingManager.crossChainLeverages(id)
 
         // then
         expect(dstChainId).eq(LZ_OPTIMISM_ID)
         expect(bridgeToken).eq(usdc.address)
         expect(depositToken).eq(msdVaUSDC.address)
         expect(syntheticToken).eq(msUSD.address)
-        expect(bridgeTokenAmountIn).eq('10000000')
+        expect(amountIn).eq('10000000')
         expect(debtAmount).eq('10001755800000000000')
         expect(depositAmountMin).eq(1)
         expect(account).eq('0xdf826ff6518e609E4cEE86299d40611C148099d5')
@@ -802,7 +792,7 @@ describe('E2E tests (mainnet)', function () {
         const idBefore = await smartFarmingManager.crossChainRequestsLength()
 
         // when
-        const amountIn = parseUnits('100', 18)
+        const amountIn = parseUnits('100', 6)
         const leverage = parseEther('1.5')
         const swapAmountOutMin = 0
         const depositAmountOutMin = 0
@@ -812,11 +802,14 @@ describe('E2E tests (mainnet)', function () {
         const lzArgs = CrossChainLib.encodeLzArgs(LZ_OPTIMISM_ID, parseEther('0.1'), '750000')
 
         const fee = parseEther('0.5')
-        await dai.connect(alice).approve(smartFarmingManager.address, MaxUint256)
-        await smartFarmingManager['crossChainLeverage(address,address,address,uint256,uint256,uint256,uint256,bytes)'](
-          dai.address,
-          msdVaUSDC.address,
+        await usdc.connect(alice).approve(smartFarmingManager.address, MaxUint256)
+        await smartFarmingManager[
+          'crossChainLeverage(address,address,address,address,uint256,uint256,uint256,uint256,bytes)'
+        ](
+          usdc.address,
           msUSD.address,
+          usdc.address,
+          msdVaUSDC.address,
           amountIn,
           leverage,
           swapAmountOutMin,

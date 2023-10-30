@@ -1,3 +1,4 @@
+/* eslint-disable camelcase */
 import {ethers, BigNumber} from 'ethers'
 import chalk from 'chalk'
 import {DeployFunction} from 'hardhat-deploy/types'
@@ -18,16 +19,20 @@ interface ContractConfig {
 
 interface UpgradableContractsConfig {
   PoolRegistry: ContractConfig
-  Pool: ContractConfig
-  Treasury: ContractConfig
+  Pool1: ContractConfig
+  Pool2: ContractConfig
+  Treasury_Pool1: ContractConfig
+  Treasury_Pool2: ContractConfig
   DepositToken: ContractConfig
   SyntheticToken: ContractConfig
   DebtToken: ContractConfig
   MetRewardsDistributor: ContractConfig
   OpRewardsDistributor: ContractConfig
-  FeeProvider: ContractConfig
+  FeeProvider_Pool1: ContractConfig
+  FeeProvider_Pool2: ContractConfig
   ProxyOFT: ContractConfig
-  SmartFarmingManager: ContractConfig
+  SmartFarmingManager_Pool1: ContractConfig
+  SmartFarmingManager_Pool2: ContractConfig
   Quoter: ContractConfig
   CrossChainDispatcher: ContractConfig
 }
@@ -36,11 +41,19 @@ interface SyntheticDeployFunctionProps {
   name: string
   symbol: string
   decimals: number
+  maxTotalSupply: BigNumber
+}
+
+interface DebtTokenDeployFunctionProps {
+  poolAlias: string
+  name: string
+  symbol: string
   interestRate: BigNumber
   maxTotalSupply: BigNumber
 }
 
 interface DepositDeployFunctionProps {
+  poolAlias: string
   underlyingAddress: string
   underlyingSymbol: string
   underlyingDecimals: number
@@ -53,14 +66,16 @@ interface DeployUpgradableFunctionProps {
   contractConfig: ContractConfig
   initializeArgs: unknown[]
   // If true, doesn't add upgrade tx to batch but require multi sig to run it immediately
-  // It's needed when a later script needs to interact to a new ABI fragment
-  forceUpgrade?: boolean
+  // It's needed when a later script must execute after this upgrade (e.g., to interact to a new ABI fragment)
+  force?: boolean
 }
 
 export const UpgradableContracts: UpgradableContractsConfig = {
   PoolRegistry: {alias: 'PoolRegistry', contract: 'PoolRegistry', adminContract: 'PoolRegistryUpgraderV2'},
-  Pool: {alias: 'Pool', contract: 'contracts/Pool.sol:Pool', adminContract: 'PoolUpgraderV3'},
-  Treasury: {alias: 'Treasury', contract: 'Treasury', adminContract: 'TreasuryUpgrader'},
+  Pool1: {alias: 'Pool1', contract: 'contracts/Pool.sol:Pool', adminContract: 'PoolUpgraderV3'},
+  Pool2: {alias: 'Pool2', contract: 'contracts/Pool.sol:Pool', adminContract: 'PoolUpgraderV3'},
+  Treasury_Pool1: {alias: 'Treasury_Pool1', contract: 'Treasury', adminContract: 'TreasuryUpgrader'},
+  Treasury_Pool2: {alias: 'Treasury_Pool2', contract: 'Treasury', adminContract: 'TreasuryUpgrader'},
   DepositToken: {alias: '', contract: 'DepositToken', adminContract: 'DepositTokenUpgrader'},
   SyntheticToken: {alias: '', contract: 'SyntheticToken', adminContract: 'SyntheticTokenUpgraderV2'},
   DebtToken: {alias: '', contract: 'DebtToken', adminContract: 'DebtTokenUpgrader'},
@@ -74,10 +89,16 @@ export const UpgradableContracts: UpgradableContractsConfig = {
     contract: 'RewardsDistributor',
     adminContract: 'RewardsDistributorUpgrader',
   },
-  FeeProvider: {alias: 'FeeProvider', contract: 'FeeProvider', adminContract: 'FeeProviderUpgrader'},
+  FeeProvider_Pool1: {alias: 'FeeProvider_Pool1', contract: 'FeeProvider', adminContract: 'FeeProviderUpgrader'},
+  FeeProvider_Pool2: {alias: 'FeeProvider_Pool2', contract: 'FeeProvider', adminContract: 'FeeProviderUpgrader'},
   ProxyOFT: {alias: '', contract: 'ProxyOFT', adminContract: 'ProxyOFTUpgrader'},
-  SmartFarmingManager: {
-    alias: 'SmartFarmingManager',
+  SmartFarmingManager_Pool1: {
+    alias: 'SmartFarmingManager_Pool1',
+    contract: 'SmartFarmingManager',
+    adminContract: 'SmartFarmingManagerUpgrader',
+  },
+  SmartFarmingManager_Pool2: {
+    alias: 'SmartFarmingManager_Pool2',
     contract: 'SmartFarmingManager',
     adminContract: 'SmartFarmingManagerUpgrader',
   },
@@ -93,7 +114,6 @@ const {
   DepositToken: DepositTokenConfig,
   DebtToken: DebtTokenConfig,
   SyntheticToken: SyntheticTokenConfig,
-  Pool: {alias: Pool},
   PoolRegistry: {alias: PoolRegistry},
 } = UpgradableContracts
 
@@ -103,7 +123,7 @@ export const deployUpgradable = async ({
   hre,
   contractConfig,
   initializeArgs,
-  forceUpgrade,
+  force,
 }: DeployUpgradableFunctionProps): Promise<{
   address: string
   implementationAddress?: string | undefined
@@ -115,6 +135,8 @@ export const deployUpgradable = async ({
   const {deployer} = await getNamedAccounts()
   const {alias, contract, adminContract} = contractConfig
 
+  const implementationName = alias === contract ? undefined : contract
+
   const deployFunction = () =>
     deploy(alias, {
       contract,
@@ -124,7 +146,7 @@ export const deployUpgradable = async ({
         owner: GNOSIS_SAFE_ADDRESS,
         proxyContract: 'OpenZeppelinTransparentProxy',
         viaAdminContract: adminContract,
-        implementationName: alias === contract || alias === 'Pool' ? undefined : contract,
+        implementationName: contract.match(/Pool.sol/) ? 'Pool' : implementationName,
         execute: {
           init: {
             methodName: 'initialize',
@@ -137,7 +159,7 @@ export const deployUpgradable = async ({
   const multiSigDeployTx = await catchUnknownSigner(deployFunction, {log: true})
 
   if (multiSigDeployTx) {
-    if (forceUpgrade) {
+    if (force) {
       await executeUsingMultiSig(hre, multiSigDeployTx)
 
       // Note: This second run will update `deployments/`, this will be necessary for later scripts that need new ABI
@@ -151,9 +173,17 @@ export const deployUpgradable = async ({
   const {address, implementation: implementationAddress} = await get(alias)
 
   // Note: `hardhat-deploy` is partially not working when upgrading an implementation used by many proxies
-  // It deploy the new implementation contract, updates the deployment JSON files but isn't properly calling `upgrade()`
+  // because it deploys the new implementation, updates the deployment JSON files but isn't properly calling `upgrade()`
   // See more: https://github.com/wighawag/hardhat-deploy/issues/284#issuecomment-1139971427
-  const usesManyProxies = ['DepositToken', 'DebtToken', 'SyntheticToken'].includes(contract)
+  const usesManyProxies = [
+    'DepositToken',
+    'DebtToken',
+    'SyntheticToken',
+    'Pool',
+    'Treasury',
+    'FeeProvider',
+    'SmartFarmingManager',
+  ].includes(contract)
 
   if (usesManyProxies) {
     const actualImpl = await read(adminContract, 'getProxyImplementation', address)
@@ -174,27 +204,103 @@ export const deployUpgradable = async ({
   return {address, implementationAddress}
 }
 
-export const buildSyntheticDeployFunction = ({
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const defaultIsCurrentValueUpdated = (currentValue: any, newValue: any) =>
+  currentValue.toString() === newValue.toString()
+
+// eslint-disable-next-line complexity
+export const updateParamIfNeeded = async (
+  hre: HardhatRuntimeEnvironment,
+  {
+    contractAlias,
+    readMethod,
+    readArgs,
+    writeMethod,
+    writeArgs,
+    // Note: Usually we have getter and setter functions to check if a param needs to be updated or not
+    // but there are edge cases where it isn't true, e.g,: `function isPoolRegistered(address) view returns (bool)`
+    // This function is used on such cases where comparison isn't straightforward
+    isCurrentValueUpdated = defaultIsCurrentValueUpdated,
+    force,
+  }: {
+    contractAlias: string
+    readMethod: string
+    readArgs?: string[]
+    writeMethod: string
+    writeArgs?: string[]
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    isCurrentValueUpdated?: (currentValue: any, newValue: any) => boolean
+    // If true, doesn't add upgrade tx to batch but require multi sig to run it immediately
+    // It's needed when a later script must execute after the execution of this call
+    force?: boolean
+  }
+): Promise<void> => {
+  const {deployments} = hre
+  const {read, execute, catchUnknownSigner} = deployments
+
+  try {
+    const currentValue = readArgs
+      ? await read(contractAlias, readMethod, ...readArgs)
+      : await read(contractAlias, readMethod)
+
+    const {isArray} = Array
+
+    // Checks if overriding `isCurrentValueUpdated()` is required
+    const isOverrideRequired =
+      !writeArgs ||
+      (!isArray(currentValue) && writeArgs.length > 1) ||
+      (isArray(currentValue) && writeArgs.length != currentValue.length)
+
+    if (isOverrideRequired && isCurrentValueUpdated === defaultIsCurrentValueUpdated) {
+      const e = Error(`You must override 'isCurrentValueUpdated()' function for ${contractAlias}.${writeMethod}()`)
+      log(chalk.red(e.message))
+      throw e
+    }
+
+    // Update value if needed
+    if (!isCurrentValueUpdated(currentValue, writeArgs)) {
+      const governor = await read(contractAlias, 'governor')
+
+      const doExecute = async () => {
+        return writeArgs
+          ? execute(contractAlias, {from: governor, log: true}, writeMethod, ...writeArgs)
+          : execute(contractAlias, {from: governor, log: true}, writeMethod)
+      }
+
+      const multiSigTx = await catchUnknownSigner(doExecute, {
+        log: true,
+      })
+
+      if (multiSigTx) {
+        if (force) {
+          await executeUsingMultiSig(hre, multiSigTx)
+        } else {
+          await saveForMultiSigBatchExecution(multiSigTx)
+        }
+      }
+    }
+  } catch (e) {
+    log(chalk.red(`The function ${contractAlias}.${writeMethod}() failed.`))
+    log(chalk.red('It is probably due to calling a newly implemented function'))
+    log(chalk.red('If it is the case, run deployment scripts again after having the contracts upgraded'))
+  }
+}
+
+export const buildSyntheticTokenDeployFunction = ({
   name,
   symbol,
   decimals,
-  interestRate,
   maxTotalSupply,
 }: SyntheticDeployFunctionProps): DeployFunction => {
-  const debtAlias = `${capitalize(symbol)}Debt`
   const syntheticAlias = `${capitalize(symbol)}Synthetic`
 
   const deployFunction: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     const {deployments} = hre
-    const {execute, get, read, getOrNull, catchUnknownSigner} = deployments
+    const {get} = deployments
 
     const {address: poolRegistryAddress} = await get(PoolRegistry)
-    const {address: poolAddress} = await get(Pool)
-    const poolId = await read(PoolRegistry, 'idOfPool', poolAddress)
 
-    const wasDeployed = !!(await getOrNull(syntheticAlias))
-
-    const {address: syntheticTokenAddress} = await deployUpgradable({
+    await deployUpgradable({
       hre,
       contractConfig: {
         ...SyntheticTokenConfig,
@@ -202,6 +308,39 @@ export const buildSyntheticDeployFunction = ({
       },
       initializeArgs: [name, symbol, decimals, poolRegistryAddress],
     })
+
+    await updateParamIfNeeded(hre, {
+      contractAlias: syntheticAlias,
+      readMethod: 'maxTotalSupply',
+      writeMethod: 'updateMaxTotalSupply',
+      writeArgs: [maxTotalSupply.toString()],
+    })
+  }
+
+  deployFunction.tags = [syntheticAlias]
+  deployFunction.dependencies = [PoolRegistry]
+
+  return deployFunction
+}
+
+export const buildDebtTokenDeployFunction = ({
+  poolAlias,
+  name,
+  symbol,
+  interestRate,
+  maxTotalSupply,
+}: DebtTokenDeployFunctionProps): DeployFunction => {
+  const debtAlias = `${capitalize(symbol)}Debt_${poolAlias}`
+  const syntheticAlias = `${capitalize(symbol)}Synthetic`
+
+  const deployFunction: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
+    const {deployments} = hre
+    const {get, read} = deployments
+
+    const {address: poolAddress} = await get(poolAlias)
+    const poolId = await read(PoolRegistry, 'idOfPool', poolAddress)
+
+    const {address: syntheticTokenAddress} = await get(syntheticAlias)
 
     const {address: debtTokenAddress} = await deployUpgradable({
       hre,
@@ -219,43 +358,38 @@ export const buildSyntheticDeployFunction = ({
       ],
     })
 
-    if (!wasDeployed) {
-      const governor = await read(Pool, 'governor')
-
-      const multiSigTx = await catchUnknownSigner(
-        execute(Pool, {from: governor, log: true}, 'addDebtToken', debtTokenAddress),
-        {log: true}
-      )
-
-      if (multiSigTx) {
-        await saveForMultiSigBatchExecution(multiSigTx)
-      }
-    }
+    await updateParamIfNeeded(hre, {
+      contractAlias: poolAlias,
+      readMethod: 'doesDebtTokenExist',
+      readArgs: [debtTokenAddress],
+      writeMethod: 'addDebtToken',
+      writeArgs: [debtTokenAddress],
+      isCurrentValueUpdated: (currentValue: boolean) => currentValue,
+    })
   }
 
-  deployFunction.tags = [syntheticAlias]
-  deployFunction.dependencies = [Pool]
+  deployFunction.tags = [debtAlias]
+  deployFunction.dependencies = [poolAlias]
 
   return deployFunction
 }
 
-export const buildDepositDeployFunction = ({
+export const buildDepositTokenDeployFunction = ({
+  poolAlias,
   underlyingAddress,
   underlyingSymbol,
   underlyingDecimals,
   collateralFactor,
   maxTotalSupply,
 }: DepositDeployFunctionProps): DeployFunction => {
-  const alias = `${underlyingSymbol}DepositToken`
+  const alias = `${capitalize(underlyingSymbol)}DepositToken_${poolAlias}`
 
   const deployFunction: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     const {deployments} = hre
-    const {execute, get, read, getOrNull, catchUnknownSigner} = deployments
+    const {get, read} = deployments
 
-    const {address: poolAddress} = await get(Pool)
+    const {address: poolAddress} = await get(poolAlias)
     const poolId = await read(PoolRegistry, 'idOfPool', poolAddress)
-
-    const wasDeployed = !!(await getOrNull(alias))
 
     const name = `Metronome Synth ${underlyingSymbol}-Deposit`
     const symbol = `msd${underlyingSymbol}-${poolId}`
@@ -274,95 +408,18 @@ export const buildDepositDeployFunction = ({
       ],
     })
 
-    if (!wasDeployed) {
-      const governor = await read(Pool, 'governor')
-
-      const multiSigTx = await catchUnknownSigner(
-        execute(Pool, {from: governor, log: true}, 'addDepositToken', msdAddress),
-        {log: true}
-      )
-
-      if (multiSigTx) {
-        await saveForMultiSigBatchExecution(multiSigTx)
-      }
-    }
+    await updateParamIfNeeded(hre, {
+      contractAlias: poolAlias,
+      readMethod: 'doesDepositTokenExist',
+      readArgs: [msdAddress],
+      writeMethod: 'addDepositToken',
+      writeArgs: [msdAddress],
+      isCurrentValueUpdated: (currentValue: boolean) => currentValue,
+    })
   }
 
   deployFunction.tags = [alias]
-  deployFunction.dependencies = [Pool]
+  deployFunction.dependencies = [poolAlias]
 
   return deployFunction
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const defaultIsCurrentValueUpdated = (currentValue: any, newValue: any) =>
-  currentValue.toString() === newValue.toString()
-
-// eslint-disable-next-line complexity
-export const updateParamIfNeeded = async (
-  hre: HardhatRuntimeEnvironment,
-  {
-    contract,
-    readMethod,
-    readArgs,
-    writeMethod,
-    writeArgs,
-    // Note: Usually we have getter and setter functions to check if a param needs to be updated or not
-    // but there are edge cases where it isn't true, e.g,: `function isPoolRegistered(address) view returns (bool)`
-    // This function is used on such cases where comparison isn't straightforward
-    isCurrentValueUpdated = defaultIsCurrentValueUpdated,
-  }: {
-    contract: string
-    readMethod: string
-    readArgs?: string[]
-    writeMethod: string
-    writeArgs?: string[]
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    isCurrentValueUpdated?: (currentValue: any, newValue: any) => boolean
-  }
-): Promise<void> => {
-  const {deployments} = hre
-  const {read, execute, catchUnknownSigner} = deployments
-
-  try {
-    const currentValue = readArgs ? await read(contract, readMethod, ...readArgs) : await read(contract, readMethod)
-
-    const {isArray} = Array
-
-    // Checks if overriding `isCurrentValueUpdated()` is required
-    const isOverrideRequired =
-      !writeArgs ||
-      (!isArray(currentValue) && writeArgs.length > 1) ||
-      (isArray(currentValue) && writeArgs.length != currentValue.length)
-
-    if (isOverrideRequired && isCurrentValueUpdated === defaultIsCurrentValueUpdated) {
-      const e = Error(`You must override 'isCurrentValueUpdated()' function for ${contract}.${writeMethod}()`)
-      log(chalk.red(e.message))
-      throw e
-    }
-
-    // Update value if needed
-    if (!isCurrentValueUpdated(currentValue, writeArgs)) {
-      // Note: Assumes all governable contracts have the same governor as `PoolRegistry`
-      const governor = await read(PoolRegistry, 'governor')
-
-      const doExecute = async () => {
-        return writeArgs
-          ? execute(contract, {from: governor, log: true}, writeMethod, ...writeArgs)
-          : execute(contract, {from: governor, log: true}, writeMethod)
-      }
-
-      const multiSigTx = await catchUnknownSigner(doExecute, {
-        log: true,
-      })
-
-      if (multiSigTx) {
-        await saveForMultiSigBatchExecution(multiSigTx)
-      }
-    }
-  } catch (e) {
-    log(chalk.red(`The function ${contract}.${writeMethod}() failed.`))
-    log(chalk.red('It is probably due to calling a newly implemented function'))
-    log(chalk.red('If it is the case, run deployment scripts again after having the contracts upgraded'))
-  }
 }

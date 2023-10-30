@@ -30,19 +30,19 @@ const proposeMultiSigTransaction = async (
       await w.sendTransaction({to, data})
     }
     log(chalk.blue('Because it is a test deployment, the transaction was executed by impersonated multi-sig.'))
-    log(chalk.blue('On the live deployment, the script exits here and asks for manual proposal execution.'))
-    return
+    log(chalk.blue('On the live deployment, it must be executed before continuing deployment run.'))
+  } else {
+    const {getNamedAccounts} = hre
+    const {deployer} = await getNamedAccounts()
+    const delegate = await hre.ethers.getSigner(deployer)
+    const gnosisSafe = await GnosisSafeInitializer.init(hre, delegate)
+    const hash = await gnosisSafe.proposeTransaction(transactions)
+    log(chalk.blue(`MultiSig tx '${hash}' was proposed.`))
+    log(chalk.blue('Wait for tx to confirm (at least 2 confirmations is recommended).'))
+    log(chalk.blue('After confirmation, you must run the deployment again.'))
+    log(chalk.blue('That way the `hardhat-deploy` will be able to catch the changes and update `deployments/` files.'))
   }
 
-  const {getNamedAccounts} = hre
-  const {deployer} = await getNamedAccounts()
-  const delegate = await hre.ethers.getSigner(deployer)
-  const gnosisSafe = await GnosisSafeInitializer.init(hre, delegate)
-  const hash = await gnosisSafe.proposeTransaction(transactions)
-  log(chalk.blue(`MultiSig tx '${hash}' was proposed.`))
-  log(chalk.blue('Wait for tx to confirm (at least 2 confirmations is recommended).'))
-  log(chalk.blue('After confirmation, you must run the deployment again.'))
-  log(chalk.blue('That way the `hardhat-deploy` will be able to catch the changes and update `deployments/` files.'))
   exit()
 }
 

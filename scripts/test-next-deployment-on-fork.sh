@@ -24,10 +24,10 @@ read
 # Prepare deployment data
 cp -r deployments/$network deployments/localhost
 
-# Deployment (1/2) - Upgrade contracts
+# Deployment (1/2) - Upgrade contracts and registers Pool2
 npx hardhat deploy --network localhost #> DEPLOYMENT_TEST_OUTPUT.log
 
-# Deployment (2/2) - Call `Pool.toggleBridgingIsActive()`
+# Deployment (2/2) - Call `Pool.toggleBridgingIsActive()` and finish Pool2 setup
 npx hardhat deploy --network localhost #> DEPLOYMENT_TEST_OUTPUT.log
 
 # Test next release
