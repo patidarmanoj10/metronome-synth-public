@@ -252,7 +252,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
         IDebtToken _debtToken = pool.debtTokenOf(_request.syntheticToken);
         (uint256 _maxRepayAmount, ) = _debtToken.quoteRepayIn(_debtToken.balanceOf(_request.account));
         uint256 _repayAmount = Math.min(swapAmountOut_, _maxRepayAmount);
-        (_repaid, ) = _debtToken.repay(_request.account, _repayAmount);
+        if (_repayAmount > 0) (_repaid, ) = _debtToken.repay(_request.account, _repayAmount);
         if (_repaid < _request.repayAmountMin) revert FlashRepaySlippageTooHigh();
 
         // 4. refund synthetic token in excess
