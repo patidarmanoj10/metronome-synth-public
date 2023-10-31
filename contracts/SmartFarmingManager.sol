@@ -694,7 +694,7 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
      * Note: The cross-chain code mostly uses LZ chain ids but in this case, we're using native id.
      */
     function _nextCrossChainRequestId() private returns (uint256 _id) {
-        return uint256(keccak256(abi.encode(block.chainid, ++crossChainRequestsLength)));
+        return uint256(keccak256(abi.encode(block.chainid, address(this), ++crossChainRequestsLength)));
     }
 
     /**

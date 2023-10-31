@@ -783,7 +783,9 @@ describe('SmartFarmingManager', function () {
         .changeTokenBalance(dai, crossChainDispatcher.address, withdrawAmount)
 
       const length = 1
-      const requestId = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(['uint256', 'uint256'], [1, length]))
+      const requestId = ethers.utils.keccak256(
+        ethers.utils.defaultAbiCoder.encode(['uint256', 'address', 'uint256'], [1, smartFarmingManager.address, length])
+      )
       expect(await smartFarmingManager.crossChainRequestsLength()).eq(length)
       const request = await smartFarmingManager.crossChainFlashRepays(requestId)
       expect(request.syntheticToken).eq(syntheticToken)
@@ -798,9 +800,13 @@ describe('SmartFarmingManager', function () {
 
   describe('crossChainFlashRepayCallback', function () {
     const length = 1
-    const id = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(['uint256', 'uint256'], [1, length]))
+    let id: string
 
     beforeEach(async function () {
+      id = ethers.utils.keccak256(
+        ethers.utils.defaultAbiCoder.encode(['uint256', 'address', 'uint256'], [1, smartFarmingManager.address, length])
+      )
+
       // Create position
       const amountIn = parseUnits('100', 18)
       const leverage = parseEther('1.5')
@@ -1090,7 +1096,9 @@ describe('SmartFarmingManager', function () {
         .changeTokenBalance(msUSD, crossChainDispatcher.address, expectedToIssue)
 
       const length = 1
-      const requestId = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(['uint256', 'uint256'], [1, length]))
+      const requestId = ethers.utils.keccak256(
+        ethers.utils.defaultAbiCoder.encode(['uint256', 'address', 'uint256'], [1, smartFarmingManager.address, length])
+      )
       expect(await smartFarmingManager.crossChainRequestsLength()).eq(length)
       const request = await smartFarmingManager.crossChainLeverages(requestId)
       expect(request.bridgeToken).eq(tokenIn)
@@ -1108,9 +1116,13 @@ describe('SmartFarmingManager', function () {
 
   describe('crossChainLeverageCallback', function () {
     const length = 1
-    const id = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(['uint256', 'uint256'], [1, length]))
+    let id: string
 
     beforeEach(async function () {
+      id = ethers.utils.keccak256(
+        ethers.utils.defaultAbiCoder.encode(['uint256', 'address', 'uint256'], [1, smartFarmingManager.address, length])
+      )
+
       await dai.connect(alice).approve(smartFarmingManager.address, ethers.constants.MaxUint256)
 
       const fee = parseEther('0.1')
@@ -1238,15 +1250,19 @@ describe('SmartFarmingManager', function () {
 
   describe('retryCrossChainFlashRepayCallback', function () {
     const length = 1
-    const id = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(['uint256', 'uint256'], [1, length]))
     const newRepayAmountMin = 1
     const srcChainId = 101
     const srcAddress = '0x0000000000000000000000000000000000000001'
     const nonce = 123
     const amount = parseEther('1')
+    let id: string
     let payload: string
 
     beforeEach(async function () {
+      id = ethers.utils.keccak256(
+        ethers.utils.defaultAbiCoder.encode(['uint256', 'address', 'uint256'], [1, smartFarmingManager.address, length])
+      )
+
       // Create position
       const amountIn = parseUnits('100', 18)
       const leverage = parseEther('1.5')
@@ -1377,16 +1393,20 @@ describe('SmartFarmingManager', function () {
 
   describe('retryCrossChainLeverageCallback', function () {
     const length = 1
-    const id = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(['uint256', 'uint256'], [1, length]))
     const newDepositAmountMin = 1
     const srcChainId = 101
     const srcAddress = '0x0000000000000000000000000000000000000001'
     const nonce = 123
     const amountIn = parseEther('10')
+    let id: string
     let token: string
     let payload: string
 
     beforeEach(async function () {
+      id = ethers.utils.keccak256(
+        ethers.utils.defaultAbiCoder.encode(['uint256', 'address', 'uint256'], [1, smartFarmingManager.address, length])
+      )
+
       await dai.connect(alice).approve(smartFarmingManager.address, ethers.constants.MaxUint256)
 
       const fee = parseEther('0.1')
