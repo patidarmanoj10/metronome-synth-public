@@ -1808,4 +1808,19 @@ describe('Pool', function () {
       await expect(tx).to.emit(pool, 'FeeProviderUpdated').withArgs(before, after)
     })
   })
+
+  describe('toggleBridgingIsActive', function () {
+    it('should toggle isBridgingActive flag', async function () {
+      const before = await pool.isBridgingActive()
+      const after = !before
+      const tx = pool.toggleBridgingIsActive()
+      await expect(tx).emit(pool, 'BridgingIsActiveUpdated').withArgs(after)
+      expect(await pool.isBridgingActive()).eq(after)
+    })
+
+    it('should revert if not governor', async function () {
+      const tx = pool.connect(alice).toggleBridgingIsActive()
+      await expect(tx).revertedWithCustomError(pool, 'SenderIsNotGovernor')
+    })
+  })
 })

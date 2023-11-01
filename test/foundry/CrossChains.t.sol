@@ -331,6 +331,7 @@ abstract contract CrossChains_Test is Test {
         poolRegistry_optimism.registerPool(address(pool_B_optimism));
         poolRegistry_optimism.updateSwapper(swapper_optimism);
         poolRegistry_optimism.toggleCrossChainFlashRepayIsActive();
+        pool_optimism.toggleBridgingIsActive();
         pool_optimism.updateFeeProvider(feeProvider_optimism);
         pool_optimism.updateTreasury(treasury_optimism);
         pool_optimism.updateSmartFarmingManager(smartFarmingManager_optimism);
@@ -339,6 +340,7 @@ abstract contract CrossChains_Test is Test {
         pool_optimism.addDepositToken(address(msdVaETH_optimism));
         pool_optimism.addDebtToken(msUSDDebt_optimism);
         pool_optimism.addDebtToken(msBTCDebt_optimism);
+        pool_B_optimism.toggleBridgingIsActive();
         pool_B_optimism.updateFeeProvider(feeProvider_B_optimism);
         pool_B_optimism.updateTreasury(treasury_optimism);
         pool_B_optimism.updateSmartFarmingManager(smartFarmingManager_B_optimism);
@@ -443,6 +445,7 @@ abstract contract CrossChains_Test is Test {
         poolRegistry_mainnet.registerPool(address(pool_mainnet));
         poolRegistry_mainnet.updateSwapper(swapper_mainnet);
         crossChainDispatcher_mainnet.updateStargateComposer(sgComposer_mainnet);
+        pool_mainnet.toggleBridgingIsActive();
         pool_mainnet.updateFeeProvider(feeProvider_mainnet);
         pool_mainnet.updateSmartFarmingManager(smartFarmingManager_mainnet);
         pool_mainnet.addDepositToken(address(msdUSDC_mainnet));

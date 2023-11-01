@@ -38,7 +38,7 @@ error MaxLiquidableTooHigh();
 /**
  * @title Pool contract
  */
-contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
+contract Pool is ReentrancyGuard, Pauseable, PoolStorageV4 {
     using SafeERC20 for IERC20;
     using SafeERC20 for ISyntheticToken;
     using WadRayMath for uint256;
@@ -51,6 +51,9 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
      * @notice Maximum tokens per pool a user may have
      */
     uint256 public constant MAX_TOKENS_PER_USER = 30;
+
+    /// @notice Emitted when flag for pause bridge transfer is toggled
+    event BridgingIsActiveUpdated(bool newIsActive);
 
     /// @notice Emitted when protocol liquidation fee is updated
     event DebtFloorUpdated(uint256 oldDebtFloorInUsd, uint256 newDebtFloorInUsd);
@@ -780,5 +783,14 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV3 {
 
         emit SmartFarmingManagerUpdated(_current, newSmartFarmingManager_);
         smartFarmingManager = newSmartFarmingManager_;
+    }
+
+    /**
+     * @notice Pause/Unpause bridge transfers
+     */
+    function toggleBridgingIsActive() external onlyGovernor {
+        bool _newIsBridgingActive = !isBridgingActive;
+        emit BridgingIsActiveUpdated(_newIsBridgingActive);
+        isBridgingActive = _newIsBridgingActive;
     }
 }

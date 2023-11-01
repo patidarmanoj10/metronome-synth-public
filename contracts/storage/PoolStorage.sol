@@ -104,3 +104,10 @@ abstract contract PoolStorageV3 is PoolStorageV2 {
      */
     ISmartFarmingManager public smartFarmingManager;
 }
+
+abstract contract PoolStorageV4 is PoolStorageV3 {
+    /**
+     * @notice Flag that pause/unpause pool's cross-chain activities
+     */
+    bool public isBridgingActive;
+}

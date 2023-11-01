@@ -64,7 +64,7 @@ describe('CrossChainDispatcher', function () {
     msUSD = await smock.fake('SyntheticToken')
     swapper = await smock.fake('ISwapper')
     poolRegistry = await smock.fake('PoolRegistry')
-    pool = await smock.fake('IPool')
+    pool = await smock.fake('contracts/Pool.sol:Pool')
     smartFarmingManager = await smock.fake('SmartFarmingManager')
     quoter = await smock.fake('Quoter')
     stargateRouter = await smock.fake('IStargateRouter')
@@ -91,6 +91,7 @@ describe('CrossChainDispatcher', function () {
     poolRegistry.doesSyntheticTokenExist.returns(true)
     pool.smartFarmingManager.returns(smartFarmingManager.address)
     pool.doesSyntheticTokenExist.returns(true)
+    pool.isBridgingActive.returns(true)
     usdc.approve.returns(true)
     msUSD.approve.returns(true)
     msUSD.poolRegistry.returns(poolRegistry.address)
@@ -123,6 +124,7 @@ describe('CrossChainDispatcher', function () {
   beforeEach(async function () {
     await loadFixture(fixture)
 
+    pool.isBridgingActive.returns(true)
     swapper.swapExactInput.reset()
     proxyOFT.sendAndCall.reset()
   })
@@ -333,9 +335,22 @@ describe('CrossChainDispatcher', function () {
       await expect(tx).revertedWithCustomError(crossChainDispatcher, 'InvalidMsgSender')
     })
 
-    it('should revert if bridging is paused', async function () {
+    it('should revert if bridging is paused (global)', async function () {
       // given
       await crossChainDispatcher.toggleBridgingIsActive()
+
+      // when
+      const tx = crossChainDispatcher
+        .connect(smartFarmingManager.wallet)
+        .triggerFlashRepaySwap(1, alice.address, usdc.address, msUSD.address, parseEther('10'), 0, '0x')
+
+      // then
+      await expect(tx).revertedWithCustomError(crossChainDispatcher, 'BridgingIsPaused')
+    })
+
+    it('should revert if bridging is paused (pool)', async function () {
+      // given
+      pool.isBridgingActive.returns(false)
 
       // when
       const tx = crossChainDispatcher
@@ -438,9 +453,9 @@ describe('CrossChainDispatcher', function () {
       await expect(tx).revertedWithCustomError(crossChainDispatcher, 'InvalidMsgSender')
     })
 
-    it('should revert if bridging is paused', async function () {
+    it('should revert if bridging is paused (global)', async function () {
       // given
-      proxyOFT.sendAndCall.reverts('0x5621fccf') // 'BridgingIsPaused' error signature
+      await crossChainDispatcher.toggleBridgingIsActive()
 
       // when
       const lzArgs = CrossChainLib.encodeLzArgs(LZ_MAINNET_ID, '0', '0')
@@ -449,9 +464,21 @@ describe('CrossChainDispatcher', function () {
         .triggerLeverageSwap(1, alice.address, msUSD.address, usdc.address, parseEther('10'), 0, lzArgs)
 
       // then
-      // Note: Smock doesn't support custom error yet (https://github.com/defi-wonderland/smock/issues/177)
-      // await expect(tx).revertedWithCustomError(crossChainDispatcher, 'BridgingIsPaused')
-      await expect(tx).reverted
+      await expect(tx).revertedWithCustomError(crossChainDispatcher, 'BridgingIsPaused')
+    })
+
+    it('should revert if bridging is paused (pool)', async function () {
+      // given
+      pool.isBridgingActive.returns(false)
+
+      // when
+      const lzArgs = CrossChainLib.encodeLzArgs(LZ_MAINNET_ID, '0', '0')
+      const tx = crossChainDispatcher
+        .connect(smartFarmingManager.wallet)
+        .triggerLeverageSwap(1, alice.address, msUSD.address, usdc.address, parseEther('10'), 0, lzArgs)
+
+      // then
+      await expect(tx).revertedWithCustomError(crossChainDispatcher, 'BridgingIsPaused')
     })
 
     it('should revert if destination proxyOFT is null', async function () {

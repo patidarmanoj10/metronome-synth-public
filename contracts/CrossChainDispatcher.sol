@@ -29,6 +29,12 @@ error BridgeTokenNotSupported();
 error InvalidSlippageParam();
 error InvalidPayload();
 
+// Note: The `IPool` wasn't updated to avoid changing interface
+// Refs: https://github.com/autonomoussoftware/metronome-synth/issues/877
+interface IPoolV4 is IPool {
+    function isBridgingActive() external view returns (bool);
+}
+
 /**
  * @title Cross-chain dispatcher
  */
@@ -96,7 +102,8 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
     }
 
     modifier onlyIfBridgingIsNotPaused() {
-        if (!isBridgingActive) revert BridgingIsPaused();
+        if (!isBridgingActive || !IPoolV4(address(IManageable(msg.sender).pool())).isBridgingActive())
+            revert BridgingIsPaused();
         _;
     }
 
@@ -508,7 +515,7 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
         uint256 amountIn_,
         uint256 amountOutMin_,
         bytes calldata lzArgs_
-    ) external payable override nonReentrant onlyIfSmartFarmingManager {
+    ) external payable override nonReentrant onlyIfSmartFarmingManager onlyIfBridgingIsNotPaused {
         address _account = account_; // stack too deep
 
         (uint16 _dstChainId, uint256 _callbackTxNativeFee, uint64 _leverageSwapTxGasLimit) = CrossChainLib.decodeLzArgs(
