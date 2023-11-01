@@ -67,7 +67,6 @@ describe('ProxyOFT', function () {
     crossChainDispatcher.leverageCallbackTxGasLimit.returns(200000)
     crossChainDispatcher.leverageSwapTxGasLimit.returns(300000)
     crossChainDispatcher.flashRepaySwapTxGasLimit.returns(400000)
-    crossChainDispatcher.isBridgingActive.returns(true)
 
     const proxyOFTFactory = await ethers.getContractFactory('ProxyOFT', deployer)
     proxyOFT = await proxyOFTFactory.deploy()
@@ -86,6 +85,9 @@ describe('ProxyOFT', function () {
 
   beforeEach(async function () {
     await loadFixture(fixture)
+
+    crossChainDispatcher.isBridgingActive.returns(true)
+    crossChainDispatcher.isDestinationChainSupported.returns(true)
   })
 
   describe('sendFrom', function () {
@@ -116,9 +118,22 @@ describe('ProxyOFT', function () {
       await expect(tx).revertedWithCustomError(proxyOFT, 'BridgingIsPaused')
     })
 
+    it('should revert if dstChain is not supported', async function () {
+      // given
+      crossChainDispatcher.isDestinationChainSupported.returns(false)
+      const amount = parseEther('100')
+
+      // when
+      const tx = proxyOFT
+        .connect(alice)
+        ['sendFrom(address,uint16,address,uint256)'](alice.address, LZ_MAINNET_ID, bob.address, amount)
+
+      // then
+      await expect(tx).revertedWithCustomError(proxyOFT, 'DestinationChainNotAllowed')
+    })
+
     it('should burn amount', async function () {
       // given
-      crossChainDispatcher.isBridgingActive.returns(true)
       const amount = parseEther('100')
 
       // when
