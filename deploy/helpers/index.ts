@@ -4,7 +4,7 @@ import chalk from 'chalk'
 import {DeployFunction} from 'hardhat-deploy/types'
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import Address from '../../helpers/address'
-import {executeUsingMultiSig, saveForMultiSigBatchExecution} from './multisig-helpers'
+import {executeForcedTxUsingMultiSig, saveForMultiSigBatchExecution} from './multisig-helpers'
 
 const {GNOSIS_SAFE_ADDRESS} = Address
 
@@ -160,11 +160,7 @@ export const deployUpgradable = async ({
 
   if (multiSigDeployTx) {
     if (force) {
-      await executeUsingMultiSig(hre, multiSigDeployTx)
-
-      // Note: This second run will update `deployments/`, this will be necessary for later scripts that need new ABI
-      // Refs: https://github.com/wighawag/hardhat-deploy/issues/178#issuecomment-918088504
-      await deployFunction()
+      await executeForcedTxUsingMultiSig(hre, multiSigDeployTx)
     } else {
       await saveForMultiSigBatchExecution(multiSigDeployTx)
     }
@@ -175,15 +171,9 @@ export const deployUpgradable = async ({
   // Note: `hardhat-deploy` is partially not working when upgrading an implementation used by many proxies
   // because it deploys the new implementation, updates the deployment JSON files but isn't properly calling `upgrade()`
   // See more: https://github.com/wighawag/hardhat-deploy/issues/284#issuecomment-1139971427
-  const usesManyProxies = [
-    'DepositToken',
-    'DebtToken',
-    'SyntheticToken',
-    'Pool',
-    'Treasury',
-    'FeeProvider',
-    'SmartFarmingManager',
-  ].includes(contract)
+  const usesManyProxies = ['DepositToken', 'DebtToken', 'SyntheticToken', 'Pool', 'Treasury', 'FeeProvider'].includes(
+    contract
+  )
 
   if (usesManyProxies) {
     const actualImpl = await read(adminContract, 'getProxyImplementation', address)
@@ -273,7 +263,7 @@ export const updateParamIfNeeded = async (
 
       if (multiSigTx) {
         if (force) {
-          await executeUsingMultiSig(hre, multiSigTx)
+          await executeForcedTxUsingMultiSig(hre, multiSigTx)
         } else {
           await saveForMultiSigBatchExecution(multiSigTx)
         }

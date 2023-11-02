@@ -30,7 +30,6 @@ const proposeMultiSigTransaction = async (
       await w.sendTransaction({to, data})
     }
     log(chalk.blue('Because it is a test deployment, the transaction was executed by impersonated multi-sig.'))
-    log(chalk.blue('On the live deployment, it must be executed before continuing deployment run.'))
   } else {
     const {getNamedAccounts} = hre
     const {deployer} = await getNamedAccounts()
@@ -42,8 +41,6 @@ const proposeMultiSigTransaction = async (
     log(chalk.blue('After confirmation, you must run the deployment again.'))
     log(chalk.blue('That way the `hardhat-deploy` will be able to catch the changes and update `deployments/` files.'))
   }
-
-  exit()
 }
 
 // Note: Parse `hardhat-deploy` tx to `Safe` tx
@@ -57,11 +54,6 @@ const prepareTx = ({from, to, data, value}: MultiSigTx): MetaTransactionData => 
   }
 
   return {to, data, value: value || '0'}
-}
-
-export const executeUsingMultiSig = async (hre: HardhatRuntimeEnvironment, rawTx: MultiSigTx): Promise<void> => {
-  const tx = prepareTx(rawTx)
-  await proposeMultiSigTransaction(hre, [tx])
 }
 
 export const executeBatchUsingMultisig = async (hre: HardhatRuntimeEnvironment): Promise<void> => {
@@ -107,4 +99,14 @@ export const saveForMultiSigBatchExecution = async (rawTx: MultiSigTx): Promise<
   }
 
   log(chalk.blue(`Multi-sig transaction saved in '${MULTI_SIG_TXS_FILE}'.`))
+}
+
+// Note: Executes the forced transaction together with all stored transactions so far
+export const executeForcedTxUsingMultiSig = async (
+  hre: HardhatRuntimeEnvironment,
+  rawTx: MultiSigTx
+): Promise<void> => {
+  await saveForMultiSigBatchExecution(rawTx)
+  await executeBatchUsingMultisig(hre)
+  exit()
 }

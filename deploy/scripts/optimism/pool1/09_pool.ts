@@ -27,6 +27,13 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     writeArgs: [poolAddress],
     isCurrentValueUpdated: (currentValue: boolean) => currentValue,
   })
+
+  await updateParamIfNeeded(hre, {
+    contractAlias: Pool1,
+    readMethod: 'isBridgingActive',
+    writeMethod: 'toggleBridgingIsActive',
+    isCurrentValueUpdated: (isActive: boolean) => isActive,
+  })
 }
 
 export default func
