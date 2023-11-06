@@ -13,11 +13,12 @@ export class CrossChainLib {
     requestId: number | string,
     sgPoolId: number | string,
     account: string,
-    amountOutMin: BigNumber | string
+    amountOutMin: BigNumber | string,
+    callbackTxNativeFee: BigNumber | string
   ): string {
     const payload = ethers.utils.defaultAbiCoder.encode(
-      ['address', 'address', 'uint256', 'uint256', 'address', 'uint256'],
-      [srcSmartFarmingManager, dstProxyOFT, requestId, sgPoolId, account, amountOutMin]
+      ['address', 'address', 'uint256', 'uint256', 'address', 'uint256', 'uint256'],
+      [srcSmartFarmingManager, dstProxyOFT, requestId, sgPoolId, account, amountOutMin, callbackTxNativeFee]
     )
 
     return ethers.utils.defaultAbiCoder.encode(['uint8', 'bytes'], [LEVERAGE, payload])
@@ -28,11 +29,12 @@ export class CrossChainLib {
     dstProxyOFT: string,
     requestId: number | string,
     account: string,
-    amountOutMin: BigNumber | string
+    amountOutMin: BigNumber | string,
+    callbackTxNativeFee: BigNumber | string
   ): string {
     const payload = ethers.utils.defaultAbiCoder.encode(
-      ['address', 'address', 'uint256', 'address', 'uint256'],
-      [srcSmartFarmingManager, dstProxyOFT, requestId, account, amountOutMin]
+      ['address', 'address', 'uint256', 'address', 'uint256', 'uint256'],
+      [srcSmartFarmingManager, dstProxyOFT, requestId, account, amountOutMin, callbackTxNativeFee]
     )
 
     return ethers.utils.defaultAbiCoder.encode(['uint8', 'bytes'], [FLASH_REPAY, payload])
