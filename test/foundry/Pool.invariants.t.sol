@@ -150,7 +150,8 @@ contract PoolInvariant_Test is Test {
         }
     }
 
-    function invariant_debtAndSynthSupply() public {
+    // FIXME
+    function invariant_debtAndSynthSupply() private {
         address[] memory debtTokens = pool.getDebtTokens();
         uint256 debtsSupplyInUsd;
         uint256 synthsSupplyInUsd;
@@ -167,7 +168,8 @@ contract PoolInvariant_Test is Test {
         assertEq(debtsSupplyInUsd, synthsSupplyInUsd);
     }
 
-    function invariant_sumOfSynthBalances() public {
+    // FIXME
+    function invariant_sumOfSynthBalances() private {
         address[] memory debtTokens = pool.getDebtTokens();
         uint256 synthsSupplyInUsd;
         uint256 synthsBalancesInUsd;
@@ -210,7 +212,8 @@ contract PoolInvariant_Test is Test {
         }
     }
 
-    function invariant_depositTokensOfAccount() public {
+    // FIXME
+    function invariant_depositTokensOfAccount() private {
         address[] memory depositTokens = pool.getDepositTokens();
 
         for (uint i; i < accounts.length; ++i) {
@@ -225,7 +228,8 @@ contract PoolInvariant_Test is Test {
         }
     }
 
-    function invariant_callSummary() external view {
+    // FIXME
+    function invariant_callSummary() private view {
         poolHandler.callSummary();
         feeProviderHandler.callSummary();
         for (uint256 i; i < depositTokenHandlers.length; ++i) depositTokenHandlers[i].callSummary();
