@@ -10,8 +10,19 @@ contract ProxyOFTUpgrader is UpgraderBase {
     }
 
     /// @inheritdoc UpgraderBase
-    function _calls() internal pure override returns (bytes[] memory _callsList) {
+    function _calls() internal pure virtual override returns (bytes[] memory _callsList) {
         _callsList = new bytes[](1);
         _callsList[0] = abi.encodeWithSignature("syntheticToken()");
+    }
+}
+
+contract ProxyOFTUpgraderV2 is ProxyOFTUpgrader {
+    // solhint-disable-next-line no-empty-blocks
+    constructor(address _owner) ProxyOFTUpgrader(_owner) {}
+
+    /// @inheritdoc UpgraderBase
+    function _calls() internal pure virtual override returns (bytes[] memory _callsList) {
+        _callsList = new bytes[](1);
+        _callsList[0] = abi.encodeWithSignature("token()");
     }
 }
