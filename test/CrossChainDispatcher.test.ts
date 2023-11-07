@@ -189,7 +189,8 @@ describe('CrossChainDispatcher', function () {
         requestId,
         SG_USDC_POOL_ID,
         account,
-        amountOutMin
+        amountOutMin,
+        parseEther('0.1')
       )
 
       // when
@@ -282,7 +283,8 @@ describe('CrossChainDispatcher', function () {
         proxyOFT.address,
         requestId,
         account,
-        amountOutMin
+        amountOutMin,
+        parseEther('0.1')
       )
 
       // when
@@ -418,7 +420,8 @@ describe('CrossChainDispatcher', function () {
         proxyOFT.address,
         id,
         account,
-        amountOutMin
+        amountOutMin,
+        callbackTxNativeFee
       )
 
       expect(stargateComposer.swap)
@@ -535,7 +538,8 @@ describe('CrossChainDispatcher', function () {
         requestId,
         SG_USDC_POOL_ID,
         account,
-        amountOutMin
+        amountOutMin,
+        callbackTxNativeFee
       )
 
       const adapterParams = ethers.utils.solidityPack(
@@ -583,7 +587,8 @@ describe('CrossChainDispatcher', function () {
         requestId,
         sgPoolId,
         account,
-        amountOutMin
+        amountOutMin,
+        parseEther('0.1')
       )
 
       // when
@@ -611,7 +616,8 @@ describe('CrossChainDispatcher', function () {
         requestId,
         underlyingPoolId,
         account,
-        amountOutMin
+        amountOutMin,
+        parseEther('0.1')
       )
 
       // when
@@ -640,7 +646,8 @@ describe('CrossChainDispatcher', function () {
         requestId,
         underlyingPoolId,
         account,
-        amountOutMin
+        amountOutMin,
+        parseEther('0.1')
       )
       expect(await crossChainDispatcher.swapAmountOutMin(requestId)).eq(0)
 
@@ -671,7 +678,8 @@ describe('CrossChainDispatcher', function () {
         requestId,
         underlyingPoolId,
         account,
-        amountOutMin
+        amountOutMin,
+        parseEther('0.1')
       )
       expect(await crossChainDispatcher.swapAmountOutMin(requestId)).eq(0)
 
@@ -701,7 +709,8 @@ describe('CrossChainDispatcher', function () {
         proxyOFT.address,
         requestId,
         account,
-        amountOutMin
+        amountOutMin,
+        parseEther('0.1')
       )
 
       const sgReceiveCallData = crossChainDispatcher.interface.encodeFunctionData('sgReceive', [
@@ -751,7 +760,8 @@ describe('CrossChainDispatcher', function () {
         proxyOFT.address,
         requestId,
         account,
-        amountOutMin
+        amountOutMin,
+        parseEther('0.1')
       )
 
       const sgReceiveCallData = crossChainDispatcher.interface.encodeFunctionData('sgReceive', [
@@ -812,7 +822,8 @@ describe('CrossChainDispatcher', function () {
         proxyOFT.address,
         requestId,
         account,
-        amountOutMin
+        amountOutMin,
+        parseEther('0.1')
       )
 
       const sgReceiveCallData = crossChainDispatcher.interface.encodeFunctionData('sgReceive', [
