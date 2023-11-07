@@ -22,6 +22,7 @@
       "FeeProvider_Pool1": "0x6b53C16B94c1502C661140073ed522aC7Dbc5E5E",
       "FeeProvider_Pool1_Implementation": "0x9b6079607038257FDb6be657AA73B18d053cA1FE",
       "FeeProvider_Pool1_Proxy": "0x6b53C16B94c1502C661140073ed522aC7Dbc5E5E",
+      "MetAirdrop": "0x293aaC1fef48b2ebf95d0CB3a31A7B219e8Ece9E",
       "MetRewardsDistributor": "0x9f6A09dd0ba23b5AD4234677C831146366678Ae3",
       "MetRewardsDistributor_Implementation": "0xF68431Ee10b20A4F8d0C23592e7bbd22a3124A53",
       "MetRewardsDistributor_Proxy": "0x9f6A09dd0ba23b5AD4234677C831146366678Ae3",
