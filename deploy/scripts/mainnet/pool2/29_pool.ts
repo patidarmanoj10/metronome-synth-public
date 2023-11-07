@@ -1,6 +1,7 @@
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
 import {UpgradableContracts, deployUpgradable, updateParamIfNeeded} from '../../../helpers'
+import Address from '../../../../helpers/address'
 
 const {
   Pool2: {alias: Pool2},
@@ -34,6 +35,13 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     readMethod: 'isBridgingActive',
     writeMethod: 'toggleBridgingIsActive',
     isCurrentValueUpdated: (isActive: boolean) => !isActive,
+  })
+
+  await updateParamIfNeeded(hre, {
+    contractAlias: Pool2,
+    readMethod: 'governor',
+    writeMethod: 'transferGovernorship',
+    writeArgs: [Address.GNOSIS_SAFE_ADDRESS],
   })
 }
 
