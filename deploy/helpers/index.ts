@@ -249,7 +249,9 @@ export const updateParamIfNeeded = async (
 
     // Update value if needed
     if (!isCurrentValueUpdated(currentValue, writeArgs)) {
-      const governor = await read(contractAlias, 'governor')
+      const governor = contractAlias.match(/Pool\d+/)
+        ? await read(contractAlias, 'governor')
+        : await read(PoolRegistry, 'governor')
 
       const doExecute = async () => {
         return writeArgs

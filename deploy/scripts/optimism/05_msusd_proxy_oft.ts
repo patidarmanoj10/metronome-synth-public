@@ -36,14 +36,14 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     contractAlias: MsUSDSynthetic,
     readMethod: 'maxBridgedInSupply',
     writeMethod: 'updateMaxBridgedInSupply',
-    writeArgs: [parseEther('1000').toString()],
+    writeArgs: [parseEther('200000').toString()],
   })
 
   await updateParamIfNeeded(hre, {
     contractAlias: MsUSDSynthetic,
     readMethod: 'maxBridgedOutSupply',
     writeMethod: 'updateMaxBridgedOutSupply',
-    writeArgs: [parseEther('1000').toString()],
+    writeArgs: [parseEther('200000').toString()],
   })
 
   await updateParamIfNeeded(hre, {
