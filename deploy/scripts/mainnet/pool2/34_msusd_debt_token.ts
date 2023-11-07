@@ -10,7 +10,7 @@ const func = buildDebtTokenDeployFunction({
   name: 'Metronome Synth USD',
   symbol: 'msUSD',
   interestRate: parseEther('0.01'), // 1%
-  maxTotalSupply: parseEther('10000'),
+  maxTotalSupply: parseEther('100000'),
 })
 
 export default func

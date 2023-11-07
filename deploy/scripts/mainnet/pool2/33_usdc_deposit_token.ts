@@ -13,8 +13,8 @@ const func = buildDepositTokenDeployFunction({
   underlyingAddress: USDC_ADDRESS,
   underlyingSymbol: 'USDC',
   underlyingDecimals: 6,
-  collateralFactor: parseEther('0.75'), // 75%
-  maxTotalSupply: parseUnits('10000', 6),
+  collateralFactor: parseEther('0.85'), // 85%
+  maxTotalSupply: parseUnits('100000', 6),
 })
 
 export default func
