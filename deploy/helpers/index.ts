@@ -91,7 +91,7 @@ export const UpgradableContracts: UpgradableContractsConfig = {
   },
   FeeProvider_Pool1: {alias: 'FeeProvider_Pool1', contract: 'FeeProvider', adminContract: 'FeeProviderUpgrader'},
   FeeProvider_Pool2: {alias: 'FeeProvider_Pool2', contract: 'FeeProvider', adminContract: 'FeeProviderUpgrader'},
-  ProxyOFT: {alias: '', contract: 'ProxyOFT', adminContract: 'ProxyOFTUpgrader'},
+  ProxyOFT: {alias: '', contract: 'ProxyOFT', adminContract: 'ProxyOFTUpgraderV2'},
   SmartFarmingManager_Pool1: {
     alias: 'SmartFarmingManager_Pool1',
     contract: 'SmartFarmingManager',
@@ -171,9 +171,15 @@ export const deployUpgradable = async ({
   // Note: `hardhat-deploy` is partially not working when upgrading an implementation used by many proxies
   // because it deploys the new implementation, updates the deployment JSON files but isn't properly calling `upgrade()`
   // See more: https://github.com/wighawag/hardhat-deploy/issues/284#issuecomment-1139971427
-  const usesManyProxies = ['DepositToken', 'DebtToken', 'SyntheticToken', 'Pool', 'Treasury', 'FeeProvider'].includes(
-    contract
-  )
+  const usesManyProxies = [
+    'DepositToken',
+    'DebtToken',
+    'SyntheticToken',
+    'Pool',
+    'Treasury',
+    'FeeProvider',
+    'ProxyOFT',
+  ].includes(contract)
 
   if (usesManyProxies) {
     const actualImpl = await read(adminContract, 'getProxyImplementation', address)
