@@ -134,7 +134,7 @@ export const deployUpgradable = async ({
   } = hre
   const {deployer} = await getNamedAccounts()
   const {alias, contract, adminContract} = contractConfig
-
+  const owner = hre.network.name == 'hardhat' ? deployer : GNOSIS_SAFE_ADDRESS
   const implementationName = alias === contract ? undefined : contract
 
   const deployFunction = () =>
@@ -143,7 +143,7 @@ export const deployUpgradable = async ({
       from: deployer,
       log: true,
       proxy: {
-        owner: GNOSIS_SAFE_ADDRESS,
+        owner,
         proxyContract: 'OpenZeppelinTransparentProxy',
         viaAdminContract: adminContract,
         implementationName: contract.match(/Pool.sol/) ? 'Pool' : implementationName,
