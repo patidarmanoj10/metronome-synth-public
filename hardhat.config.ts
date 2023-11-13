@@ -83,8 +83,8 @@ const config: HardhatUserConfig = {
     },
   },
   paths: {
-    // Note: Uses avalanche folder as default
-    deploy: ['deploy/scripts/avalanche'],
+    // Note: Uses mainnet folder as default
+    deploy: ['deploy/scripts/mainnet'],
   },
   namedAccounts: {
     deployer,
