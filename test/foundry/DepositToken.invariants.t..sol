@@ -79,8 +79,7 @@ contract DepositTokenInvariant_Test is Test {
         excludeSender(feeCollector);
     }
 
-    // FIXME
-    function invariant_nothingLocked() private {
+    function invariant_nothingLocked() public {
         assertEq(depositTokenHandler.lockedAccumulator(), 0);
         assertEq(depositToken.lockedBalanceOf(feeCollector), 0);
     }
