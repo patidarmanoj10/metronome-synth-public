@@ -1,5 +1,5 @@
 {
-    "mainnet": [
+    "ethereum": [
         {
             "pool": "0x3364f53cB866762Aef66DeEF2a6b1a17C1F17f46",
             "leverage_routes": [
