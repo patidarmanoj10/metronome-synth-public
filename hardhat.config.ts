@@ -31,6 +31,9 @@ function resolveChainId() {
   if (NODE_URL.includes('optimism') || NODE_URL.includes('opt-mainnet')) {
     return {chainId: 10, deploy: ['deploy/scripts/optimism']}
   }
+  if (NODE_URL.includes('base')) {
+    return {chainId: 8453, deploy: ['deploy/scripts/base']}
+  }
   return {chainId: 31337, deploy: ['deploy/scripts/mainnet']}
 }
 const {chainId, deploy} = resolveChainId()
