@@ -84,6 +84,13 @@ const config: HardhatUserConfig = {
       deploy: ['deploy/scripts/optimism'],
       accounts,
     },
+    base: {
+      url: process.env.NODE_URL || '',
+      chainId: 8453,
+      gas: 8000000,
+      deploy: ['deploy/scripts/base'],
+      accounts,
+    },
   },
   paths: {
     // Note: Uses mainnet folder as default
