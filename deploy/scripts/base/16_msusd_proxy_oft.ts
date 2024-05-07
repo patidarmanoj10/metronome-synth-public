@@ -1,4 +1,4 @@
-import {BigNumber} from 'ethers'
+import {ethers, BigNumber} from 'ethers'
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
 import {UpgradableContracts, deployUpgradable, updateParamIfNeeded} from '../../helpers'
