@@ -137,7 +137,6 @@ abstract contract CrossChains_Test is Test {
     function setUp() public virtual {
         // TODO: Get from .env
         // Refs: https://github.com/autonomoussoftware/metronome-synth/issues/874
-        //mainnetFork = vm.createSelectFork("https://eth.connect.bloq.cloud/v1/peace-blood-actress");
         mainnetFork = vm.createSelectFork("https://eth-mainnet.g.alchemy.com/v2/DAcPqBIVkeOOgYLlHxFUQ0jySiZ-k8_6");
         vm.rollFork(mainnetFork, 18262880);
 
