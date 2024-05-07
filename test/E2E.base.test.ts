@@ -5,7 +5,7 @@ import {Contract} from 'ethers'
 import hre, {ethers} from 'hardhat'
 import {loadFixture, time} from '@nomicfoundation/hardhat-network-helpers'
 import {toUSD, parseEther, parseUnits} from '../helpers'
-import {impersonateAccount, setTokenBalance} from './helpers/index'
+import {impersonateAccount, setTokenBalance, disableForking, enableForking} from './helpers'
 import Address from '../helpers/address'
 import {
   DepositToken,
@@ -21,27 +21,19 @@ import {
   Quoter,
   ProxyOFT,
 } from '../typechain'
-import {CrossChainLib} from './helpers/CrossChainLib'
-let POOL_REGISTRY_ADDRESS: string
-let USDC_DEPOSIT_ADDRESS: string
-let OP_DEPOSIT_ADDRESS: string
-let WETH_DEPOSIT_ADDRESS: string
-let VAUSDC_DEPOSIT_ADDRESS: string
-let VAETH_DEPOSIT_ADDRESS: string
-let VAOP_DEPOSIT_ADDRESS: string
-let VAWSTETH_DEPOSIT_ADDRESS: string
-let MSUSD_DEBT_ADDRESS: string
-let MSOP_DEBT_ADDRESS: string
-let MSETH_DEBT_ADDRESS: string
-let MSUSD_SYNTHETIC_ADDRESS: string
-let MSBTC_SYNTHETIC_ADDRESS: string
-let MSETH_SYNTHETIC_ADDRESS: string
-let NATIVE_TOKEN_GATEWAY_ADDRESS: string
-let QUOTER_ADDRESS: string
-let MSUSD_PROXYOFT_ADDRESS: string
-let MSETH_PROXYOFT_ADDRESS: string
-let SMART_FARMING_MANAGER_ADDRESS: string
-let CROSS_CHAIN_DISPATCHER_ADDRESS: string
+import {address as POOL_REGISTRY_ADDRESS} from '../deployments/base/PoolRegistry.json'
+import {address as WETH_DEPOSIT_ADDRESS} from '../deployments/base/WETHDepositToken.json'
+import {address as USDC_DEPOSIT_ADDRESS} from '../deployments/base/USDCDepositToken.json'
+import {address as MSUSD_DEBT_ADDRESS} from '../deployments/base/MsUSDDebt.json'
+import {address as MSETH_DEBT_ADDRESS} from '../deployments/base/MsETHDebt.json'
+import {address as MSUSD_SYNTHETIC_ADDRESS} from '../deployments/base/MsUSDSynthetic.json'
+import {address as MSETH_SYNTHETIC_ADDRESS} from '../deployments/base/MsETHSynthetic.json'
+import {address as MSUSD_PROXYOFT_ADDRESS} from '../deployments/base/MsUSDProxyOFT.json'
+import {address as MSETH_PROXYOFT_ADDRESS} from '../deployments/base/MsETHProxyOFT.json'
+import {address as NATIVE_TOKEN_GATEWAY_ADDRESS} from '../deployments/base/NativeTokenGateway.json'
+import {address as QUOTER_ADDRESS} from '../deployments/base/Quoter.json'
+import {address as SMART_FARMING_MANAGER_ADDRESS} from '../deployments/base/SmartFarmingManager.json'
+import {address as CROSS_CHAIN_DISPATCHER_ADDRESS} from '../deployments/base/CrossChainDispatcher.json'
 
 const {MaxUint256} = ethers.constants
 const dust = toUSD('5')
@@ -49,14 +41,11 @@ const dust = toUSD('5')
 const isNodeHardhat = hre.network.name === 'hardhat'
 
 /**
- * This test suite exercises the state of the protocol after running deployment scripts on top of a forked chain
- * In summary:
- * 1) run hardhat node forking BASE
- * 2) run deployment scripts against localhost node
- * 3) run this test suite
- * See more: `../docs/deployment-e2e-tests.md`
+ * The goal of this test suite is to test current state of the base's contracts
+ * Note: When we have on-going changes the TypesChain types may be different than the deployed contracts
+ * For these cases, use `new ethers.Contract()` instead and amend ABI manually
  */
-describe('E2E tests (next BASE release)', function () {
+describe.skip('E2E tests (base)', function () {
   let governor: SignerWithAddress
   let alice: SignerWithAddress
   let bob: SignerWithAddress
@@ -78,22 +67,13 @@ describe('E2E tests (next BASE release)', function () {
   let msUSDProxyOFT: ProxyOFT
   let msETHProxyOFT: ProxyOFT
 
-  async function fixture() {
-    // Note: Using dynamic import otherwise test will fail when `/deployments/localhost` doesn't exist
-    ;({address: POOL_REGISTRY_ADDRESS} = await import('../deployments/localhost/PoolRegistry.json'))
-    ;({address: WETH_DEPOSIT_ADDRESS} = await import('../deployments/localhost/WETHDepositToken.json'))
-    ;({address: USDC_DEPOSIT_ADDRESS} = await import('../deployments/localhost/USDCDepositToken.json'))
-    ;({address: MSUSD_DEBT_ADDRESS} = await import('../deployments/localhost/MsUSDDebt.json'))
-    ;({address: MSETH_DEBT_ADDRESS} = await import('../deployments/localhost/MsETHDebt.json'))
-    ;({address: MSUSD_SYNTHETIC_ADDRESS} = await import('../deployments/localhost/MsUSDSynthetic.json'))
-    ;({address: MSETH_SYNTHETIC_ADDRESS} = await import('../deployments/localhost/MsETHSynthetic.json'))
-    ;({address: MSUSD_PROXYOFT_ADDRESS} = await import('../deployments/localhost/MsUSDProxyOFT.json'))
-    ;({address: MSETH_PROXYOFT_ADDRESS} = await import('../deployments/localhost/MsETHProxyOFT.json'))
-    ;({address: NATIVE_TOKEN_GATEWAY_ADDRESS} = await import('../deployments/localhost/NativeTokenGateway.json'))
-    ;({address: QUOTER_ADDRESS} = await import('../deployments/localhost/Quoter.json'))
-    ;({address: SMART_FARMING_MANAGER_ADDRESS} = await import('../deployments/localhost/SmartFarmingManager.json'))
-    ;({address: CROSS_CHAIN_DISPATCHER_ADDRESS} = await import('../deployments/localhost/CrossChainDispatcher.json'))
+  if (isNodeHardhat) {
+    before(enableForking)
 
+    after(disableForking)
+  }
+
+  async function fixture() {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[, alice, bob] = await ethers.getSigners()
     usdc = await ethers.getContractAt('ERC20', Address.USDC_ADDRESS, alice)
@@ -150,10 +130,6 @@ describe('E2E tests (next BASE release)', function () {
     ;[, alice, bob] = await ethers.getSigners()
     await loadFixture(fixture)
 
-    if (isNodeHardhat) {
-      throw Error('This test suite must be run against localhost node')
-    }
-
     if (process.env.DEPLOYER) {
       // See more: https://github.com/wighawag/hardhat-deploy/issues/152#issuecomment-1402298376
       await impersonateAccount(process.env.DEPLOYER)
@@ -182,9 +158,6 @@ describe('E2E tests (next BASE release)', function () {
     })
 
     it('should get prices for all assets', async function () {
-      console.log('masterOracle', masterOracle)
-      console.log('usdc.address', usdc.address)
-      console.log('msUSD.address', msUSD.address)
       expect(await masterOracle.getPriceInUsd(usdc.address)).gt(0)
       expect(await masterOracle.getPriceInUsd(weth.address)).gt(0)
       expect(await masterOracle.getPriceInUsd(msUSD.address)).gt(0)
