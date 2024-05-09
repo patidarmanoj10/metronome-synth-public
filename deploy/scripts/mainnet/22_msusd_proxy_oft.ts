@@ -5,6 +5,7 @@ import {UpgradableContracts, deployUpgradable, updateParamIfNeeded} from '../../
 import Address from '../../../helpers/address'
 import Constants from '../../../helpers/constants'
 import {address as opMsUSDProxyOFTAddress} from '../../../deployments/optimism/MsUSDProxyOFT.json'
+import {address as baseMsUSDProxyOFTAddress} from '../../../deployments/base/MsUSDProxyOFT.json'
 import {parseEther} from '../../../helpers'
 
 const {
@@ -74,6 +75,18 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     writeArgs: [
       Constants.LZ_OP_CHAIN_ID,
       ethers.utils.solidityPack(['address', 'address'], [opMsUSDProxyOFTAddress, proxyOFTAddress]),
+    ],
+    isCurrentValueUpdated: (currentPath: string, [, newPath]) => currentPath == newPath,
+  })
+
+  await updateParamIfNeeded(hre, {
+    contract: MsUSDProxyOFT,
+    readMethod: 'trustedRemoteLookup',
+    readArgs: [Constants.LZ_BASE_CHAIN_ID],
+    writeMethod: 'setTrustedRemote',
+    writeArgs: [
+      Constants.LZ_BASE_CHAIN_ID,
+      ethers.utils.solidityPack(['address', 'address'], [baseMsUSDProxyOFTAddress, proxyOFTAddress]),
     ],
     isCurrentValueUpdated: (currentPath: string, [, newPath]) => currentPath == newPath,
   })
