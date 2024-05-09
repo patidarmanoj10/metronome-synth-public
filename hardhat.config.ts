@@ -31,6 +31,9 @@ function resolveChainId() {
   if (NODE_URL.includes('optimism')) {
     return {chainId: 10, deploy: ['deploy/scripts/optimism']}
   }
+  if (NODE_URL.includes('base')) {
+    return {chainId: 8453, deploy: ['deploy/scripts/base']}
+  }
   return {chainId: 31337, deploy: ['deploy/scripts/mainnet']}
 }
 const {chainId, deploy} = resolveChainId()
@@ -79,6 +82,13 @@ const config: HardhatUserConfig = {
       chainId: 10,
       gas: 8000000,
       deploy: ['deploy/scripts/optimism'],
+      accounts,
+    },
+    base: {
+      url: process.env.NODE_URL || '',
+      chainId: 8453,
+      gas: 8000000,
+      deploy: ['deploy/scripts/base'],
       accounts,
     },
   },

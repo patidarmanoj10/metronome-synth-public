@@ -112,8 +112,7 @@ contract CrossChainDebug_Test is Test {
     address constant MANOJ_WALLET = 0xdf826ff6518e609E4cEE86299d40611C148099d5;
 
     function setUp() public {
-        // mainnetFork = vm.createSelectFork("https://eth.connect.bloq.cloud/v1/peace-blood-actress");
-        mainnetFork = vm.createSelectFork("https://eth-mainnet.alchemyapi.io/v2/NbZ2px662CNSwdw3ZxdaZNe31yZbyddK");
+        mainnetFork = vm.createSelectFork("https://eth-mainnet.g.alchemy.com/v2/DAcPqBIVkeOOgYLlHxFUQ0jySiZ-k8_6");
         vm.rollFork(mainnetFork, 18328826);
 
         optimismFork = vm.createSelectFork("https://optimism-mainnet.infura.io/v3/9989c2cf77a24bddaa43103463cb8047");
