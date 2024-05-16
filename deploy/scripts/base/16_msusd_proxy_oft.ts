@@ -58,6 +58,11 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     isCurrentValueUpdated: (currentValue: boolean) => currentValue,
   })
 
+  //
+  // paths
+  //
+
+  // mainnet -> base
   await updateParamIfNeeded(hre, {
     contract: MsUSDProxyOFT,
     readMethod: 'minDstGasLookup',
@@ -77,6 +82,16 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
       ethers.utils.solidityPack(['address', 'address'], [mainnetMsUSDProxyOFTAddress, proxyOFTAddress]),
     ],
     isCurrentValueUpdated: (currentPath: string, [, newPath]) => currentPath == newPath,
+  })
+
+  // op -> base
+  await updateParamIfNeeded(hre, {
+    contract: MsUSDProxyOFT,
+    readMethod: 'minDstGasLookup',
+    readArgs: [Constants.LZ_OP_CHAIN_ID, Constants.LZ_PT_SEND],
+    writeMethod: 'setMinDstGas',
+    writeArgs: [Constants.LZ_OP_CHAIN_ID, Constants.LZ_PT_SEND, Constants.LZ_MIN_SEND_GAS],
+    isCurrentValueUpdated: (currentMinGas: BigNumber, [, , newMinGas]) => currentMinGas.eq(newMinGas),
   })
 
   await updateParamIfNeeded(hre, {
