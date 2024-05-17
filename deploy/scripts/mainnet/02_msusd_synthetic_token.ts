@@ -5,7 +5,7 @@ const func = buildSyntheticTokenDeployFunction({
   name: 'Metronome Synth USD',
   symbol: 'msUSD',
   decimals: 18,
-  maxTotalSupply: parseEther('3500000'),
+  maxTotalSupply: parseEther('4500000'),
 })
 
 export default func

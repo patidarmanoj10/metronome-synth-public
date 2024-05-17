@@ -437,7 +437,6 @@ describe.skip('E2E tests (next mainnet release)', function () {
 
       // given
       const amount6 = parseUnits('1', 6)
-      const amount18 = parseUnits('1', 18)
       const before = await msdVaUSDC_1.balanceOf(alice.address)
       expect(before).eq(0)
 
@@ -447,7 +446,7 @@ describe.skip('E2E tests (next mainnet release)', function () {
 
       // then
       const after = await msdVaUSDC_1.balanceOf(alice.address)
-      expect(after).closeTo(amount18, parseUnits('0.1', 18))
+      expect(after).closeTo(parseUnits('0.86', 18), parseUnits('0.01', 18))
     })
 
     it('should deposit vaETH', async function () {
@@ -674,7 +673,7 @@ describe.skip('E2E tests (next mainnet release)', function () {
         const {gasUsed} = await tx.wait()
         expect(gasUsed.lt(1.4e6))
         const {_debtInUsd, _depositInUsd} = await pool_1.debtPositionOf(alice.address)
-        expect(_depositInUsd).closeTo(parseEther('160'), parseEther('10'))
+        expect(_depositInUsd).closeTo(parseEther('172'), parseEther('10'))
         expect(_debtInUsd).closeTo(amountIn.mul(leverage.sub(parseEther('1'))).div(parseEther('1')), parseEther('10')) // ~$50
       })
 
@@ -696,14 +695,14 @@ describe.skip('E2E tests (next mainnet release)', function () {
         const {gasUsed} = await tx.wait()
         expect(gasUsed.lt(1.4e6))
         const {_debtInUsd, _depositInUsd} = await pool_1.debtPositionOf(alice.address)
-        expect(_depositInUsd).closeTo(parseEther('160'), parseEther('10'))
+        expect(_depositInUsd).closeTo(parseEther('178'), parseEther('10'))
         expect(_debtInUsd).closeTo(amountIn.mul(leverage.sub(parseEther('1'))).div(parseEther('1')), parseEther('10')) // ~$50
       })
 
       it('should leverage vaETH->msETH', async function () {
         // when
         const amountIn = parseUnits('0.1', 18)
-        const amountInUsd = parseUnits('190', 18) // approx.
+        const amountInUsd = parseUnits('310', 18) // approx.
         const leverage = parseEther('1.5')
         await vaETH.connect(alice).approve(smartFarmingManager_1.address, MaxUint256)
         const tx = await smartFarmingManager_1.leverage(
@@ -729,7 +728,7 @@ describe.skip('E2E tests (next mainnet release)', function () {
       it('should leverage varETH->msETH', async function () {
         // when
         const amountIn = parseUnits('0.1', 18)
-        const amountInUsd = parseUnits('204', 18) // approx.
+        const amountInUsd = parseUnits('340', 18) // approx.
         const leverage = parseEther('1.5')
         await vaRETH.connect(alice).approve(smartFarmingManager_1.address, MaxUint256)
         const tx = await smartFarmingManager_1.leverage(
@@ -755,7 +754,7 @@ describe.skip('E2E tests (next mainnet release)', function () {
       it('should leverage vastETH->msETH', async function () {
         // when
         const amountIn = parseUnits('0.1', 18)
-        const amountInUsd = parseUnits('195', 18) // approx.
+        const amountInUsd = parseUnits('305', 18) // approx.
         const leverage = parseEther('1.5')
         await vaSTETH.connect(alice).approve(smartFarmingManager_1.address, MaxUint256)
         const tx = await smartFarmingManager_1.leverage(
@@ -781,7 +780,7 @@ describe.skip('E2E tests (next mainnet release)', function () {
       it('should leverage vacbETH->msETH', async function () {
         // when
         const amountIn = parseUnits('0.1', 18)
-        const amountInUsd = parseUnits('197', 18) // approx.
+        const amountInUsd = parseUnits('330', 18) // approx.
         const leverage = parseEther('1.5')
         await vaCBETH.connect(alice).approve(smartFarmingManager_1.address, MaxUint256)
         const tx = await smartFarmingManager_1.leverage(
@@ -833,9 +832,12 @@ describe.skip('E2E tests (next mainnet release)', function () {
       const LZ_OPTIMISM_ID = 111
 
       beforeEach(async function () {
-        const isBridgingActive = await crossChainDispatcher.isBridgingActive()
-        if (!isBridgingActive) {
+        if (!(await crossChainDispatcher.isBridgingActive())) {
           await crossChainDispatcher.connect(governor).toggleBridgingIsActive()
+        }
+
+        if (!(await pool_1.isBridgingActive())) {
+          await pool_1.connect(governor).toggleBridgingIsActive()
         }
       })
 

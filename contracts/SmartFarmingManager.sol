@@ -554,39 +554,6 @@ contract SmartFarmingManager is ReentrancyGuard, Manageable, SmartFarmingManager
     }
 
     /**
-     * @notice Quote leverage outcome
-     * @dev Actual outcome may differ due to swaps slippage impact
-     * @param tokenIn_ The token to transfer
-     * @param depositToken_ The collateral to deposit
-     * @param syntheticToken_ The msAsset to mint
-     * @param amountIn_ The amount to deposit
-     * @param leverage_ The leverage X param (e.g. 1.5e18 for 1.5X)
-     */
-    function quoteLeverageOut(
-        IERC20 tokenIn_,
-        IDepositToken depositToken_,
-        ISyntheticToken syntheticToken_,
-        uint256 amountIn_,
-        uint256 leverage_
-    ) external view returns (uint256 _amountToDeposit, uint256 _amountToIssue) {
-        if (leverage_ > uint256(1e18).wadDiv(1e18 - depositToken_.collateralFactor())) revert LeverageTooHigh();
-
-        IERC20 _collateral = _collateralOf(depositToken_);
-        IMasterOracle _oracle = pool.masterOracle();
-        if (tokenIn_ != _collateral) {
-            amountIn_ = _oracle.quote(address(tokenIn_), address(_collateral), amountIn_);
-        }
-
-        uint256 _debtAmount = _calculateLeverageDebtAmount(_collateral, syntheticToken_, amountIn_, leverage_);
-        IDebtToken _debtToken = pool.debtTokenOf(syntheticToken_);
-        (_amountToIssue, ) = _debtToken.quoteIssueOut(_debtAmount);
-
-        uint256 _depositAmount = amountIn_ +
-            _oracle.quote(address(syntheticToken_), address(_collateral), _amountToIssue);
-        (_amountToDeposit, ) = depositToken_.quoteDepositOut(_depositAmount);
-    }
-
-    /**
      * @notice Retry cross-chain flash repay callback
      * @dev This function is used to recover from callback failures due to slippage
      * @param srcChainId_ The source chain of failed tx
