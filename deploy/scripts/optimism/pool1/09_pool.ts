@@ -32,7 +32,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     contractAlias: Pool1,
     readMethod: 'isBridgingActive',
     writeMethod: 'toggleBridgingIsActive',
-    isCurrentValueUpdated: (isActive: boolean) => isActive,
+    isCurrentValueUpdated: (isActive: boolean) => !isActive,
   })
 }
 

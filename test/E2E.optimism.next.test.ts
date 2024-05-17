@@ -56,7 +56,7 @@ const isNodeHardhat = hre.network.name === 'hardhat'
  * 3) run this test suite
  * See more: `../docs/deployment-e2e-tests.md`
  */
-describe.skip('E2E tests (next optimism release)', function () {
+describe('E2E tests (next optimism release)', function () {
   let governor: SignerWithAddress
   let alice: SignerWithAddress
   let bob: SignerWithAddress
@@ -184,6 +184,36 @@ describe.skip('E2E tests (next optimism release)', function () {
 
     // TODO: Remove when the production cap has enough room
     await msUSDDebt.connect(governor).updateMaxTotalSupply(ethers.constants.MaxUint256)
+    await msUSD.connect(governor).toggleIsActive()
+    await msOP.connect(governor).toggleIsActive()
+    await msETH.connect(governor).toggleIsActive()
+
+    await msdVaUSDC.connect(governor).updateMaxTotalSupply(ethers.constants.MaxUint256)
+    await msdVaETH.connect(governor).updateMaxTotalSupply(ethers.constants.MaxUint256)
+    await msdVaWSTETH.connect(governor).updateMaxTotalSupply(ethers.constants.MaxUint256)
+    await msdVaOP.connect(governor).updateMaxTotalSupply(ethers.constants.MaxUint256)
+
+    if (await pool.paused()) {
+      await pool.connect(governor).unpause()
+    }
+
+    if (await poolRegistry.paused()) {
+      await poolRegistry.connect(governor).unpause()
+    }
+
+    if (!(await crossChainDispatcher.isBridgingActive())) {
+      await crossChainDispatcher.connect(governor).toggleBridgingIsActive()
+    }
+
+    if (!(await pool.isBridgingActive())) {
+      await pool.connect(governor).toggleBridgingIsActive()
+    }
+
+    const vesperGovernor = await impersonateAccount('0x32934AD7b1121DeFC631080b58599A0eaAB89878')
+    await new ethers.Contract(vaUSDC.address, ['function open()'], vesperGovernor).open()
+    await new ethers.Contract(vaUSDC.address, ['function unpause()'], vesperGovernor).unpause()
+    await new ethers.Contract(vaWSTETH.address, ['function open()'], vesperGovernor).open()
+    await new ethers.Contract(vaWSTETH.address, ['function unpause()'], vesperGovernor).unpause()
   }
 
   beforeEach(async function () {
@@ -507,7 +537,7 @@ describe.skip('E2E tests (next optimism release)', function () {
       it('should leverage vaETH->msETH', async function () {
         // when
         const amountIn = parseUnits('0.1', 18)
-        const amountInUsd = parseUnits('190', 18) // approx.
+        const amountInUsd = parseUnits('309', 18) // approx.
         const leverage = parseEther('1.5')
         await vaETH.connect(alice).approve(smartFarmingManager.address, MaxUint256)
         const tx = await smartFarmingManager.leverage(
@@ -533,7 +563,7 @@ describe.skip('E2E tests (next optimism release)', function () {
       it('should leverage vawstETH->msETH', async function () {
         // when
         const amountIn = parseUnits('0.1', 18)
-        const amountInUsd = parseUnits('195', 18) // approx.
+        const amountInUsd = parseUnits('310', 18) // approx.
         const leverage = parseEther('1.5')
         await vaWSTETH.connect(alice).approve(smartFarmingManager.address, MaxUint256)
         const tx = await smartFarmingManager.leverage(
@@ -570,7 +600,7 @@ describe.skip('E2E tests (next optimism release)', function () {
 
       it('should flash repay msETH debt using vaETH', async function () {
         // when
-        const withdrawAmount = parseEther('0.45')
+        const withdrawAmount = parseEther('0.48')
         const tx = await smartFarmingManager.flashRepay(msETH.address, msdVaETH.address, withdrawAmount, 0)
 
         // then

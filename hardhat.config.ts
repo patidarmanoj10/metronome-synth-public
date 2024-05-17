@@ -28,7 +28,7 @@ function resolveChainId() {
   if (NODE_URL.includes('bsc')) {
     return {chainId: 56, deploy: ['deploy/scripts/bsc']}
   }
-  if (NODE_URL.includes('optimism')) {
+  if (NODE_URL.includes('optimism') || NODE_URL.includes('opt-mainnet')) {
     return {chainId: 10, deploy: ['deploy/scripts/optimism']}
   }
   return {chainId: 31337, deploy: ['deploy/scripts/mainnet']}
