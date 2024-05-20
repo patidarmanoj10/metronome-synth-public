@@ -24,17 +24,21 @@ read
 # Prepare deployment data
 cp -r deployments/$network deployments/localhost
 
-# Deployment (1/2) - Upgrade `ProxyOFTUpgrader`
-npx hardhat deploy --network localhost --tags Upgraders,MultisigTxs #> DEPLOYMENT_TEST_OUTPUT.log
+if [[ "$network" == "base" ]];
+then
+    # Sync BASE setup
+    patch deploy/helpers/index.ts < scripts/proxy_oft_to_v1.patch
 
-# Update `ProxyOFTUpgrader` setup
-patch deploy/helpers/index.ts < scripts/proxy_oft_to_v2.patch
+    # Deployment (1/2) - Upgrade `ProxyOFTUpgrader`
+    npx hardhat deploy --network localhost --tags Upgraders,MultisigTxs #> DEPLOYMENT_TEST_OUTPUT.log
+
+    # Update `ProxyOFTUpgrader` setup
+    patch deploy/helpers/index.ts < scripts/proxy_oft_to_v2.patch
+fi
+
 
 # Deployment (2/2)
 npx hardhat deploy --network localhost
 
 # Test next release
 npx hardhat test --network localhost test/E2E.$network.next.test.ts
-
-# Undo setup file change
-patch -R deploy/helpers/index.ts scripts/proxy_oft_to_v2.patch

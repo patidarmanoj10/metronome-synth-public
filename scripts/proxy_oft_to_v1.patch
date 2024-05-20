@@ -1,0 +1,11 @@
+--- deploy/helpers/index.ts	2023-11-01 12:04:29.477225233 +0000
++++ deploy/helpers/index.new.ts	2023-11-01 12:08:02.782955082 +0000
+@@ -91,7 +91,7 @@
+   },
+   FeeProvider_Pool1: {alias: 'FeeProvider_Pool1', contract: 'FeeProvider', adminContract: 'FeeProviderUpgrader'},
+   FeeProvider_Pool2: {alias: 'FeeProvider_Pool2', contract: 'FeeProvider', adminContract: 'FeeProviderUpgrader'},
+-  ProxyOFT: {alias: '', contract: 'ProxyOFT', adminContract: 'ProxyOFTUpgraderV2'},
++  ProxyOFT: {alias: '', contract: 'ProxyOFT', adminContract: 'ProxyOFTUpgrader'},
+   SmartFarmingManager_Pool1: {
+     alias: 'SmartFarmingManager_Pool1',
+     contract: 'SmartFarmingManager',
