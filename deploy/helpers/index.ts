@@ -91,7 +91,7 @@ export const UpgradableContracts: UpgradableContractsConfig = {
   },
   FeeProvider_Pool1: {alias: 'FeeProvider_Pool1', contract: 'FeeProvider', adminContract: 'FeeProviderUpgrader'},
   FeeProvider_Pool2: {alias: 'FeeProvider_Pool2', contract: 'FeeProvider', adminContract: 'FeeProviderUpgrader'},
-  ProxyOFT: {alias: '', contract: 'ProxyOFT', adminContract: 'ProxyOFTUpgraderV2'},
+  ProxyOFT: {alias: '', contract: 'ProxyOFT', adminContract: 'ProxyOFTUpgrader'},
   SmartFarmingManager_Pool1: {
     alias: 'SmartFarmingManager_Pool1',
     contract: 'SmartFarmingManager',

@@ -20,7 +20,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   })
 
   await updateParamIfNeeded(hre, {
-    contract: PoolRegistry,
+    contractAlias: PoolRegistry,
     readMethod: 'quoter',
     writeMethod: 'updateQuoter',
     writeArgs: [quoterAddress],

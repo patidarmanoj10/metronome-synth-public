@@ -23,14 +23,14 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   })
 
   await updateParamIfNeeded(hre, {
-    contract: PoolRegistry,
+    contractAlias: PoolRegistry,
     readMethod: 'crossChainDispatcher',
     writeMethod: 'updateCrossChainDispatcher',
     writeArgs: [crossChainDispatcherAddress],
   })
 
   await updateParamIfNeeded(hre, {
-    contract: CrossChainDispatcher,
+    contractAlias: CrossChainDispatcher,
     readMethod: 'stargateComposer',
     writeMethod: 'updateStargateComposer',
     writeArgs: [Address.STARGATE_COMPOSER],
@@ -38,14 +38,14 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   // Note: Keeps current value because we pause before and unpause after the deployment
   // await updateParamIfNeeded(hre, {
-  //   contract: CrossChainDispatcher,
+  //   contractAlias: CrossChainDispatcher,
   //   readMethod: 'isBridgingActive',
   //   writeMethod: 'toggleBridgingIsActive',
   //   isCurrentValueUpdated: (isActive: boolean) => isActive,
   // })
 
   await updateParamIfNeeded(hre, {
-    contract: CrossChainDispatcher,
+    contractAlias: CrossChainDispatcher,
     readMethod: 'isDestinationChainSupported',
     readArgs: [Constants.LZ_MAINNET_CHAIN_ID],
     writeMethod: 'toggleDestinationChainIsActive',
@@ -54,7 +54,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   })
 
   await updateParamIfNeeded(hre, {
-    contract: CrossChainDispatcher,
+    contractAlias: CrossChainDispatcher,
     readMethod: 'crossChainDispatcherOf',
     readArgs: [Constants.LZ_MAINNET_CHAIN_ID],
     writeMethod: 'updateCrossChainDispatcherOf',
@@ -63,7 +63,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   })
 
   await updateParamIfNeeded(hre, {
-    contract: CrossChainDispatcher,
+    contractAlias: CrossChainDispatcher,
     readMethod: 'stargatePoolIdOf',
     readArgs: [Address.WETH_ADDRESS],
     writeMethod: 'updateStargatePoolIdOf',
@@ -72,7 +72,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   })
 
   await updateParamIfNeeded(hre, {
-    contract: CrossChainDispatcher,
+    contractAlias: CrossChainDispatcher,
     readMethod: 'stargatePoolIdOf',
     readArgs: [Address.USDC_ADDRESS],
     writeMethod: 'updateStargatePoolIdOf',
@@ -81,28 +81,28 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   })
 
   await updateParamIfNeeded(hre, {
-    contract: CrossChainDispatcher,
+    contractAlias: CrossChainDispatcher,
     readMethod: 'flashRepayCallbackTxGasLimit',
     writeMethod: 'updateFlashRepayCallbackTxGasLimit',
     writeArgs: ['1000000'],
   })
 
   await updateParamIfNeeded(hre, {
-    contract: CrossChainDispatcher,
+    contractAlias: CrossChainDispatcher,
     readMethod: 'flashRepaySwapTxGasLimit',
     writeMethod: 'updateFlashRepaySwapTxGasLimit',
     writeArgs: ['1250000'],
   })
 
   await updateParamIfNeeded(hre, {
-    contract: CrossChainDispatcher,
+    contractAlias: CrossChainDispatcher,
     readMethod: 'leverageCallbackTxGasLimit',
     writeMethod: 'updateLeverageCallbackTxGasLimit',
     writeArgs: ['1750000'],
   })
 
   await updateParamIfNeeded(hre, {
-    contract: CrossChainDispatcher,
+    contractAlias: CrossChainDispatcher,
     readMethod: 'leverageSwapTxGasLimit',
     writeMethod: 'updateLeverageSwapTxGasLimit',
     writeArgs: ['1750000'],

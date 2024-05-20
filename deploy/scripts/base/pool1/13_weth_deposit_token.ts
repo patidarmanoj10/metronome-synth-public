@@ -1,10 +1,15 @@
-import {buildDepositDeployFunction} from '../../helpers'
-import Address from '../../../helpers/address'
+import {buildDepositTokenDeployFunction, UpgradableContracts} from '../../../helpers'
+import Address from '../../../../helpers/address'
 import {parseEther} from 'ethers/lib/utils'
 
 const {WETH_ADDRESS} = Address
 
-const func = buildDepositDeployFunction({
+const {
+  Pool1: {alias: Pool1},
+} = UpgradableContracts
+
+const func = buildDepositTokenDeployFunction({
+  poolAlias: Pool1,
   underlyingAddress: WETH_ADDRESS,
   underlyingSymbol: 'WETH',
   underlyingDecimals: 18,

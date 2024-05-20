@@ -83,7 +83,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   // base -> op
   await updateParamIfNeeded(hre, {
-    contract: MsETHProxyOFT,
+    contractAlias: MsETHProxyOFT,
     readMethod: 'minDstGasLookup',
     readArgs: [Constants.LZ_BASE_CHAIN_ID, Constants.LZ_PT_SEND],
     writeMethod: 'setMinDstGas',
@@ -92,7 +92,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   })
 
   await updateParamIfNeeded(hre, {
-    contract: MsETHProxyOFT,
+    contractAlias: MsETHProxyOFT,
     readMethod: 'trustedRemoteLookup',
     readArgs: [Constants.LZ_BASE_CHAIN_ID],
     writeMethod: 'setTrustedRemote',

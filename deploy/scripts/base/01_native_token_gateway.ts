@@ -25,7 +25,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   })
 
   await updateParamIfNeeded(hre, {
-    contract: PoolRegistry,
+    contractAlias: PoolRegistry,
     readMethod: 'nativeTokenGateway',
     writeMethod: 'updateNativeTokenGateway',
     writeArgs: [nativeTokenGatewayAddress],

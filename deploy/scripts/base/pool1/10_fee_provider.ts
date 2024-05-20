@@ -1,11 +1,12 @@
+/* eslint-disable camelcase */
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
-import {UpgradableContracts, deployUpgradable, updateParamIfNeeded} from '../../helpers'
+import {UpgradableContracts, deployUpgradable, updateParamIfNeeded} from '../../../helpers'
 import {ethers} from 'hardhat'
 
 const {
-  Pool: {alias: Pool},
-  FeeProvider: {alias: FeeProvider},
+  Pool1: {alias: Pool1},
+  FeeProvider_Pool1: {alias: FeeProvider_Pool1},
   PoolRegistry: {alias: PoolRegistry},
 } = UpgradableContracts
 
@@ -17,12 +18,12 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   const {address: feeProviderAddress} = await deployUpgradable({
     hre,
-    contractConfig: UpgradableContracts.FeeProvider,
+    contractConfig: UpgradableContracts.FeeProvider_Pool1,
     initializeArgs: [poolRegistryAddress, ethers.constants.AddressZero],
   })
 
   await updateParamIfNeeded(hre, {
-    contract: Pool,
+    contractAlias: Pool1,
     readMethod: 'feeProvider',
     writeMethod: 'updateFeeProvider',
     writeArgs: [feeProviderAddress],
@@ -30,5 +31,5 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 }
 
 export default func
-func.tags = [FeeProvider]
-func.dependencies = [Pool]
+func.tags = [FeeProvider_Pool1]
+func.dependencies = [Pool1]

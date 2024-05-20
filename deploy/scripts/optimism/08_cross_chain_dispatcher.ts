@@ -38,7 +38,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   // Note: Keeps current value because we pause before and unpause after the deployment
   // await updateParamIfNeeded(hre, {
-  //   contract: CrossChainDispatcher,
+  //   contractAlias: CrossChainDispatcher,
   //   readMethod: 'isBridgingActive',
   //   writeMethod: 'toggleBridgingIsActive',
   //   isCurrentValueUpdated: (isActive: boolean) => isActive,

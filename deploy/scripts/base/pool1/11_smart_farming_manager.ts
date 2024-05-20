@@ -1,26 +1,27 @@
+/* eslint-disable camelcase */
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
-import {UpgradableContracts, deployUpgradable, updateParamIfNeeded} from '../../helpers'
+import {UpgradableContracts, deployUpgradable, updateParamIfNeeded} from '../../../helpers'
 
 const {
-  Pool: {alias: Pool},
-  SmartFarmingManager: {alias: SmartFarmingManager},
+  Pool1: {alias: Pool1},
+  SmartFarmingManager_Pool1: {alias: SmartFarmingManager_Pool1},
 } = UpgradableContracts
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {deployments} = hre
   const {get} = deployments
 
-  const {address: poolAddress} = await get(Pool)
+  const {address: poolAddress} = await get(Pool1)
 
   const {address: smartFarmingManagerAddress} = await deployUpgradable({
     hre,
-    contractConfig: UpgradableContracts.SmartFarmingManager,
+    contractConfig: UpgradableContracts.SmartFarmingManager_Pool1,
     initializeArgs: [poolAddress],
   })
 
   await updateParamIfNeeded(hre, {
-    contract: Pool,
+    contractAlias: Pool1,
     readMethod: 'smartFarmingManager',
     writeMethod: 'updateSmartFarmingManager',
     writeArgs: [smartFarmingManagerAddress],
@@ -28,5 +29,5 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 }
 
 export default func
-func.tags = [SmartFarmingManager]
-func.dependencies = [Pool]
+func.tags = [SmartFarmingManager_Pool1]
+func.dependencies = [Pool1]

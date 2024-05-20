@@ -8,9 +8,6 @@ import {address as mainnetMsETHProxyOFTAddress} from '../../../deployments/mainn
 import {address as opMsETHProxyOFTAddress} from '../../../deployments/optimism/MsETHProxyOFT.json'
 import {parseEther} from '../../../helpers'
 
-const {
-  Pool: {alias: Pool},
-} = UpgradableContracts
 const MsETHSynthetic = 'MsETHSynthetic'
 const MsETHProxyOFT = 'MsETHProxyOFT'
 
@@ -30,28 +27,28 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   })
 
   await updateParamIfNeeded(hre, {
-    contract: MsETHSynthetic,
+    contractAlias: MsETHSynthetic,
     readMethod: 'proxyOFT',
     writeMethod: 'updateProxyOFT',
     writeArgs: [proxyOFTAddress],
   })
 
   await updateParamIfNeeded(hre, {
-    contract: MsETHSynthetic,
+    contractAlias: MsETHSynthetic,
     readMethod: 'maxBridgedInSupply',
     writeMethod: 'updateMaxBridgedInSupply',
     writeArgs: [parseEther('4500').toString()],
   })
 
   await updateParamIfNeeded(hre, {
-    contract: MsETHSynthetic,
+    contractAlias: MsETHSynthetic,
     readMethod: 'maxBridgedOutSupply',
     writeMethod: 'updateMaxBridgedOutSupply',
     writeArgs: [parseEther('4500').toString()],
   })
 
   await updateParamIfNeeded(hre, {
-    contract: MsETHProxyOFT,
+    contractAlias: MsETHProxyOFT,
     readMethod: 'useCustomAdapterParams',
     writeMethod: 'setUseCustomAdapterParams',
     writeArgs: ['true'],
@@ -64,7 +61,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   // mainnet -> base
   await updateParamIfNeeded(hre, {
-    contract: MsETHProxyOFT,
+    contractAlias: MsETHProxyOFT,
     readMethod: 'minDstGasLookup',
     readArgs: [Constants.LZ_MAINNET_CHAIN_ID, Constants.LZ_PT_SEND],
     writeMethod: 'setMinDstGas',
@@ -73,7 +70,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   })
 
   await updateParamIfNeeded(hre, {
-    contract: MsETHProxyOFT,
+    contractAlias: MsETHProxyOFT,
     readMethod: 'trustedRemoteLookup',
     readArgs: [Constants.LZ_MAINNET_CHAIN_ID],
     writeMethod: 'setTrustedRemote',
@@ -86,7 +83,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   // op -> base
   await updateParamIfNeeded(hre, {
-    contract: MsETHProxyOFT,
+    contractAlias: MsETHProxyOFT,
     readMethod: 'minDstGasLookup',
     readArgs: [Constants.LZ_OP_CHAIN_ID, Constants.LZ_PT_SEND],
     writeMethod: 'setMinDstGas',
@@ -95,7 +92,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   })
 
   await updateParamIfNeeded(hre, {
-    contract: MsETHProxyOFT,
+    contractAlias: MsETHProxyOFT,
     readMethod: 'trustedRemoteLookup',
     readArgs: [Constants.LZ_OP_CHAIN_ID],
     writeMethod: 'setTrustedRemote',
@@ -109,4 +106,4 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
 export default func
 func.tags = [MsETHProxyOFT]
-func.dependencies = [Pool, MsETHSynthetic]
+func.dependencies = [MsETHSynthetic]

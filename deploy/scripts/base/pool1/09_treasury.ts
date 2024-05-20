@@ -1,26 +1,27 @@
+/* eslint-disable camelcase */
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
-import {UpgradableContracts, deployUpgradable, updateParamIfNeeded} from '../../helpers'
+import {UpgradableContracts, deployUpgradable, updateParamIfNeeded} from '../../../helpers'
 
 const {
-  Pool: {alias: Pool},
-  Treasury: {alias: Treasury},
+  Pool1: {alias: Pool1},
+  Treasury_Pool1: {alias: Treasury_Pool1},
 } = UpgradableContracts
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const {deployments} = hre
   const {get} = deployments
 
-  const pool = await get(Pool)
+  const pool = await get(Pool1)
 
   const {address: treasuryAddress} = await deployUpgradable({
     hre,
-    contractConfig: UpgradableContracts.Treasury,
+    contractConfig: UpgradableContracts.Treasury_Pool1,
     initializeArgs: [pool.address],
   })
 
   await updateParamIfNeeded(hre, {
-    contract: Pool,
+    contractAlias: Pool1,
     readMethod: 'treasury',
     writeMethod: 'updateTreasury',
     writeArgs: [treasuryAddress],
@@ -28,5 +29,5 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 }
 
 export default func
-func.tags = [Treasury]
-func.dependencies = [Pool]
+func.tags = [Treasury_Pool1]
+func.dependencies = [Pool1]
