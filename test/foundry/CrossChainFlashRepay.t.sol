@@ -38,7 +38,20 @@ contract CrossChainFlashRepay_Test is CrossChains_Test {
         uint256 swapAmountOutMin_,
         uint256 repayAmountMin_
     ) private {
-        _crossChainFlashRepay(msdVaUSDC_optimism, usdc_optimism, withdrawAmount_, swapAmountOutMin_, repayAmountMin_);
+        vm.selectFork(mainnetFork);
+        bytes memory _lzArgs = poolRegistry_mainnet.quoter().getFlashRepaySwapAndCallbackLzArgs({
+            srcChainId_: LZ_OP_CHAIN_ID,
+            dstChainId_: LZ_MAINNET_CHAIN_ID
+        });
+
+        _crossChainFlashRepay(
+            msdVaUSDC_optimism,
+            usdc_optimism,
+            withdrawAmount_,
+            swapAmountOutMin_,
+            repayAmountMin_,
+            _lzArgs
+        );
     }
 
     function _crossChainFlashRepay(
@@ -47,7 +60,20 @@ contract CrossChainFlashRepay_Test is CrossChains_Test {
         uint256 swapAmountOutMin_,
         uint256 repayAmountMin_
     ) private {
-        _crossChainFlashRepay(depositToken_, usdc_optimism, withdrawAmount_, swapAmountOutMin_, repayAmountMin_);
+        vm.selectFork(mainnetFork);
+        bytes memory _lzArgs = poolRegistry_mainnet.quoter().getFlashRepaySwapAndCallbackLzArgs({
+            srcChainId_: LZ_OP_CHAIN_ID,
+            dstChainId_: LZ_MAINNET_CHAIN_ID
+        });
+
+        _crossChainFlashRepay(
+            depositToken_,
+            usdc_optimism,
+            withdrawAmount_,
+            swapAmountOutMin_,
+            repayAmountMin_,
+            _lzArgs
+        );
     }
 
     function _crossChainFlashRepay(
@@ -57,18 +83,36 @@ contract CrossChainFlashRepay_Test is CrossChains_Test {
         uint256 swapAmountOutMin_,
         uint256 repayAmountMin_
     ) private {
-        vm.recordLogs();
-
         vm.selectFork(mainnetFork);
         bytes memory _lzArgs = poolRegistry_mainnet.quoter().getFlashRepaySwapAndCallbackLzArgs({
             srcChainId_: LZ_OP_CHAIN_ID,
             dstChainId_: LZ_MAINNET_CHAIN_ID
         });
 
+        _crossChainFlashRepay(
+            depositToken_,
+            bridgeToken_,
+            withdrawAmount_,
+            swapAmountOutMin_,
+            repayAmountMin_,
+            _lzArgs
+        );
+    }
+
+    function _crossChainFlashRepay(
+        DepositToken depositToken_,
+        IERC20 bridgeToken_,
+        uint256 withdrawAmount_,
+        uint256 swapAmountOutMin_,
+        uint256 repayAmountMin_,
+        bytes memory lzArgs_
+    ) private {
+        vm.recordLogs();
+
         vm.selectFork(optimismFork);
         uint256 fee = poolRegistry_optimism.quoter().quoteCrossChainFlashRepayNativeFee(
             proxyOFT_msUSD_optimism,
-            _lzArgs
+            lzArgs_
         );
         deal(alice, fee);
 
@@ -81,7 +125,7 @@ contract CrossChainFlashRepay_Test is CrossChains_Test {
             bridgeTokenAmountMin_: 0,
             repayAmountMin_: repayAmountMin_,
             swapAmountOutMin_: swapAmountOutMin_,
-            lzArgs_: _lzArgs
+            lzArgs_: lzArgs_
         });
         vm.stopPrank();
 
@@ -581,7 +625,8 @@ contract CrossChainFlashRepay_Test is CrossChains_Test {
         assertApproxEqAbs(_debtInUsdAfter, 0, 1e18);
     }
 
-    function test_failedTx2_whenLowAirdrop() external {
+    // Note: This scenario is very unlike to happen
+    function test_failedTx2_whenNoAirdrop() external {
         //
         // given
         //
@@ -612,10 +657,11 @@ contract CrossChainFlashRepay_Test is CrossChains_Test {
         assertEq(reason, ""); // OOF
 
         // tx2
+        payable(crossChainDispatcher_mainnet).transfer(1 ether);
         (, , uint256 amount, , uint256 dstPoolId, , , bytes memory sgPayload_) = _decodeSgSwapEvents(Swap, Packet);
         address token = IStargatePool(IStargateFactory(sgComposer_mainnet.factory()).getPool(dstPoolId)).token();
         bytes memory payload = sgPayload_.slice(40, sgPayload_.length - 40);
-        crossChainDispatcher_mainnet.retrySwapAndTriggerFlashRepayCallback{value: 1 ether}(
+        crossChainDispatcher_mainnet.retrySwapAndTriggerFlashRepayCallback(
             chainId,
             srcAddress,
             uint64(nonce),
@@ -624,6 +670,95 @@ contract CrossChainFlashRepay_Test is CrossChains_Test {
             payload,
             0
         );
+        (Vm.Log memory SendToChain, Vm.Log memory PacketTx2, Vm.Log memory RelayerParamsTx2) = _getOftTransferEvents();
+
+        // tx3
+        _executeCallback(SendToChain, PacketTx2, RelayerParamsTx2);
+
+        //
+        // then
+        //
+        (, uint256 _depositInUsdAfter, uint256 _debtInUsdAfter, , ) = pool_optimism.debtPositionOf(alice);
+        assertApproxEqAbs(_depositInUsdAfter, 1500e18, 1e18);
+        assertApproxEqAbs(_debtInUsdAfter, 0, 1e18);
+    }
+
+    function test_failedTx2_whenAirdropIsNotEnough() external {
+        //
+        // given
+        //
+        _depositAndIssue({depositAmount_: 2000e18, issueAmount_: 500e18});
+        (, uint256 _depositInUsdBefore, uint256 _debtInUsdBefore, , ) = pool_optimism.debtPositionOf(alice);
+        assertApproxEqAbs(_depositInUsdBefore, 2000e18, 1e18);
+        assertApproxEqAbs(_debtInUsdBefore, 500e18, 1e18);
+
+        //
+        // when
+        //
+        vm.selectFork(mainnetFork);
+        bytes memory _lzArgs = poolRegistry_mainnet.quoter().getFlashRepaySwapAndCallbackLzArgs({
+            srcChainId_: LZ_OP_CHAIN_ID,
+            dstChainId_: LZ_MAINNET_CHAIN_ID
+        });
+
+        uint256 missingFee = 0.0001e18;
+
+        {
+            (uint16 _dstChainId, uint256 _callbackTxNativeFee, uint64 _flashRepaySwapTxGasLimit) = CrossChainLib
+                .decodeLzArgs(_lzArgs);
+
+            // Setting lower fee than the needed
+            _lzArgs = CrossChainLib.encodeLzArgs(
+                _dstChainId,
+                _callbackTxNativeFee - missingFee,
+                _flashRepaySwapTxGasLimit
+            );
+        }
+
+        // tx1
+        _crossChainFlashRepay({
+            depositToken_: msdVaUSDC_optimism,
+            bridgeToken_: usdc_optimism,
+            withdrawAmount_: 500e18,
+            swapAmountOutMin_: 0,
+            repayAmountMin_: 0,
+            lzArgs_: _lzArgs
+        });
+        (Vm.Log memory Swap, Vm.Log memory Packet, Vm.Log memory RelayerParams) = _getSgSwapEvents();
+
+        // tx2 - fail
+        uint16 chainId;
+        bytes memory srcAddress;
+        uint256 nonce;
+        {
+            _executeSwapAndTriggerCallback(Swap, Packet, RelayerParams);
+            (, Vm.Log memory CachedSwapSaved, , Vm.Log memory SwapRemote) = _getSgSwapErrorEvents();
+            bytes memory reason;
+            (chainId, srcAddress, , nonce, reason) = _decodeCachedSwapSavedSgComposerEvent(CachedSwapSaved, SwapRemote);
+            assertEq(reason.slice(4, reason.length - 4), abi.encode("LayerZero: not enough native for fees"));
+        }
+
+        // tx2
+        {
+            (, , uint256 amount, , uint256 dstPoolId, , , bytes memory sgPayload_) = _decodeSgSwapEvents(Swap, Packet);
+            address token = IStargatePool(IStargateFactory(sgComposer_mainnet.factory()).getPool(dstPoolId)).token();
+            bytes memory payload = sgPayload_.slice(40, sgPayload_.length - 40);
+            uint256 _balanceBefore = alice.balance;
+            // Works after top-up with enough ether
+            uint256 _extraFee = 2 * missingFee; // Sending more than needed
+            crossChainDispatcher_mainnet.retrySwapAndTriggerFlashRepayCallback{value: _extraFee}(
+                chainId,
+                srcAddress,
+                uint64(nonce),
+                token,
+                amount,
+                payload,
+                0
+            );
+
+            assertEq(alice.balance - _balanceBefore, missingFee); // Should refund excess
+        }
+
         (Vm.Log memory SendToChain, Vm.Log memory PacketTx2, Vm.Log memory RelayerParamsTx2) = _getOftTransferEvents();
 
         // tx3

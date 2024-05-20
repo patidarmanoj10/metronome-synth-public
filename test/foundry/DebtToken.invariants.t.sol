@@ -120,10 +120,9 @@ contract DebtTokenInvariant_Test is Test {
         targetSender(address(0x14));
     }
 
-    // TODO: This test case is failing, check why
-    // function invariant_debtAndSynthSupply() public {
-    //     assertEq(debtToken.totalSupply() + debtTokenHandler.debtBurnt(), syntheticToken.totalSupply() + debtToken.pendingInterestFee());
-    // }
+    function invariant_debtAndSynthSupply() public {
+        assertEq(debtToken.totalSupply(), syntheticToken.totalSupply() + debtToken.pendingInterestFee());
+    }
 
     function invariant_sumOfDebtBalances() public {
         address[] memory actors = debtTokenHandler.getActors();

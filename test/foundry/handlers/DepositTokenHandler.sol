@@ -7,7 +7,7 @@ import {DepositToken} from "../../../contracts/DepositToken.sol";
 import {ERC20Mock, IERC20} from "../../../contracts/mock/ERC20Mock.sol";
 
 contract DepositTokenHandler is SynthHandlerBase {
-    uint256 internal constant MAX_CR = 1e18;
+    uint256 internal constant MAX_CR = 0.99e18;
 
     DepositToken depositToken;
 

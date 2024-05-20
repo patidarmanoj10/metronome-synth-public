@@ -15,14 +15,14 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   })
 
   // await updateParamIfNeeded(hre, {
-  //   contract: PoolRegistry,
+  //   contractAlias: PoolRegistry,
   //   readMethod: 'swapper',
   //   writeMethod: 'updateSwapper',
   //   writeArgs: [Address.SWAPPER],
   // })
 
   // await updateParamIfNeeded(hre, {
-  //   contract: PoolRegistry,
+  //   contractAlias: PoolRegistry,
   //   readMethod: 'isCrossChainFlashRepayActive',
   //   writeMethod: 'toggleCrossChainFlashRepayIsActive',
   //   isCurrentValueUpdated: (isActive: boolean) => isActive,

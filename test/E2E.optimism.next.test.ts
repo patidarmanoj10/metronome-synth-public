@@ -40,7 +40,7 @@ let NATIVE_TOKEN_GATEWAY_ADDRESS: string
 let QUOTER_ADDRESS: string
 let MSUSD_PROXYOFT_ADDRESS: string
 let MSETH_PROXYOFT_ADDRESS: string
-let SMART_FARMING_MANAGER_ADDRESS: string
+let SFM_ADDRESS: string
 let CROSS_CHAIN_DISPATCHER_ADDRESS: string
 
 const {MaxUint256} = ethers.constants
@@ -93,16 +93,16 @@ describe.skip('E2E tests (next optimism release)', function () {
   async function fixture() {
     // Note: Using dynamic import otherwise test will fail when `/deployments/localhost` doesn't exist
     ;({address: POOL_REGISTRY_ADDRESS} = await import('../deployments/localhost/PoolRegistry.json'))
-    ;({address: WETH_DEPOSIT_ADDRESS} = await import('../deployments/localhost/WETHDepositToken.json'))
-    ;({address: OP_DEPOSIT_ADDRESS} = await import('../deployments/localhost/OPDepositToken.json'))
-    ;({address: USDC_DEPOSIT_ADDRESS} = await import('../deployments/localhost/USDCDepositToken.json'))
-    ;({address: VAETH_DEPOSIT_ADDRESS} = await import('../deployments/localhost/vaETHDepositToken.json'))
-    ;({address: VAOP_DEPOSIT_ADDRESS} = await import('../deployments/localhost/vaOPDepositToken.json'))
-    ;({address: VAUSDC_DEPOSIT_ADDRESS} = await import('../deployments/localhost/vaUSDCDepositToken.json'))
-    ;({address: VAWSTETH_DEPOSIT_ADDRESS} = await import('../deployments/localhost/vaWSTETHDepositToken.json'))
-    ;({address: MSUSD_DEBT_ADDRESS} = await import('../deployments/localhost/MsUSDDebt.json'))
-    ;({address: MSOP_DEBT_ADDRESS} = await import('../deployments/localhost/MsOPDebt.json'))
-    ;({address: MSETH_DEBT_ADDRESS} = await import('../deployments/localhost/MsETHDebt.json'))
+    ;({address: WETH_DEPOSIT_ADDRESS} = await import('../deployments/localhost/WETHDepositToken_Pool1.json'))
+    ;({address: OP_DEPOSIT_ADDRESS} = await import('../deployments/localhost/OPDepositToken_Pool1.json'))
+    ;({address: USDC_DEPOSIT_ADDRESS} = await import('../deployments/localhost/USDCDepositToken_Pool1.json'))
+    ;({address: VAETH_DEPOSIT_ADDRESS} = await import('../deployments/localhost/VaETHDepositToken_Pool1.json'))
+    ;({address: VAOP_DEPOSIT_ADDRESS} = await import('../deployments/localhost/VaOPDepositToken_Pool1.json'))
+    ;({address: VAUSDC_DEPOSIT_ADDRESS} = await import('../deployments/localhost/VaUSDCDepositToken_Pool1.json'))
+    ;({address: VAWSTETH_DEPOSIT_ADDRESS} = await import('../deployments/localhost/VaWSTETHDepositToken_Pool1.json'))
+    ;({address: MSUSD_DEBT_ADDRESS} = await import('../deployments/localhost/MsUSDDebt_Pool1.json'))
+    ;({address: MSOP_DEBT_ADDRESS} = await import('../deployments/localhost/MsOPDebt_Pool1.json'))
+    ;({address: MSETH_DEBT_ADDRESS} = await import('../deployments/localhost/MsETHDebt_Pool1.json'))
     ;({address: MSUSD_SYNTHETIC_ADDRESS} = await import('../deployments/localhost/MsUSDSynthetic.json'))
     ;({address: MSBTC_SYNTHETIC_ADDRESS} = await import('../deployments/localhost/MsOPSynthetic.json'))
     ;({address: MSETH_SYNTHETIC_ADDRESS} = await import('../deployments/localhost/MsETHSynthetic.json'))
@@ -110,7 +110,7 @@ describe.skip('E2E tests (next optimism release)', function () {
     ;({address: MSETH_PROXYOFT_ADDRESS} = await import('../deployments/localhost/MsETHProxyOFT.json'))
     ;({address: NATIVE_TOKEN_GATEWAY_ADDRESS} = await import('../deployments/localhost/NativeTokenGateway.json'))
     ;({address: QUOTER_ADDRESS} = await import('../deployments/localhost/Quoter.json'))
-    ;({address: SMART_FARMING_MANAGER_ADDRESS} = await import('../deployments/localhost/SmartFarmingManager.json'))
+    ;({address: SFM_ADDRESS} = await import('../deployments/localhost/SmartFarmingManager_Pool1.json'))
     ;({address: CROSS_CHAIN_DISPATCHER_ADDRESS} = await import('../deployments/localhost/CrossChainDispatcher.json'))
 
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
@@ -128,7 +128,7 @@ describe.skip('E2E tests (next optimism release)', function () {
     nativeGateway = await ethers.getContractAt('NativeTokenGateway', NATIVE_TOKEN_GATEWAY_ADDRESS, alice)
 
     const [pool1Address] = await poolRegistry.getPools()
-    pool = await ethers.getContractAt('contracts/Pool.sol:Pool', pool1Address, alice)
+    pool = <Pool>await ethers.getContractAt('contracts/Pool.sol:Pool', pool1Address, alice)
 
     msdWETH = await ethers.getContractAt('DepositToken', WETH_DEPOSIT_ADDRESS, alice)
     msdOP = await ethers.getContractAt('DepositToken', OP_DEPOSIT_ADDRESS, alice) // 18 decimals
@@ -149,7 +149,7 @@ describe.skip('E2E tests (next optimism release)', function () {
     msUSDProxyOFT = await ethers.getContractAt('ProxyOFT', MSUSD_PROXYOFT_ADDRESS, alice)
     msETHProxyOFT = await ethers.getContractAt('ProxyOFT', MSETH_PROXYOFT_ADDRESS, alice)
 
-    smartFarmingManager = await ethers.getContractAt('SmartFarmingManager', SMART_FARMING_MANAGER_ADDRESS, alice)
+    smartFarmingManager = await ethers.getContractAt('SmartFarmingManager', SFM_ADDRESS, alice)
     crossChainDispatcher = await ethers.getContractAt('CrossChainDispatcher', CROSS_CHAIN_DISPATCHER_ADDRESS, alice)
     quoter = await ethers.getContractAt('Quoter', QUOTER_ADDRESS, alice)
 
@@ -184,6 +184,36 @@ describe.skip('E2E tests (next optimism release)', function () {
 
     // TODO: Remove when the production cap has enough room
     await msUSDDebt.connect(governor).updateMaxTotalSupply(ethers.constants.MaxUint256)
+    await msUSD.connect(governor).toggleIsActive()
+    await msOP.connect(governor).toggleIsActive()
+    await msETH.connect(governor).toggleIsActive()
+
+    await msdVaUSDC.connect(governor).updateMaxTotalSupply(ethers.constants.MaxUint256)
+    await msdVaETH.connect(governor).updateMaxTotalSupply(ethers.constants.MaxUint256)
+    await msdVaWSTETH.connect(governor).updateMaxTotalSupply(ethers.constants.MaxUint256)
+    await msdVaOP.connect(governor).updateMaxTotalSupply(ethers.constants.MaxUint256)
+
+    if (await pool.paused()) {
+      await pool.connect(governor).unpause()
+    }
+
+    if (await poolRegistry.paused()) {
+      await poolRegistry.connect(governor).unpause()
+    }
+
+    if (!(await crossChainDispatcher.isBridgingActive())) {
+      await crossChainDispatcher.connect(governor).toggleBridgingIsActive()
+    }
+
+    if (!(await pool.isBridgingActive())) {
+      await pool.connect(governor).toggleBridgingIsActive()
+    }
+
+    const vesperGovernor = await impersonateAccount('0x32934AD7b1121DeFC631080b58599A0eaAB89878')
+    await new ethers.Contract(vaUSDC.address, ['function open()'], vesperGovernor).open()
+    await new ethers.Contract(vaUSDC.address, ['function unpause()'], vesperGovernor).unpause()
+    await new ethers.Contract(vaWSTETH.address, ['function open()'], vesperGovernor).open()
+    await new ethers.Contract(vaWSTETH.address, ['function unpause()'], vesperGovernor).unpause()
   }
 
   beforeEach(async function () {
@@ -205,7 +235,7 @@ describe.skip('E2E tests (next optimism release)', function () {
     it('should have correct addresses', async function () {
       expect(POOL_REGISTRY_ADDRESS).eq(await pool.poolRegistry())
       expect(CROSS_CHAIN_DISPATCHER_ADDRESS).eq(await poolRegistry.crossChainDispatcher())
-      expect(SMART_FARMING_MANAGER_ADDRESS).eq(await pool.smartFarmingManager())
+      expect(SFM_ADDRESS).eq(await pool.smartFarmingManager())
       expect(pool.address).eq(await smartFarmingManager.pool())
       expect(QUOTER_ADDRESS).eq(await poolRegistry.quoter())
 
@@ -507,7 +537,7 @@ describe.skip('E2E tests (next optimism release)', function () {
       it('should leverage vaETH->msETH', async function () {
         // when
         const amountIn = parseUnits('0.1', 18)
-        const amountInUsd = parseUnits('190', 18) // approx.
+        const amountInUsd = parseUnits('309', 18) // approx.
         const leverage = parseEther('1.5')
         await vaETH.connect(alice).approve(smartFarmingManager.address, MaxUint256)
         const tx = await smartFarmingManager.leverage(
@@ -533,7 +563,7 @@ describe.skip('E2E tests (next optimism release)', function () {
       it('should leverage vawstETH->msETH', async function () {
         // when
         const amountIn = parseUnits('0.1', 18)
-        const amountInUsd = parseUnits('195', 18) // approx.
+        const amountInUsd = parseUnits('310', 18) // approx.
         const leverage = parseEther('1.5')
         await vaWSTETH.connect(alice).approve(smartFarmingManager.address, MaxUint256)
         const tx = await smartFarmingManager.leverage(
@@ -570,7 +600,7 @@ describe.skip('E2E tests (next optimism release)', function () {
 
       it('should flash repay msETH debt using vaETH', async function () {
         // when
-        const withdrawAmount = parseEther('0.45')
+        const withdrawAmount = parseEther('0.48')
         const tx = await smartFarmingManager.flashRepay(msETH.address, msdVaETH.address, withdrawAmount, 0)
 
         // then

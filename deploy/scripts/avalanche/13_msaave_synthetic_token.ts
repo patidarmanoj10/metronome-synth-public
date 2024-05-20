@@ -1,7 +1,7 @@
 import {parseEther} from 'ethers/lib/utils'
-import {buildSyntheticDeployFunction} from '../../helpers'
+import {buildSyntheticTokenDeployFunction} from '../../helpers'
 
-const func = buildSyntheticDeployFunction({
+const func = buildSyntheticTokenDeployFunction({
   name: 'Metronome Synth AAVE',
   symbol: 'msAAVE',
   decimals: 18,
