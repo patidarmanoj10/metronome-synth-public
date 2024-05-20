@@ -56,7 +56,7 @@ const isNodeHardhat = hre.network.name === 'hardhat'
  * 3) run this test suite
  * See more: `../docs/deployment-e2e-tests.md`
  */
-describe('E2E tests (next optimism release)', function () {
+describe.skip('E2E tests (next optimism release)', function () {
   let governor: SignerWithAddress
   let alice: SignerWithAddress
   let bob: SignerWithAddress

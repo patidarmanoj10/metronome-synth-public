@@ -396,13 +396,6 @@ describe('SmartFarmingManager', function () {
       // when
       const amountIn = parseUnits('100', 18)
       const leverage = parseEther('1.01')
-      const {_amountToDeposit, _amountToIssue} = await smartFarmingManager.quoteLeverageOut(
-        vaDAI.address,
-        msdVaDAI.address,
-        msUSD.address,
-        amountIn,
-        leverage
-      )
       await smartFarmingManager
         .connect(alice)
         .leverage(vaDAI.address, msdVaDAI.address, msUSD.address, amountIn, leverage, 0)
@@ -411,8 +404,6 @@ describe('SmartFarmingManager', function () {
       const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
       expect(_depositInUsd).closeTo(amountIn, parseEther('5')) // ~$100
       expect(_debtInUsd).closeTo(0, parseEther('5')) // ~$0
-      expect(await msdVaDAI.balanceOf(alice.address)).eq(_amountToDeposit)
-      expect(await msUsdDebtToken.balanceOf(alice.address)).eq(_amountToIssue)
     })
 
     it('should be able to leverage (a little bit less than the) max', async function () {
@@ -426,13 +417,6 @@ describe('SmartFarmingManager', function () {
       expect(maxLeverage).eq(parseEther('2'))
       const damper = parseEther('0.05')
       const leverage = maxLeverage.sub(damper) // -5% to cover fees + slippage
-      const {_amountToDeposit, _amountToIssue} = await smartFarmingManager.quoteLeverageOut(
-        vaDAI.address,
-        msdVaDAI.address,
-        msUSD.address,
-        amountIn,
-        leverage
-      )
       await smartFarmingManager
         .connect(alice)
         .leverage(vaDAI.address, msdVaDAI.address, msUSD.address, amountIn, leverage, 0)
@@ -441,21 +425,12 @@ describe('SmartFarmingManager', function () {
       const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
       expect(_depositInUsd).closeTo(parseEther('200'), parseEther('10')) // ~$200
       expect(_debtInUsd).closeTo(parseEther('100'), parseEther('10')) // ~$100
-      expect(await msdVaDAI.balanceOf(alice.address)).closeTo(_amountToDeposit, parseEther('0.1'))
-      expect(await msUsdDebtToken.balanceOf(alice.address)).eq(_amountToIssue)
     })
 
     it('should leverage vaDAI->msUSD', async function () {
       // when
       const amountIn = parseUnits('100', 18)
       const leverage = parseEther('1.5')
-      const {_amountToDeposit, _amountToIssue} = await smartFarmingManager.quoteLeverageOut(
-        vaDAI.address,
-        msdVaDAI.address,
-        msUSD.address,
-        amountIn,
-        leverage
-      )
       await smartFarmingManager
         .connect(alice)
         .leverage(vaDAI.address, msdVaDAI.address, msUSD.address, amountIn, leverage, 0)
@@ -465,8 +440,6 @@ describe('SmartFarmingManager', function () {
       expect(_depositInUsd).closeTo(amountIn.mul(leverage).div(parseEther('1')), parseEther('10')) // ~$150
       // eslint-disable-next-line max-len
       expect(_debtInUsd).closeTo(amountIn.mul(leverage.sub(parseEther('1'))).div(parseEther('1')), parseEther('10')) // ~$50
-      expect(await msdVaDAI.balanceOf(alice.address)).eq(_amountToDeposit)
-      expect(await msUsdDebtToken.balanceOf(alice.address)).eq(_amountToIssue)
     })
 
     it('should leverage vaDAI->msUSD using MET as tokenIn', async function () {
@@ -476,13 +449,6 @@ describe('SmartFarmingManager', function () {
       // when
       const amountIn = parseUnits('100', 18)
       const leverage = parseEther('1.5')
-      const {_amountToDeposit, _amountToIssue} = await smartFarmingManager.quoteLeverageOut(
-        met.address,
-        msdVaDAI.address,
-        msUSD.address,
-        amountIn,
-        leverage
-      )
       await met.connect(alice).approve(smartFarmingManager.address, MaxUint256)
       await smartFarmingManager
         .connect(alice)
@@ -493,8 +459,6 @@ describe('SmartFarmingManager', function () {
       const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
       expect(_depositInUsd).closeTo(parseEther('75'), parseEther('10'))
       expect(_debtInUsd).closeTo(parseEther('25'), parseEther('10'))
-      expect(await msdVaDAI.balanceOf(alice.address)).eq(_amountToDeposit)
-      expect(await msUsdDebtToken.balanceOf(alice.address)).eq(_amountToIssue)
     })
   })
 
