@@ -14,8 +14,6 @@ contract DebtTokenHandler is SynthHandlerBase {
     IPoolRegistry poolRegistry;
     ISyntheticToken syntheticToken;
 
-    uint256 public debtBurnt;
-
     constructor(DebtToken debtToken_) SynthHandlerBase(debtToken_.pool()) {
         debtToken = debtToken_;
         poolRegistry = pool.poolRegistry();
@@ -54,22 +52,6 @@ contract DebtTokenHandler is SynthHandlerBase {
         debtToken.issue(amount, currentActor);
     }
 
-    function flashIssue(uint256 amount, uint256 actorSeed) public useActor(actorSeed) countCall("flashIssue") {
-        vm.startPrank(address(pool.smartFarmingManager()));
-
-        (, , , , uint256 issuableInUsd) = pool.debtPositionOf(currentActor);
-        uint256 max = poolRegistry.masterOracle().quoteUsdToToken(address(syntheticToken), issuableInUsd);
-
-        amount = bound(amount, 0, max);
-
-        if (amount == 0) {
-            vm.expectRevert();
-        }
-
-        // Note: debt goes to `currentActor` and synth goes to `SmartFarmingManager`
-        debtToken.flashIssue(currentActor, amount);
-    }
-
     function repay(uint256 amount, uint256 actorSeed) public useActor(actorSeed) countCall("repay") {
         amount = bound(amount, 0, Math.min(syntheticToken.balanceOf(currentActor), debtToken.balanceOf(currentActor)));
 
@@ -80,37 +62,19 @@ contract DebtTokenHandler is SynthHandlerBase {
         debtToken.repay(currentActor, amount);
     }
 
-    function burn(uint256 amount, uint256 actorSeed) public useActor(actorSeed) usePool countCall("burn") {
-        amount = bound(amount, 0, debtToken.balanceOf(currentActor));
-
-        debtToken.burn(currentActor, amount);
-
-        debtBurnt += amount;
-    }
-
     function repayAll(uint256 actorSeed) public useActor(actorSeed) countCall("repayAll") {
         uint256 debt = debtToken.balanceOf(currentActor);
         uint256 synth = syntheticToken.balanceOf(currentActor);
 
-        (uint256 synthNeeded, ) = debtToken.quoteRepayIn(debt);
-
-        uint256 toIssue;
-
-        if (debt == 0) {
-            vm.expectRevert();
-        } else if (synthNeeded > synth) {
-            toIssue = synthNeeded - synth;
-
-            vm.stopPrank();
-            vm.startPrank(address(pool.smartFarmingManager()));
-            (uint256 amountIn, ) = debtToken.quoteIssueIn(toIssue);
-            (uint256 issued, ) = debtToken.flashIssue(address(pool.smartFarmingManager()), amountIn);
-            syntheticToken.transfer(currentActor, issued);
-            vm.stopPrank();
-            vm.startPrank(currentActor);
+        if (synth > debt) {
+            debtToken.repayAll(currentActor);
+        } else {
+            uint256 amount = Math.min(synth, debt);
+            if (amount == 0) {
+                vm.expectRevert();
+            }
+            debtToken.repay(currentActor, amount);
         }
-
-        debtToken.repayAll(currentActor);
     }
 
     function callSummary() public view {
@@ -119,9 +83,7 @@ contract DebtTokenHandler is SynthHandlerBase {
         console.log("updateInterestRate        ", calls["updateInterestRate"]);
         console.log("increaseTime              ", calls["increaseTime"]);
         console.log("issue                     ", calls["issue"]);
-        console.log("flashIssue                ", calls["flashIssue"]);
         console.log("repay                     ", calls["repay"]);
-        console.log("burn                      ", calls["burn"]);
         console.log("repayAll                  ", calls["repayAll"]);
     }
 }

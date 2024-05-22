@@ -29,10 +29,16 @@ error BridgeTokenNotSupported();
 error InvalidSlippageParam();
 error InvalidPayload();
 
+// Note: The `IPool` wasn't updated to avoid changing interface
+// Refs: https://github.com/autonomoussoftware/metronome-synth/issues/877
+interface IPoolV4 is IPool {
+    function isBridgingActive() external view returns (bool);
+}
+
 /**
  * @title Cross-chain dispatcher
  */
-contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 {
+contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV2 {
     using SafeERC20 for IERC20;
     using BytesLib for bytes;
 
@@ -96,7 +102,8 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
     }
 
     modifier onlyIfBridgingIsNotPaused() {
-        if (!isBridgingActive) revert BridgingIsPaused();
+        if (!isBridgingActive || !IPoolV4(address(IManageable(msg.sender).pool())).isBridgingActive())
+            revert BridgingIsPaused();
         _;
     }
 
@@ -193,7 +200,8 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
             uint256 _requestId,
             uint256 _sgPoolId,
             address _account,
-            uint256 _amountOutMin
+            uint256 _amountOutMin,
+            uint256 _callbackTxNativeFee
         ) = CrossChainLib.decodeLeverageSwapPayload(payload_);
 
         address _bridgeToken = IStargatePool(IStargateFactory(stargateComposer.factory()).getPool(_sgPoolId)).token();
@@ -216,7 +224,7 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
                 tokenIn: _bridgeToken,
                 dstChainId: _srcChainId,
                 amountIn: amountIn_,
-                nativeFee: poolRegistry.quoter().quoteLeverageCallbackNativeFee(_srcChainId),
+                nativeFee: _callbackTxNativeFee + extraCallbackTxNativeFee[_requestId],
                 payload: CrossChainLib.encodeLeverageCallbackPayload(_srcSmartFarmingManager, _requestId),
                 refundAddress: _account,
                 dstGasForCall: leverageCallbackTxGasLimit,
@@ -315,7 +323,8 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
             address _dstProxyOFT,
             uint256 _requestId,
             address _account,
-            uint256 _amountOutMin
+            uint256 _amountOutMin,
+            uint256 _callbackTxNativeFee
         ) = CrossChainLib.decodeFlashRepaySwapPayload(payload_);
 
         address _syntheticToken = IProxyOFT(_dstProxyOFT).token();
@@ -344,7 +353,7 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
                 refundAddress: _account,
                 dstGasForCall: flashRepayCallbackTxGasLimit,
                 dstNativeAmount: 0,
-                nativeFee: poolRegistry.quoter().quoteFlashRepayCallbackNativeFee(_srcChainId)
+                nativeFee: _callbackTxNativeFee + extraCallbackTxNativeFee[_requestId]
             })
         );
     }
@@ -380,7 +389,11 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
             payload_
         );
 
-        (, , uint256 _requestId, address _account, ) = CrossChainLib.decodeFlashRepaySwapPayload(payload_);
+        (, , uint256 _requestId, address _account, , ) = CrossChainLib.decodeFlashRepaySwapPayload(payload_);
+
+        if (msg.value > 0) {
+            extraCallbackTxNativeFee[_requestId] += msg.value;
+        }
 
         if (msg.sender == _account) {
             // Note: If `swapAmountOutMin[_requestId]` is `0` (default value), swap function will use payload's slippage param
@@ -409,11 +422,15 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
         bytes calldata payload_,
         uint256 newAmountOutMin_
     ) external payable nonReentrant {
-        (, address _dstProxyOFT, uint256 _requestId, , address _account, ) = CrossChainLib.decodeLeverageSwapPayload(
+        (, address _dstProxyOFT, uint256 _requestId, , address _account, , ) = CrossChainLib.decodeLeverageSwapPayload(
             payload_
         );
 
         if (!_isValidProxyOFT(_dstProxyOFT)) revert InvalidPayload();
+
+        if (msg.value > 0) {
+            extraCallbackTxNativeFee[_requestId] += msg.value;
+        }
 
         if (msg.sender == _account) {
             // Note: If `swapAmountOutMin[_requestId]` is `0` (default value), swap function will use payload's slippage param
@@ -472,7 +489,8 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
                 dstProxyOFT_: _dstProxyOFT,
                 requestId_: _requestId,
                 account_: _account,
-                amountOutMin_: amountOutMin_
+                amountOutMin_: amountOutMin_,
+                callbackTxNativeFee_: callbackTxNativeFee_
             });
         }
 
@@ -508,7 +526,7 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
         uint256 amountIn_,
         uint256 amountOutMin_,
         bytes calldata lzArgs_
-    ) external payable override nonReentrant onlyIfSmartFarmingManager {
+    ) external payable override nonReentrant onlyIfSmartFarmingManager onlyIfBridgingIsNotPaused {
         address _account = account_; // stack too deep
 
         (uint16 _dstChainId, uint256 _callbackTxNativeFee, uint64 _leverageSwapTxGasLimit) = CrossChainLib.decodeLzArgs(
@@ -534,7 +552,8 @@ contract CrossChainDispatcher is ReentrancyGuard, CrossChainDispatcherStorageV1 
                 requestId_: _requestId,
                 sgPoolId_: _sgPoolId,
                 account_: _account,
-                amountOutMin_: _amountOutMin
+                amountOutMin_: _amountOutMin,
+                callbackTxNativeFee_: _callbackTxNativeFee
             });
         }
 

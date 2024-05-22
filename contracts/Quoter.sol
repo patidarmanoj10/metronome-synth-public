@@ -164,6 +164,7 @@ contract Quoter is Initializable, QuoterStorageV1 {
                 address(type(uint160).max),
                 type(uint256).max,
                 address(type(uint160).max),
+                type(uint256).max,
                 type(uint256).max
             ),
             _lzTxParams: IStargateRouter.lzTxObj({
@@ -196,6 +197,7 @@ contract Quoter is Initializable, QuoterStorageV1 {
                 type(uint256).max,
                 type(uint256).max,
                 address(type(uint160).max),
+                type(uint256).max,
                 type(uint256).max
             );
 

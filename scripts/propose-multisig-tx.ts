@@ -7,13 +7,13 @@ import dotenv from 'dotenv'
 
 dotenv.config()
 
-const MAINNET_VESPER_SAFE_ = '0x9520b477Aa81180E6DdC006Fc09Fb6d3eb4e807A'
-const MAINNET_METRONOME_SAFE_ = '0xd1DE3F9CD4AE2F23DA941a67cA4C739f8dD9Af33'
-const OP_METRONOME_SAFE_ = '0xE01Df4ac1E1e57266900E62C37F12C986495A618'
+// const MAINNET_VESPER_SAFE_ = '0x9520b477Aa81180E6DdC006Fc09Fb6d3eb4e807A'
+//const MAINNET_METRONOME_SAFE = '0xd1DE3F9CD4AE2F23DA941a67cA4C739f8dD9Af33'
+const OP_METRONOME_SAFE = '0xE01Df4ac1E1e57266900E62C37F12C986495A618'
 
 const main = async () => {
   // chain setup
-  const safeAddress = OP_METRONOME_SAFE_
+  const safeAddress = OP_METRONOME_SAFE
   const chain = 'optimism'
   const provider = new ethers.providers.JsonRpcProvider('https://optimism.llamarpc.com')
 
@@ -27,20 +27,16 @@ const main = async () => {
     throw Error('delegate signer did not set')
   }
 
-  // TODO: Use `encodeFunctionData` instead
+  const iface = new ethers.utils.Interface(['function upgrade(address,address)'])
+  const data = iface.encodeFunctionData('upgrade', [
+    '0x017CBF62b53313d5eE3aD1288daA95CD39AA11fE',
+    '0xb908cadb1906b44c3d163486d8ceb9b4370c476e',
+  ])
   const txs: MetaTransactionData[] = [
-    // mainnet
-    // {
-    //   to: '0x8BD81c99a2D349F6fB8E8a0B32C81704e3FE7302', // CCD mainnet
-    //   value: '0',
-    //   // toggleBridgingIsActive()
-    //   data: '0x833667df',
-    // },
     {
-      to: '0xCEA698Cf2420433E21BeC006F1718216c6198B52', // CCD op
+      to: '0xc9FfA23308D02DC9CfFE955FccE5ffD117A03B46',
       value: '0',
-      // toggleBridgingIsActive()
-      data: '0x833667df',
+      data,
     },
   ]
   const safeTransactionData: MetaTransactionData[] = txs.map((tx) => ({...tx, operation: OperationType.Call}))

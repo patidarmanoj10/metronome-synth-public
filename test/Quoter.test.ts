@@ -169,6 +169,7 @@ describe('Quoter', function () {
       MAX_ADDRESS,
       MAX_BYTES32,
       MAX_ADDRESS,
+      MAX_BYTES32,
       MAX_BYTES32
     )
 
@@ -200,6 +201,7 @@ describe('Quoter', function () {
       MAX_BYTES32,
       MAX_BYTES32,
       MAX_ADDRESS,
+      MAX_BYTES32,
       MAX_BYTES32
     )
 
