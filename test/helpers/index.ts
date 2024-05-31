@@ -125,6 +125,10 @@ const getBalancesSlot = (token: string) => {
       [Address.VAWSTETH_ADDRESS]: 0,
       [Address.VAOP_ADDRESS]: 0,
     },
+    [8453]: {
+      [Address.USDC_ADDRESS]: 9,
+      [Address.WETH_ADDRESS]: 3,
+    },
   }
 
   // only use checksum address

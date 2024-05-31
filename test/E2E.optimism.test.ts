@@ -20,20 +20,19 @@ import {
   CrossChainDispatcher,
   Quoter,
   ProxyOFT,
-  SmartFarmingManager__factory,
 } from '../typechain'
 import {CrossChainLib} from './helpers/CrossChainLib'
 import {address as POOL_REGISTRY_ADDRESS} from '../deployments/optimism/PoolRegistry.json'
-import {address as WETH_DEPOSIT_ADDRESS} from '../deployments/optimism/WETHDepositToken.json'
-import {address as OP_DEPOSIT_ADDRESS} from '../deployments/optimism/OPDepositToken.json'
-import {address as USDC_DEPOSIT_ADDRESS} from '../deployments/optimism/USDCDepositToken.json'
-import {address as VAETH_DEPOSIT_ADDRESS} from '../deployments/optimism/vaETHDepositToken.json'
-import {address as VAOP_DEPOSIT_ADDRESS} from '../deployments/optimism/vaOPDepositToken.json'
-import {address as VAUSDC_DEPOSIT_ADDRESS} from '../deployments/optimism/vaUSDCDepositToken.json'
-import {address as VAWSTETH_DEPOSIT_ADDRESS} from '../deployments/optimism/vaWSTETHDepositToken.json'
-import {address as MSUSD_DEBT_ADDRESS} from '../deployments/optimism/MsUSDDebt.json'
-import {address as MSOP_DEBT_ADDRESS} from '../deployments/optimism/MsOPDebt.json'
-import {address as MSETH_DEBT_ADDRESS} from '../deployments/optimism/MsETHDebt.json'
+import {address as WETH_DEPOSIT_ADDRESS} from '../deployments/optimism/WETHDepositToken_Pool1.json'
+import {address as OP_DEPOSIT_ADDRESS} from '../deployments/optimism/OPDepositToken_Pool1.json'
+import {address as USDC_DEPOSIT_ADDRESS} from '../deployments/optimism/USDCDepositToken_Pool1.json'
+import {address as VAETH_DEPOSIT_ADDRESS} from '../deployments/optimism/VaETHDepositToken_Pool1.json'
+import {address as VAOP_DEPOSIT_ADDRESS} from '../deployments/optimism/VaOPDepositToken_Pool1.json'
+import {address as VAUSDC_DEPOSIT_ADDRESS} from '../deployments/optimism/VaUSDCDepositToken_Pool1.json'
+import {address as VAWSTETH_DEPOSIT_ADDRESS} from '../deployments/optimism/VaWSTETHDepositToken_Pool1.json'
+import {address as MSUSD_DEBT_ADDRESS} from '../deployments/optimism/MsUSDDebt_Pool1.json'
+import {address as MSOP_DEBT_ADDRESS} from '../deployments/optimism/MsOPDebt_Pool1.json'
+import {address as MSETH_DEBT_ADDRESS} from '../deployments/optimism/MsETHDebt_Pool1.json'
 import {address as MSUSD_SYNTHETIC_ADDRESS} from '../deployments/optimism/MsUSDSynthetic.json'
 import {address as MSBTC_SYNTHETIC_ADDRESS} from '../deployments/optimism/MsOPSynthetic.json'
 import {address as MSETH_SYNTHETIC_ADDRESS} from '../deployments/optimism/MsETHSynthetic.json'
@@ -41,7 +40,7 @@ import {address as MSUSD_PROXYOFT_ADDRESS} from '../deployments/optimism/MsUSDPr
 import {address as MSETH_PROXYOFT_ADDRESS} from '../deployments/optimism/MsETHProxyOFT.json'
 import {address as NATIVE_TOKEN_GATEWAY_ADDRESS} from '../deployments/optimism/NativeTokenGateway.json'
 import {address as QUOTER_ADDRESS} from '../deployments/optimism/Quoter.json'
-import {address as SMART_FARMING_MANAGER_ADDRESS} from '../deployments/optimism/SmartFarmingManager.json'
+import {address as SMART_FARMING_MANAGER_ADDRESS} from '../deployments/optimism/SmartFarmingManager_Pool1.json'
 import {address as CROSS_CHAIN_DISPATCHER_ADDRESS} from '../deployments/optimism/CrossChainDispatcher.json'
 
 const {MaxUint256} = ethers.constants
@@ -69,7 +68,7 @@ describe.skip('E2E tests (optimism)', function () {
   let masterOracle: Contract
   let poolRegistry: PoolRegistry
   let nativeGateway: NativeTokenGateway
-  let smartFarmingManager: Contract
+  let smartFarmingManager: SmartFarmingManager
   let crossChainDispatcher: CrossChainDispatcher
   let quoter: Quoter
   let pool: Pool
@@ -111,7 +110,7 @@ describe.skip('E2E tests (optimism)', function () {
     nativeGateway = await ethers.getContractAt('NativeTokenGateway', NATIVE_TOKEN_GATEWAY_ADDRESS, alice)
 
     const [pool1Address] = await poolRegistry.getPools()
-    pool = await ethers.getContractAt('contracts/Pool.sol:Pool', pool1Address, alice)
+    pool = <Pool>await ethers.getContractAt('contracts/Pool.sol:Pool', pool1Address, alice)
 
     msdWETH = await ethers.getContractAt('DepositToken', WETH_DEPOSIT_ADDRESS, alice)
     msdOP = await ethers.getContractAt('DepositToken', OP_DEPOSIT_ADDRESS, alice) // 18 decimals
@@ -132,16 +131,7 @@ describe.skip('E2E tests (optimism)', function () {
     msUSDProxyOFT = await ethers.getContractAt('ProxyOFT', MSUSD_PROXYOFT_ADDRESS, alice)
     msETHProxyOFT = await ethers.getContractAt('ProxyOFT', MSETH_PROXYOFT_ADDRESS, alice)
 
-    smartFarmingManager = new ethers.Contract(
-      SMART_FARMING_MANAGER_ADDRESS,
-      [
-        'function crossChainLeverage(address,address,address,uint256,uint256,uint256,uint256,bytes) payable external',
-        'function crossChainLeverages(uint256) external view returns (uint16,address,address,address,uint256,uint256,uint256,address,bool)',
-        ...SmartFarmingManager__factory.abi,
-      ],
-      alice
-    )
-
+    smartFarmingManager = await ethers.getContractAt('SmartFarmingManager', SMART_FARMING_MANAGER_ADDRESS, alice)
     crossChainDispatcher = await ethers.getContractAt('CrossChainDispatcher', CROSS_CHAIN_DISPATCHER_ADDRESS, alice)
     quoter = await ethers.getContractAt('Quoter', QUOTER_ADDRESS, alice)
 
@@ -583,24 +573,24 @@ describe.skip('E2E tests (optimism)', function () {
         // when
         const id = '19085876106743701664961649015242405312216082383703184670357774050142071594619'
 
-        const [
+        const {
           dstChainId,
           bridgeToken,
           depositToken,
           syntheticToken,
-          bridgeTokenAmountIn,
+          amountIn,
           debtAmount,
           depositAmountMin,
           account,
           finished,
-        ] = await smartFarmingManager.crossChainLeverages(id)
+        } = await smartFarmingManager.crossChainLeverages(id)
 
         // then
         expect(dstChainId).eq(LZ_MAINNET_ID)
         expect(bridgeToken).eq(usdc.address)
         expect(depositToken).eq(msdVaUSDC.address)
         expect(syntheticToken).eq(msUSD.address)
-        expect(bridgeTokenAmountIn).eq('100000000')
+        expect(amountIn).eq('100000000')
         expect(debtAmount).eq('49987031500000000000')
         expect(depositAmountMin).eq(1)
         expect(account).eq('0xdf826ff6518e609E4cEE86299d40611C148099d5')
@@ -623,10 +613,13 @@ describe.skip('E2E tests (optimism)', function () {
 
         const fee = parseEther('0.5')
         await weth.connect(alice).approve(smartFarmingManager.address, MaxUint256)
-        await smartFarmingManager['crossChainLeverage(address,address,address,uint256,uint256,uint256,uint256,bytes)'](
+        await smartFarmingManager[
+          'crossChainLeverage(address,address,address,address,uint256,uint256,uint256,uint256,bytes)'
+        ](
+          weth.address,
+          msETH.address,
           weth.address,
           msdVaETH.address,
-          msETH.address,
           amountIn,
           leverage,
           swapAmountOutMin,

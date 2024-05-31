@@ -225,7 +225,7 @@ contract PoolInvariant_Test is Test {
         }
     }
 
-    function invariant_callSummary() external view {
+    function invariant_callSummary() public view {
         poolHandler.callSummary();
         feeProviderHandler.callSummary();
         for (uint256 i; i < depositTokenHandlers.length; ++i) depositTokenHandlers[i].callSummary();
