@@ -259,6 +259,8 @@ const {dstChainId, syntheticToken, repayAmountMin, account, finished} = await sm
 
 ## Flow's transactions
 
+![image](CC-flow.png)
+
 LZ provides an explorer tool (with an [API](https://www.npmjs.com/package/@layerzerolabs/scan-client)), where we can track the cross-chain transactions.<br/>
 Example (optimism->mainnet leverage):<br/>
 

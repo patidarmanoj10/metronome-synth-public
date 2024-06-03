@@ -137,11 +137,10 @@ abstract contract CrossChains_Test is Test {
     function setUp() public virtual {
         // TODO: Get from .env
         // Refs: https://github.com/autonomoussoftware/metronome-synth/issues/874
-        //mainnetFork = vm.createSelectFork("https://eth.connect.bloq.cloud/v1/peace-blood-actress");
-        mainnetFork = vm.createSelectFork("https://eth-mainnet.alchemyapi.io/v2/NbZ2px662CNSwdw3ZxdaZNe31yZbyddK");
+        mainnetFork = vm.createSelectFork("https://eth-mainnet.g.alchemy.com/v2/DAcPqBIVkeOOgYLlHxFUQ0jySiZ-k8_6");
         vm.rollFork(mainnetFork, 18262880);
 
-        optimismFork = vm.createSelectFork("https://optimism-mainnet.infura.io/v3/9989c2cf77a24bddaa43103463cb8047");
+        optimismFork = vm.createSelectFork("https://optimism-mainnet.infura.io/v3/6e804eea3058430b901e7b2853e9672a");
         vm.rollFork(optimismFork, 110325800);
 
         //
@@ -331,6 +330,7 @@ abstract contract CrossChains_Test is Test {
         poolRegistry_optimism.registerPool(address(pool_B_optimism));
         poolRegistry_optimism.updateSwapper(swapper_optimism);
         poolRegistry_optimism.toggleCrossChainFlashRepayIsActive();
+        pool_optimism.toggleBridgingIsActive();
         pool_optimism.updateFeeProvider(feeProvider_optimism);
         pool_optimism.updateTreasury(treasury_optimism);
         pool_optimism.updateSmartFarmingManager(smartFarmingManager_optimism);
@@ -339,6 +339,7 @@ abstract contract CrossChains_Test is Test {
         pool_optimism.addDepositToken(address(msdVaETH_optimism));
         pool_optimism.addDebtToken(msUSDDebt_optimism);
         pool_optimism.addDebtToken(msBTCDebt_optimism);
+        pool_B_optimism.toggleBridgingIsActive();
         pool_B_optimism.updateFeeProvider(feeProvider_B_optimism);
         pool_B_optimism.updateTreasury(treasury_optimism);
         pool_B_optimism.updateSmartFarmingManager(smartFarmingManager_B_optimism);
@@ -443,6 +444,7 @@ abstract contract CrossChains_Test is Test {
         poolRegistry_mainnet.registerPool(address(pool_mainnet));
         poolRegistry_mainnet.updateSwapper(swapper_mainnet);
         crossChainDispatcher_mainnet.updateStargateComposer(sgComposer_mainnet);
+        pool_mainnet.toggleBridgingIsActive();
         pool_mainnet.updateFeeProvider(feeProvider_mainnet);
         pool_mainnet.updateSmartFarmingManager(smartFarmingManager_mainnet);
         pool_mainnet.addDepositToken(address(msdUSDC_mainnet));

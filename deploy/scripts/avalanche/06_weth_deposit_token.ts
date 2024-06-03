@@ -1,10 +1,10 @@
-import {buildDepositDeployFunction} from '../../helpers'
+import {buildDepositTokenDeployFunction} from '../../helpers'
 import Address from '../../../helpers/address'
 import {parseEther} from 'ethers/lib/utils'
 
 const {WETH_ADDRESS} = Address
 
-const func = buildDepositDeployFunction({
+const func = buildDepositTokenDeployFunction({
   underlyingAddress: WETH_ADDRESS,
   underlyingSymbol: 'WETH',
   underlyingDecimals: 18,

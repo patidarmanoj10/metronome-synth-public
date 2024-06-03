@@ -4,11 +4,19 @@ pragma solidity 0.8.9;
 
 import "./dependencies/@layerzerolabs/solidity-examples/contracts-upgradeable/token/oft/composable/ComposableOFTCoreUpgradeable.sol";
 import "./storage/ProxyOFTStorage.sol";
+import "./interfaces/ICrossChainDispatcher.sol";
 
 error AddressIsNull();
 error SenderIsNotTheOwner();
 error BridgingIsPaused();
 error SenderIsNotCrossChainDispatcher();
+error DestinationChainNotAllowed();
+
+// Note: The `ICrossChainDispatcher` wasn't updated to avoid changing interface
+// Refs: https://github.com/autonomoussoftware/metronome-synth/issues/877
+interface ICrossChainDispatcherExtended is ICrossChainDispatcher {
+    function isDestinationChainSupported(uint16 dstChainId_) external view returns (bool);
+}
 
 /**
  * @title The ProxyOFT contract
@@ -52,12 +60,16 @@ contract ProxyOFT is ComposableOFTCoreUpgradeable, ProxyOFTStorageV1 {
     /// @inheritdoc OFTCoreUpgradeable
     function _debitFrom(
         address from_,
-        uint16 /*dstChainId_*/,
+        uint16 dstChainId_,
         bytes memory /*toAddress_*/,
         uint amount_
     ) internal override returns (uint256 _sent) {
-        if (!syntheticToken.poolRegistry().crossChainDispatcher().isBridgingActive()) revert BridgingIsPaused();
+        ICrossChainDispatcher _crossChainDispatcher = syntheticToken.poolRegistry().crossChainDispatcher();
         if (msg.sender != from_) revert SenderIsNotTheOwner();
+        if (!_crossChainDispatcher.isBridgingActive()) revert BridgingIsPaused();
+        if (!ICrossChainDispatcherExtended(address(_crossChainDispatcher)).isDestinationChainSupported(dstChainId_))
+            revert DestinationChainNotAllowed();
+
         syntheticToken.burn(from_, amount_);
         return amount_;
     }

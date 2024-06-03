@@ -542,9 +542,10 @@ contract CrossChainLeverage_Test is CrossChains_Test {
             bytes memory payload,
             bytes memory reason
         ) = _decodeCallOFTReceivedFailureEvent(CallOFTReceivedFailure);
-        assertEq(reason.length, 0); // "EvmError: OutOfFund"
+        assertEq(reason.slice(4, reason.length - 4), abi.encode("LayerZero: not enough native for fees"));
 
         // tx2
+        uint256 _balanceBefore = alice.balance;
         // Works after top-up with enough ether
         uint256 _extraFee = 2 * missingFee; // Sending more than needed
         crossChainDispatcher_mainnet.retrySwapAndTriggerLeverageCallback{value: _extraFee}(
@@ -556,7 +557,7 @@ contract CrossChainLeverage_Test is CrossChains_Test {
             0
         );
 
-        assertEq(address(crossChainDispatcher_mainnet).balance, missingFee); // Should refund excess
+        assertEq(alice.balance - _balanceBefore, missingFee); // Should refund excess
 
         (Vm.Log memory Swap, Vm.Log memory Packet_Tx2, Vm.Log memory RelayerParams_Tx2) = _getSgSwapEvents();
 
@@ -739,7 +740,8 @@ contract CrossChainLeverage_Test is CrossChains_Test {
         assertEq(_debtInUsdAfter, 500e18);
     }
 
-    function test_failedTx2_whenLowAirdrop() external {
+    // Note: This scenario is very unlike to happen
+    function test_failedTx2_whenNoAirdrop() external {
         //
         // given
         //
@@ -772,7 +774,8 @@ contract CrossChainLeverage_Test is CrossChains_Test {
         assertEq(reason, ""); // OOF
 
         // tx2
-        crossChainDispatcher_mainnet.retrySwapAndTriggerLeverageCallback{value: 1 ether}(
+        payable(crossChainDispatcher_mainnet).transfer(1 ether);
+        crossChainDispatcher_mainnet.retrySwapAndTriggerLeverageCallback(
             srcChainId,
             srcAddress,
             nonce,

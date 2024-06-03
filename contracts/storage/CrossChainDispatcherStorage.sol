@@ -83,3 +83,10 @@ abstract contract CrossChainDispatcherStorageV1 is ICrossChainDispatcher {
      */
     address public sgeth;
 }
+
+abstract contract CrossChainDispatcherStorageV2 is CrossChainDispatcherStorageV1 {
+    /**
+     * @notice Store extra amount sent when retrying a failed tx due to low native fee
+     */
+    mapping(uint256 => uint256) public extraCallbackTxNativeFee;
+}

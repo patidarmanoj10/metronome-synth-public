@@ -8,7 +8,7 @@ then
     exit
 fi
 
-if [[ "$network" != "mainnet" && "$network" != "optimism" ]];
+if [[ "$network" != "mainnet" && "$network" != "optimism" && "$network" != "base" ]];
 then
     echo "'$network' is invalid"
     exit
@@ -24,13 +24,21 @@ read
 # Prepare deployment data
 cp -r deployments/$network deployments/localhost
 
-# Deployment (1/2)
-npx hardhat deploy --network localhost #> DEPLOYMENT_TEST_OUTPUT.log
+if [[ "$network" == "base" ]];
+then
+    # Sync BASE setup
+    patch deploy/helpers/index.ts < scripts/proxy_oft_to_v1.patch
 
-# Deployment (2/2): enables cc flash repay
-npx hardhat deploy --network localhost #> DEPLOYMENT_TEST_OUTPUT.log
+    # Deployment (1/2) - Upgrade `ProxyOFTUpgrader`
+    npx hardhat deploy --network localhost --tags Upgraders,MultisigTxs #> DEPLOYMENT_TEST_OUTPUT.log
+
+    # Update `ProxyOFTUpgrader` setup
+    patch deploy/helpers/index.ts < scripts/proxy_oft_to_v2.patch
+fi
+
+
+# Deployment (2/2)
+npx hardhat deploy --network localhost
 
 # Test next release
 npx hardhat test --network localhost test/E2E.$network.next.test.ts
-
-

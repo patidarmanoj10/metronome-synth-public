@@ -47,12 +47,20 @@ library CrossChainLib {
         address dstProxyOFT_,
         uint256 requestId_,
         address account_,
-        uint256 amountOutMin_
+        uint256 amountOutMin_,
+        uint256 callbackTxNativeFee_
     ) internal pure returns (bytes memory _payload) {
         return
             abi.encode(
                 FLASH_REPAY,
-                abi.encode(srcSmartFarmingManager_, dstProxyOFT_, requestId_, account_, amountOutMin_)
+                abi.encode(
+                    srcSmartFarmingManager_,
+                    dstProxyOFT_,
+                    requestId_,
+                    account_,
+                    amountOutMin_,
+                    callbackTxNativeFee_
+                )
             );
     }
 
@@ -62,15 +70,16 @@ library CrossChainLib {
         internal
         pure
         returns (
-            address srcSmartFarmingManager_,
-            address dstProxyOFT_,
-            uint256 requestId_,
-            address account_,
-            uint256 amountOutMin_
+            address _srcSmartFarmingManager,
+            address _dstProxyOFT,
+            uint256 _requestId,
+            address _account,
+            uint256 _amountOutMin,
+            uint256 _callbackTxNativeFee
         )
     {
         (, payload_) = abi.decode(payload_, (uint8, bytes));
-        return abi.decode(payload_, (address, address, uint256, address, uint256));
+        return abi.decode(payload_, (address, address, uint256, address, uint256, uint256));
     }
 
     function encodeLeverageSwapPayload(
@@ -79,12 +88,21 @@ library CrossChainLib {
         uint256 requestId_,
         uint256 sgPoolId_,
         address account_,
-        uint256 amountOutMin_
+        uint256 amountOutMin_,
+        uint256 callbackTxNativeFee_
     ) internal pure returns (bytes memory _payload) {
         return
             abi.encode(
                 LEVERAGE,
-                abi.encode(srcSmartFarmingManager_, dstProxyOFT_, requestId_, sgPoolId_, account_, amountOutMin_)
+                abi.encode(
+                    srcSmartFarmingManager_,
+                    dstProxyOFT_,
+                    requestId_,
+                    sgPoolId_,
+                    account_,
+                    amountOutMin_,
+                    callbackTxNativeFee_
+                )
             );
     }
 
@@ -94,16 +112,17 @@ library CrossChainLib {
         internal
         pure
         returns (
-            address srcSmartFarmingManager_,
-            address dstProxyOFT_,
-            uint256 requestId_,
-            uint256 sgPoolId_,
-            address account_,
-            uint256 amountOutMin_
+            address _srcSmartFarmingManager,
+            address _dstProxyOFT,
+            uint256 _requestId,
+            uint256 _sgPoolId,
+            address _account,
+            uint256 _amountOutMin,
+            uint256 _callbackTxNativeFee
         )
     {
         (, payload_) = abi.decode(payload_, (uint8, bytes));
-        return abi.decode(payload_, (address, address, uint256, uint256, address, uint256));
+        return abi.decode(payload_, (address, address, uint256, uint256, address, uint256, uint256));
     }
 
     function encodeLzArgs(
@@ -116,7 +135,7 @@ library CrossChainLib {
 
     function decodeLzArgs(
         bytes memory lzArgs_
-    ) internal pure returns (uint16 dstChainId_, uint256 callbackNativeFee_, uint64 swapTxGasLimit_) {
+    ) internal pure returns (uint16 _dstChainId, uint256 _callbackNativeFee, uint64 _swapTxGasLimit) {
         return abi.decode(lzArgs_, (uint16, uint256, uint64));
     }
 }
