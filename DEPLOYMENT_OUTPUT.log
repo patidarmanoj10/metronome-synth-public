@@ -1,0 +1,157 @@
+Nothing to compile
+No need to generate any newer typings.
+reusing "PoolRegistryUpgraderV2" at 0xd493DB09Ee4EaddDb6036Ea3aF49F093017A9792
+reusing "PoolRegistry_Implementation" at 0x2A62975b1Dc4f6F8201E15C97E400f51724C8158
+reusing "NativeTokenGateway" at 0xBd700f301DC8e644DC074023369fe5Bdf6051b29
+reusing "SyntheticTokenUpgraderV2" at 0xF3F1B456fB3a61d96024DfbB8ef9bE510B689bA6
+reusing "SyntheticToken" at 0xD7A192F7CFC7cc28275C7c0FE81359913D64e6bb
+reusing "SyntheticTokenUpgraderV2" at 0xF3F1B456fB3a61d96024DfbB8ef9bE510B689bA6
+reusing "SyntheticToken" at 0xD7A192F7CFC7cc28275C7c0FE81359913D64e6bb
+reusing "ProxyOFTUpgraderV2" at 0xecfE7634aBCd2140bede1fb34753A7F5d412c881
+deploying "ProxyOFT" (tx: 0x3a642713beea5d8f7406b13ed45d3ddf3a39b0f013ba0c76388edefdef67dac8)...: deployed at 0xdDd9864C68072a4723889644b5E7075452718deD with 4117979 gas
+---------------------------------------------------------------------------------------
+Please execute the following:
+---------------------------------------------------------------------------------------
+
+from: 0xE01Df4ac1E1e57266900E62C37F12C986495A618
+to: 0xecfE7634aBCd2140bede1fb34753A7F5d412c881 (ProxyOFTUpgraderV2)
+method: upgrade
+args:
+  - 0xf014336Fd2e817b1e7F62baD1Aef5908809c9c07
+  - 0xdDd9864C68072a4723889644b5E7075452718deD
+
+(raw data: 0x99a88ec4000000000000000000000000f014336fd2e817b1e7f62bad1aef5908809c9c07000000000000000000000000ddd9864c68072a4723889644b5e7075452718ded )
+
+---------------------------------------------------------------------------------------
+Multi-sig transaction saved in 'multisig.batch.tmp.json'.
+---------------------------------------------------------------------------------------
+Please execute the following:
+---------------------------------------------------------------------------------------
+
+from: 0xE01Df4ac1E1e57266900E62C37F12C986495A618
+to: 0xf014336Fd2e817b1e7F62baD1Aef5908809c9c07 (MsUSDProxyOFT)
+method: setMinDstGas
+args:
+  - 111
+  - 0
+  - 200000
+
+(raw data: 0xdf2a5b3b000000000000000000000000000000000000000000000000000000000000006f00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000030d40 )
+
+---------------------------------------------------------------------------------------
+Multi-sig transaction saved in 'multisig.batch.tmp.json'.
+reusing "ProxyOFTUpgraderV2" at 0xecfE7634aBCd2140bede1fb34753A7F5d412c881
+reusing "ProxyOFT" at 0xdDd9864C68072a4723889644b5E7075452718deD
+---------------------------------------------------------------------------------------
+Please execute the following:
+---------------------------------------------------------------------------------------
+
+from: 0xE01Df4ac1E1e57266900E62C37F12C986495A618
+to: 0xecfE7634aBCd2140bede1fb34753A7F5d412c881 (ProxyOFTUpgraderV2)
+method: upgrade
+args:
+  - 0xDF2Aa7026bAE7e131D7D5af30345173843D22AFb
+  - 0xdDd9864C68072a4723889644b5E7075452718deD
+
+(raw data: 0x99a88ec4000000000000000000000000df2aa7026bae7e131d7d5af30345173843d22afb000000000000000000000000ddd9864c68072a4723889644b5e7075452718ded )
+
+---------------------------------------------------------------------------------------
+Multi-sig transaction saved in 'multisig.batch.tmp.json'.
+---------------------------------------------------------------------------------------
+Please execute the following:
+---------------------------------------------------------------------------------------
+
+from: 0xE01Df4ac1E1e57266900E62C37F12C986495A618
+to: 0xDF2Aa7026bAE7e131D7D5af30345173843D22AFb (MsETHProxyOFT)
+method: setMinDstGas
+args:
+  - 111
+  - 0
+  - 200000
+
+(raw data: 0xdf2a5b3b000000000000000000000000000000000000000000000000000000000000006f00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000030d40 )
+
+---------------------------------------------------------------------------------------
+Multi-sig transaction saved in 'multisig.batch.tmp.json'.
+reusing "QuoterUpgrader" at 0xa3C6d5E857943346B7F6Dee3F3053DF55357Ef69
+deploying "Quoter_Implementation" (tx: 0xeb6937ee238bb1a4b0e2ef3c7c6809bfc97cdf8a75f2436cb9c091545a6acb78)...: deployed at 0xBf6CcBBFa9D488A944E7637531102b490112Ad07 with 1290571 gas
+---------------------------------------------------------------------------------------
+Please execute the following:
+---------------------------------------------------------------------------------------
+
+from: 0xE01Df4ac1E1e57266900E62C37F12C986495A618
+to: 0xa3C6d5E857943346B7F6Dee3F3053DF55357Ef69 (QuoterUpgrader)
+method: upgrade
+args:
+  - 0x2f4F85be85245c91779C3e36cBddf87b4eD73E3d
+  - 0xBf6CcBBFa9D488A944E7637531102b490112Ad07
+
+(raw data: 0x99a88ec40000000000000000000000002f4f85be85245c91779c3e36cbddf87b4ed73e3d000000000000000000000000bf6ccbbfa9d488a944e7637531102b490112ad07 )
+
+---------------------------------------------------------------------------------------
+Multi-sig transaction saved in 'multisig.batch.tmp.json'.
+reusing "CrossChainDispatcherUpgraderV2" at 0xed6673F4bFaDD4D269BE68C7dbCC516218C0baD9
+deploying "CrossChainDispatcher_Implementation" (tx: 0xfbdaa5809cbbb37f67388f336f07cc41a308e60b82cf95f7a55b0c147dac6ab6)...: deployed at 0xD911e197f8e4797061817dDbf11a93d8D4573d97 with 4197496 gas
+---------------------------------------------------------------------------------------
+Please execute the following:
+---------------------------------------------------------------------------------------
+
+from: 0xE01Df4ac1E1e57266900E62C37F12C986495A618
+to: 0xed6673F4bFaDD4D269BE68C7dbCC516218C0baD9 (CrossChainDispatcherUpgraderV2)
+method: upgrade
+args:
+  - 0x3A04BF2cAca1345D475e0241B465C0EA4d4Ce950
+  - 0xD911e197f8e4797061817dDbf11a93d8D4573d97
+
+(raw data: 0x99a88ec40000000000000000000000003a04bf2caca1345d475e0241b465c0ea4d4ce950000000000000000000000000d911e197f8e4797061817ddbf11a93d8d4573d97 )
+
+---------------------------------------------------------------------------------------
+Multi-sig transaction saved in 'multisig.batch.tmp.json'.
+reusing "PoolUpgraderV3" at 0x5A9f5fC7Ee767EAA43688c1822F5352BA19fe735
+deploying "Pool" (tx: 0x6129cd5eb37ae1c1623f22f6609cbad4012be0184baafe06df104de9b8916351)...: deployed at 0x2144B696bEbA98f077531e96023A7DF821Bc4586 with 4150977 gas
+---------------------------------------------------------------------------------------
+Please execute the following:
+---------------------------------------------------------------------------------------
+
+from: 0xE01Df4ac1E1e57266900E62C37F12C986495A618
+to: 0x5A9f5fC7Ee767EAA43688c1822F5352BA19fe735 (PoolUpgraderV3)
+method: upgrade
+args:
+  - 0xc614136d6c5AB85bc2aCF0ec2652351642d7F54E
+  - 0x2144B696bEbA98f077531e96023A7DF821Bc4586
+
+(raw data: 0x99a88ec4000000000000000000000000c614136d6c5ab85bc2acf0ec2652351642d7f54e0000000000000000000000002144b696beba98f077531e96023a7df821bc4586 )
+
+---------------------------------------------------------------------------------------
+Multi-sig transaction saved in 'multisig.batch.tmp.json'.
+reusing "TreasuryUpgrader" at 0x0EFbFE4979da0Cb457a6a80Db6F3da6861E120fc
+reusing "Treasury" at 0x934aB2262C6258fafd619Cb63bE7d89B20C19633
+reusing "FeeProviderUpgrader" at 0xeD0AB2997A87d738e630eB9C287BDD0EE6f059D1
+reusing "FeeProvider" at 0x98dAC76F26C6b067eB9FC13714b068d787C899DE
+reusing "SmartFarmingManagerUpgrader" at 0x720501250D7937Ac3b6b308E24466c03A61EFB70
+deploying "SmartFarmingManager" (tx: 0x60d053e636b8dc1072dbeeca290b17a2cc38a9e8e9be781b6bd8d2d185a3b110)...: deployed at 0x1D62a9C4A8e7D38E4d78B40de8278786f09696bD with 4136047 gas
+---------------------------------------------------------------------------------------
+Please execute the following:
+---------------------------------------------------------------------------------------
+
+from: 0xE01Df4ac1E1e57266900E62C37F12C986495A618
+to: 0x720501250D7937Ac3b6b308E24466c03A61EFB70 (SmartFarmingManagerUpgrader)
+method: upgrade
+args:
+  - 0x2f12dfb525564055B4A007B0b15eA5CD0BfF986C
+  - 0x1D62a9C4A8e7D38E4d78B40de8278786f09696bD
+
+(raw data: 0x99a88ec40000000000000000000000002f12dfb525564055b4a007b0b15ea5cd0bff986c0000000000000000000000001d62a9c4a8e7d38e4d78b40de8278786f09696bd )
+
+---------------------------------------------------------------------------------------
+Multi-sig transaction saved in 'multisig.batch.tmp.json'.
+reusing "DepositTokenUpgrader" at 0x3506B5EfEa8d0719E47cDcabC81b6E60B5Fa73B5
+reusing "DepositToken" at 0x9bF24739310FB7F79af48ECc38557E2172469EEE
+reusing "DepositTokenUpgrader" at 0x3506B5EfEa8d0719E47cDcabC81b6E60B5Fa73B5
+reusing "DepositToken" at 0x9bF24739310FB7F79af48ECc38557E2172469EEE
+reusing "DebtTokenUpgrader" at 0x1a8ea5ab935285dc96Cb853e8Dd7d21eEb245771
+reusing "DebtToken" at 0xbE1eDc53663212A464dDc37f02f381A116d3738E
+reusing "DebtTokenUpgrader" at 0x1a8ea5ab935285dc96Cb853e8Dd7d21eEb245771
+reusing "DebtToken" at 0xbE1eDc53663212A464dDc37f02f381A116d3738E
+Proposing multi-sig batch transaction...
+
