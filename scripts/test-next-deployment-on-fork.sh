@@ -24,17 +24,6 @@ read
 # Prepare deployment data
 cp -r deployments/$network deployments/localhost
 
-if [[ "$network" == "base" ]];
-then
-    # Sync BASE setup
-    patch deploy/helpers/index.ts < scripts/proxy_oft_to_v1.patch
-
-    # Deployment (1/2) - Upgrade `ProxyOFTUpgrader`
-    npx hardhat deploy --network localhost --tags Upgraders,MultisigTxs #> DEPLOYMENT_TEST_OUTPUT.log
-
-    # Update `ProxyOFTUpgrader` setup
-    patch deploy/helpers/index.ts < scripts/proxy_oft_to_v2.patch
-fi
 
 
 # Deployment (2/2)

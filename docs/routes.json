@@ -197,7 +197,10 @@
           },
           {
             "synth": "0x33bCa143d9b41322479E8d26072a00a352404721",
-            "collaterals": ["0x4200000000000000000000000000000000000042", "0x19382707d5a47E74f60053b652Ab34b6e30Febad"]
+            "collaterals": [
+              "0x4200000000000000000000000000000000000042",
+              "0x19382707d5a47E74f60053b652Ab34b6e30Febad"
+            ]
           },
           {
             "synth": "0x9dAbAE7274D28A45F0B65Bf8ED201A5731492ca0",
@@ -205,6 +208,82 @@
               "0x7F5c764cBc14f9669B88837ca1490cCa17c31607",
               "0x539505Dde2B9771dEBE0898a84441c5E7fDF6BC0",
               "0x4200000000000000000000000000000000000006"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "base": {
+    "bridge_token_mapping": [],
+    "routes": [
+      {
+        "pool": "0xc614136d6c5AB85bc2aCF0ec2652351642d7F54E",
+        "leverage_routes": [
+          {
+            "tokenIn": "0x82562507429876486B60AF4F32390ef0947b3d13",
+            "collateral": "0x82562507429876486B60AF4F32390ef0947b3d13",
+            "synth": "0x7Ba6F01772924a82D9626c126347A28299E98c98"
+          },
+          {
+            "tokenIn": "0x4200000000000000000000000000000000000006",
+            "collateral": "0x82562507429876486B60AF4F32390ef0947b3d13",
+            "synth": "0x7Ba6F01772924a82D9626c126347A28299E98c98"
+          },
+          {
+            "tokenIn": "0x46fb68Eb2b1Fc43654AbaE5691D39D18D933E4b4",
+            "collateral": "0x46fb68Eb2b1Fc43654AbaE5691D39D18D933E4b4",
+            "synth": "0x7Ba6F01772924a82D9626c126347A28299E98c98"
+          },
+          {
+            "tokenIn": "0x4200000000000000000000000000000000000006",
+            "collateral": "0x46fb68Eb2b1Fc43654AbaE5691D39D18D933E4b4",
+            "synth": "0x7Ba6F01772924a82D9626c126347A28299E98c98"
+          },
+          {
+            "tokenIn": "0x3899a6090c5C178dB8A1800DA39daD0D06EeEFBE",
+            "collateral": "0x3899a6090c5C178dB8A1800DA39daD0D06EeEFBE",
+            "synth": "0x7Ba6F01772924a82D9626c126347A28299E98c98"
+          },
+          {
+            "tokenIn": "0x4200000000000000000000000000000000000006",
+            "collateral": "0x3899a6090c5C178dB8A1800DA39daD0D06EeEFBE",
+            "synth": "0x7Ba6F01772924a82D9626c126347A28299E98c98"
+          },
+          {
+            "tokenIn": "0x1e41238aCd3A9fF90b0DCB9ea96Cf45F104e09Ef",
+            "collateral": "0x1e41238aCd3A9fF90b0DCB9ea96Cf45F104e09Ef",
+            "synth": "0x526728DBc96689597F85ae4cd716d4f7fCcBAE9d"
+          },
+          {
+            "tokenIn": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+            "collateral": "0x1e41238aCd3A9fF90b0DCB9ea96Cf45F104e09Ef",
+            "synth": "0x526728DBc96689597F85ae4cd716d4f7fCcBAE9d"
+          }
+        ],
+        "flash_repay_routes": [
+          {
+            "synth": "0x526728DBc96689597F85ae4cd716d4f7fCcBAE9d",
+            "collaterals": [
+              "0x4200000000000000000000000000000000000006",
+              "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+              "0x1e41238aCd3A9fF90b0DCB9ea96Cf45F104e09Ef",
+              "0x82562507429876486B60AF4F32390ef0947b3d13",
+              "0x82562507429876486B60AF4F32390ef0947b3d13",
+              "0x46fb68Eb2b1Fc43654AbaE5691D39D18D933E4b4",
+              "0x3899a6090c5C178dB8A1800DA39daD0D06EeEFBE"
+            ]
+          },
+          {
+            "synth": "0x7Ba6F01772924a82D9626c126347A28299E98c98",
+            "collaterals": [
+              "0x4200000000000000000000000000000000000006",
+              "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+              "0x1e41238aCd3A9fF90b0DCB9ea96Cf45F104e09Ef",
+              "0x82562507429876486B60AF4F32390ef0947b3d13",
+              "0x82562507429876486B60AF4F32390ef0947b3d13",
+              "0x46fb68Eb2b1Fc43654AbaE5691D39D18D933E4b4",
+              "0x3899a6090c5C178dB8A1800DA39daD0D06EeEFBE"
             ]
           }
         ]

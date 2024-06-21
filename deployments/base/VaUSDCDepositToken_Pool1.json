@@ -1,5 +1,5 @@
 {
-  "address": "0x2AF13BF84F8B452cB86839330F514Cc5c2899217",
+  "address": "0x329846f9e19dAa7fD9844065a62eD01BCf63Cf69",
   "abi": [
     {
       "anonymous": false,
@@ -126,27 +126,162 @@
     },
     {
       "inputs": [],
-      "name": "AddressIsNull",
+      "name": "AmountExceedsAllowance",
       "type": "error"
     },
     {
       "inputs": [],
-      "name": "BridgingIsPaused",
+      "name": "AmountIsZero",
       "type": "error"
     },
     {
       "inputs": [],
-      "name": "DestinationChainNotAllowed",
+      "name": "ApproveFromTheZeroAddress",
       "type": "error"
     },
     {
       "inputs": [],
-      "name": "SenderIsNotCrossChainDispatcher",
+      "name": "ApproveToTheZeroAddress",
       "type": "error"
     },
     {
       "inputs": [],
-      "name": "SenderIsNotTheOwner",
+      "name": "BeneficiaryIsNull",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "BurnAmountExceedsBalance",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "BurnFromTheZeroAddress",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "CollateralFactorTooHigh",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "CollateralFactorTooLow",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "CollateralIsInexistent",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "DecimalsIsNull",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "DecreasedAllowanceBelowZero",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "DepositTokenIsInactive",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "FallbackIsNotAllowed",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "IsPaused",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "IsShutdown",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "MintToTheZeroAddress",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "NewValueIsSameAsCurrent",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "NotEnoughFreeBalance",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "PoolAddressIsNull",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "PoolIsNull",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "ReceiveIsNotAllowed",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "RecipientIsNull",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "SenderIsNotGovernor",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "SenderIsNotPool",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "SenderIsNotSmartFarmingManager",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "SurpassMaxDepositSupply",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "SymbolIsNull",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "TransferAmountExceedsBalance",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "TransferFromTheZeroAddress",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "TransferToTheZeroAddress",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "UnderlyingAssetIsNull",
       "type": "error"
     },
     {
@@ -154,54 +289,24 @@
       "inputs": [
         {
           "indexed": true,
-          "internalType": "uint16",
-          "name": "_srcChainId",
-          "type": "uint16"
-        },
-        {
-          "indexed": false,
-          "internalType": "bytes",
-          "name": "_srcAddress",
-          "type": "bytes"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint64",
-          "name": "_nonce",
-          "type": "uint64"
-        },
-        {
-          "indexed": false,
-          "internalType": "bytes",
-          "name": "_from",
-          "type": "bytes"
+          "internalType": "address",
+          "name": "owner",
+          "type": "address"
         },
         {
           "indexed": true,
           "internalType": "address",
-          "name": "_to",
+          "name": "spender",
           "type": "address"
         },
         {
           "indexed": false,
           "internalType": "uint256",
-          "name": "_amount",
+          "name": "value",
           "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "internalType": "bytes",
-          "name": "_payload",
-          "type": "bytes"
-        },
-        {
-          "indexed": false,
-          "internalType": "bytes",
-          "name": "_reason",
-          "type": "bytes"
         }
       ],
-      "name": "CallOFTReceivedFailure",
+      "name": "Approval",
       "type": "event"
     },
     {
@@ -209,30 +314,105 @@
       "inputs": [
         {
           "indexed": true,
-          "internalType": "uint16",
-          "name": "_srcChainId",
-          "type": "uint16"
+          "internalType": "address",
+          "name": "from",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "account",
+          "type": "address"
         },
         {
           "indexed": false,
-          "internalType": "bytes",
-          "name": "_srcAddress",
-          "type": "bytes"
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
         },
         {
           "indexed": false,
-          "internalType": "uint64",
-          "name": "_nonce",
-          "type": "uint64"
+          "internalType": "uint256",
+          "name": "deposited",
+          "type": "uint256"
         },
         {
           "indexed": false,
-          "internalType": "bytes32",
-          "name": "_hash",
-          "type": "bytes32"
+          "internalType": "uint256",
+          "name": "fee",
+          "type": "uint256"
         }
       ],
-      "name": "CallOFTReceivedSuccess",
+      "name": "CollateralDeposited",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "oldCollateralFactor",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "newCollateralFactor",
+          "type": "uint256"
+        }
+      ],
+      "name": "CollateralFactorUpdated",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "account",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "to",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "withdrawn",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "fee",
+          "type": "uint256"
+        }
+      ],
+      "name": "CollateralWithdrawn",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "bool",
+          "name": "newActive",
+          "type": "bool"
+        }
+      ],
+      "name": "DepositTokenActiveUpdated",
       "type": "event"
     },
     {
@@ -253,49 +433,18 @@
       "inputs": [
         {
           "indexed": false,
-          "internalType": "uint16",
-          "name": "_srcChainId",
-          "type": "uint16"
+          "internalType": "uint256",
+          "name": "oldMaxTotalSupply",
+          "type": "uint256"
         },
         {
           "indexed": false,
-          "internalType": "bytes",
-          "name": "_srcAddress",
-          "type": "bytes"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint64",
-          "name": "_nonce",
-          "type": "uint64"
-        },
-        {
-          "indexed": false,
-          "internalType": "bytes",
-          "name": "_payload",
-          "type": "bytes"
-        },
-        {
-          "indexed": false,
-          "internalType": "bytes",
-          "name": "_reason",
-          "type": "bytes"
+          "internalType": "uint256",
+          "name": "newMaxTotalSupply",
+          "type": "uint256"
         }
       ],
-      "name": "MessageFailed",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
-          "internalType": "address",
-          "name": "_address",
-          "type": "address"
-        }
-      ],
-      "name": "NonContractAddress",
+      "name": "MaxTotalSupplyUpdated",
       "type": "event"
     },
     {
@@ -304,259 +453,24 @@
         {
           "indexed": true,
           "internalType": "address",
-          "name": "previousOwner",
+          "name": "from",
           "type": "address"
         },
         {
           "indexed": true,
           "internalType": "address",
-          "name": "newOwner",
-          "type": "address"
-        }
-      ],
-      "name": "OwnershipTransferred",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "uint16",
-          "name": "_srcChainId",
-          "type": "uint16"
-        },
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "_to",
+          "name": "to",
           "type": "address"
         },
         {
           "indexed": false,
           "internalType": "uint256",
-          "name": "_amount",
+          "name": "value",
           "type": "uint256"
         }
       ],
-      "name": "ReceiveFromChain",
+      "name": "Transfer",
       "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
-          "internalType": "uint16",
-          "name": "_srcChainId",
-          "type": "uint16"
-        },
-        {
-          "indexed": false,
-          "internalType": "bytes",
-          "name": "_srcAddress",
-          "type": "bytes"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint64",
-          "name": "_nonce",
-          "type": "uint64"
-        },
-        {
-          "indexed": false,
-          "internalType": "bytes32",
-          "name": "_payloadHash",
-          "type": "bytes32"
-        }
-      ],
-      "name": "RetryMessageSuccess",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
-          "internalType": "bytes32",
-          "name": "_messageHash",
-          "type": "bytes32"
-        }
-      ],
-      "name": "RetryOFTReceivedSuccess",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "uint16",
-          "name": "_dstChainId",
-          "type": "uint16"
-        },
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "_from",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "internalType": "bytes",
-          "name": "_toAddress",
-          "type": "bytes"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "_amount",
-          "type": "uint256"
-        }
-      ],
-      "name": "SendToChain",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
-          "internalType": "uint16",
-          "name": "_dstChainId",
-          "type": "uint16"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint16",
-          "name": "_type",
-          "type": "uint16"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "_minDstGas",
-          "type": "uint256"
-        }
-      ],
-      "name": "SetMinDstGas",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
-          "internalType": "address",
-          "name": "precrime",
-          "type": "address"
-        }
-      ],
-      "name": "SetPrecrime",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
-          "internalType": "uint16",
-          "name": "_remoteChainId",
-          "type": "uint16"
-        },
-        {
-          "indexed": false,
-          "internalType": "bytes",
-          "name": "_path",
-          "type": "bytes"
-        }
-      ],
-      "name": "SetTrustedRemote",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
-          "internalType": "uint16",
-          "name": "_remoteChainId",
-          "type": "uint16"
-        },
-        {
-          "indexed": false,
-          "internalType": "bytes",
-          "name": "_remoteAddress",
-          "type": "bytes"
-        }
-      ],
-      "name": "SetTrustedRemoteAddress",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
-          "internalType": "bool",
-          "name": "_useCustomAdapterParams",
-          "type": "bool"
-        }
-      ],
-      "name": "SetUseCustomAdapterParams",
-      "type": "event"
-    },
-    {
-      "inputs": [],
-      "name": "DEFAULT_PAYLOAD_SIZE_LIMIT",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "NO_EXTRA_GAS",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "PT_SEND",
-      "outputs": [
-        {
-          "internalType": "uint16",
-          "name": "",
-          "type": "uint16"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "PT_SEND_AND_CALL",
-      "outputs": [
-        {
-          "internalType": "uint16",
-          "name": "",
-          "type": "uint16"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
     },
     {
       "inputs": [],
@@ -572,8 +486,19 @@
       "type": "function"
     },
     {
-      "inputs": [],
-      "name": "circulatingSupply",
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "allowance",
       "outputs": [
         {
           "internalType": "uint256",
@@ -587,111 +512,8 @@
     {
       "inputs": [
         {
-          "internalType": "uint16",
-          "name": "_dstChainId",
-          "type": "uint16"
-        },
-        {
-          "internalType": "bytes",
-          "name": "_toAddress",
-          "type": "bytes"
-        },
-        {
-          "internalType": "uint256",
-          "name": "_amount",
-          "type": "uint256"
-        },
-        {
-          "internalType": "bytes",
-          "name": "_payload",
-          "type": "bytes"
-        },
-        {
-          "internalType": "uint64",
-          "name": "_dstGasForCall",
-          "type": "uint64"
-        },
-        {
-          "internalType": "bool",
-          "name": "_useZro",
-          "type": "bool"
-        },
-        {
-          "internalType": "bytes",
-          "name": "_adapterParams",
-          "type": "bytes"
-        }
-      ],
-      "name": "estimateSendAndCallFee",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "nativeFee",
-          "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
-          "name": "zroFee",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint16",
-          "name": "_dstChainId",
-          "type": "uint16"
-        },
-        {
-          "internalType": "bytes",
-          "name": "_toAddress",
-          "type": "bytes"
-        },
-        {
-          "internalType": "uint256",
-          "name": "_amount",
-          "type": "uint256"
-        },
-        {
-          "internalType": "bool",
-          "name": "_useZro",
-          "type": "bool"
-        },
-        {
-          "internalType": "bytes",
-          "name": "_adapterParams",
-          "type": "bytes"
-        }
-      ],
-      "name": "estimateSendFee",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "nativeFee",
-          "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
-          "name": "zroFee",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint16",
-          "name": "dstChainId_",
-          "type": "uint16"
-        },
-        {
           "internalType": "address",
-          "name": "to_",
+          "name": "spender_",
           "type": "address"
         },
         {
@@ -700,176 +522,217 @@
           "type": "uint256"
         }
       ],
-      "name": "estimateSendFee",
+      "name": "approve",
       "outputs": [
         {
-          "internalType": "uint256",
-          "name": "_nativeFee",
-          "type": "uint256"
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
         }
       ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint16",
-          "name": "",
-          "type": "uint16"
-        },
-        {
-          "internalType": "bytes",
-          "name": "",
-          "type": "bytes"
-        },
-        {
-          "internalType": "uint64",
-          "name": "",
-          "type": "uint64"
-        }
-      ],
-      "name": "failedMessages",
-      "outputs": [
-        {
-          "internalType": "bytes32",
-          "name": "",
-          "type": "bytes32"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint16",
-          "name": "",
-          "type": "uint16"
-        },
-        {
-          "internalType": "bytes",
-          "name": "",
-          "type": "bytes"
-        },
-        {
-          "internalType": "uint64",
-          "name": "",
-          "type": "uint64"
-        }
-      ],
-      "name": "failedOFTReceivedMessages",
-      "outputs": [
-        {
-          "internalType": "bytes32",
-          "name": "",
-          "type": "bytes32"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint16",
-          "name": "_srcChainId",
-          "type": "uint16"
-        },
-        {
-          "internalType": "bytes",
-          "name": "_srcAddress",
-          "type": "bytes"
-        }
-      ],
-      "name": "forceResumeReceive",
-      "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
     },
     {
       "inputs": [
         {
-          "internalType": "uint16",
-          "name": "_version",
-          "type": "uint16"
-        },
-        {
-          "internalType": "uint16",
-          "name": "_chainId",
-          "type": "uint16"
-        },
-        {
           "internalType": "address",
           "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "balanceOf",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "collateralFactor",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "decimals",
+      "outputs": [
+        {
+          "internalType": "uint8",
+          "name": "",
+          "type": "uint8"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "spender_",
           "type": "address"
         },
         {
           "internalType": "uint256",
-          "name": "_configType",
+          "name": "subtractedValue_",
           "type": "uint256"
         }
       ],
-      "name": "getConfig",
+      "name": "decreaseAllowance",
       "outputs": [
         {
-          "internalType": "bytes",
+          "internalType": "bool",
           "name": "",
-          "type": "bytes"
+          "type": "bool"
         }
       ],
-      "stateMutability": "view",
+      "stateMutability": "nonpayable",
       "type": "function"
     },
     {
       "inputs": [
         {
-          "internalType": "uint16",
-          "name": "chainId_",
-          "type": "uint16"
-        }
-      ],
-      "name": "getProxyOFTOf",
-      "outputs": [
+          "internalType": "uint256",
+          "name": "amount_",
+          "type": "uint256"
+        },
         {
           "internalType": "address",
-          "name": "_proxyOFT",
+          "name": "onBehalfOf_",
           "type": "address"
         }
       ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint16",
-          "name": "_remoteChainId",
-          "type": "uint16"
-        }
-      ],
-      "name": "getTrustedRemoteAddress",
+      "name": "deposit",
       "outputs": [
         {
-          "internalType": "bytes",
-          "name": "",
-          "type": "bytes"
+          "internalType": "uint256",
+          "name": "_deposited",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_fee",
+          "type": "uint256"
         }
       ],
-      "stateMutability": "view",
+      "stateMutability": "nonpayable",
       "type": "function"
     },
     {
       "inputs": [
         {
           "internalType": "address",
-          "name": "lzEndpoint_",
+          "name": "account_",
           "type": "address"
         },
         {
-          "internalType": "contract ISyntheticToken",
-          "name": "syntheticToken_",
+          "internalType": "uint256",
+          "name": "amount_",
+          "type": "uint256"
+        }
+      ],
+      "name": "flashWithdraw",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "_withdrawn",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_fee",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "governor",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "_governor",
           "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "spender_",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "addedValue_",
+          "type": "uint256"
+        }
+      ],
+      "name": "increaseAllowance",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "contract IERC20",
+          "name": "underlying_",
+          "type": "address"
+        },
+        {
+          "internalType": "contract IPool",
+          "name": "pool_",
+          "type": "address"
+        },
+        {
+          "internalType": "string",
+          "name": "name_",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "symbol_",
+          "type": "string"
+        },
+        {
+          "internalType": "uint8",
+          "name": "decimals_",
+          "type": "uint8"
+        },
+        {
+          "internalType": "uint128",
+          "name": "collateralFactor_",
+          "type": "uint128"
+        },
+        {
+          "internalType": "uint256",
+          "name": "maxTotalSupply_",
+          "type": "uint256"
         }
       ],
       "name": "initialize",
@@ -878,19 +741,8 @@
       "type": "function"
     },
     {
-      "inputs": [
-        {
-          "internalType": "uint16",
-          "name": "_srcChainId",
-          "type": "uint16"
-        },
-        {
-          "internalType": "bytes",
-          "name": "_srcAddress",
-          "type": "bytes"
-        }
-      ],
-      "name": "isTrustedRemote",
+      "inputs": [],
+      "name": "isActive",
       "outputs": [
         {
           "internalType": "bool",
@@ -902,64 +754,18 @@
       "type": "function"
     },
     {
-      "inputs": [],
-      "name": "lzEndpoint",
-      "outputs": [
+      "inputs": [
         {
-          "internalType": "contract ILayerZeroEndpointUpgradeable",
-          "name": "",
+          "internalType": "address",
+          "name": "account_",
           "type": "address"
         }
       ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint16",
-          "name": "_srcChainId",
-          "type": "uint16"
-        },
-        {
-          "internalType": "bytes",
-          "name": "_srcAddress",
-          "type": "bytes"
-        },
-        {
-          "internalType": "uint64",
-          "name": "_nonce",
-          "type": "uint64"
-        },
-        {
-          "internalType": "bytes",
-          "name": "_payload",
-          "type": "bytes"
-        }
-      ],
-      "name": "lzReceive",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint16",
-          "name": "",
-          "type": "uint16"
-        },
-        {
-          "internalType": "uint16",
-          "name": "",
-          "type": "uint16"
-        }
-      ],
-      "name": "minDstGasLookup",
+      "name": "lockedBalanceOf",
       "outputs": [
         {
           "internalType": "uint256",
-          "name": "",
+          "name": "_lockedBalance",
           "type": "uint256"
         }
       ],
@@ -967,55 +773,8 @@
       "type": "function"
     },
     {
-      "inputs": [
-        {
-          "internalType": "uint16",
-          "name": "_srcChainId",
-          "type": "uint16"
-        },
-        {
-          "internalType": "bytes",
-          "name": "_srcAddress",
-          "type": "bytes"
-        },
-        {
-          "internalType": "uint64",
-          "name": "_nonce",
-          "type": "uint64"
-        },
-        {
-          "internalType": "bytes",
-          "name": "_payload",
-          "type": "bytes"
-        }
-      ],
-      "name": "nonblockingLzReceive",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
       "inputs": [],
-      "name": "owner",
-      "outputs": [
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint16",
-          "name": "",
-          "type": "uint16"
-        }
-      ],
-      "name": "payloadSizeLimitLookup",
+      "name": "maxTotalSupply",
       "outputs": [
         {
           "internalType": "uint256",
@@ -1028,10 +787,23 @@
     },
     {
       "inputs": [],
-      "name": "precrime",
+      "name": "name",
       "outputs": [
         {
-          "internalType": "address",
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "pool",
+      "outputs": [
+        {
+          "internalType": "contract IPool",
           "name": "",
           "type": "address"
         }
@@ -1040,177 +812,99 @@
       "type": "function"
     },
     {
-      "inputs": [],
-      "name": "renounceOwnership",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
       "inputs": [
         {
-          "internalType": "uint16",
-          "name": "_srcChainId",
-          "type": "uint16"
-        },
-        {
-          "internalType": "bytes",
-          "name": "_srcAddress",
-          "type": "bytes"
-        },
-        {
-          "internalType": "uint64",
-          "name": "_nonce",
-          "type": "uint64"
-        },
-        {
-          "internalType": "bytes",
-          "name": "_payload",
-          "type": "bytes"
+          "internalType": "uint256",
+          "name": "amountToDeposit_",
+          "type": "uint256"
         }
       ],
-      "name": "retryMessage",
-      "outputs": [],
-      "stateMutability": "payable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint16",
-          "name": "_srcChainId",
-          "type": "uint16"
-        },
-        {
-          "internalType": "bytes",
-          "name": "_srcAddress",
-          "type": "bytes"
-        },
-        {
-          "internalType": "uint64",
-          "name": "_nonce",
-          "type": "uint64"
-        },
-        {
-          "internalType": "bytes",
-          "name": "_from",
-          "type": "bytes"
-        },
-        {
-          "internalType": "address",
-          "name": "_to",
-          "type": "address"
-        },
+      "name": "quoteDepositIn",
+      "outputs": [
         {
           "internalType": "uint256",
           "name": "_amount",
           "type": "uint256"
         },
         {
-          "internalType": "bytes",
-          "name": "_payload",
-          "type": "bytes"
+          "internalType": "uint256",
+          "name": "_fee",
+          "type": "uint256"
         }
       ],
-      "name": "retryOFTReceived",
-      "outputs": [],
-      "stateMutability": "nonpayable",
+      "stateMutability": "view",
       "type": "function"
     },
     {
       "inputs": [
-        {
-          "internalType": "address",
-          "name": "from_",
-          "type": "address"
-        },
-        {
-          "internalType": "uint16",
-          "name": "dstChainId_",
-          "type": "uint16"
-        },
-        {
-          "internalType": "bytes",
-          "name": "toAddress_",
-          "type": "bytes"
-        },
         {
           "internalType": "uint256",
           "name": "amount_",
           "type": "uint256"
-        },
-        {
-          "internalType": "bytes",
-          "name": "payload_",
-          "type": "bytes"
-        },
-        {
-          "internalType": "uint64",
-          "name": "dstGasForCall_",
-          "type": "uint64"
-        },
-        {
-          "internalType": "address payable",
-          "name": "refundAddress_",
-          "type": "address"
-        },
-        {
-          "internalType": "address",
-          "name": "zroPaymentAddress_",
-          "type": "address"
-        },
-        {
-          "internalType": "bytes",
-          "name": "adapterParams_",
-          "type": "bytes"
         }
       ],
-      "name": "sendAndCall",
-      "outputs": [],
-      "stateMutability": "payable",
+      "name": "quoteDepositOut",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "_amountToDeposit",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_fee",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
       "type": "function"
     },
     {
       "inputs": [
         {
-          "internalType": "address",
-          "name": "_from",
-          "type": "address"
-        },
-        {
-          "internalType": "uint16",
-          "name": "_dstChainId",
-          "type": "uint16"
-        },
-        {
-          "internalType": "bytes",
-          "name": "_toAddress",
-          "type": "bytes"
-        },
+          "internalType": "uint256",
+          "name": "amountToWithdraw_",
+          "type": "uint256"
+        }
+      ],
+      "name": "quoteWithdrawIn",
+      "outputs": [
         {
           "internalType": "uint256",
           "name": "_amount",
           "type": "uint256"
         },
         {
-          "internalType": "address payable",
-          "name": "_refundAddress",
-          "type": "address"
-        },
-        {
-          "internalType": "address",
-          "name": "_zroPaymentAddress",
-          "type": "address"
-        },
-        {
-          "internalType": "bytes",
-          "name": "_adapterParams",
-          "type": "bytes"
+          "internalType": "uint256",
+          "name": "_fee",
+          "type": "uint256"
         }
       ],
-      "name": "sendFrom",
-      "outputs": [],
-      "stateMutability": "payable",
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "amount_",
+          "type": "uint256"
+        }
+      ],
+      "name": "quoteWithdrawOut",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "_amountToWithdraw",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_fee",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
       "type": "function"
     },
     {
@@ -1219,11 +913,6 @@
           "internalType": "address",
           "name": "from_",
           "type": "address"
-        },
-        {
-          "internalType": "uint16",
-          "name": "dstChainId_",
-          "type": "uint16"
         },
         {
           "internalType": "address",
@@ -1236,35 +925,7 @@
           "type": "uint256"
         }
       ],
-      "name": "sendFrom",
-      "outputs": [],
-      "stateMutability": "payable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint16",
-          "name": "_version",
-          "type": "uint16"
-        },
-        {
-          "internalType": "uint16",
-          "name": "_chainId",
-          "type": "uint16"
-        },
-        {
-          "internalType": "uint256",
-          "name": "_configType",
-          "type": "uint256"
-        },
-        {
-          "internalType": "bytes",
-          "name": "_config",
-          "type": "bytes"
-        }
-      ],
-      "name": "setConfig",
+      "name": "seize",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -1272,146 +933,34 @@
     {
       "inputs": [
         {
-          "internalType": "uint16",
-          "name": "_dstChainId",
-          "type": "uint16"
+          "internalType": "contract IERC20",
+          "name": "token_",
+          "type": "address"
         },
-        {
-          "internalType": "uint16",
-          "name": "_packetType",
-          "type": "uint16"
-        },
-        {
-          "internalType": "uint256",
-          "name": "_minGas",
-          "type": "uint256"
-        }
-      ],
-      "name": "setMinDstGas",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint16",
-          "name": "_dstChainId",
-          "type": "uint16"
-        },
-        {
-          "internalType": "uint256",
-          "name": "_size",
-          "type": "uint256"
-        }
-      ],
-      "name": "setPayloadSizeLimit",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
         {
           "internalType": "address",
-          "name": "_precrime",
+          "name": "to_",
           "type": "address"
-        }
-      ],
-      "name": "setPrecrime",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint16",
-          "name": "_version",
-          "type": "uint16"
-        }
-      ],
-      "name": "setReceiveVersion",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint16",
-          "name": "_version",
-          "type": "uint16"
-        }
-      ],
-      "name": "setSendVersion",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint16",
-          "name": "_srcChainId",
-          "type": "uint16"
         },
         {
-          "internalType": "bytes",
-          "name": "_path",
-          "type": "bytes"
+          "internalType": "uint256",
+          "name": "amount_",
+          "type": "uint256"
         }
       ],
-      "name": "setTrustedRemote",
+      "name": "sweep",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
     },
     {
-      "inputs": [
-        {
-          "internalType": "uint16",
-          "name": "_remoteChainId",
-          "type": "uint16"
-        },
-        {
-          "internalType": "bytes",
-          "name": "_remoteAddress",
-          "type": "bytes"
-        }
-      ],
-      "name": "setTrustedRemoteAddress",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "bool",
-          "name": "_useCustomAdapterParams",
-          "type": "bool"
-        }
-      ],
-      "name": "setUseCustomAdapterParams",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "bytes4",
-          "name": "interfaceId",
-          "type": "bytes4"
-        }
-      ],
-      "name": "supportsInterface",
+      "inputs": [],
+      "name": "symbol",
       "outputs": [
         {
-          "internalType": "bool",
+          "internalType": "string",
           "name": "",
-          "type": "bool"
+          "type": "string"
         }
       ],
       "stateMutability": "view",
@@ -1419,52 +968,38 @@
     },
     {
       "inputs": [],
-      "name": "token",
-      "outputs": [
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "name": "transferOwnership",
+      "name": "toggleIsActive",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
     },
     {
-      "inputs": [
-        {
-          "internalType": "uint16",
-          "name": "",
-          "type": "uint16"
-        }
-      ],
-      "name": "trustedRemoteLookup",
+      "inputs": [],
+      "name": "totalSupply",
       "outputs": [
         {
-          "internalType": "bytes",
+          "internalType": "uint256",
           "name": "",
-          "type": "bytes"
+          "type": "uint256"
         }
       ],
       "stateMutability": "view",
       "type": "function"
     },
     {
-      "inputs": [],
-      "name": "useCustomAdapterParams",
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "to_",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount_",
+          "type": "uint256"
+        }
+      ],
+      "name": "transfer",
       "outputs": [
         {
           "internalType": "bool",
@@ -1472,7 +1007,152 @@
           "type": "bool"
         }
       ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "sender_",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "recipient_",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount_",
+          "type": "uint256"
+        }
+      ],
+      "name": "transferFrom",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "underlying",
+      "outputs": [
+        {
+          "internalType": "contract IERC20",
+          "name": "",
+          "type": "address"
+        }
+      ],
       "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "account_",
+          "type": "address"
+        }
+      ],
+      "name": "unlockedBalanceOf",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "_unlockedBalance",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint128",
+          "name": "newCollateralFactor_",
+          "type": "uint128"
+        }
+      ],
+      "name": "updateCollateralFactor",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "newMaxTotalSupply_",
+          "type": "uint256"
+        }
+      ],
+      "name": "updateMaxTotalSupply",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "amount_",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address",
+          "name": "to_",
+          "type": "address"
+        }
+      ],
+      "name": "withdraw",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "_withdrawn",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_fee",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "from_",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount_",
+          "type": "uint256"
+        }
+      ],
+      "name": "withdrawFrom",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "_withdrawn",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_fee",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable",
       "type": "function"
     },
     {
@@ -1497,78 +1177,64 @@
       "type": "constructor"
     }
   ],
-  "transactionHash": "0x5a6938884d9aed93263fd7beaf0732b2843c3d82c2671461f8afae44d2772d07",
+  "transactionHash": "0x0cd34cb0f238d3ca9a6460ff93a09c4b1a8b29df1c2475483c6f573f5fadf219",
   "receipt": {
     "to": null,
     "from": "0xdf826ff6518e609E4cEE86299d40611C148099d5",
-    "contractAddress": "0x2AF13BF84F8B452cB86839330F514Cc5c2899217",
-    "transactionIndex": 37,
-    "gasUsed": "816183",
-    "logsBloom": "0x00000000000000000000000000000000400000000000000000800000600000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000002000001000000000000000000000000000000000000020000000000000000000800000000800000000000000000000000400000000800000000000000000000000000000000400080000000000000800000000000000000000000000000001400000004000000000000000000000000000000100820000000000000000000040000000000000400000000000000000020000000000000000000000000000000000000000000000000000000000000000000",
-    "blockHash": "0x633238eb4892a84b42d5d9e70e0db055785d70fec6f99fb4ef853d25e903f9b1",
-    "transactionHash": "0x5a6938884d9aed93263fd7beaf0732b2843c3d82c2671461f8afae44d2772d07",
+    "contractAddress": "0x329846f9e19dAa7fD9844065a62eD01BCf63Cf69",
+    "transactionIndex": 53,
+    "gasUsed": "907609",
+    "logsBloom": "0x00000000000000800000000000000000400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002010000000000000000000000000000000000002000000000000000000020000000000000800000000000000000000000000000000000000000000000000000000000000000000080000000000000800000000000000000000001000000000400000000000000000000000000000000000000000020000000000000000400040000000000000400000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "blockHash": "0xfb40fbff8d81366c05a6a3073a957204f8a67ef6bbdd4aa294896d59ab3a5f74",
+    "transactionHash": "0x0cd34cb0f238d3ca9a6460ff93a09c4b1a8b29df1c2475483c6f573f5fadf219",
     "logs": [
       {
-        "transactionIndex": 37,
-        "blockNumber": 15108384,
-        "transactionHash": "0x5a6938884d9aed93263fd7beaf0732b2843c3d82c2671461f8afae44d2772d07",
-        "address": "0x2AF13BF84F8B452cB86839330F514Cc5c2899217",
+        "transactionIndex": 53,
+        "blockNumber": 15984699,
+        "transactionHash": "0x0cd34cb0f238d3ca9a6460ff93a09c4b1a8b29df1c2475483c6f573f5fadf219",
+        "address": "0x329846f9e19dAa7fD9844065a62eD01BCf63Cf69",
         "topics": [
           "0xbc7cd75a20ee27fd9adebab32041f755214dbc6bffa90cc0225b39da2e5c2d3b",
-          "0x000000000000000000000000ddd9864c68072a4723889644b5e7075452718ded"
+          "0x0000000000000000000000009bf24739310fb7f79af48ecc38557e2172469eee"
         ],
         "data": "0x",
-        "logIndex": 136,
-        "blockHash": "0x633238eb4892a84b42d5d9e70e0db055785d70fec6f99fb4ef853d25e903f9b1"
+        "logIndex": 138,
+        "blockHash": "0xfb40fbff8d81366c05a6a3073a957204f8a67ef6bbdd4aa294896d59ab3a5f74"
       },
       {
-        "transactionIndex": 37,
-        "blockNumber": 15108384,
-        "transactionHash": "0x5a6938884d9aed93263fd7beaf0732b2843c3d82c2671461f8afae44d2772d07",
-        "address": "0x2AF13BF84F8B452cB86839330F514Cc5c2899217",
-        "topics": [
-          "0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0",
-          "0x0000000000000000000000000000000000000000000000000000000000000000",
-          "0x000000000000000000000000df826ff6518e609e4cee86299d40611c148099d5"
-        ],
-        "data": "0x",
-        "logIndex": 137,
-        "blockHash": "0x633238eb4892a84b42d5d9e70e0db055785d70fec6f99fb4ef853d25e903f9b1"
-      },
-      {
-        "transactionIndex": 37,
-        "blockNumber": 15108384,
-        "transactionHash": "0x5a6938884d9aed93263fd7beaf0732b2843c3d82c2671461f8afae44d2772d07",
-        "address": "0x2AF13BF84F8B452cB86839330F514Cc5c2899217",
+        "transactionIndex": 53,
+        "blockNumber": 15984699,
+        "transactionHash": "0x0cd34cb0f238d3ca9a6460ff93a09c4b1a8b29df1c2475483c6f573f5fadf219",
+        "address": "0x329846f9e19dAa7fD9844065a62eD01BCf63Cf69",
         "topics": [
           "0x7f26b83ff96e1f2b6a682f133852f6798a09c465da95921460cefb3847402498"
         ],
         "data": "0x0000000000000000000000000000000000000000000000000000000000000001",
-        "logIndex": 138,
-        "blockHash": "0x633238eb4892a84b42d5d9e70e0db055785d70fec6f99fb4ef853d25e903f9b1"
+        "logIndex": 139,
+        "blockHash": "0xfb40fbff8d81366c05a6a3073a957204f8a67ef6bbdd4aa294896d59ab3a5f74"
       },
       {
-        "transactionIndex": 37,
-        "blockNumber": 15108384,
-        "transactionHash": "0x5a6938884d9aed93263fd7beaf0732b2843c3d82c2671461f8afae44d2772d07",
-        "address": "0x2AF13BF84F8B452cB86839330F514Cc5c2899217",
+        "transactionIndex": 53,
+        "blockNumber": 15984699,
+        "transactionHash": "0x0cd34cb0f238d3ca9a6460ff93a09c4b1a8b29df1c2475483c6f573f5fadf219",
+        "address": "0x329846f9e19dAa7fD9844065a62eD01BCf63Cf69",
         "topics": [
           "0x7e644d79422f17c01e4894b5f4f588d331ebfa28653d42ae832dc59e38c9798f"
         ],
-        "data": "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ecfe7634abcd2140bede1fb34753a7f5d412c881",
-        "logIndex": 139,
-        "blockHash": "0x633238eb4892a84b42d5d9e70e0db055785d70fec6f99fb4ef853d25e903f9b1"
+        "data": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000003506b5efea8d0719e47cdcabc81b6e60b5fa73b5",
+        "logIndex": 140,
+        "blockHash": "0xfb40fbff8d81366c05a6a3073a957204f8a67ef6bbdd4aa294896d59ab3a5f74"
       }
     ],
-    "blockNumber": 15108384,
-    "cumulativeGasUsed": "6699357",
+    "blockNumber": 15984699,
+    "cumulativeGasUsed": "8171594",
     "status": 1,
     "byzantium": true
   },
   "args": [
-    "0xdDd9864C68072a4723889644b5E7075452718deD",
-    "0xecfE7634aBCd2140bede1fb34753A7F5d412c881",
-    "0x485cc955000000000000000000000000b6319cc6c8c27a8f5daf0dd3df91ea35c4720dd7000000000000000000000000526728dbc96689597f85ae4cd716d4f7fccbae9d"
+    "0x9bF24739310FB7F79af48ECc38557E2172469EEE",
+    "0x3506B5EfEa8d0719E47cDcabC81b6E60B5Fa73B5",
+    "0xffc0e17e0000000000000000000000001e41238acd3a9ff90b0dcb9ea96cf45f104e09ef000000000000000000000000c614136d6c5ab85bc2acf0ec2652351642d7f54e00000000000000000000000000000000000000000000000000000000000000e0000000000000000000000000000000000000000000000000000000000000012000000000000000000000000000000000000000000000000000000000000000120000000000000000000000000000000000000000000000000b6139a7cbd200000000000000000000000000000000000000000000000069e10de76676d0800000000000000000000000000000000000000000000000000000000000000000001e4d6574726f6e6f6d652053796e7468207661555344432d4465706f7369740000000000000000000000000000000000000000000000000000000000000000000b6d73647661555344432d31000000000000000000000000000000000000000000"
   ],
   "numDeployments": 1,
   "solcInputHash": "0e89febeebc7444140de8e67c9067d2c",
@@ -1578,11 +1244,22 @@
   "execute": {
     "methodName": "initialize",
     "args": [
-      "0xb6319cC6c8c27A8F5dAF0dD3DF91EA35C4720dd7",
-      "0x526728DBc96689597F85ae4cd716d4f7fCcBAE9d"
+      "0x1e41238aCd3A9fF90b0DCB9ea96Cf45F104e09Ef",
+      "0xc614136d6c5AB85bc2aCF0ec2652351642d7F54E",
+      "Metronome Synth vaUSDC-Deposit",
+      "msdvaUSDC-1",
+      18,
+      {
+        "type": "BigNumber",
+        "hex": "0x0b6139a7cbd20000"
+      },
+      {
+        "type": "BigNumber",
+        "hex": "0x69e10de76676d0800000"
+      }
     ]
   },
-  "implementation": "0xdDd9864C68072a4723889644b5E7075452718deD",
+  "implementation": "0x9bF24739310FB7F79af48ECc38557E2172469EEE",
   "devdoc": {
     "details": "This contract implements a proxy that is upgradeable by an admin. To avoid https://medium.com/nomic-labs-blog/malicious-backdoors-in-ethereum-proxies-62629adf3357[proxy selector clashing], which can potentially be used in an attack, this contract uses the https://blog.openzeppelin.com/the-transparent-proxy-pattern/[transparent proxy pattern]. This pattern implies two things that go hand in hand: 1. If any account other than the admin calls the proxy, the call will be forwarded to the implementation, even if that call matches one of the admin functions exposed by the proxy itself. 2. If the admin calls the proxy, it can access the admin functions, but its calls will never be forwarded to the implementation. If the admin tries to call a function on the implementation it will fail with an error that says \"admin cannot fallback to proxy target\". These properties mean that the admin account can only be used for admin actions like upgrading the proxy or changing the admin, so it's best if it's a dedicated account that is not used for anything else. This will avoid headaches due to sudden errors when trying to call a function from the proxy implementation. Our recommendation is for the dedicated account to be an instance of the {ProxyAdmin} contract. If set up this way, you should think of the `ProxyAdmin` instance as the real administrative interface of your proxy.",
     "kind": "dev",

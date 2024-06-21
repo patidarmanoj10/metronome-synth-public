@@ -24,6 +24,10 @@ import {
 let POOL_REGISTRY_ADDRESS: string
 let USDC_DEPOSIT_ADDRESS: string
 let WETH_DEPOSIT_ADDRESS: string
+let VAUSDC_DEPOSIT_ADDRESS: string
+let VAETH_DEPOSIT_ADDRESS: string
+let VACBETH_DEPOSIT_ADDRESS: string
+let VAWSTETH_DEPOSIT_ADDRESS: string
 let MSUSD_DEBT_ADDRESS: string
 let MSETH_DEBT_ADDRESS: string
 let MSUSD_SYNTHETIC_ADDRESS: string
@@ -54,6 +58,10 @@ describe('E2E tests (next base release)', function () {
   let bob: SignerWithAddress
   let weth: IWETH
   let usdc: ERC20
+  let vaETH: ERC20
+  let vaCBETH: ERC20
+  let vaUSDC: ERC20
+  let vaWSTETH: ERC20
   let masterOracle: Contract
   let poolRegistry: PoolRegistry
   let nativeGateway: NativeTokenGateway
@@ -63,6 +71,11 @@ describe('E2E tests (next base release)', function () {
   let pool: Pool
   let msdWETH: DepositToken
   let msdUSDC: DepositToken
+  let msdVaETH: DepositToken
+  let msdVaCBETH: DepositToken
+  let msdVaUSDC: DepositToken
+  let msdVaWSTETH: DepositToken
+
   let msUSDDebt: DebtToken
   let msETHDebt: DebtToken
   let msUSD: SyntheticToken
@@ -81,6 +94,10 @@ describe('E2E tests (next base release)', function () {
     ;({address: MSETH_SYNTHETIC_ADDRESS} = await import('../deployments/localhost/MsETHSynthetic.json'))
     ;({address: MSUSD_PROXYOFT_ADDRESS} = await import('../deployments/localhost/MsUSDProxyOFT.json'))
     ;({address: MSETH_PROXYOFT_ADDRESS} = await import('../deployments/localhost/MsETHProxyOFT.json'))
+    ;({address: VAETH_DEPOSIT_ADDRESS} = await import('../deployments/localhost/VaETHDepositToken_Pool1.json'))
+    ;({address: VACBETH_DEPOSIT_ADDRESS} = await import('../deployments/localhost/VaCBETHDepositToken_Pool1.json'))
+    ;({address: VAUSDC_DEPOSIT_ADDRESS} = await import('../deployments/localhost/VaUSDCDepositToken_Pool1.json'))
+    ;({address: VAWSTETH_DEPOSIT_ADDRESS} = await import('../deployments/localhost/VaWSTETHDepositToken_Pool1.json'))
     ;({address: NATIVE_TOKEN_GATEWAY_ADDRESS} = await import('../deployments/localhost/NativeTokenGateway.json'))
     ;({address: QUOTER_ADDRESS} = await import('../deployments/localhost/Quoter.json'))
     ;({address: SFM_ADDRESS} = await import('../deployments/localhost/SmartFarmingManager_Pool1.json'))
@@ -90,6 +107,10 @@ describe('E2E tests (next base release)', function () {
     ;[, alice, bob] = await ethers.getSigners()
     usdc = await ethers.getContractAt('ERC20', Address.USDC_ADDRESS, alice)
     weth = await ethers.getContractAt('IWETH', Address.WETH_ADDRESS, alice)
+    vaUSDC = await ethers.getContractAt('ERC20', Address.VAUSDC_ADDRESS, alice)
+    vaETH = await ethers.getContractAt('ERC20', Address.VAETH_ADDRESS, alice)
+    vaWSTETH = await ethers.getContractAt('ERC20', Address.VAWSTETH_ADDRESS, alice)
+    vaCBETH = await ethers.getContractAt('ERC20', Address.VACBETH_ADDRESS, alice)
 
     poolRegistry = await ethers.getContractAt('PoolRegistry', POOL_REGISTRY_ADDRESS, alice)
     governor = await impersonateAccount(await poolRegistry.governor())
@@ -100,6 +121,10 @@ describe('E2E tests (next base release)', function () {
 
     msdWETH = await ethers.getContractAt('DepositToken', WETH_DEPOSIT_ADDRESS, alice)
     msdUSDC = await ethers.getContractAt('DepositToken', USDC_DEPOSIT_ADDRESS, alice) // 6 decimals.
+    msdVaETH = await ethers.getContractAt('DepositToken', VAETH_DEPOSIT_ADDRESS, alice)
+    msdVaCBETH = await ethers.getContractAt('DepositToken', VACBETH_DEPOSIT_ADDRESS, alice)
+    msdVaUSDC = await ethers.getContractAt('DepositToken', VAUSDC_DEPOSIT_ADDRESS, alice)
+    msdVaWSTETH = await ethers.getContractAt('DepositToken', VAWSTETH_DEPOSIT_ADDRESS, alice)
 
     msUSDDebt = await ethers.getContractAt('DebtToken', MSUSD_DEBT_ADDRESS, alice)
     msETHDebt = await ethers.getContractAt('DebtToken', MSETH_DEBT_ADDRESS, alice)
@@ -116,9 +141,17 @@ describe('E2E tests (next base release)', function () {
 
     await setTokenBalance(usdc.address, alice.address, parseUnits('10,000', 6))
     await setTokenBalance(weth.address, alice.address, parseUnits('20', 18))
+    await setTokenBalance(vaCBETH.address, alice.address, parseUnits('1000', 18))
+    await setTokenBalance(vaUSDC.address, alice.address, parseUnits('1000', 18))
+    await setTokenBalance(vaETH.address, alice.address, parseUnits('1000', 18))
+    await setTokenBalance(vaWSTETH.address, alice.address, parseUnits('20', 18))
 
     await usdc.connect(alice).approve(msdUSDC.address, MaxUint256)
     await weth.connect(alice).approve(msdWETH.address, MaxUint256)
+    await vaUSDC.connect(alice).approve(msdVaUSDC.address, MaxUint256)
+    await vaETH.connect(alice).approve(msdVaETH.address, MaxUint256)
+    await vaWSTETH.connect(alice).approve(msdVaWSTETH.address, MaxUint256)
+    await vaCBETH.connect(alice).approve(msdVaCBETH.address, MaxUint256)
 
     const masterOracleGovernor = await impersonateAccount(Address.MASTER_ORACLE_GOVERNOR_ADDRESS)
     masterOracle = new ethers.Contract(
@@ -137,6 +170,11 @@ describe('E2E tests (next base release)', function () {
     await msUSDDebt.connect(governor).updateMaxTotalSupply(ethers.constants.MaxUint256)
     await msUSD.connect(governor).toggleIsActive()
     await msETH.connect(governor).toggleIsActive()
+
+    await msdVaUSDC.connect(governor).updateMaxTotalSupply(ethers.constants.MaxUint256)
+    await msdVaETH.connect(governor).updateMaxTotalSupply(ethers.constants.MaxUint256)
+    await msdVaWSTETH.connect(governor).updateMaxTotalSupply(ethers.constants.MaxUint256)
+    await msdVaCBETH.connect(governor).updateMaxTotalSupply(ethers.constants.MaxUint256)
 
     if (await pool.everythingStopped()) {
       await pool.connect(governor).open()
@@ -196,6 +234,10 @@ describe('E2E tests (next base release)', function () {
 
       expect(USDC_DEPOSIT_ADDRESS).eq(await pool.depositTokenOf(usdc.address))
       expect(WETH_DEPOSIT_ADDRESS).eq(await pool.depositTokenOf(weth.address))
+      expect(VAUSDC_DEPOSIT_ADDRESS).eq(await pool.depositTokenOf(vaUSDC.address))
+      expect(VAETH_DEPOSIT_ADDRESS).eq(await pool.depositTokenOf(vaETH.address))
+      expect(VACBETH_DEPOSIT_ADDRESS).eq(await pool.depositTokenOf(vaCBETH.address))
+      expect(VAWSTETH_DEPOSIT_ADDRESS).eq(await pool.depositTokenOf(vaWSTETH.address))
 
       expect(MSUSD_SYNTHETIC_ADDRESS).eq(await msUSDProxyOFT.token())
       expect(MSETH_SYNTHETIC_ADDRESS).eq(await msETHProxyOFT.token())
@@ -212,6 +254,10 @@ describe('E2E tests (next base release)', function () {
       expect(await masterOracle.getPriceInUsd(weth.address)).gt(0)
       expect(await masterOracle.getPriceInUsd(msUSD.address)).gt(0)
       expect(await masterOracle.getPriceInUsd(msETH.address)).gt(0)
+      expect(await masterOracle.getPriceInUsd(vaCBETH.address)).gt(0)
+      expect(await masterOracle.getPriceInUsd(vaUSDC.address)).gt(0)
+      expect(await masterOracle.getPriceInUsd(vaETH.address)).gt(0)
+      expect(await masterOracle.getPriceInUsd(vaWSTETH.address)).gt(0)
     })
   })
 
@@ -247,6 +293,62 @@ describe('E2E tests (next base release)', function () {
 
       // then
       await expect(tx).changeTokenBalance(msdWETH, alice, amount)
+    })
+
+    it('should deposit vaUSDC using USDC', async function () {
+      //
+      // Deploy `VesperGateway` implementation
+      // Note: It won't be necessary when this contract get online
+      //
+      const vesperGatewayFactory = await ethers.getContractFactory('VesperGateway', alice)
+      const vesperGateway = await vesperGatewayFactory.deploy(poolRegistry.address)
+
+      // given
+      const amount6 = parseUnits('1', 6)
+      const amount18 = parseUnits('1', 18)
+      const before = await msdVaUSDC.balanceOf(alice.address)
+      expect(before).eq(0)
+
+      // when
+      await usdc.approve(vesperGateway.address, amount6)
+      await vesperGateway.deposit(pool.address, vaUSDC.address, amount6)
+
+      // then
+      const after = await msdVaUSDC.balanceOf(alice.address)
+      expect(after).closeTo(amount18, parseUnits('0.1', 18))
+    })
+
+    it('should deposit vaETH', async function () {
+      // given
+      const amount = parseUnits('1', 18)
+
+      // when
+      const tx = () => msdVaETH.deposit(amount, alice.address)
+
+      // then
+      await expect(tx).changeTokenBalance(msdVaETH, alice, amount)
+    })
+
+    it('should deposit vaWSTETH', async function () {
+      // given
+      const amount = parseUnits('1', 18)
+
+      // when
+      const tx = () => msdVaWSTETH.deposit(amount, alice.address)
+
+      // then
+      await expect(tx).changeTokenBalance(msdVaWSTETH, alice, amount)
+    })
+
+    it('should deposit vaCBETH', async function () {
+      // given
+      const amount = parseUnits('1', 18)
+
+      // when
+      const tx = () => msdVaCBETH.deposit(amount, alice.address)
+
+      // then
+      await expect(tx).changeTokenBalance(msdVaCBETH, alice, amount)
     })
 
     it('should issue msUSD', async function () {
