@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.9;
+pragma solidity 0.8.24;
 
-import "../dependencies/openzeppelin-upgradeable/proxy/utils/Initializable.sol";
-import "../interfaces/IGovernable.sol";
-import "../interfaces/IManageable.sol";
+import {Initializable} from "../dependencies/openzeppelin-upgradeable/proxy/utils/Initializable.sol";
+import {SynthContext} from "../utils/SynthContext.sol";
+import {IGovernable} from "../interfaces/IGovernable.sol";
+import {IManageable} from "../interfaces/IManageable.sol";
+import {IPool} from "../interfaces/IPool.sol";
+import {IPoolRegistry} from "../interfaces/IPoolRegistry.sol";
 
 error SenderIsNotPool();
 error SenderIsNotGovernor();
@@ -15,25 +18,25 @@ error PoolAddressIsNull();
 /**
  * @title Reusable contract that handles accesses
  */
-abstract contract Manageable is IManageable, Initializable {
+abstract contract Manageable is IManageable, SynthContext, Initializable {
     /**
      * @notice Pool contract
      */
     IPool public pool;
 
     /**
-     * @dev Throws if `msg.sender` isn't the pool
+     * @dev Throws if `_msgSender()` isn't the pool
      */
     modifier onlyPool() {
-        if (msg.sender != address(pool)) revert SenderIsNotPool();
+        if (_msgSender() != address(pool)) revert SenderIsNotPool();
         _;
     }
 
     /**
-     * @dev Throws if `msg.sender` isn't the governor
+     * @dev Throws if `_msgSender()` isn't the governor
      */
     modifier onlyGovernor() {
-        if (msg.sender != governor()) revert SenderIsNotGovernor();
+        if (_msgSender() != governor()) revert SenderIsNotGovernor();
         _;
     }
 
@@ -65,6 +68,11 @@ abstract contract Manageable is IManageable, Initializable {
      */
     function governor() public view returns (address _governor) {
         _governor = IGovernable(address(pool)).governor();
+    }
+
+    /// @inheritdoc SynthContext
+    function poolRegistry() public view override returns (IPoolRegistry) {
+        return pool.poolRegistry();
     }
 
     uint256[49] private __gap;

@@ -14,7 +14,7 @@ const func = buildDepositTokenDeployFunction({
   underlyingSymbol: 'WBTC',
   underlyingDecimals: 8,
   collateralFactor: parseEther('0.7'), // 70%
-  maxTotalSupply: parseUnits('6', 8),
+  maxTotalSupply: parseUnits('312', 8),
 })
 
 export default func

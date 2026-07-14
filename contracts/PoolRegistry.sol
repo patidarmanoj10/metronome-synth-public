@@ -1,12 +1,20 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.9;
+pragma solidity 0.8.24;
 
-import "./utils/ReentrancyGuard.sol";
-import "./lib/WadRayMath.sol";
-import "./storage/PoolRegistryStorage.sol";
-import "./interfaces/IPool.sol";
-import "./utils/Pauseable.sol";
+import {Initializable} from "./dependencies/openzeppelin-upgradeable/proxy/utils/Initializable.sol";
+import {ReentrancyGuardDeprecated} from "./utils/ReentrancyGuardDeprecated.sol";
+import {ReentrancyGuardTransient} from "./utils/ReentrancyGuardTransient.sol";
+import {WadRayMath} from "./lib/WadRayMath.sol";
+import {PoolRegistryStorageV5} from "./storage/PoolRegistryStorage.sol";
+import {IPool} from "./interfaces/IPool.sol";
+import {Pauseable} from "./utils/Pauseable.sol";
+import {EnumerableSet} from "./dependencies/openzeppelin/utils/structs/EnumerableSet.sol";
+import {IMasterOracle} from "./interfaces/external/IMasterOracle.sol";
+import {ISwapper} from "./interfaces/external/ISwapper.sol";
+import {IPoolRegistry} from "./interfaces/IPoolRegistry.sol";
+import {IOperator} from "./interfaces/IOperator.sol";
+import {ISyntheticToken} from "./interfaces/ISyntheticToken.sol";
 
 error AddressIsNull();
 error OracleIsNull();
@@ -15,15 +23,22 @@ error NativeTokenGatewayIsNull();
 error AlreadyRegistered();
 error UnregisteredPool();
 error NewValueIsSameAsCurrent();
+error UnregisteredGuardian();
 
 /**
  * @title PoolRegistry contract
  */
-contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV3 {
+contract PoolRegistry is
+    Initializable,
+    ReentrancyGuardDeprecated,
+    ReentrancyGuardTransient,
+    Pauseable,
+    PoolRegistryStorageV5
+{
     using WadRayMath for uint256;
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    string public constant VERSION = "1.3.0";
+    string public constant VERSION = "1.3.2";
 
     /// @notice Emitted when fee collector is updated
     event FeeCollectorUpdated(address indexed oldFeeCollector, address indexed newFeeCollector);
@@ -43,17 +58,23 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV3 {
     /// @notice Emitted when Swapper contract is updated
     event SwapperUpdated(ISwapper oldSwapFee, ISwapper newSwapFee);
 
-    /// @notice Emitted when Quoter contract is updated
-    event QuoterUpdated(IQuoter oldQuoter, IQuoter newQuoter);
+    /// @notice Emitted when a guardian is added
+    event GuardianAdded(address indexed guardian);
 
-    /// @notice Emitted when Cross-chain dispatcher contract is updated
-    event CrossChainDispatcherUpdated(
-        ICrossChainDispatcher oldCrossChainDispatcher,
-        ICrossChainDispatcher newCrossChainDispatcher
-    );
+    /// @notice Emitted when a guardian is removed
+    event GuardianRemoved(address indexed guardian);
 
-    /// @notice Emitted when flag for pause cross-chain flash repay is toggled
-    event CrossChainFlashRepayActiveUpdated(bool newIsActive);
+    /// @notice Emitted when Operator contract is updated
+    event OperatorUpdated(IOperator oldOperator, IOperator newOperator);
+
+    /// @notice Emitted when Lz base gas limit updated
+    event LzBaseGasLimitUpdated(uint256 oldLzBaseGasLimit, uint256 newLzBaseGasLimit);
+
+    /// @notice Emitted when flag for pause bridge transfer is toggled
+    event BridgingIsActiveUpdated(bool newIsActive);
+
+    /// @notice Emitted when flag for support chain is toggled
+    event DestinationChainIsActiveUpdated(uint16 chainId, bool newIsSupported);
 
     constructor() {
         _disableInitializers();
@@ -63,7 +84,6 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV3 {
         if (address(masterOracle_) == address(0)) revert OracleIsNull();
         if (feeCollector_ == address(0)) revert FeeCollectorIsNull();
 
-        __ReentrancyGuard_init();
         __Pauseable_init();
 
         masterOracle = masterOracle_;
@@ -105,6 +125,13 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV3 {
     }
 
     /**
+     * @inheritdoc Pauseable
+     */
+    function isGuardian(address sender_) public view override(IPoolRegistry, Pauseable) returns (bool) {
+        return guardians.contains(sender_);
+    }
+
+    /**
      * @notice Register pool
      */
     function registerPool(address pool_) external override onlyGovernor {
@@ -124,6 +151,32 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV3 {
     function unregisterPool(address pool_) external override onlyGovernor {
         if (!pools.remove(pool_)) revert UnregisteredPool();
         emit PoolUnregistered(idOfPool[pool_], pool_);
+    }
+
+    /**
+     * @notice Add guardian
+     */
+    function addGuardian(address guardian_) external onlyGovernor {
+        if (guardian_ == address(0)) revert AddressIsNull();
+        if (!guardians.add(guardian_)) revert AlreadyRegistered();
+        emit GuardianAdded(guardian_);
+    }
+
+    /**
+     * @notice Remove guardian
+     */
+    function removeGuardian(address guardian_) external onlyGovernor {
+        if (!guardians.remove(guardian_)) revert UnregisteredGuardian();
+        emit GuardianRemoved(guardian_);
+    }
+
+    /**
+     * @notice Get all guardians
+     * @dev WARNING: This operation will copy the entire storage to memory, which can be quite expensive. This is designed
+     * to mostly be used by view accessors that are queried without any gas fees.
+     */
+    function getGuardians() external view returns (address[] memory) {
+        return guardians.values();
     }
 
     /**
@@ -172,35 +225,42 @@ contract PoolRegistry is ReentrancyGuard, Pauseable, PoolRegistryStorageV3 {
     }
 
     /**
-     * @notice Update Quoter contract
+     * @notice Update Operator contract
      */
-    function updateQuoter(IQuoter newQuoter_) external onlyGovernor {
-        if (address(newQuoter_) == address(0)) revert AddressIsNull();
-        IQuoter _currentQuoter = quoter;
-        if (newQuoter_ == _currentQuoter) revert NewValueIsSameAsCurrent();
+    function updateOperator(IOperator newOperator_) external onlyGovernor {
+        IOperator _currentOperator = operator;
+        if (newOperator_ == _currentOperator) revert NewValueIsSameAsCurrent();
 
-        emit QuoterUpdated(_currentQuoter, newQuoter_);
-        quoter = newQuoter_;
+        emit OperatorUpdated(_currentOperator, newOperator_);
+        operator = newOperator_;
     }
 
     /**
-     * @notice Update Cross-chain dispatcher contract
+     * @notice Update Lz base gas limit
      */
-    function updateCrossChainDispatcher(ICrossChainDispatcher crossChainDispatcher_) external onlyGovernor {
-        if (address(crossChainDispatcher_) == address(0)) revert AddressIsNull();
-        ICrossChainDispatcher _current = crossChainDispatcher;
-        if (crossChainDispatcher_ == _current) revert NewValueIsSameAsCurrent();
-
-        emit CrossChainDispatcherUpdated(_current, crossChainDispatcher_);
-        crossChainDispatcher = crossChainDispatcher_;
+    function updateLzBaseGasLimit(uint256 newLzBaseGasLimit_) external onlyGovernor {
+        uint256 _currentBaseGasLimit = lzBaseGasLimit;
+        if (newLzBaseGasLimit_ == _currentBaseGasLimit) revert NewValueIsSameAsCurrent();
+        emit LzBaseGasLimitUpdated(_currentBaseGasLimit, newLzBaseGasLimit_);
+        lzBaseGasLimit = newLzBaseGasLimit_;
     }
 
     /**
      * @notice Pause/Unpause bridge transfers
      */
-    function toggleCrossChainFlashRepayIsActive() external onlyGovernor {
-        bool _newIsCrossChainFlashRepayActive = !isCrossChainFlashRepayActive;
-        emit CrossChainFlashRepayActiveUpdated(_newIsCrossChainFlashRepayActive);
-        isCrossChainFlashRepayActive = _newIsCrossChainFlashRepayActive;
+    function toggleBridgingIsActive() external onlyGovernor {
+        bool _newIsBridgingActive = !isBridgingActive;
+        emit BridgingIsActiveUpdated(_newIsBridgingActive);
+        isBridgingActive = _newIsBridgingActive;
+    }
+
+    /**
+     * @notice Allow/Disallow destination chain
+     * @dev Use LZ chain id
+     */
+    function toggleDestinationChainIsActive(uint16 chainId_) external onlyGovernor {
+        bool _isDestinationChainSupported = !isDestinationChainSupported[chainId_];
+        emit DestinationChainIsActiveUpdated(chainId_, _isDestinationChainSupported);
+        isDestinationChainSupported[chainId_] = _isDestinationChainSupported;
     }
 }

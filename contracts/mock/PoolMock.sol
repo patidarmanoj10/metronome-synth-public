@@ -5,13 +5,21 @@
 // solhint-disable use-forbidden-name
 // solhint-disable no-empty-blocks
 
-pragma solidity 0.8.9;
+pragma solidity 0.8.24;
 
-import "../lib/WadRayMath.sol";
-import "../utils/Pauseable.sol";
-import "../interfaces/IPool.sol";
-import "../interfaces/IFeeProvider.sol";
-import "../access/Governable.sol";
+import {IERC20} from "../dependencies/openzeppelin/token/ERC20/IERC20.sol";
+import {WadRayMath} from "../lib/WadRayMath.sol";
+import {Pauseable} from "../utils/Pauseable.sol";
+import {IPool} from "../interfaces/IPool.sol";
+import {ITreasury} from "../interfaces/ITreasury.sol";
+import {ISyntheticToken} from "../interfaces/ISyntheticToken.sol";
+import {IDebtToken} from "../interfaces/IDebtToken.sol";
+import {IDepositToken} from "../interfaces/IDepositToken.sol";
+import {IPoolRegistry} from "../interfaces/IPoolRegistry.sol";
+import {ISmartFarmingManager} from "../interfaces/ISmartFarmingManager.sol";
+import {IMasterOracle} from "../interfaces/external/IMasterOracle.sol";
+import {IFeeProvider} from "../interfaces/IFeeProvider.sol";
+import {Governable} from "../access/Governable.sol";
 
 contract PoolMock is IPool, Governable, Pauseable {
     using WadRayMath for uint256;
@@ -175,4 +183,12 @@ contract PoolMock is IPool, Governable, Pauseable {
     }
 
     function getRewardsDistributors() external pure override returns (address[] memory _rewardsDistributors) {}
+
+    function isGuardian(address /*sender_*/) public view override returns (bool) {
+        revert("mock-does-not-implement");
+    }
+
+    function isBridgingActive() external view returns (bool) {
+        revert("mock-does-not-implement");
+    }
 }

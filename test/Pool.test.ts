@@ -12,10 +12,10 @@ import {
   MasterOracleMock,
   SyntheticToken,
   Treasury,
-  Pool,
   DebtToken,
   VPoolMock,
   FeeProvider,
+  Pool,
 } from '../typechain'
 import {getMinLiquidationAmountInUsd} from './helpers'
 import {setBalance, setCode, setStorageAt} from '@nomicfoundation/hardhat-network-helpers'
@@ -135,7 +135,7 @@ describe('Pool', function () {
     await setStorageAt(feeProvider.address, 0, 0) // Undo initialization made by constructor
 
     const poolFactory = await ethers.getContractFactory('contracts/Pool.sol:Pool', deployer)
-    pool = await poolFactory.deploy()
+    pool = <Pool>await poolFactory.deploy()
     await pool.deployed()
     await setStorageAt(pool.address, 0, 0) // Undo initialization made by constructor
 
@@ -1065,8 +1065,7 @@ describe('Pool', function () {
         })
 
         it('should swap synthetic tokens (swapFee == 0)', async function () {
-          // given
-          await feeProvider.updateDefaultSwapFee(0)
+          // given: no swap fee is configured for the `msEth => msDoge` pair, so it defaults to 0
           const msAssetInBalanceBefore = await msEth.balanceOf(alice.address)
           const msAssetOutBalanceBefore = await msDoge.balanceOf(alice.address)
           expect(msAssetOutBalanceBefore).eq(0)
@@ -1095,7 +1094,7 @@ describe('Pool', function () {
         it('should swap synthetic tokens (swapFee > 0)', async function () {
           // given
           const swapFee = parseEther('0.1') // 10%
-          await feeProvider.updateDefaultSwapFee(swapFee)
+          await feeProvider.updateSwapFee(msEth.address, msDoge.address, swapFee)
           const msAssetInBalanceBefore = await msEth.balanceOf(alice.address)
           const msAssetOutBalanceBefore = await msDoge.balanceOf(alice.address)
           expect(msAssetOutBalanceBefore).eq(0)
@@ -1809,18 +1808,53 @@ describe('Pool', function () {
     })
   })
 
-  describe('toggleBridgingIsActive', function () {
-    it('should toggle isBridgingActive flag', async function () {
-      const before = await pool.isBridgingActive()
-      const after = !before
-      const tx = pool.toggleBridgingIsActive()
-      await expect(tx).emit(pool, 'BridgingIsActiveUpdated').withArgs(after)
-      expect(await pool.isBridgingActive()).eq(after)
+  describe('shutdown', function () {
+    beforeEach(async function () {
+      poolRegistryMock.isGuardian.returns((a: string) => (a == alice.address ? true : false))
+    })
+
+    it('should revert if not governor nor guardian', async function () {
+      const tx = pool.connect(bob).shutdown()
+      await expect(tx).revertedWithCustomError(pool, 'SenderIsNotAuthorized')
+    })
+
+    it('should shutdown as guardian', async function () {
+      // given
+      expect(await pool.everythingStopped()).false
+
+      // when
+      await pool.connect(alice).shutdown()
+
+      // then
+      expect(await pool.everythingStopped()).true
+    })
+  })
+
+  describe('open', function () {
+    beforeEach(async function () {
+      await pool.shutdown()
     })
 
     it('should revert if not governor', async function () {
-      const tx = pool.connect(alice).toggleBridgingIsActive()
+      // given
+      poolRegistryMock.isGuardian.returns((a: string) => (a == alice.address ? true : false))
+
+      // when
+      const tx = pool.connect(alice).open()
+
+      // then
       await expect(tx).revertedWithCustomError(pool, 'SenderIsNotGovernor')
+    })
+
+    it('should open', async function () {
+      // given
+      expect(await pool.everythingStopped()).true
+
+      // when
+      await pool.open()
+
+      // then
+      expect(await pool.everythingStopped()).false
     })
   })
 })

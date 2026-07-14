@@ -22,9 +22,13 @@ describe('Treasury', function () {
     met = await metFactory.deploy('Metronome', 'MET', 18)
     await met.deployed()
 
+    const poolRegistryMock = await smock.fake('PoolRegistry')
+    poolRegistryMock.operator.returns(ethers.constants.AddressZero)
+
     poolMock = await smock.fake('contracts/Pool.sol:Pool')
     poolMock.doesDepositTokenExist.returns(true)
     poolMock.governor.returns(deployer.address)
+    poolMock.poolRegistry.returns(poolRegistryMock.address)
 
     depositTokenMock = await smock.fake('DepositToken')
     depositTokenMock.underlying.returns(met.address)
@@ -84,7 +88,7 @@ describe('Treasury', function () {
       rewardsMock = await rewardsMockFactory.deploy()
       await rewardsMock.deployed()
 
-      vPoolMock = await smock.fake('IVPool')
+      vPoolMock = await smock.fake('contracts/interfaces/external/IVPool.sol:IVPool')
       vPoolMock.poolRewards.returns(rewardsMock.address)
 
       await rewardsMock.setRewardTokens([token.address])

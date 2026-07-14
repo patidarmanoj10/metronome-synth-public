@@ -7,7 +7,9 @@ test = 'test/foundry'
 cache_path  = 'forge-cache'
 optimizer = true
 optimizer_runs = 200
-solc = "0.8.9"
+auto_detect_solc = true
+evm_version = "cancun"
+
 
 [invariant]
 runs = 256

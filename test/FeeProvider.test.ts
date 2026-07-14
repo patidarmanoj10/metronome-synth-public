@@ -28,152 +28,32 @@ describe('FeeProvider', function () {
     await feeProvider.initialize(poolMockRegistry.address, esMET.address)
   })
 
-  describe('swapFeeFor', function () {
-    beforeEach(async function () {
-      await feeProvider.updateTiers([
-        {min: parseEther('10'), discount: parseEther('0.1')},
-        {min: parseEther('20'), discount: parseEther('0.2')},
-        {min: parseEther('30'), discount: parseEther('0.3')},
-      ])
+  describe('swapFees', function () {
+    const synthIn = '0x0000000000000000000000000000000000000051'
+    const synthOut = '0x0000000000000000000000000000000000000052'
+
+    it('should return zero when no fee is set for the pair', async function () {
+      expect(await feeProvider.swapFees(synthIn, synthOut)).eq(0)
     })
 
-    it('should get fee if balance < tier[0]', async function () {
-      const fee = await feeProvider.swapFeeFor(alice.address)
-      expect(fee).eq(parseEther('0.0025'))
+    it('should return the fee set for the pair', async function () {
+      await feeProvider.updateSwapFee(synthIn, synthOut, parseEther('0.0025'))
+      expect(await feeProvider.swapFees(synthIn, synthOut)).eq(parseEther('0.0025'))
     })
 
-    it('should get fee if matches tiers[0]', async function () {
-      esMET.balanceOf.returns(parseEther('11'))
-      const fee = await feeProvider.swapFeeFor(alice.address)
-      expect(fee).eq(parseEther('0.00225'))
-    })
-
-    it('should get fee if matches tiers[1]', async function () {
-      esMET.balanceOf.returns(parseEther('21'))
-      const fee = await feeProvider.swapFeeFor(alice.address)
-      expect(fee).eq(parseEther('0.002'))
-    })
-
-    it('should get fee if matches tiers[N]', async function () {
-      esMET.balanceOf.returns(parseEther('31'))
-      const fee = await feeProvider.swapFeeFor(alice.address)
-      expect(fee).eq(parseEther('0.00175'))
+    it('should be directional (in => out is independent from out => in)', async function () {
+      await feeProvider.updateSwapFee(synthIn, synthOut, parseEther('0.0025'))
+      expect(await feeProvider.swapFees(synthOut, synthIn)).eq(0)
     })
   })
 
-  describe('updateTiers', function () {
-    const getTiers = async () =>
-      (await feeProvider.getTiers()).map(({min, discount}) => ({
-        min,
-        discount,
-      }))
+  describe('updateSwapFee', function () {
+    const synthIn = '0x0000000000000000000000000000000000000051'
+    const synthOut = '0x0000000000000000000000000000000000000052'
 
-    it('should set tiers', async function () {
-      // given
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const oldTiers: any[] = []
-      expect(await getTiers()).deep.eq(oldTiers)
-
-      // when
-      const newTiers = [
-        {min: parseEther('10'), discount: parseEther('0.1')},
-        {min: parseEther('20'), discount: parseEther('0.2')},
-      ]
-      const tx = feeProvider.updateTiers(newTiers)
-
-      // then
-      await expect(tx).emit(feeProvider, 'TiersUpdated')
-      expect(await getTiers()).deep.eq(newTiers)
-    })
-
-    it('should increase tiers', async function () {
-      // given
-      const oldTiers = [
-        {min: parseEther('10'), discount: parseEther('0.1')},
-        {min: parseEther('20'), discount: parseEther('0.2')},
-      ]
-      await feeProvider.updateTiers(oldTiers)
-      expect(await getTiers()).deep.eq(oldTiers)
-
-      // when
-      const newTiers = [
-        {min: parseEther('10'), discount: parseEther('0.1')},
-        {min: parseEther('20'), discount: parseEther('0.2')},
-        {min: parseEther('30'), discount: parseEther('0.3')},
-      ]
-      const tx = feeProvider.updateTiers(newTiers)
-
-      // then
-      await expect(tx).emit(feeProvider, 'TiersUpdated')
-      expect(await getTiers()).deep.eq(newTiers)
-    })
-
-    it('should decrease tiers', async function () {
-      // given
-      const oldTiers = [
-        {min: parseEther('10'), discount: parseEther('0.1')},
-        {min: parseEther('20'), discount: parseEther('0.2')},
-      ]
-      await feeProvider.updateTiers(oldTiers)
-      expect(await getTiers()).deep.eq(oldTiers)
-
-      // when
-      const newTiers = [{min: parseEther('50'), discount: parseEther('0.5')}]
-      const tx = feeProvider.updateTiers(newTiers)
-
-      // then
-      await expect(tx).emit(feeProvider, 'TiersUpdated')
-      expect(await getTiers()).deep.eq(newTiers)
-    })
-
-    it('should erase all tiers', async function () {
-      // given
-      const oldTiers = [
-        {min: parseEther('10'), discount: parseEther('0.1')},
-        {min: parseEther('20'), discount: parseEther('0.2')},
-      ]
-      await feeProvider.updateTiers(oldTiers)
-      expect(await getTiers()).deep.eq(oldTiers)
-
-      // when
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const newTiers: any[] = []
-      const tx = feeProvider.updateTiers(newTiers)
-
-      // then
-      await expect(tx).emit(feeProvider, 'TiersUpdated')
-      expect(await getTiers()).deep.eq(newTiers)
-    })
-
-    it('should revert if discount is invalid', async function () {
-      // when
-      const newTiers = [
-        {min: parseEther('10'), discount: parseEther('0.1')},
-        {min: parseEther('20'), discount: parseEther('1.001')},
-      ]
-      const tx = feeProvider.updateTiers(newTiers)
-
-      // then
-      await expect(tx).revertedWithCustomError(feeProvider, 'TierDiscountTooHigh')
-    })
-
-    it('should revert if not ordered', async function () {
-      // when
-      const newTiers = [
-        {min: parseEther('20'), discount: parseEther('0.2')},
-        {min: parseEther('10'), discount: parseEther('0.1')},
-      ]
-      const tx = feeProvider.updateTiers(newTiers)
-
-      // then
-      await expect(tx).revertedWithCustomError(feeProvider, 'TiersNotOrderedByMin')
-    })
-  })
-
-  describe('updateDefaultSwapFee', function () {
     it('should revert if caller is not governor', async function () {
       // when
-      const tx = feeProvider.connect(alice).updateDefaultSwapFee(parseEther('1'))
+      const tx = feeProvider.connect(alice).updateSwapFee(synthIn, synthOut, parseEther('0.01'))
 
       // then
       await expect(tx).revertedWithCustomError(feeProvider, 'SenderIsNotGovernor')
@@ -181,8 +61,8 @@ describe('FeeProvider', function () {
 
     it('should revert if using the current value', async function () {
       // when
-      const swapFee = await feeProvider.defaultSwapFee()
-      const tx = feeProvider.updateDefaultSwapFee(swapFee)
+      const swapFee = await feeProvider.swapFees(synthIn, synthOut)
+      const tx = feeProvider.updateSwapFee(synthIn, synthOut, swapFee)
 
       // then
       await expect(tx).revertedWithCustomError(feeProvider, 'NewValueIsSameAsCurrent')
@@ -191,7 +71,7 @@ describe('FeeProvider', function () {
     it('should revert if swap fee > 25%', async function () {
       // when
       const newSwapFee = parseEther('0.25').add('1')
-      const tx = feeProvider.updateDefaultSwapFee(newSwapFee)
+      const tx = feeProvider.updateSwapFee(synthIn, synthOut, newSwapFee)
 
       // then
       await expect(tx).revertedWithCustomError(feeProvider, 'FeeIsGreaterThanTheMax')
@@ -199,15 +79,16 @@ describe('FeeProvider', function () {
 
     it('should update swap fee param', async function () {
       // given
-      const currentSwapFee = await feeProvider.defaultSwapFee()
+      const currentSwapFee = await feeProvider.swapFees(synthIn, synthOut)
       const newSwapFee = parseEther('0.01')
       expect(newSwapFee).not.eq(currentSwapFee)
 
       // when
-      const tx = feeProvider.updateDefaultSwapFee(newSwapFee)
+      const tx = feeProvider.updateSwapFee(synthIn, synthOut, newSwapFee)
 
       // then
-      await expect(tx).emit(feeProvider, 'SwapDefaultFeeUpdated').withArgs(currentSwapFee, newSwapFee)
+      await expect(tx).emit(feeProvider, 'SwapFeeUpdated').withArgs(synthIn, synthOut, currentSwapFee, newSwapFee)
+      expect(await feeProvider.swapFees(synthIn, synthOut)).eq(newSwapFee)
     })
   })
 

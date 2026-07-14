@@ -5,7 +5,6 @@ import {StdAssertions} from "forge-std/StdAssertions.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
 import {StdUtils} from "forge-std/StdUtils.sol";
 import {Vm} from "forge-std/Vm.sol";
-import {console} from "forge-std/console.sol";
 
 contract HandlerBase is StdCheats, StdUtils, StdAssertions {
     mapping(bytes32 => uint256) public calls;

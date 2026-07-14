@@ -8,7 +8,7 @@ then
     exit
 fi
 
-if [[ "$network" != "mainnet" && "$network" != "optimism" && "$network" != "base" ]];
+if [ ! -d "deploy/scripts/$network" ];
 then
     echo "'$network' is invalid"
     exit
@@ -21,13 +21,18 @@ read
 # Test current release
 #npx hardhat test --network localhost test/E2E.$network.test.ts
 
+# Impersonate deployer
+npx hardhat impersonate-deployer --network localhost
+
 # Prepare deployment data
 cp -r deployments/$network deployments/localhost
 
-
-
-# Deployment (2/2)
+# Deployment
+npx hardhat deploy --network localhost
+npx hardhat deploy --network localhost
 npx hardhat deploy --network localhost
 
 # Test next release
 npx hardhat test --network localhost test/E2E.$network.next.test.ts
+
+

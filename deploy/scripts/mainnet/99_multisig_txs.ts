@@ -1,5 +1,5 @@
 import {DeployFunction} from 'hardhat-deploy/types'
-import {executeBatchUsingMultisig} from '../../helpers/multisig-helpers'
+import {executeBatchUsingMultisig} from '../../helpers/safe'
 
 const func: DeployFunction = executeBatchUsingMultisig
 

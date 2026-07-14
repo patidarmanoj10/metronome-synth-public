@@ -3,19 +3,18 @@ pragma solidity ^0.8.9;
 
 import "forge-std/Test.sol";
 import {FeeProviderHandler} from "./handlers/FeeProviderHandler.sol";
-import {PoolRegistry, IMasterOracle} from "../../contracts/PoolRegistry.sol";
-import {FeeProvider, FeeProviderStorageV1, TiersNotOrderedByMin} from "../../contracts/FeeProvider.sol";
-import {ERC20Mock} from "../../contracts/mock/ERC20Mock.sol";
-import {IESMET} from "../../contracts/interfaces/external/IESMET.sol";
+import {PoolRegistry, IMasterOracle} from "contracts/PoolRegistry.sol";
+import {ERC20Mock} from "contracts/mock/ERC20Mock.sol";
+import {IESMET} from "contracts/interfaces/external/IESMET.sol";
+import {FeeProvider} from "contracts/FeeProvider.sol";
 
 contract FeeProviderInvariant_Test is Test {
+    uint256 internal constant MAX_FEE_VALUE = 0.25e18;
+
     ERC20Mock esMET;
     PoolRegistry poolRegistry;
     FeeProvider feeProvider;
     FeeProviderHandler handler;
-
-    address public alice = address(1);
-    address public bob = address(2);
 
     function setUp() public {
         esMET = new ERC20Mock("esMET", "esMET", 18);
@@ -30,27 +29,21 @@ contract FeeProviderInvariant_Test is Test {
 
         handler = new FeeProviderHandler(feeProvider);
 
-        bytes4[] memory selectors = new bytes4[](2);
-        selectors[0] = FeeProviderHandler.setupTiers.selector;
-        selectors[1] = FeeProviderHandler.mintESMET.selector;
+        bytes4[] memory selectors = new bytes4[](1);
+        selectors[0] = FeeProviderHandler.updateSwapFee.selector;
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
-
-        targetSender(address(alice));
-        targetSender(address(bob));
 
         targetContract(address(handler));
     }
 
-    function invariant_swapFeeDiscount() public {
-        uint256 balanceOfAlice = esMET.balanceOf(alice);
-        uint256 balanceOfBob = esMET.balanceOf(bob);
+    /// @dev A swap fee can never be set above the protocol max, in any direction.
+    function invariant_swapFeeNeverExceedsMax() public view {
+        address[] memory synths = handler.getSynths();
 
-        if (balanceOfAlice > balanceOfBob) {
-            assertLe(feeProvider.swapFeeFor(alice), feeProvider.swapFeeFor(bob));
-        } else if (balanceOfAlice < balanceOfBob) {
-            assertGe(feeProvider.swapFeeFor(alice), feeProvider.swapFeeFor(bob));
-        } else {
-            assertEq(feeProvider.swapFeeFor(alice), feeProvider.swapFeeFor(bob));
+        for (uint256 i; i < synths.length; ++i) {
+            for (uint256 j; j < synths.length; ++j) {
+                assertLe(feeProvider.swapFees(synths[i], synths[j]), MAX_FEE_VALUE);
+            }
         }
     }
 

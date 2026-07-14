@@ -1,45 +1,43 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
+import "forge-std/Test.sol";
 import "./SynthHandlerBase.sol";
-import {FeeProvider, FeeProviderStorageV1} from "../../../contracts/FeeProvider.sol";
-import {ERC20Mock} from "../../../contracts/mock/ERC20Mock.sol";
+import {FeeProvider} from "contracts/FeeProvider.sol";
 
 contract FeeProviderHandler is SynthHandlerBase {
     FeeProvider feeProvider;
 
+    // Synth addresses used as swap-fee pair keys (`synthIn` => `synthOut`)
+    address[] internal synths;
+
     constructor(FeeProvider feeProvider_) SynthHandlerBase(IPool(address(0))) {
         feeProvider = feeProvider_;
         governor = feeProvider_.poolRegistry().governor();
+
+        synths.push(address(0x51));
+        synths.push(address(0x52));
+        synths.push(address(0x53));
     }
 
-    function setupTiers(uint128 min0, uint128 min1) public countCall("setupTiers") {
-        vm.prank(feeProvider.poolRegistry().governor());
-
-        uint256 half = type(uint128).max / 2;
-        min0 = uint128(bound(min0, 0, half));
-        min1 = uint128(bound(min1, half + 1, type(uint128).max));
-
-        vm.assume(min0 < min1);
-        FeeProviderStorageV1.Tier[] memory tiersArray = new FeeProviderStorageV1.Tier[](2);
-        tiersArray[0] = FeeProviderStorageV1.Tier({min: min0, discount: 0.1e18});
-        tiersArray[1] = FeeProviderStorageV1.Tier({min: min1, discount: 0.2e18});
-        feeProvider.updateTiers(tiersArray);
+    function getSynths() external view returns (address[] memory) {
+        return synths;
     }
 
-    function mintESMET(uint128 balance) public countCall("mintESMET") {
-        ERC20Mock esMET = ERC20Mock(address(feeProvider.esMET()));
-        esMET.mint(msg.sender, balance);
+    function _synthPair(uint256 inSeed_, uint256 outSeed_) internal view returns (address synthIn, address synthOut) {
+        synthIn = synths[bound(inSeed_, 0, synths.length - 1)];
+        synthOut = synths[bound(outSeed_, 0, synths.length - 1)];
     }
 
-    function updateDefaultSwapFee(uint256 fee) public useGovernor countCall("updateDefaultSwapFee") {
+    function updateSwapFee(uint256 inSeed, uint256 outSeed, uint256 fee) public useGovernor countCall("updateSwapFee") {
+        (address synthIn, address synthOut) = _synthPair(inSeed, outSeed);
         fee = bound(fee, 0.001e18, MAX_FEE);
 
-        if (fee == feeProvider.defaultSwapFee()) {
+        if (fee == feeProvider.swapFees(synthIn, synthOut)) {
             vm.expectRevert();
         }
 
-        feeProvider.updateDefaultSwapFee(fee);
+        feeProvider.updateSwapFee(synthIn, synthOut, fee);
     }
 
     function updateDepositFee(uint256 fee) public useGovernor countCall("updateDepositFee") {
@@ -106,9 +104,7 @@ contract FeeProviderHandler is SynthHandlerBase {
 
     function callSummary() public view {
         console.log("\nFeeProviderHandler Call Summary\n");
-        console.log("setupTiers                     ", calls["setupTiers"]);
-        console.log("mintESMET                      ", calls["mintESMET"]);
-        console.log("updateDefaultSwapFee           ", calls["updateDefaultSwapFee"]);
+        console.log("updateSwapFee          ", calls["updateSwapFee"]);
         console.log("updateDepositFee               ", calls["updateDepositFee"]);
         console.log("updateWithdrawFee              ", calls["updateWithdrawFee"]);
         console.log("updateIssueFee                 ", calls["updateIssueFee"]);

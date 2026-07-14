@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.9;
-
-import "../dependencies/openzeppelin/token/ERC20/extensions/IERC20Metadata.sol";
+pragma solidity 0.8.24;
 
 contract TokenOracleMock {
     mapping(address => uint256) public prices;

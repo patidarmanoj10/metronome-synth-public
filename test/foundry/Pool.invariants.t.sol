@@ -7,17 +7,19 @@ import {DepositTokenHandler} from "./handlers/DepositTokenHandler.sol";
 import {SyntheticTokenHandler} from "./handlers/SyntheticTokenHandler.sol";
 import {DebtTokenHandler} from "./handlers/DebtTokenHandler.sol";
 import {FeeProviderHandler} from "./handlers/FeeProviderHandler.sol";
-import {PoolRegistry} from "../../contracts/PoolRegistry.sol";
-import {Treasury} from "../../contracts/Treasury.sol";
-import {Pool} from "../../contracts/Pool.sol";
-import {MasterOracleMock, IMasterOracle} from "../../contracts/mock/MasterOracleMock.sol";
-import {SwapperMock} from "../../contracts/mock/SwapperMock.sol";
-import {DepositToken, IDepositToken} from "../../contracts/DepositToken.sol";
-import {FeeProvider, FeeProviderStorageV1, TiersNotOrderedByMin} from "../../contracts/FeeProvider.sol";
-import {ERC20Mock} from "../../contracts/mock/ERC20Mock.sol";
-import {IESMET} from "../../contracts/interfaces/external/IESMET.sol";
-import {SyntheticToken, ISyntheticToken} from "../../contracts/SyntheticToken.sol";
-import {DebtToken, IDebtToken} from "../../contracts/DebtToken.sol";
+import {PoolRegistry} from "contracts/PoolRegistry.sol";
+import {Treasury} from "contracts/Treasury.sol";
+import {Pool} from "contracts/Pool.sol";
+import {MasterOracleMock} from "contracts/mock/MasterOracleMock.sol";
+import {SwapperMock} from "contracts/mock/SwapperMock.sol";
+import {IDepositToken} from "contracts/interfaces/IDepositToken.sol";
+import {DepositToken} from "contracts/DepositToken.sol";
+import {ERC20Mock} from "contracts/mock/ERC20Mock.sol";
+import {IESMET} from "contracts/interfaces/external/IESMET.sol";
+import {SyntheticToken, ISyntheticToken} from "contracts/SyntheticToken.sol";
+import {IDebtToken} from "contracts/interfaces/IDebtToken.sol";
+import {DebtToken} from "contracts/DebtToken.sol";
+import {FeeProvider} from "contracts/FeeProvider.sol";
 
 contract PoolInvariant_Test is Test {
     MasterOracleMock masterOracle;
@@ -156,11 +158,16 @@ contract PoolInvariant_Test is Test {
         uint256 synthsSupplyInUsd;
 
         for (uint256 i; i < debtTokens.length; ++i) {
-            IDebtToken debtToken = IDebtToken(debtTokens[i]);
+            DebtToken debtToken = DebtToken(payable(debtTokens[i]));
             ISyntheticToken syntheticToken = debtToken.syntheticToken();
 
+            (, uint256 _pendingInterestFee) = debtToken.getPendingInterestFee();
+
             debtsSupplyInUsd += masterOracle.quoteTokenToUsd(address(syntheticToken), debtToken.totalSupply());
-            synthsSupplyInUsd += masterOracle.quoteTokenToUsd(address(syntheticToken), syntheticToken.totalSupply());
+            synthsSupplyInUsd += masterOracle.quoteTokenToUsd(
+                address(syntheticToken),
+                syntheticToken.totalSupply() + _pendingInterestFee
+            );
         }
 
         // Note: Assumes no price change along the tests

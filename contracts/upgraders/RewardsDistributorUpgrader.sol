@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.9;
 
-import "./UpgraderBase.sol";
+import {UpgraderBase} from "./UpgraderBase.sol";
 
 contract RewardsDistributorUpgrader is UpgraderBase {
     constructor(address _owner) {

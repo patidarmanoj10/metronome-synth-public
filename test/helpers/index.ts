@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 /* eslint-disable camelcase */
 import {BigNumber} from '@ethersproject/bignumber'
 import {parseEther} from '@ethersproject/units'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {ethers, network} from 'hardhat'
-import {Pool, DepositToken} from '../../typechain'
+import {DepositToken, Pool} from '../../typechain'
 import Address from '../../helpers/address'
 import {
   impersonateAccount as impersonate,
@@ -63,15 +64,36 @@ export const increaseTimeOfNextBlock = async (timeToIncrease: number): Promise<v
   await time.setNextBlockTimestamp(timestamp)
 }
 
-export const enableForking = async (): Promise<void> => {
+export const enableForking = async (
+  chain: 'mainnet' | 'optimism' | 'base' | 'hemi' | 'plasma' = 'mainnet'
+): Promise<void> => {
+  let blockNumber
+  let jsonRpcUrl
+
+  if (chain == 'optimism') {
+    blockNumber = parseInt(process.env.OPTIMISM_BLOCK_NUMBER!)
+    jsonRpcUrl = process.env.OPTIMISM_NODE_URL
+  } else if (chain == 'base') {
+    blockNumber = parseInt(process.env.BASE_BLOCK_NUMBER!)
+    jsonRpcUrl = process.env.BASE_NODE_URL
+  } else if (chain == 'hemi') {
+    blockNumber = parseInt(process.env.HEMI_BLOCK_NUMBER!)
+    jsonRpcUrl = process.env.HEMI_NODE_URL
+  } else if (chain == 'plasma') {
+    blockNumber = parseInt(process.env.PLASMA_BLOCK_NUMBER!)
+    jsonRpcUrl = process.env.PLASMA_NODE_URL
+  } else {
+    blockNumber = parseInt(process.env.MAINNET_BLOCK_NUMBER!)
+    jsonRpcUrl = process.env.MAINNET_NODE_URL
+  }
+
   await network.provider.request({
     method: 'hardhat_reset',
     params: [
       {
         forking: {
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          blockNumber: parseInt(process.env.BLOCK_NUMBER!),
-          jsonRpcUrl: process.env.NODE_URL,
+          blockNumber,
+          jsonRpcUrl,
         },
       },
     ],
@@ -133,6 +155,17 @@ const getBalancesSlot = (token: string) => {
       [Address.VAWSTETH_ADDRESS]: 0,
       [Address.VACBETH_ADDRESS]: 0,
     },
+    [43111]: {
+      [Address.USDC_ADDRESS]: 9,
+      [Address.WETH_ADDRESS]: 3,
+      [Address.rsETH_ADDRESS]: 5,
+    },
+    [1923]: {
+      [Address.WETH_ADDRESS]: 0,
+    },
+    [9745]: {
+      [Address.MSUSD_ADDRESS]: 3,
+    },
   }
 
   // only use checksum address
@@ -140,10 +173,19 @@ const getBalancesSlot = (token: string) => {
   return slots[network.config.chainId!][getAddress(token)]
 }
 
-export const setTokenBalance = async (token: string, targetAddress: string, balance: BigNumber): Promise<void> => {
-  const slot = getBalancesSlot(token)
+export const setTokenBalance = async (
+  token: string,
+  targetAddress: string,
+  balance: BigNumber,
+  slot?: number
+): Promise<void> => {
   if (slot === undefined) {
-    throw new Error(`Missing slot configuration for token ${token}`)
+    // eslint-disable-next-line no-param-reassign
+    slot = getBalancesSlot(token)
+
+    if (slot === undefined) {
+      throw new Error(`Missing slot configuration for token ${token}`)
+    }
   }
 
   // reason: https://github.com/nomiclabs/hardhat/issues/1585 comments

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.9;
+pragma solidity 0.8.24;
 
-import "../interfaces/IFeeProvider.sol";
-import "../interfaces/IPoolRegistry.sol";
-import "../interfaces/external/IESMET.sol";
+import {IFeeProvider} from "../interfaces/IFeeProvider.sol";
+import {IPoolRegistry} from "../interfaces/IPoolRegistry.sol";
+import {IESMET} from "../interfaces/external/IESMET.sol";
 
 abstract contract FeeProviderStorageV1 is IFeeProvider {
     struct Tier {
@@ -15,13 +15,13 @@ abstract contract FeeProviderStorageV1 is IFeeProvider {
     /**
      * @notice The fee discount tiers
      */
-    Tier[] public tiers;
+    Tier[] private tiers__DEPRECATED;
 
     /**
      * @notice The default fee charged when swapping synthetic tokens
      * @dev Use 18 decimals (e.g. 1e16 = 1%)
      */
-    uint256 public override defaultSwapFee;
+    uint256 private defaultSwapFee__DEPRECATED;
 
     /**
      * @notice The fee charged when depositing collateral
@@ -56,10 +56,18 @@ abstract contract FeeProviderStorageV1 is IFeeProvider {
     /**
      * @dev The Pool Registry
      */
-    IPoolRegistry public poolRegistry;
+    IPoolRegistry internal _poolRegistry;
 
     /**
      * @notice The esMET contract
      */
     IESMET public esMET;
+}
+
+abstract contract FeeProviderStorageV2 is FeeProviderStorageV1 {
+    /**
+     * @notice The fees charged when swapping synthetic tokens (by synthIn => synthOut directions)
+     * @dev Use 18 decimals (e.g. 1e16 = 1%)
+     */
+    mapping(address => mapping(address => uint256)) public override swapFees;
 }

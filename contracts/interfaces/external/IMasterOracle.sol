@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.9;
+pragma solidity 0.8.24;
 
 interface IMasterOracle {
     function quoteTokenToUsd(address _asset, uint256 _amount) external view returns (uint256 _amountInUsd);

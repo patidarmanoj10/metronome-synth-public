@@ -3,7 +3,7 @@ pragma solidity ^0.8.9;
 
 import "forge-std/Test.sol";
 import {TestHelpers} from "./helpers/TestHelpers.sol";
-import {PoolRegistry, IMasterOracle} from "../../contracts/PoolRegistry.sol";
+import {PoolRegistry, IMasterOracle} from "contracts/PoolRegistry.sol";
 
 contract PoolRegistryFuzz_Test is TestHelpers {
     using stdStorage for StdStorage;

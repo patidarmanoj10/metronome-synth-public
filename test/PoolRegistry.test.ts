@@ -283,17 +283,127 @@ describe('PoolRegistry', function () {
     })
   })
 
-  describe('toggleCrossChainFlashRepayIsActive', function () {
-    it('should toggle isCrossChainFlashRepayActive flag', async function () {
-      const before = await poolRegistry.isCrossChainFlashRepayActive()
-      const after = !before
-      const tx = poolRegistry.toggleCrossChainFlashRepayIsActive()
-      await expect(tx).emit(poolRegistry, 'CrossChainFlashRepayActiveUpdated').withArgs(after)
-      expect(await poolRegistry.isCrossChainFlashRepayActive()).eq(after)
+  describe('addGuardian', function () {
+    it('should revert if not governor', async function () {
+      const tx = poolRegistry.connect(alice).addGuardian(alice.address)
+      await expect(tx).revertedWithCustomError(poolRegistry, 'SenderIsNotGovernor')
+    })
+
+    it('should revert if guardian is null', async function () {
+      const tx = poolRegistry.addGuardian(ethers.constants.AddressZero)
+      await expect(tx).revertedWithCustomError(poolRegistry, 'AddressIsNull')
+    })
+
+    it('should revert if adding twice', async function () {
+      await poolRegistry.addGuardian(alice.address)
+      const tx = poolRegistry.addGuardian(alice.address)
+      await expect(tx).revertedWithCustomError(poolRegistry, 'AlreadyRegistered')
+    })
+
+    it('should register guardian', async function () {
+      // given
+      expect(await poolRegistry.getGuardians()).to.deep.eq([])
+
+      // when
+
+      const tx = poolRegistry.addGuardian(alice.address)
+
+      // then
+      await expect(tx).emit(poolRegistry, 'GuardianAdded').withArgs(alice.address)
+      expect(await poolRegistry.getGuardians()).to.deep.eq([alice.address])
+    })
+  })
+
+  describe('removeGuardian', function () {
+    beforeEach(async function () {
+      await poolRegistry.addGuardian(alice.address)
     })
 
     it('should revert if not governor', async function () {
-      const tx = poolRegistry.connect(alice).toggleCrossChainFlashRepayIsActive()
+      const tx = poolRegistry.connect(alice).removeGuardian(alice.address)
+      await expect(tx).revertedWithCustomError(poolRegistry, 'SenderIsNotGovernor')
+    })
+
+    it('should revert if guardian is not registered', async function () {
+      await poolRegistry.removeGuardian(alice.address)
+      const tx = poolRegistry.removeGuardian(alice.address)
+      await expect(tx).revertedWithCustomError(poolRegistry, 'UnregisteredGuardian')
+    })
+
+    it('should unregister guardian', async function () {
+      // given
+      expect(await poolRegistry.getGuardians()).to.deep.eq([alice.address])
+
+      // when
+      const tx = poolRegistry.removeGuardian(alice.address)
+
+      // then
+      await expect(tx).emit(poolRegistry, 'GuardianRemoved').withArgs(alice.address)
+      expect(await poolRegistry.getGuardians()).to.deep.eq([])
+    })
+  })
+
+  describe('shutdown', function () {
+    beforeEach(async function () {
+      await poolRegistry.addGuardian(alice.address)
+    })
+
+    it('should revert if not governor nor guardian', async function () {
+      const tx = poolRegistry.connect(bob).shutdown()
+      await expect(tx).revertedWithCustomError(poolRegistry, 'SenderIsNotAuthorized')
+    })
+
+    it('should shutdown as guardian', async function () {
+      // given
+      expect(await poolRegistry.everythingStopped()).false
+
+      // when
+      await poolRegistry.connect(alice).shutdown()
+
+      // then
+      expect(await poolRegistry.everythingStopped()).true
+    })
+  })
+
+  describe('open', function () {
+    beforeEach(async function () {
+      await poolRegistry.shutdown()
+    })
+
+    it('should revert if not governor', async function () {
+      // given
+      await poolRegistry.addGuardian(alice.address)
+
+      // when
+      const tx = poolRegistry.connect(alice).open()
+
+      // then
+      await expect(tx).revertedWithCustomError(poolRegistry, 'SenderIsNotGovernor')
+    })
+
+    it('should open', async function () {
+      // given
+      expect(await poolRegistry.everythingStopped()).true
+
+      // when
+      await poolRegistry.open()
+
+      // then
+      expect(await poolRegistry.everythingStopped()).false
+    })
+  })
+
+  describe('toggleBridgingIsActive', function () {
+    it('should toggle isBridgingActive flag', async function () {
+      const before = await poolRegistry.isBridgingActive()
+      const after = !before
+      const tx = poolRegistry.toggleBridgingIsActive()
+      await expect(tx).emit(poolRegistry, 'BridgingIsActiveUpdated').withArgs(after)
+      expect(await poolRegistry.isBridgingActive()).eq(after)
+    })
+
+    it('should revert if not governor', async function () {
+      const tx = poolRegistry.connect(alice).toggleBridgingIsActive()
       await expect(tx).revertedWithCustomError(poolRegistry, 'SenderIsNotGovernor')
     })
   })

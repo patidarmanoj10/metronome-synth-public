@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.9;
+pragma solidity 0.8.24;
 
-import "./IPool.sol";
+import {IPool} from "./IPool.sol";
 
 /**
  * @notice Manageable interface

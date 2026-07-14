@@ -1,12 +1,19 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.9;
+pragma solidity 0.8.24;
 
-import "./utils/ReentrancyGuard.sol";
-import "./utils/TokenHolder.sol";
-import "./access/Manageable.sol";
-import "./storage/DebtTokenStorage.sol";
-import "./lib/WadRayMath.sol";
+import {Initializable} from "./dependencies/openzeppelin-upgradeable/proxy/utils/Initializable.sol";
+import {IERC20} from "./dependencies/openzeppelin/token/ERC20/IERC20.sol";
+import {Manageable} from "./access/Manageable.sol";
+import {ReentrancyGuardDeprecated} from "./utils/ReentrancyGuardDeprecated.sol";
+import {ReentrancyGuardTransient} from "./utils/ReentrancyGuardTransient.sol";
+import {TokenHolder} from "./utils/TokenHolder.sol";
+import {WadRayMath} from "./lib/WadRayMath.sol";
+import {IMasterOracle} from "./interfaces/external/IMasterOracle.sol";
+import {IPool} from "./interfaces/IPool.sol";
+import {ISyntheticToken} from "./interfaces/ISyntheticToken.sol";
+import {IRewardsDistributor} from "./interfaces/IRewardsDistributor.sol";
+import {DebtTokenStorageV2} from "./storage/DebtTokenStorage.sol";
 
 error SyntheticDoesNotExist();
 error SyntheticIsInactive();
@@ -32,10 +39,17 @@ error SenderIsNotSmartFarmingManager();
 /**
  * @title Non-transferable token that represents users' debts
  */
-contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorageV2 {
+contract DebtToken is
+    Initializable,
+    ReentrancyGuardDeprecated,
+    ReentrancyGuardTransient,
+    TokenHolder,
+    Manageable,
+    DebtTokenStorageV2
+{
     using WadRayMath for uint256;
 
-    string public constant VERSION = "1.3.0";
+    string public constant VERSION = "1.3.2";
 
     uint256 public constant SECONDS_PER_YEAR = 365.25 days;
     uint256 private constant HUNDRED_PERCENT = 1e18;
@@ -65,7 +79,7 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
      * @dev Throws if sender is not SmartFarmingManager
      */
     modifier onlyIfSmartFarmingManager() {
-        if (msg.sender != address(pool.smartFarmingManager())) revert SenderIsNotSmartFarmingManager();
+        if (_msgSender() != address(pool.smartFarmingManager())) revert SenderIsNotSmartFarmingManager();
         _;
     }
 
@@ -99,10 +113,9 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
      */
     modifier updateRewardsBeforeMintOrBurn(address account_) {
         address[] memory _rewardsDistributors = pool.getRewardsDistributors();
-        ISyntheticToken _syntheticToken = syntheticToken;
         uint256 _length = _rewardsDistributors.length;
         for (uint256 i; i < _length; ++i) {
-            IRewardsDistributor(_rewardsDistributors[i]).updateBeforeMintOrBurn(_syntheticToken, account_);
+            IRewardsDistributor(_rewardsDistributors[i]).updateBeforeMintOrBurn(this, account_);
         }
         _;
     }
@@ -124,7 +137,6 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
         if (address(pool_) == address(0)) revert PoolIsNull();
         if (address(syntheticToken_) == address(0)) revert SyntheticIsNull();
 
-        __ReentrancyGuard_init();
         __Manageable_init(pool_);
 
         name = name_;
@@ -235,10 +247,11 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
 
         accrueInterest();
 
+        address _msgSender = _msgSender();
         IPool _pool = pool;
         ISyntheticToken _syntheticToken = syntheticToken;
 
-        (, , , , uint256 _issuableInUsd) = _pool.debtPositionOf(msg.sender);
+        (, , , , uint256 _issuableInUsd) = _pool.debtPositionOf(_msgSender);
 
         IMasterOracle _masterOracle = _pool.masterOracle();
 
@@ -246,7 +259,7 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
             revert NotEnoughCollateral();
         }
 
-        _mint(_pool, _masterOracle, msg.sender, amount_);
+        _mint(_pool, _masterOracle, _msgSender, amount_);
 
         (_issued, _fee) = quoteIssueOut(amount_);
         if (_fee > 0) {
@@ -254,7 +267,7 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
         }
         _syntheticToken.mint(to_, _issued);
 
-        emit SyntheticTokenIssued(msg.sender, to_, amount_, _issued, _fee);
+        emit SyntheticTokenIssued(_msgSender, to_, amount_, _issued, _fee);
     }
 
     /**
@@ -289,6 +302,15 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
             _syntheticToken.mint(pool.feeCollector(), _fee);
         }
         _syntheticToken.mint(to_, _issued);
+    }
+
+    /**
+     * @notice Get updated pending interest fee
+     */
+    function getPendingInterestFee() external view returns (uint256 _stored, uint256 _current) {
+        (uint256 _interestAmountAccrued, , ) = _calculateInterestAccrual();
+        uint256 _pendingInterestFee = pendingInterestFee;
+        return (_pendingInterestFee, _pendingInterestFee + _interestAmountAccrued);
     }
 
     /**
@@ -388,7 +410,7 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
 
     /**
      * @notice Send synthetic token to decrease debt
-     * @dev The msg.sender is the payer and the account beneficed
+     * @dev The _msgSender() is the payer and the account beneficed
      * @param onBehalfOf_ The account that will have debt decreased
      * @param amount_ The amount of synthetic token to burn (this is the gross amount, the repay fee will be subtracted from it)
      * @return _repaid The amount repaid after fees
@@ -408,12 +430,13 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
 
         accrueInterest();
 
+        address _msgSender = _msgSender();
         IPool _pool = pool;
         ISyntheticToken _syntheticToken = syntheticToken;
 
         (_repaid, _fee) = quoteRepayOut(amount_);
         if (_fee > 0) {
-            _syntheticToken.seize(msg.sender, _pool.feeCollector(), _fee);
+            _syntheticToken.seize(_msgSender, _pool.feeCollector(), _fee);
         }
 
         uint256 _debtFloorInUsd = _pool.debtFloorInUsd();
@@ -427,10 +450,10 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
             }
         }
 
-        _syntheticToken.burn(msg.sender, _repaid);
+        _syntheticToken.burn(_msgSender, _repaid);
         _burn(onBehalfOf_, _repaid);
 
-        emit DebtRepaid(msg.sender, onBehalfOf_, amount_, _repaid, _fee);
+        emit DebtRepaid(_msgSender, onBehalfOf_, amount_, _repaid, _fee);
     }
 
     /**
@@ -455,19 +478,20 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
         _repaid = balanceOf(onBehalfOf_);
         if (_repaid == 0) revert AmountIsZero();
 
+        address _msgSender = _msgSender();
         ISyntheticToken _syntheticToken = syntheticToken;
 
         uint256 _amount;
         (_amount, _fee) = quoteRepayIn(_repaid);
 
         if (_fee > 0) {
-            _syntheticToken.seize(msg.sender, pool.feeCollector(), _fee);
+            _syntheticToken.seize(_msgSender, pool.feeCollector(), _fee);
         }
 
-        _syntheticToken.burn(msg.sender, _repaid);
+        _syntheticToken.burn(_msgSender, _repaid);
         _burn(onBehalfOf_, _repaid);
 
-        emit DebtRepaid(msg.sender, onBehalfOf_, _amount, _repaid, _fee);
+        emit DebtRepaid(_msgSender, onBehalfOf_, _amount, _repaid, _fee);
     }
 
     /**
@@ -536,7 +560,7 @@ contract DebtToken is ReentrancyGuard, TokenHolder, Manageable, DebtTokenStorage
             uint256 _interestRateToAccrue = interestRatePerSecond() * (block.timestamp - _lastTimestampAccrued);
             if (_interestRateToAccrue > 0) {
                 _interestAmountAccrued = _interestRateToAccrue.wadMul(totalSupply_);
-                _debtIndex += _interestRateToAccrue.wadMul(debtIndex);
+                _debtIndex += _interestRateToAccrue.wadMul(_debtIndex);
             }
         }
     }

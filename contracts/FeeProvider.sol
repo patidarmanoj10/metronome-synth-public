@@ -1,28 +1,28 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.9;
+pragma solidity 0.8.24;
 
-import "./dependencies/openzeppelin-upgradeable/proxy/utils/Initializable.sol";
-import "./storage/FeeProviderStorage.sol";
-import "./lib/WadRayMath.sol";
+import {Initializable} from "./dependencies/openzeppelin-upgradeable/proxy/utils/Initializable.sol";
+import {SynthContext} from "./utils/SynthContext.sol";
+import {FeeProviderStorageV2} from "./storage/FeeProviderStorage.sol";
+import {IPoolRegistry} from "./interfaces/IPoolRegistry.sol";
+import {IESMET} from "./interfaces/external/IESMET.sol";
+import {WadRayMath} from "./lib/WadRayMath.sol";
 
 error SenderIsNotGovernor();
 error PoolRegistryIsNull();
 error NewValueIsSameAsCurrent();
 error FeeIsGreaterThanTheMax();
-error TierDiscountTooHigh();
-error TiersNotOrderedByMin();
 
 /**
  * @title FeeProvider contract
  */
-contract FeeProvider is Initializable, FeeProviderStorageV1 {
+contract FeeProvider is SynthContext, Initializable, FeeProviderStorageV2 {
     using WadRayMath for uint256;
 
-    string public constant VERSION = "1.3.0";
+    string public constant VERSION = "1.3.2";
 
     uint256 internal constant MAX_FEE_VALUE = 0.25e18; // 25%
-    uint256 internal constant MAX_FEE_DISCOUNT = 1e18; // 100%
 
     /// @notice Emitted when deposit fee is updated
     event DepositFeeUpdated(uint256 oldDepositFee, uint256 newDepositFee);
@@ -40,10 +40,7 @@ contract FeeProvider is Initializable, FeeProviderStorageV1 {
     event RepayFeeUpdated(uint256 oldRepayFee, uint256 newRepayFee);
 
     /// @notice Emitted when swap fee is updated
-    event SwapDefaultFeeUpdated(uint256 oldSwapFee, uint256 newSwapFee);
-
-    /// @notice Emitted when tiers are updated
-    event TiersUpdated(Tier[] oldTiers, Tier[] newTiers);
+    event SwapFeeUpdated(address synthIn, address synthOut, uint256 oldSwapFee, uint256 newSwapFee);
 
     /// @notice Emitted when withdraw fee is updated
     event WithdrawFeeUpdated(uint256 oldWithdrawFee, uint256 newWithdrawFee);
@@ -52,7 +49,7 @@ contract FeeProvider is Initializable, FeeProviderStorageV1 {
      * @notice Throws if caller isn't the governor
      */
     modifier onlyGovernor() {
-        if (msg.sender != poolRegistry.governor()) revert SenderIsNotGovernor();
+        if (_msgSender() != _poolRegistry.governor()) revert SenderIsNotGovernor();
         _;
     }
 
@@ -63,60 +60,18 @@ contract FeeProvider is Initializable, FeeProviderStorageV1 {
     function initialize(IPoolRegistry poolRegistry_, IESMET esMET_) public initializer {
         if (address(poolRegistry_) == address(0)) revert PoolRegistryIsNull();
 
-        poolRegistry = poolRegistry_;
+        _poolRegistry = poolRegistry_;
         esMET = esMET_;
 
         liquidationFees = LiquidationFees({
             liquidatorIncentive: 1e17, // 10%
             protocolFee: 8e16 // 8%
         });
-        defaultSwapFee = 25e14; // 0.25%
     }
 
-    /**
-     * @notice Get fee discount tiers
-     */
-    function getTiers() external view returns (Tier[] memory _tiers) {
-        return tiers;
-    }
-
-    /**
-     * @notice Get the swap fee for a given account
-     * Fee discount are applied on top of the default swap fee depending on user's esMET balance
-     * @param account_ The account address
-     * @return _swapFee The account's swap fee
-     */
-    function swapFeeFor(address account_) external view override returns (uint256 _swapFee) {
-        uint256 _len = tiers.length;
-
-        if (_len == 0) {
-            return defaultSwapFee;
-        }
-
-        uint256 _balance = esMET.balanceOf(account_);
-
-        if (_balance < tiers[0].min) {
-            return defaultSwapFee;
-        }
-
-        uint256 i = 1;
-        while (i < _len) {
-            if (_balance < tiers[i].min) {
-                unchecked {
-                    // Note: `discount` is always <= `1e18`
-                    return defaultSwapFee.wadMul(1e18 - tiers[i - 1].discount);
-                }
-            }
-
-            unchecked {
-                ++i;
-            }
-        }
-
-        unchecked {
-            // Note: `discount` is always <= `1e18`
-            return defaultSwapFee.wadMul(1e18 - tiers[_len - 1].discount);
-        }
+    /// @inheritdoc SynthContext
+    function poolRegistry() public view override returns (IPoolRegistry) {
+        return _poolRegistry;
     }
 
     /**
@@ -179,28 +134,12 @@ contract FeeProvider is Initializable, FeeProviderStorageV1 {
     /**
      * @notice Update swap fee
      */
-    function updateDefaultSwapFee(uint256 newDefaultSwapFee_) external onlyGovernor {
-        if (newDefaultSwapFee_ > MAX_FEE_VALUE) revert FeeIsGreaterThanTheMax();
-        uint256 _current = defaultSwapFee;
-        if (newDefaultSwapFee_ == _current) revert NewValueIsSameAsCurrent();
-        emit SwapDefaultFeeUpdated(_current, newDefaultSwapFee_);
-        defaultSwapFee = newDefaultSwapFee_;
-    }
-
-    /**
-     * @notice Update fee discount tiers
-     */
-    function updateTiers(Tier[] memory tiers_) external onlyGovernor {
-        emit TiersUpdated(tiers, tiers_);
-        delete tiers;
-
-        uint256 _len = tiers_.length;
-        for (uint256 i; i < _len; ++i) {
-            Tier memory _tier = tiers_[i];
-            if (_tier.discount > MAX_FEE_DISCOUNT) revert TierDiscountTooHigh();
-            if (i > 0 && tiers_[i - 1].min > _tier.min) revert TiersNotOrderedByMin();
-            tiers.push(_tier);
-        }
+    function updateSwapFee(address synthIn_, address synthOut_, uint256 newSwapFee_) external onlyGovernor {
+        if (newSwapFee_ > MAX_FEE_VALUE) revert FeeIsGreaterThanTheMax();
+        uint256 _current = swapFees[synthIn_][synthOut_];
+        if (newSwapFee_ == _current) revert NewValueIsSameAsCurrent();
+        emit SwapFeeUpdated(synthIn_, synthOut_, _current, newSwapFee_);
+        swapFees[synthIn_][synthOut_] = newSwapFee_;
     }
 
     /**

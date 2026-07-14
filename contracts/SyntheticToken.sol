@@ -1,12 +1,18 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.9;
+pragma solidity 0.8.24;
 
-import "./dependencies/openzeppelin-upgradeable/proxy/utils/Initializable.sol";
-import "./interfaces/IPool.sol";
-import "./interfaces/IManageable.sol";
-import "./lib/WadRayMath.sol";
-import "./storage/SyntheticTokenStorage.sol";
+import {Initializable} from "./dependencies/openzeppelin-upgradeable/proxy/utils/Initializable.sol";
+import {IERC20} from "./dependencies/openzeppelin/token/ERC20/IERC20.sol";
+import {SynthContext} from "./utils/SynthContext.sol";
+import {WadRayMath} from "./lib/WadRayMath.sol";
+import {IPool} from "./interfaces/IPool.sol";
+import {IProxyOFT} from "./interfaces/IProxyOFT.sol";
+import {IManageable} from "./interfaces/IManageable.sol";
+import {IPoolRegistry} from "./interfaces/IPoolRegistry.sol";
+import {ISyntheticToken} from "./interfaces/ISyntheticToken.sol";
+import {IDebtToken} from "./interfaces/IDebtToken.sol";
+import {SyntheticTokenStorageV2} from "./storage/SyntheticTokenStorage.sol";
 
 error SenderIsNotGovernor();
 error SenderCanNotBurn();
@@ -31,17 +37,22 @@ error TransferToTheZeroAddress();
 error TransferAmountExceedsBalance();
 error NewValueIsSameAsCurrent();
 error AddressIsNull();
+error AmoInvalidAccount();
+error SurpassMaxAmoSupply();
 
 /**
  * @title Synthetic Token contract
  */
-contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
+contract SyntheticToken is SynthContext, Initializable, SyntheticTokenStorageV2 {
     using WadRayMath for uint256;
 
-    string public constant VERSION = "1.3.0";
+    string public constant VERSION = "1.3.2";
 
     /// @notice Emitted when active flag is updated
     event SyntheticTokenActiveUpdated(bool newActive);
+
+    /// @notice Emitted when max amo supply is updated
+    event MaxAmoSupplyUpdated(uint256 oldMaxAmoSupply, uint256 newMaxAmoSupply);
 
     /// @notice Emitted when max total supply is updated
     event MaxTotalSupplyUpdated(uint256 oldMaxTotalSupply, uint256 newMaxTotalSupply);
@@ -55,11 +66,14 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
     /// @notice Emitted when proxyOFT is updated
     event ProxyOFTUpdated(IProxyOFT oldProxyOFT, IProxyOFT newProxyOFT);
 
+    /// @notice Emitted when AMO is updated
+    event AmoUpdated(address oldAmo, address newAmo);
+
     /**
      * @notice Throws if caller isn't the governor
      */
     modifier onlyGovernor() {
-        if (msg.sender != poolRegistry.governor()) revert SenderIsNotGovernor();
+        if (_msgSender() != _poolRegistry.governor()) revert SenderIsNotGovernor();
         _;
     }
 
@@ -67,7 +81,13 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
      * @dev Throws if sender can't burn
      */
     modifier onlyIfCanBurn() {
-        if (!_isMsgSenderProxyOFT() && !_isMsgSenderPool() && !_isMsgSenderDebtToken()) revert SenderCanNotBurn();
+        address _msgSender = _msgSender();
+        if (
+            !_isMsgSenderProxyOFT(_msgSender) &&
+            !_isMsgSenderAmo(_msgSender) &&
+            !_isMsgSenderPool(_msgSender) &&
+            !_isMsgSenderDebtToken(_msgSender)
+        ) revert SenderCanNotBurn();
         _;
     }
 
@@ -75,7 +95,13 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
      * @dev Throws if sender can't mint
      */
     modifier onlyIfCanMint() {
-        if (!_isMsgSenderProxyOFT() && !_isMsgSenderPool() && !_isMsgSenderDebtToken()) revert SenderCanNotMint();
+        address _msgSender = _msgSender();
+        if (
+            !_isMsgSenderProxyOFT(_msgSender) &&
+            !_isMsgSenderAmo(_msgSender) &&
+            !_isMsgSenderPool(_msgSender) &&
+            !_isMsgSenderDebtToken(_msgSender)
+        ) revert SenderCanNotMint();
         _;
     }
 
@@ -83,7 +109,8 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
      * @dev Throws if sender can't seize
      */
     modifier onlyIfCanSeize() {
-        if (!_isMsgSenderPool() && !_isMsgSenderDebtToken()) revert SenderCanNotSeize();
+        address _msgSender = _msgSender();
+        if (!_isMsgSenderPool(_msgSender) && !_isMsgSenderDebtToken(_msgSender)) revert SenderCanNotSeize();
         _;
     }
 
@@ -110,7 +137,7 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
         if (decimals_ == 0) revert DecimalsIsNull();
         if (address(poolRegistry_) == address(0)) revert PoolRegistryIsNull();
 
-        poolRegistry = poolRegistry_;
+        _poolRegistry = poolRegistry_;
         name = name_;
         symbol = symbol_;
         decimals = decimals_;
@@ -122,7 +149,7 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
      * @notice Set `amount` as the allowance of `spender` over the caller's tokens
      */
     function approve(address spender_, uint256 amount_) external override returns (bool) {
-        _approve(msg.sender, spender_, amount_);
+        _approve(_msgSender(), spender_, amount_);
         return true;
     }
 
@@ -165,10 +192,11 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
      * @notice Atomically decrease the allowance granted to `spender` by the caller
      */
     function decreaseAllowance(address spender_, uint256 subtractedValue_) external returns (bool) {
-        uint256 _currentAllowance = allowance[msg.sender][spender_];
+        address _msgSender = _msgSender();
+        uint256 _currentAllowance = allowance[_msgSender][spender_];
         if (_currentAllowance < subtractedValue_) revert DecreasedAllowanceBelowZero();
         unchecked {
-            _approve(msg.sender, spender_, _currentAllowance - subtractedValue_);
+            _approve(_msgSender, spender_, _currentAllowance - subtractedValue_);
         }
         return true;
     }
@@ -177,7 +205,8 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
      * @notice Atomically increase the allowance granted to `spender` by the caller
      */
     function increaseAllowance(address spender_, uint256 addedValue_) external returns (bool) {
-        _approve(msg.sender, spender_, allowance[msg.sender][spender_] + addedValue_);
+        address _msgSender = _msgSender();
+        _approve(_msgSender, spender_, allowance[_msgSender][spender_] + addedValue_);
         return true;
     }
 
@@ -202,22 +231,23 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
     }
 
     /// @inheritdoc IERC20
-    function transfer(address recipient_, uint256 amount_) external override returns (bool) {
-        _transfer(msg.sender, recipient_, amount_);
+    function transfer(address to_, uint256 amount_) external override returns (bool) {
+        _transfer(_msgSender(), to_, amount_);
         return true;
     }
 
     /// @inheritdoc IERC20
-    function transferFrom(address sender_, address recipient_, uint256 amount_) external override returns (bool) {
-        uint256 _currentAllowance = allowance[sender_][msg.sender];
+    function transferFrom(address from_, address to_, uint256 amount_) external override returns (bool) {
+        address _msgSender = _msgSender();
+        uint256 _currentAllowance = allowance[from_][_msgSender];
         if (_currentAllowance != type(uint256).max) {
             if (_currentAllowance < amount_) revert AmountExceedsAllowance();
             unchecked {
-                _approve(sender_, msg.sender, _currentAllowance - amount_);
+                _approve(from_, _msgSender, _currentAllowance - amount_);
             }
         }
 
-        _transfer(sender_, recipient_, amount_);
+        _transfer(from_, to_, amount_);
 
         return true;
     }
@@ -240,9 +270,17 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
     function _burn(address account_, uint256 amount_) private {
         if (account_ == address(0)) revert BurnFromTheZeroAddress();
 
-        if (_isMsgSenderProxyOFT()) {
+        address _msgSender = _msgSender();
+
+        if (_isMsgSenderProxyOFT(_msgSender)) {
             totalBridgedOut += amount_;
             if (bridgedOutSupply() > maxBridgedOutSupply) revert SurpassMaxBridgingSupply();
+        } else if (_isMsgSenderAmo(_msgSender)) {
+            // AMO can only burn from self address.
+            // account_ should be AMO and in this case it is same as _msgSender()
+            if (account_ != _msgSender) revert AmoInvalidAccount();
+
+            amoSupply -= amount_;
         }
 
         uint256 _currentBalance = balanceOf[account_];
@@ -256,29 +294,36 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
     }
 
     /**
+     * @dev Check if the sender is AMO
+     */
+    function _isMsgSenderAmo(address sender_) private view returns (bool) {
+        return sender_ == amo;
+    }
+
+    /**
      * @dev Check if the sender is proxyOFT
      */
-    function _isMsgSenderProxyOFT() private view returns (bool) {
-        return msg.sender == address(proxyOFT);
+    function _isMsgSenderProxyOFT(address sender_) private view returns (bool) {
+        return sender_ == address(proxyOFT);
     }
 
     /**
      * @notice Check if the sender is a valid DebtToken contract
      */
-    function _isMsgSenderDebtToken() private view returns (bool) {
-        IPool _pool = IManageable(msg.sender).pool();
+    function _isMsgSenderDebtToken(address sender_) private view returns (bool) {
+        IPool _pool = IManageable(sender_).pool();
 
         return
-            poolRegistry.isPoolRegistered(address(_pool)) &&
-            _pool.doesDebtTokenExist(IDebtToken(msg.sender)) &&
-            IDebtToken(msg.sender).syntheticToken() == this;
+            _poolRegistry.isPoolRegistered(address(_pool)) &&
+            _pool.doesDebtTokenExist(IDebtToken(sender_)) &&
+            IDebtToken(sender_).syntheticToken() == this;
     }
 
     /**
      * @notice Check if the sender is a valid Pool contract
      */
-    function _isMsgSenderPool() private view returns (bool) {
-        return poolRegistry.isPoolRegistered(msg.sender) && IPool(msg.sender).doesSyntheticTokenExist(this);
+    function _isMsgSenderPool(address sender_) private view returns (bool) {
+        return _poolRegistry.isPoolRegistered(sender_) && IPool(sender_).doesSyntheticTokenExist(this);
     }
 
     /**
@@ -288,9 +333,14 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
     function _mint(address account_, uint256 amount_) private onlyIfSyntheticTokenIsActive {
         if (account_ == address(0)) revert MintToTheZeroAddress();
 
-        if (_isMsgSenderProxyOFT()) {
+        address _msgSender = _msgSender();
+
+        if (_isMsgSenderProxyOFT(_msgSender)) {
             totalBridgedIn += amount_;
             if (bridgedInSupply() > maxBridgedInSupply) revert SurpassMaxBridgingSupply();
+        } else if (_isMsgSenderAmo(_msgSender)) {
+            amoSupply += amount_;
+            if (amoSupply > maxAmoSupply) revert SurpassMaxAmoSupply();
         }
 
         totalSupply += amount_;
@@ -323,6 +373,28 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
         bool _newIsActive = !isActive;
         emit SyntheticTokenActiveUpdated(_newIsActive);
         isActive = _newIsActive;
+    }
+
+    /**
+     * Update AMO (Automated Marker Operator)
+     * @param newAmo_ new AMO address
+     */
+    function updateAmo(address newAmo_) external onlyGovernor {
+        address _currentAmo = amo;
+        if (newAmo_ == _currentAmo) revert NewValueIsSameAsCurrent();
+        emit AmoUpdated(_currentAmo, newAmo_);
+        amo = newAmo_;
+    }
+
+    /**
+     * @notice Update max synth supply for AMO.
+     * @param newMaxAmoSupply_ The new max synth supply for AMO
+     */
+    function updateMaxAmoSupply(uint256 newMaxAmoSupply_) external onlyGovernor {
+        uint256 _currentMaxAmoSupply = maxAmoSupply;
+        if (newMaxAmoSupply_ == _currentMaxAmoSupply) revert NewValueIsSameAsCurrent();
+        emit MaxAmoSupplyUpdated(_currentMaxAmoSupply, newMaxAmoSupply_);
+        maxAmoSupply = newMaxAmoSupply_;
     }
 
     /**
@@ -366,5 +438,10 @@ contract SyntheticToken is Initializable, SyntheticTokenStorageV1 {
         if (newProxyOFT_ == _currentProxyOFT) revert NewValueIsSameAsCurrent();
         emit ProxyOFTUpdated(_currentProxyOFT, newProxyOFT_);
         proxyOFT = newProxyOFT_;
+    }
+
+    /// @inheritdoc SynthContext
+    function poolRegistry() public view override(ISyntheticToken, SynthContext) returns (IPoolRegistry) {
+        return _poolRegistry;
     }
 }

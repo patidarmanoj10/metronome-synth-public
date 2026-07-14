@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.9;
+pragma solidity 0.8.24;
 
-import "../dependencies/openzeppelin/token/ERC20/extensions/IERC20Metadata.sol";
-import "./IDebtToken.sol";
-import "./IPoolRegistry.sol";
-import "../interfaces/IProxyOFT.sol";
+import {IERC20Metadata} from "../dependencies/openzeppelin/token/ERC20/extensions/IERC20Metadata.sol";
+import {IPoolRegistry} from "./IPoolRegistry.sol";
+import {IProxyOFT} from "../interfaces/IProxyOFT.sol";
 
 interface ISyntheticToken is IERC20Metadata {
     function isActive() external view returns (bool);
@@ -27,4 +26,6 @@ interface ISyntheticToken is IERC20Metadata {
     function maxTotalSupply() external view returns (uint256);
 
     function proxyOFT() external view returns (IProxyOFT);
+
+    function amoSupply() external view returns (uint256);
 }

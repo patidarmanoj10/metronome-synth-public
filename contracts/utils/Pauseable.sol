@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.9;
+pragma solidity 0.8.24;
 
-import "../interfaces/IPauseable.sol";
-import "../access/Governable.sol";
+import {IPauseable} from "../interfaces/IPauseable.sol";
+import {Governable} from "../access/Governable.sol";
 
 error IsPaused();
 error IsShutdown();
 error IsNotPaused();
 error IsNotShutdown();
+error SenderIsNotAuthorized();
 
 /**
  * @dev Contract module which allows children to implement an emergency stop
@@ -29,6 +30,11 @@ abstract contract Pauseable is IPauseable, Governable {
 
     bool private _paused;
     bool private _everythingStopped;
+
+    modifier canShutdown() {
+        if (_msgSender() != governor && !isGuardian(_msgSender())) revert SenderIsNotAuthorized();
+        _;
+    }
 
     /**
      * @dev Throws if contract is paused
@@ -90,7 +96,7 @@ abstract contract Pauseable is IPauseable, Governable {
      */
     function open() external virtual whenShutdown onlyGovernor {
         _everythingStopped = false;
-        emit Open(msg.sender);
+        emit Open(_msgSender());
     }
 
     /**
@@ -98,16 +104,16 @@ abstract contract Pauseable is IPauseable, Governable {
      */
     function pause() external virtual whenNotPaused onlyGovernor {
         _paused = true;
-        emit Paused(msg.sender);
+        emit Paused(_msgSender());
     }
 
     /**
      * @dev Suspend all features (issue, repay, deposit, withdraw, liquidate and swap), if not already shutdown.
      */
-    function shutdown() external virtual whenNotShutdown onlyGovernor {
+    function shutdown() external virtual whenNotShutdown canShutdown {
         _everythingStopped = true;
         _paused = true;
-        emit Shutdown(msg.sender);
+        emit Shutdown(_msgSender());
     }
 
     /**
@@ -115,6 +121,11 @@ abstract contract Pauseable is IPauseable, Governable {
      */
     function unpause() external virtual whenPaused whenNotShutdown onlyGovernor {
         _paused = false;
-        emit Unpaused(msg.sender);
+        emit Unpaused(_msgSender());
     }
+
+    /**
+     * @dev Check if the sender is an authorized guardian
+     */
+    function isGuardian(address) public view virtual returns (bool);
 }

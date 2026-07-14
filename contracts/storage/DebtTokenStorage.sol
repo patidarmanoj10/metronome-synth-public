@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.9;
+pragma solidity 0.8.24;
 
-import "../interfaces/IDebtToken.sol";
+import {IDebtToken} from "../interfaces/IDebtToken.sol";
+import {ISyntheticToken} from "../interfaces/ISyntheticToken.sol";
 
 abstract contract DebtTokenStorageV1 is IDebtToken {
     /**
@@ -72,5 +73,5 @@ abstract contract DebtTokenStorageV2 is DebtTokenStorageV1 {
     /**
      * @notice Pending interest fee to collect
      */
-    uint256 public pendingInterestFee;
+    uint256 internal pendingInterestFee;
 }

@@ -894,13 +894,15 @@ describe('DebtToken', function () {
         // given
         await msUSD.connect(governor).toggleIsActive()
         expect(await msUSD.isActive()).false
-        expect(await msUSDDebt.pendingInterestFee()).eq(0)
+        const {_stored: before} = await msUSDDebt.getPendingInterestFee()
+        expect(before).eq(0)
 
         // when
         await msUSDDebt.accrueInterest()
 
         // then
-        expect(await msUSDDebt.pendingInterestFee()).gt(0)
+        const {_stored: after} = await msUSDDebt.getPendingInterestFee()
+        expect(after).gt(0)
         const totalDebt = await msUSDDebt.totalSupply()
         expect(totalDebt).closeTo(parseEther('102'), parseEther('0.0001'))
       })
@@ -909,13 +911,15 @@ describe('DebtToken', function () {
         // given
         await msUSD.connect(governor).updateMaxTotalSupply(0)
         expect(await msUSD.maxTotalSupply()).eq(0)
-        expect(await msUSDDebt.pendingInterestFee()).eq(0)
+        const {_stored: before} = await msUSDDebt.getPendingInterestFee()
+        expect(before).eq(0)
 
         // when
         await msUSDDebt.accrueInterest()
 
         // then
-        expect(await msUSDDebt.pendingInterestFee()).gt(0)
+        const {_stored: after} = await msUSDDebt.getPendingInterestFee()
+        expect(after).gt(0)
         const totalDebt = await msUSDDebt.totalSupply()
         expect(totalDebt).closeTo(parseEther('102'), parseEther('0.0001'))
       })

@@ -8,31 +8,25 @@ on:
       - ".github/env.properties"
       - ".github/workflows/foundry.yml"
 
-env:
-  FOUNDRY_PROFILE: ci
-
 jobs:
   check:
     strategy:
       fail-fast: true
-
     name: Foundry project
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
       - run: cat "${GITHUB_WORKSPACE}/.github/env.properties" >> $GITHUB_ENV
 
-      - uses: actions/setup-node@v2
+      - uses: actions/setup-node@v4
         with:
           node-version-file: ".nvmrc"
       - run: npm i
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: nightly
 
       - name: Run Forge build
         run: |
@@ -44,3 +38,8 @@ jobs:
         run: |
           forge test -vvv
         id: test
+        env:
+          MAINNET_NODE_URL: ${{ secrets.MAINNET_NODE_URL }}
+          OPTIMISM_NODE_URL: ${{ secrets.OPTIMISM_NODE_URL }}
+          BASE_NODE_URL: ${{ secrets.BASE_NODE_URL }}
+          PLASMA_NODE_URL: ${{ secrets.PLASMA_NODE_URL }}

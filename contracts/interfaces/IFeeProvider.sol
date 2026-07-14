@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.9;
+pragma solidity 0.8.24;
 
 /**
  * @notice FeeProvider interface
@@ -11,7 +11,7 @@ interface IFeeProvider {
         uint128 protocolFee;
     }
 
-    function defaultSwapFee() external view returns (uint256);
+    function swapFees(address synthIn, address synthOut) external view returns (uint256);
 
     function depositFee() external view returns (uint256);
 
@@ -20,8 +20,6 @@ interface IFeeProvider {
     function liquidationFees() external view returns (uint128 liquidatorIncentive, uint128 protocolFee);
 
     function repayFee() external view returns (uint256);
-
-    function swapFeeFor(address account_) external view returns (uint256);
 
     function withdrawFee() external view returns (uint256);
 }

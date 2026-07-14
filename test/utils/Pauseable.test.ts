@@ -129,7 +129,7 @@ describe('Pauseable', function () {
   describe('shutdown', function () {
     it('should revert if caller is not governor', async function () {
       const tx = pauseable.connect(user).shutdown()
-      await expect(tx).revertedWithCustomError(pauseable, 'SenderIsNotGovernor')
+      await expect(tx).revertedWithCustomError(pauseable, 'SenderIsNotAuthorized')
     })
 
     it('should revert if already shutdown', async function () {

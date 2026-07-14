@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
+import "forge-std/Test.sol";
 import "./SynthHandlerBase.sol";
-import {PoolRegistry} from "../../../contracts/PoolRegistry.sol";
+import {PoolRegistry} from "contracts/PoolRegistry.sol";
 
 contract PoolRegistryHandler is SynthHandlerBase {
     PoolRegistry poolRegistry;

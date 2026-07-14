@@ -1,13 +1,19 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.9;
+pragma solidity 0.8.24;
 
-import "./dependencies/openzeppelin/utils/math/Math.sol";
-import "./utils/ReentrancyGuard.sol";
-import "./lib/WadRayMath.sol";
-import "./utils/TokenHolder.sol";
-import "./access/Manageable.sol";
-import "./storage/DepositTokenStorage.sol";
+import {IERC20} from "./dependencies/openzeppelin/token/ERC20/IERC20.sol";
+import {SafeERC20} from "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
+import {Initializable} from "./dependencies/openzeppelin-upgradeable/proxy/utils/Initializable.sol";
+import {Math} from "./dependencies/openzeppelin/utils/math/Math.sol";
+import {Manageable, SenderIsNotPool} from "./access/Manageable.sol";
+import {ReentrancyGuardDeprecated} from "./utils/ReentrancyGuardDeprecated.sol";
+import {ReentrancyGuardTransient} from "./utils/ReentrancyGuardTransient.sol";
+import {TokenHolder} from "./utils/TokenHolder.sol";
+import {WadRayMath} from "./lib/WadRayMath.sol";
+import {IRewardsDistributor} from "./interfaces/IRewardsDistributor.sol";
+import {IPool} from "./interfaces/IPool.sol";
+import {DepositTokenStorageV1} from "./storage/DepositTokenStorage.sol";
 
 error CollateralIsInexistent();
 error DepositTokenIsInactive();
@@ -23,7 +29,6 @@ error AmountIsZero();
 error BeneficiaryIsNull();
 error AmountExceedsAllowance();
 error RecipientIsNull();
-error AmountIsInvalid();
 error ApproveFromTheZeroAddress();
 error ApproveToTheZeroAddress();
 error BurnFromTheZeroAddress();
@@ -35,15 +40,23 @@ error TransferToTheZeroAddress();
 error TransferAmountExceedsBalance();
 error NewValueIsSameAsCurrent();
 error SenderIsNotSmartFarmingManager();
+error TreasuryCanNotDeposit();
 
 /**
  * @title Represents the users' deposits
  */
-contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenStorageV1 {
+contract DepositToken is
+    Initializable,
+    ReentrancyGuardDeprecated,
+    ReentrancyGuardTransient,
+    TokenHolder,
+    Manageable,
+    DepositTokenStorageV1
+{
     using SafeERC20 for IERC20;
     using WadRayMath for uint256;
 
-    string public constant VERSION = "1.3.0";
+    string public constant VERSION = "1.3.2";
 
     /// @notice Emitted when collateral is deposited
     event CollateralDeposited(
@@ -76,7 +89,7 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
      * @dev Throws if sender is SmartFarmingManager
      */
     modifier onlyIfSmartFarmingManager() {
-        if (msg.sender != address(pool.smartFarmingManager())) revert SenderIsNotSmartFarmingManager();
+        if (_msgSender() != address(pool.smartFarmingManager())) revert SenderIsNotSmartFarmingManager();
         _;
     }
 
@@ -84,7 +97,7 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
      * @dev Throws if sender can't seize
      */
     modifier onlyIfCanSeize() {
-        if (msg.sender != address(pool)) revert SenderIsNotPool();
+        if (_msgSender() != address(pool)) revert SenderIsNotPool();
         _;
     }
 
@@ -101,14 +114,6 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
      */
     modifier onlyIfDepositTokenIsActive() {
         if (!isActive) revert DepositTokenIsInactive();
-        _;
-    }
-
-    /**
-     * @notice Requires that amount is lower than the account's unlocked balance
-     */
-    modifier onlyIfUnlocked(address account_, uint256 amount_) {
-        if (unlockedBalanceOf(account_) < amount_) revert NotEnoughFreeBalance();
         _;
     }
 
@@ -158,7 +163,6 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
         if (collateralFactor_ == 0) revert CollateralFactorTooLow();
         if (collateralFactor_ >= 1e18) revert CollateralFactorTooHigh();
 
-        __ReentrancyGuard_init();
         __Manageable_init(pool_);
 
         name = name_;
@@ -171,10 +175,17 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
     }
 
     /**
+     * @notice Requires that amount is lower than the account's unlocked balance
+     */
+    function _revertIfLocked(address account_, uint256 amount_) private view {
+        if (unlockedBalanceOf(account_) < amount_) revert NotEnoughFreeBalance();
+    }
+
+    /**
      * @notice Set `amount` as the allowance of `spender` over the caller's tokens
      */
     function approve(address spender_, uint256 amount_) external override returns (bool) {
-        _approve(msg.sender, spender_, amount_);
+        _approve(_msgSender(), spender_, amount_);
         return true;
     }
 
@@ -182,10 +193,11 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
      * @notice Atomically decrease the allowance granted to `spender` by the caller
      */
     function decreaseAllowance(address spender_, uint256 subtractedValue_) external returns (bool) {
-        uint256 _currentAllowance = allowance[msg.sender][spender_];
+        address _msgSender = _msgSender();
+        uint256 _currentAllowance = allowance[_msgSender][spender_];
         if (_currentAllowance < subtractedValue_) revert DecreasedAllowanceBelowZero();
         unchecked {
-            _approve(msg.sender, spender_, _currentAllowance - subtractedValue_);
+            _approve(_msgSender, spender_, _currentAllowance - subtractedValue_);
         }
         return true;
     }
@@ -205,11 +217,13 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
 
         IPool _pool = pool;
         IERC20 _underlying = underlying;
-
+        address _msgSender = _msgSender();
         address _treasury = address(_pool.treasury());
 
+        if (_msgSender == _treasury) revert TreasuryCanNotDeposit();
+
         uint256 _balanceBefore = _underlying.balanceOf(_treasury);
-        _underlying.safeTransferFrom(msg.sender, _treasury, amount_);
+        _underlying.safeTransferFrom(_msgSender, _treasury, amount_);
         amount_ = _underlying.balanceOf(_treasury) - _balanceBefore;
 
         (_deposited, _fee) = quoteDepositOut(amount_);
@@ -219,11 +233,11 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
 
         _mint(onBehalfOf_, _deposited);
 
-        emit CollateralDeposited(msg.sender, onBehalfOf_, amount_, _deposited, _fee);
+        emit CollateralDeposited(_msgSender, onBehalfOf_, amount_, _deposited, _fee);
     }
 
     /**
-     * @notice Burn msdTOKEN, withdraw collateral and transfer to `msg.sender` (i.e. SmartFarmingManager)
+     * @notice Burn msdTOKEN, withdraw collateral and transfer to `_msgSender()` (i.e. SmartFarmingManager)
      * @param account_ The account where deposit token will be burnt from
      * @param amount_ The amount of collateral to withdraw
      * @return _withdrawn The amount withdrawn after fees
@@ -232,14 +246,15 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
         address account_,
         uint256 amount_
     ) external override onlyIfSmartFarmingManager returns (uint256 _withdrawn, uint256 _fee) {
-        return _withdraw({account_: account_, amount_: amount_, to_: msg.sender});
+        return _withdraw({account_: account_, amount_: amount_, to_: _msgSender()});
     }
 
     /**
      * @notice Atomically increase the allowance granted to `spender` by the caller
      */
     function increaseAllowance(address spender_, uint256 addedValue_) external returns (bool) {
-        _approve(msg.sender, spender_, allowance[msg.sender][spender_] + addedValue_);
+        address _msgSender = _msgSender();
+        _approve(_msgSender, spender_, allowance[_msgSender][spender_] + addedValue_);
         return true;
     }
 
@@ -330,11 +345,11 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
     }
 
     /// @inheritdoc IERC20
-    function transfer(
-        address to_,
-        uint256 amount_
-    ) external override onlyIfUnlocked(msg.sender, amount_) returns (bool) {
-        _transfer(msg.sender, to_, amount_);
+    function transfer(address to_, uint256 amount_) external override returns (bool) {
+        address _msgSender = _msgSender();
+        _revertIfLocked(_msgSender, amount_);
+
+        _transfer(_msgSender, to_, amount_);
         return true;
     }
 
@@ -343,12 +358,15 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
         address sender_,
         address recipient_,
         uint256 amount_
-    ) external override nonReentrant onlyIfUnlocked(sender_, amount_) returns (bool) {
-        uint256 _currentAllowance = allowance[sender_][msg.sender];
+    ) external override nonReentrant returns (bool) {
+        _revertIfLocked(sender_, amount_);
+
+        address _msgSender = _msgSender();
+        uint256 _currentAllowance = allowance[sender_][_msgSender];
         if (_currentAllowance != type(uint256).max) {
             if (_currentAllowance < amount_) revert AmountExceedsAllowance();
             unchecked {
-                _approve(sender_, msg.sender, _currentAllowance - amount_);
+                _approve(sender_, _msgSender, _currentAllowance - amount_);
             }
         }
 
@@ -385,12 +403,12 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
      * @param to_ The account that will receive withdrawn collateral
      * @return _withdrawn The amount withdrawn after fees
      */
-    function withdraw(
-        uint256 amount_,
-        address to_
-    ) external override onlyIfUnlocked(msg.sender, amount_) returns (uint256 _withdrawn, uint256 _fee) {
+    function withdraw(uint256 amount_, address to_) external override returns (uint256 _withdrawn, uint256 _fee) {
         if (to_ == address(0)) revert RecipientIsNull();
-        return _withdraw({account_: msg.sender, amount_: amount_, to_: to_});
+        address _msgSender = _msgSender();
+        _revertIfLocked(_msgSender, amount_);
+
+        return _withdraw({account_: _msgSender, amount_: amount_, to_: to_});
     }
 
     /**
@@ -402,14 +420,10 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
     function withdrawFrom(
         address from_,
         uint256 amount_
-    )
-        external
-        override
-        onlyIfSmartFarmingManager
-        onlyIfUnlocked(from_, amount_)
-        returns (uint256 _withdrawn, uint256 _fee)
-    {
-        return _withdraw({account_: from_, amount_: amount_, to_: msg.sender});
+    ) external override onlyIfSmartFarmingManager returns (uint256 _withdrawn, uint256 _fee) {
+        _revertIfLocked(from_, amount_);
+
+        return _withdraw({account_: from_, amount_: amount_, to_: _msgSender()});
     }
 
     /**
@@ -512,7 +526,7 @@ contract DepositToken is ReentrancyGuard, TokenHolder, Manageable, DepositTokenS
     }
 
     /**
-     * @notice Burn msdTOKEN, withdraw collateral and transfer to `msg.sender` (i.e. Pool)
+     * @notice Burn msdTOKEN, withdraw collateral and transfer to `_msgSender()` (i.e. Pool)
      * @dev This function doesn't check if the amount is unlocked!
      * @param account_ The account where deposit token will be burnt from
      * @param amount_ The amount of collateral to withdraw

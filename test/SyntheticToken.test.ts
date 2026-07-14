@@ -161,6 +161,35 @@ describe('SyntheticToken', function () {
       await expect(tx).revertedWithCustomError(msUSD, 'SurpassMaxBridgingSupply')
     })
 
+    it('should mint by amo and increase amoSupply', async function () {
+      // given
+      await msUSD.connect(governor).updateAmo(user.address)
+      await msUSD.connect(governor).updateMaxAmoSupply(parseEther('500'))
+      const amount = parseEther('100')
+      expect(await msUSD.amoSupply()).eq(0)
+
+      // when
+      await msUSD.connect(user).mint(user.address, amount)
+
+      // then
+      const amoSupply = await msUSD.amoSupply()
+      expect(amoSupply).eq(amount)
+    })
+
+    it('should revert when maxAmoSupply is reached', async function () {
+      // given
+      await msUSD.connect(governor).updateAmo(user.address)
+      await msUSD.connect(governor).updateMaxAmoSupply(parseEther('500'))
+      const amount = parseEther('550')
+      expect(await msUSD.amoSupply()).eq(0)
+
+      // when
+      const tx = msUSD.connect(user).mint(user.address, amount)
+
+      // then
+      await expect(tx).revertedWithCustomError(msUSD, 'SurpassMaxAmoSupply')
+    })
+
     it('should revert if not authorized', async function () {
       const tx = msUSD.connect(user).mint(user.address, parseEther('10'))
       await expect(tx).reverted
@@ -230,6 +259,36 @@ describe('SyntheticToken', function () {
 
       // then
       await expect(tx).revertedWithCustomError(msUSD, 'SurpassMaxBridgingSupply')
+    })
+
+    it('should burn and decrease amoSupply', async function () {
+      // given
+      await msUSD.connect(governor).updateAmo(user.address)
+      await msUSD.connect(governor).updateMaxAmoSupply(parseEther('500'))
+      expect(await msUSD.amoSupply()).eq(0)
+      await msUSD.connect(user).mint(user.address, amount)
+      expect(await msUSD.amoSupply()).eq(amount)
+
+      // when
+      await msUSD.connect(user).burn(user.address, amount)
+
+      // then
+      expect(await msUSD.amoSupply()).eq(0)
+    })
+
+    it('should revert if AMO burn from any other address except self', async function () {
+      // given
+      const alice = deployer
+      await msUSD.connect(governor).updateAmo(user.address)
+      await msUSD.connect(governor).updateMaxAmoSupply(parseEther('500'))
+      // notice minting to alice address
+      await msUSD.connect(user).mint(alice.address, amount)
+
+      // when, burning from alice address
+      const tx = msUSD.connect(user).burn(alice.address, amount)
+
+      // then
+      await expect(tx).revertedWithCustomError(msUSD, 'AmoInvalidAccount')
     })
 
     it('should revert if not authorized', async function () {
