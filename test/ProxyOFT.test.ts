@@ -1,3 +1,4 @@
+/* eslint-disable no-unexpected-multiline */
 import {BigNumber} from 'ethers'
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {loadFixture, setStorageAt} from '@nomicfoundation/hardhat-network-helpers'
@@ -9,7 +10,6 @@ import {
   PoolRegistry,
   ProxyOFT,
   ILayerZeroEndpoint,
-  CrossChainDispatcher,
   IStargateBridge,
   IStargateComposer,
 } from '../typechain'
@@ -40,7 +40,6 @@ describe('ProxyOFT', function () {
   let stargateComposer: FakeContract<IStargateComposer>
   let stargateBridge: FakeContract<IStargateBridge>
   let proxyOFT: ProxyOFT
-  let crossChainDispatcher: FakeContract<CrossChainDispatcher>
   let poolRegistry: FakeContract<PoolRegistry>
 
   async function fixture() {
@@ -53,20 +52,13 @@ describe('ProxyOFT', function () {
     stargateRouter = await smock.fake('IStargateRouter')
     stargateComposer = await smock.fake('IStargateComposer')
     stargateBridge = await smock.fake('IStargateBridge')
-    crossChainDispatcher = await smock.fake('CrossChainDispatcher')
 
     stargateComposer.stargateRouter.returns(stargateRouter.address)
     stargateRouter.bridge.returns(stargateBridge.address)
     stargateBridge.layerZeroEndpoint.returns(lzEndpoint.address)
-    poolRegistry.crossChainDispatcher.returns(crossChainDispatcher.address)
     poolRegistry.governor.returns(deployer.address)
+    poolRegistry.lzBaseGasLimit.returns(LZ_BASE_GAS_LIMIT)
     msUSD.poolRegistry.returns(poolRegistry.address)
-    crossChainDispatcher.stargateComposer.returns(stargateComposer.address)
-    crossChainDispatcher.lzBaseGasLimit.returns(LZ_BASE_GAS_LIMIT)
-    crossChainDispatcher.flashRepayCallbackTxGasLimit.returns(100000)
-    crossChainDispatcher.leverageCallbackTxGasLimit.returns(200000)
-    crossChainDispatcher.leverageSwapTxGasLimit.returns(300000)
-    crossChainDispatcher.flashRepaySwapTxGasLimit.returns(400000)
 
     const proxyOFTFactory = await ethers.getContractFactory('ProxyOFT', deployer)
     proxyOFT = await proxyOFTFactory.deploy()
@@ -86,8 +78,8 @@ describe('ProxyOFT', function () {
   beforeEach(async function () {
     await loadFixture(fixture)
 
-    crossChainDispatcher.isBridgingActive.returns(true)
-    crossChainDispatcher.isDestinationChainSupported.returns(true)
+    poolRegistry.isBridgingActive.returns(true)
+    poolRegistry.isDestinationChainSupported.returns(true)
   })
 
   describe('sendFrom', function () {
@@ -106,7 +98,7 @@ describe('ProxyOFT', function () {
 
     it('should revert if bridge is paused', async function () {
       // given
-      crossChainDispatcher.isBridgingActive.returns(false)
+      poolRegistry.isBridgingActive.returns(false)
       const amount = parseEther('100')
 
       // when
@@ -120,7 +112,7 @@ describe('ProxyOFT', function () {
 
     it('should revert if dstChain is not supported', async function () {
       // given
-      crossChainDispatcher.isDestinationChainSupported.returns(false)
+      poolRegistry.isDestinationChainSupported.returns(false)
       const amount = parseEther('100')
 
       // when
@@ -147,7 +139,7 @@ describe('ProxyOFT', function () {
   })
 
   describe('sendAndCall', function () {
-    it('should revert if caller is not CrossChainDispatcher', async function () {
+    it('should revert', async function () {
       // when
       const tx = proxyOFT
         .connect(bob)
@@ -164,7 +156,7 @@ describe('ProxyOFT', function () {
         )
 
       // then
-      await expect(tx).revertedWithCustomError(proxyOFT, 'SenderIsNotCrossChainDispatcher')
+      await expect(tx).revertedWithCustomError(proxyOFT, 'SendAndCallNotAllowed')
     })
   })
 

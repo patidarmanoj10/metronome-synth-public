@@ -2,9 +2,9 @@
 
 pragma solidity 0.8.9;
 
-import "../dependencies/openzeppelin/proxy/transparent/ProxyAdmin.sol";
-import "../dependencies/openzeppelin//proxy/transparent/TransparentUpgradeableProxy.sol";
-import "../interfaces/external/IMulticall.sol";
+import {ProxyAdmin} from "../dependencies/openzeppelin/proxy/transparent/ProxyAdmin.sol";
+import {TransparentUpgradeableProxy} from "../dependencies/openzeppelin//proxy/transparent/TransparentUpgradeableProxy.sol";
+import {IMulticall} from "../interfaces/external/IMulticall.sol";
 
 error StorageValueIsNotEqual();
 

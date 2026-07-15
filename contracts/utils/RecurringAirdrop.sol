@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.9;
+pragma solidity 0.8.24;
 
-import "../dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
-import "../dependencies/openzeppelin/security/ReentrancyGuard.sol";
-import "../dependencies/openzeppelin/utils/cryptography/MerkleProof.sol";
-import "../access/Governable.sol";
+import {SafeERC20, IERC20} from "../dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
+import {ReentrancyGuardTransient} from "../utils/ReentrancyGuardTransient.sol";
+import {MerkleProof} from "../dependencies/openzeppelin/utils/cryptography/MerkleProof.sol";
+import {Governable} from "../access/Governable.sol";
 
 error NothingToClaim();
 error InvalidProof();
@@ -15,7 +15,7 @@ error ProofsFileIsNull();
 /**
  * @title Generic Recurring Airdrop contract
  */
-contract RecurringAirdrop is ReentrancyGuard, Governable {
+contract RecurringAirdrop is ReentrancyGuardTransient, Governable {
     using SafeERC20 for IERC20;
 
     /// @notice The token to distribute

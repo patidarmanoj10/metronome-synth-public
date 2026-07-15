@@ -14,7 +14,7 @@ const func = buildDepositTokenDeployFunction({
   underlyingSymbol: 'vaCBETH',
   underlyingDecimals: 18,
   collateralFactor: parseEther('0.75'), // 75%
-  maxTotalSupply: parseEther('50'),
+  maxTotalSupply: parseEther('1000'),
 })
 
 export default func

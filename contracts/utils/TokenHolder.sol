@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.9;
+pragma solidity 0.8.24;
 
-import "../dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
+import {Address} from "../dependencies/openzeppelin/utils/Address.sol";
+import {SafeERC20, IERC20} from "../dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
 
 error FallbackIsNotAllowed();
 error ReceiveIsNotAllowed();

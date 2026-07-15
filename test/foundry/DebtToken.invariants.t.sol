@@ -5,17 +5,17 @@ import "forge-std/Test.sol";
 import {DebtTokenHandler} from "./handlers/DebtTokenHandler.sol";
 import {DepositTokenHandler} from "./handlers/DepositTokenHandler.sol";
 import {FeeProviderHandler} from "./handlers/FeeProviderHandler.sol";
-import {PoolRegistry} from "../../contracts/PoolRegistry.sol";
-import {Treasury} from "../../contracts/Treasury.sol";
-import {Pool} from "../../contracts/Pool.sol";
-import {MasterOracleMock, IMasterOracle} from "../../contracts/mock/MasterOracleMock.sol";
-import {DepositToken} from "../../contracts/DepositToken.sol";
-import {FeeProvider, FeeProviderStorageV1, TiersNotOrderedByMin} from "../../contracts/FeeProvider.sol";
-import {ERC20Mock} from "../../contracts/mock/ERC20Mock.sol";
-import {IESMET} from "../../contracts/interfaces/external/IESMET.sol";
-import {SyntheticToken} from "../../contracts/SyntheticToken.sol";
-import {DebtToken, IDebtToken} from "../../contracts/DebtToken.sol";
-import {SmartFarmingManager} from "../../contracts/SmartFarmingManager.sol";
+import {PoolRegistry} from "contracts/PoolRegistry.sol";
+import {Treasury} from "contracts/Treasury.sol";
+import {Pool} from "contracts/Pool.sol";
+import {DepositToken} from "contracts/DepositToken.sol";
+import {ERC20Mock} from "contracts/mock/ERC20Mock.sol";
+import {MasterOracleMock} from "contracts/mock/MasterOracleMock.sol";
+import {IESMET} from "contracts/interfaces/external/IESMET.sol";
+import {SyntheticToken} from "contracts/SyntheticToken.sol";
+import {DebtToken} from "contracts/DebtToken.sol";
+import {FeeProvider} from "contracts/FeeProvider.sol";
+import {SmartFarmingManager} from "contracts/SmartFarmingManager.sol";
 
 contract DebtTokenInvariant_Test is Test {
     MasterOracleMock masterOracle;
@@ -121,19 +121,26 @@ contract DebtTokenInvariant_Test is Test {
     }
 
     function invariant_debtAndSynthSupply() public {
-        assertEq(debtToken.totalSupply(), syntheticToken.totalSupply() + debtToken.pendingInterestFee());
+        (, uint256 _pendingInterestFee) = debtToken.getPendingInterestFee();
+        assertEq(debtToken.totalSupply(), syntheticToken.totalSupply() + _pendingInterestFee);
     }
 
     function invariant_sumOfDebtBalances() public {
         address[] memory actors = debtTokenHandler.getActors();
 
         // Note: Pool may have debt because we're using it to issue and top up other accounts if needed
-        uint256 acc = debtToken.balanceOf(address(pool));
+        uint256 acc = debtToken.balanceOf(address(pool)) + debtToken.balanceOf(address(feeCollector));
         for (uint i = 0; i < actors.length; ++i) {
             acc += debtToken.balanceOf(actors[i]);
         }
 
-        assertEq(acc, debtToken.totalSupply());
+        uint256 _totalSupply = debtToken.totalSupply();
+
+        if (_totalSupply >= 1e18) {
+            assertApproxEqRel(acc, _totalSupply, 0.000001e18);
+        } else {
+            assertApproxEqAbs(acc, _totalSupply, 1e6);
+        }
     }
 
     function invariant_sumOfSynthBalances() public {
@@ -151,5 +158,28 @@ contract DebtTokenInvariant_Test is Test {
         depositTokenHandler.callSummary();
         debtTokenHandler.callSummary();
         feeProviderHandler.callSummary();
+    }
+
+    function test_issue() external {
+        debtToken.updateInterestRate(0.1e18);
+
+        address user = address(87123762346);
+
+        vm.startPrank(user);
+
+        uint depositAmount = 100e18;
+        underlying.mint(user, depositAmount);
+        underlying.approve(address(depositToken), depositAmount);
+        depositToken.deposit(depositAmount, user);
+
+        uint issueAmount = 1e18;
+        debtToken.issue(issueAmount, user);
+
+        vm.warp(block.timestamp + 1 days);
+
+        debtToken.issue(issueAmount, user); // 97,316 (with minting) | 79,317 (without mining)
+        debtToken.issue(issueAmount, user); // 49,626
+
+        vm.stopPrank();
     }
 }

@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.9;
+pragma solidity 0.8.24;
 
-import "../interfaces/IDepositToken.sol";
+import {IERC20} from "../dependencies/openzeppelin/token/ERC20/IERC20.sol";
+import {IDepositToken} from "../interfaces/IDepositToken.sol";
 
 abstract contract DepositTokenStorageV1 is IDepositToken {
     /**

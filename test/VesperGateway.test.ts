@@ -6,7 +6,7 @@ import {DepositToken, ERC20Mock, PoolMock, MasterOracleMock, VesperGateway, Trea
 import {disableForking, enableForking} from './helpers'
 import {parseUnits, toUSD} from '../helpers'
 import {FakeContract, smock} from '@defi-wonderland/smock'
-import {setStorageAt, setCode} from '@nomicfoundation/hardhat-network-helpers'
+import {setStorageAt, setCode, setBalance} from '@nomicfoundation/hardhat-network-helpers'
 
 chai.use(smock.matchers)
 
@@ -47,8 +47,10 @@ describe('VesperGateway', function () {
     await setStorageAt(treasury.address, 0, 0) // Undo initialization made by constructor
 
     poolRegistryMock = await smock.fake('PoolRegistry')
-    await setCode(poolRegistryMock.address, '0x01') // Workaround "function call to a non-contract account" error
     poolRegistryMock.isPoolRegistered.returns(true)
+    poolRegistryMock.operator.returns(ethers.constants.AddressZero)
+    // Workaround "function call to a non-contract account" error
+    await setBalance(poolRegistryMock.address, parseEther('1'))
 
     const esMET = await smock.fake('IESMET')
     const feeProviderFactory = await ethers.getContractFactory('FeeProvider', deployer)
@@ -63,7 +65,7 @@ describe('VesperGateway', function () {
       masterOracleMock.address,
       ethers.constants.AddressZero,
       ethers.constants.AddressZero,
-      ethers.constants.AddressZero,
+      poolRegistryMock.address,
       feeProvider.address
     )
     await poolMock.deployed()

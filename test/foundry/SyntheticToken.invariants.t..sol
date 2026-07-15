@@ -3,14 +3,14 @@ pragma solidity ^0.8.9;
 
 import "forge-std/Test.sol";
 import {SyntheticTokenHandler} from "./handlers/SyntheticTokenHandler.sol";
-import {PoolRegistry} from "../../contracts/PoolRegistry.sol";
-import {Treasury} from "../../contracts/Treasury.sol";
-import {Pool} from "../../contracts/Pool.sol";
-import {MasterOracleMock} from "../../contracts/mock/MasterOracleMock.sol";
-import {DebtToken, IDebtToken} from "../../contracts/DebtToken.sol";
-import {SyntheticToken} from "../../contracts/SyntheticToken.sol";
-import {FeeProvider} from "../../contracts/FeeProvider.sol";
-import {IESMET} from "../../contracts/interfaces/external/IESMET.sol";
+import {PoolRegistry} from "contracts/PoolRegistry.sol";
+import {Treasury} from "contracts/Treasury.sol";
+import {Pool} from "contracts/Pool.sol";
+import {MasterOracleMock} from "contracts/mock/MasterOracleMock.sol";
+import {DebtToken} from "contracts/DebtToken.sol";
+import {SyntheticToken} from "contracts/SyntheticToken.sol";
+import {FeeProvider} from "contracts/FeeProvider.sol";
+import {IESMET} from "contracts/interfaces/external/IESMET.sol";
 
 contract SyntheticTokenInvariant_Test is Test {
     PoolRegistry poolRegistry;

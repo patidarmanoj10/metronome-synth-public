@@ -10,7 +10,7 @@ const func = buildDebtTokenDeployFunction({
   poolAlias: Pool1,
   symbol: 'msOP',
   interestRate: parseEther('0.01'), // 1%
-  maxTotalSupply: parseEther('1250'),
+  maxTotalSupply: parseEther('360000'),
 })
 
 export default func

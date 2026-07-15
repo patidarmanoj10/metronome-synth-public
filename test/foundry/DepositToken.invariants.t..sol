@@ -4,14 +4,14 @@ pragma solidity ^0.8.9;
 import "forge-std/Test.sol";
 import {DepositTokenHandler} from "./handlers/DepositTokenHandler.sol";
 import {FeeProviderHandler} from "./handlers/FeeProviderHandler.sol";
-import {PoolRegistry, IMasterOracle} from "../../contracts/PoolRegistry.sol";
-import {Treasury} from "../../contracts/Treasury.sol";
-import {Pool} from "../../contracts/Pool.sol";
-import {MasterOracleMock} from "../../contracts/mock/MasterOracleMock.sol";
-import {DepositToken} from "../../contracts/DepositToken.sol";
-import {FeeProvider, FeeProviderStorageV1, TiersNotOrderedByMin} from "../../contracts/FeeProvider.sol";
-import {ERC20Mock} from "../../contracts/mock/ERC20Mock.sol";
-import {IESMET} from "../../contracts/interfaces/external/IESMET.sol";
+import {Treasury} from "contracts/Treasury.sol";
+import {Pool} from "contracts/Pool.sol";
+import {MasterOracleMock} from "contracts/mock/MasterOracleMock.sol";
+import {DepositToken} from "contracts/DepositToken.sol";
+import {ERC20Mock} from "contracts/mock/ERC20Mock.sol";
+import {PoolRegistry} from "contracts/PoolRegistry.sol";
+import {FeeProvider} from "contracts/FeeProvider.sol";
+import {IESMET} from "contracts/interfaces/external/IESMET.sol";
 
 contract DepositTokenInvariant_Test is Test {
     PoolRegistry poolRegistry;
@@ -23,6 +23,9 @@ contract DepositTokenInvariant_Test is Test {
     MasterOracleMock masterOracle;
     Treasury treasury;
     address feeCollector = address(2);
+    address alice = address(999);
+    address bob = address(888);
+    address carl = address(777);
 
     DepositTokenHandler depositTokenHandler;
     FeeProviderHandler feeProviderHandler;
@@ -66,6 +69,10 @@ contract DepositTokenInvariant_Test is Test {
         pool.updateTreasury(treasury);
         pool.addDepositToken(address(depositToken));
 
+        targetSender(alice);
+        targetSender(bob);
+        targetSender(carl);
+
         depositTokenHandler = new DepositTokenHandler(depositToken);
         feeProviderHandler = new FeeProviderHandler(feeProvider);
 
@@ -75,8 +82,8 @@ contract DepositTokenInvariant_Test is Test {
         targetSelector(FuzzSelector({addr: address(feeProviderHandler), selectors: feeProviderSelectors}));
 
         targetContract(address(depositTokenHandler));
-        // Note: Avoiding have `feeColletor` be counted twice on `invariant_sumOfBalances`
-        excludeSender(feeCollector);
+        // Note: Avoiding have `feeCollector` be counted twice on `invariant_sumOfBalances`
+        // excludeSender(feeCollector);
     }
 
     function invariant_nothingLocked() public {
@@ -108,5 +115,15 @@ contract DepositTokenInvariant_Test is Test {
 
     function invariant_feeProviderCallSummary() external view {
         feeProviderHandler.callSummary();
+    }
+
+    function test_gas() external {
+        uint256 amount = 10e18;
+        address user = address(123321321);
+        underlying.mint(user, amount);
+        vm.startPrank(user);
+        underlying.approve(address(depositToken), amount);
+        depositToken.deposit(amount, user);
+        vm.stopPrank();
     }
 }

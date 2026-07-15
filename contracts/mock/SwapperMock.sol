@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.9;
+pragma solidity 0.8.24;
 
-import "../dependencies/openzeppelin/token/ERC20/IERC20.sol";
-import "../interfaces/external/IMasterOracle.sol";
-import "../interfaces/external/ISwapper.sol";
+import {IERC20} from "../dependencies/openzeppelin/token/ERC20/IERC20.sol";
+import {IMasterOracle} from "../interfaces/external/IMasterOracle.sol";
+import {ISwapper} from "../interfaces/external/ISwapper.sol";
 
 contract SwapperMock is ISwapper {
     uint256 public rate = 1e18;

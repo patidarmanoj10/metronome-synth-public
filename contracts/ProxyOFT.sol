@@ -1,42 +1,51 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.9;
+pragma solidity 0.8.24;
 
-import "./dependencies/@layerzerolabs/solidity-examples/contracts-upgradeable/token/oft/composable/ComposableOFTCoreUpgradeable.sol";
-import "./storage/ProxyOFTStorage.sol";
-import "./interfaces/ICrossChainDispatcher.sol";
+import {ContextUpgradeable} from "./dependencies/openzeppelin-upgradeable/utils/ContextUpgradeable.sol";
+import {OwnableUpgradeable} from "./dependencies/openzeppelin-upgradeable/access/OwnableUpgradeable.sol";
+import {IOFTCoreUpgradeable, IComposableOFTCoreUpgradeable, OFTCoreUpgradeable, ComposableOFTCoreUpgradeable} from "./dependencies/@layerzerolabs/solidity-examples/contracts-upgradeable/token/oft/composable/ComposableOFTCoreUpgradeable.sol";
+import {BytesLib} from "./dependencies/@layerzerolabs/solidity-examples/util/BytesLib.sol";
+import {Context, SynthContext} from "./utils/SynthContext.sol";
+import {ProxyOFTStorageV1} from "./storage/ProxyOFTStorage.sol";
+import {IPoolRegistry} from "./interfaces/IPoolRegistry.sol";
+import {ISyntheticToken} from "./interfaces/ISyntheticToken.sol";
 
 error AddressIsNull();
 error SenderIsNotTheOwner();
 error BridgingIsPaused();
-error SenderIsNotCrossChainDispatcher();
+error SendAndCallNotAllowed();
 error DestinationChainNotAllowed();
-
-// Note: The `ICrossChainDispatcher` wasn't updated to avoid changing interface
-// Refs: https://github.com/autonomoussoftware/metronome-synth/issues/877
-interface ICrossChainDispatcherExtended is ICrossChainDispatcher {
-    function isDestinationChainSupported(uint16 dstChainId_) external view returns (bool);
-}
 
 /**
  * @title The ProxyOFT contract
  */
-contract ProxyOFT is ComposableOFTCoreUpgradeable, ProxyOFTStorageV1 {
+contract ProxyOFT is SynthContext, ComposableOFTCoreUpgradeable, ProxyOFTStorageV1 {
     using BytesLib for bytes;
 
-    string public constant VERSION = "1.3.0";
+    string public constant VERSION = "1.3.2";
 
     constructor() {
         _disableInitializers();
+    }
+
+    /// @inheritdoc Context
+    function _msgSender() internal view virtual override(ContextUpgradeable, SynthContext) returns (address) {
+        return SynthContext._msgSender();
+    }
+
+    /// @inheritdoc Context
+    function _msgData() internal view virtual override(ContextUpgradeable, Context) returns (bytes calldata) {
+        return Context._msgData();
     }
 
     function initialize(address lzEndpoint_, ISyntheticToken syntheticToken_) external initializer {
         if (address(syntheticToken_) == address(0)) revert AddressIsNull();
         if (address(lzEndpoint_) == address(0)) revert AddressIsNull();
 
-        __ComposableOFTCoreUpgradeable_init(lzEndpoint_);
-
         syntheticToken = syntheticToken_;
+
+        __ComposableOFTCoreUpgradeable_init(lzEndpoint_);
     }
 
     /// @inheritdoc IOFTCoreUpgradeable
@@ -64,11 +73,10 @@ contract ProxyOFT is ComposableOFTCoreUpgradeable, ProxyOFTStorageV1 {
         bytes memory /*toAddress_*/,
         uint amount_
     ) internal override returns (uint256 _sent) {
-        ICrossChainDispatcher _crossChainDispatcher = syntheticToken.poolRegistry().crossChainDispatcher();
-        if (msg.sender != from_) revert SenderIsNotTheOwner();
-        if (!_crossChainDispatcher.isBridgingActive()) revert BridgingIsPaused();
-        if (!ICrossChainDispatcherExtended(address(_crossChainDispatcher)).isDestinationChainSupported(dstChainId_))
-            revert DestinationChainNotAllowed();
+        IPoolRegistry _poolRegistry = syntheticToken.poolRegistry();
+        if (_msgSender() != from_) revert SenderIsNotTheOwner();
+        if (!_poolRegistry.isBridgingActive()) revert BridgingIsPaused();
+        if (!_poolRegistry.isDestinationChainSupported(dstChainId_)) revert DestinationChainNotAllowed();
 
         syntheticToken.burn(from_, amount_);
         return amount_;
@@ -86,30 +94,19 @@ contract ProxyOFT is ComposableOFTCoreUpgradeable, ProxyOFTStorageV1 {
 
     /// @inheritdoc ComposableOFTCoreUpgradeable
     function sendAndCall(
-        address from_,
-        uint16 dstChainId_,
-        bytes calldata toAddress_,
-        uint amount_,
-        bytes calldata payload_,
-        uint64 dstGasForCall_,
-        address payable refundAddress_,
-        address zroPaymentAddress_,
-        bytes calldata adapterParams_
+        address /*from_*/,
+        uint16 /*dstChainId_*/,
+        bytes calldata /*toAddress_*/,
+        uint /*amount_*/,
+        bytes calldata /*payload_*/,
+        uint64 /*dstGasForCall_*/,
+        address payable /*refundAddress_*/,
+        address /*zroPaymentAddress_*/,
+        bytes calldata /*adapterParams_*/
     ) public payable override(ComposableOFTCoreUpgradeable, IComposableOFTCoreUpgradeable) {
-        if (msg.sender != address(syntheticToken.poolRegistry().crossChainDispatcher()))
-            revert SenderIsNotCrossChainDispatcher();
-
-        _sendAndCall(
-            from_,
-            dstChainId_,
-            toAddress_,
-            amount_,
-            payload_,
-            dstGasForCall_,
-            refundAddress_,
-            zroPaymentAddress_,
-            adapterParams_
-        );
+        // Note: We do not allow sendAndCall functionality in the ProxyOFT
+        // Replace the revert with `_sendAndCall` call to enable.
+        revert SendAndCallNotAllowed();
     }
 
     /**
@@ -125,7 +122,7 @@ contract ProxyOFT is ComposableOFTCoreUpgradeable, ProxyOFTStorageV1 {
             _zroPaymentAddress: address(0),
             _adapterParams: abi.encodePacked(
                 uint16(1), // LZ_ADAPTER_PARAMS_VERSION
-                syntheticToken.poolRegistry().crossChainDispatcher().lzBaseGasLimit()
+                syntheticToken.poolRegistry().lzBaseGasLimit()
             )
         });
     }
@@ -145,9 +142,14 @@ contract ProxyOFT is ComposableOFTCoreUpgradeable, ProxyOFTStorageV1 {
             _useZro: false,
             _adapterParams: abi.encodePacked(
                 uint16(1), // LZ_ADAPTER_PARAMS_VERSION
-                syntheticToken.poolRegistry().crossChainDispatcher().lzBaseGasLimit()
+                syntheticToken.poolRegistry().lzBaseGasLimit()
             )
         });
+    }
+
+    /// @notice Get pool registry contract
+    function poolRegistry() public view override returns (IPoolRegistry) {
+        return syntheticToken.poolRegistry();
     }
 
     /// @inheritdoc OwnableUpgradeable

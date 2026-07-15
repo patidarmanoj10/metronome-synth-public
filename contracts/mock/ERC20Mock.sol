@@ -2,9 +2,9 @@
 
 // Note: Minimalist ERC20 based on https://github.com/maple-labs/erc20
 
-pragma solidity 0.8.9;
+pragma solidity 0.8.24;
 
-import "../dependencies/openzeppelin/token/ERC20/extensions/IERC20Metadata.sol";
+import {IERC20Metadata} from "../dependencies/openzeppelin/token/ERC20/extensions/IERC20Metadata.sol";
 
 contract ERC20Mock is IERC20Metadata {
     string public override name;

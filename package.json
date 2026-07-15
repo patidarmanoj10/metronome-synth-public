@@ -23,15 +23,17 @@
     "pretest": "hardhat typechain",
     "test": "hardhat test --parallel",
     "verify": "hardhat etherscan-verify",
-    "size-contract": "hardhat size-contracts"
+    "size-contract": "hardhat size-contracts",
+    "postinstall": "patch-package"
   },
   "devDependencies": {
-    "@defi-wonderland/smock": "2.3.4",
+    "@defi-wonderland/smock": "2.4.0",
     "@nomicfoundation/hardhat-toolbox": "2.0.0",
-    "@safe-global/safe-core-sdk": "3.3.2",
-    "@safe-global/safe-ethers-adapters": "0.1.0-alpha.16",
-    "@safe-global/safe-ethers-lib": "1.9.2",
-    "@safe-global/safe-service-client": "1.5.2",
+    "@pythnetwork/pyth-evm-js": "1.73.0",
+    "@redstone-finance/evm-connector": "0.6.2",
+    "@safe-global/api-kit": "^4.0.0",
+    "@safe-global/protocol-kit": "^6.1.1",
+    "@safe-global/types-kit": "^3.0.0",
     "@types/chai": "4.3.3",
     "@types/lodash": "4.14.191",
     "@types/mocha": "9.1.1",
@@ -52,13 +54,15 @@
     "eslint-plugin-promise": "6.1.1",
     "eslint-plugin-require-path-exists": "1.1.9",
     "ethers-multisend": "2.4.0",
-    "hardhat": "2.12.5",
+    "hardhat": "2.22.14",
     "hardhat-contract-sizer": "2.6.1",
-    "hardhat-deploy": "0.11.22",
+    "hardhat-deploy": "1.0.4",
     "hardhat-log-remover": "2.0.2",
+    "hardhat-network-metadata": "^0.0.2",
     "hardhat-spdx-license-identifier": "2.1.0",
     "lodash": "4.17.21",
     "merkletreejs": "0.3.10",
+    "patch-package": "^8.0.1",
     "prettier-plugin-solidity": "1.1.1",
     "sleep-promise": "9.1.0",
     "solhint": "3.3.7",
@@ -68,7 +72,7 @@
     "typescript": "4.8.4"
   },
   "engines": {
-    "node": ">=12.0.0",
+    "node": ">=18.0.0",
     "npm": ">=7.0.0"
   }
 }

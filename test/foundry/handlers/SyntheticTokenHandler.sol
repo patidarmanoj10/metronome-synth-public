@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
+import "forge-std/Test.sol";
 import "./SynthHandlerBase.sol";
-import {Math} from "../../../contracts/dependencies/openzeppelin/utils/math/Math.sol";
-import {MasterOracleMock} from "../../../contracts/mock/MasterOracleMock.sol";
-import {PoolRegistry, IPoolRegistry} from "../../../contracts/PoolRegistry.sol";
-import {SyntheticToken} from "../../../contracts/SyntheticToken.sol";
-import {ERC20Mock, IERC20} from "../../../contracts/mock/ERC20Mock.sol";
+import {Math} from "contracts/dependencies/openzeppelin/utils/math/Math.sol";
+import {PoolRegistry, IPoolRegistry} from "contracts/PoolRegistry.sol";
+import {SyntheticToken} from "contracts/SyntheticToken.sol";
 
 contract SyntheticTokenHandler is SynthHandlerBase {
     SyntheticToken syntheticToken;

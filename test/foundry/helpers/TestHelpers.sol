@@ -3,7 +3,7 @@ pragma solidity ^0.8.9;
 
 import "forge-std/Test.sol";
 import {Addresses} from "./Addresses.sol";
-import {IERC20} from "../../../contracts/dependencies/openzeppelin/token/ERC20/IERC20.sol";
+import {IERC20} from "contracts/dependencies/openzeppelin/token/ERC20/IERC20.sol";
 
 abstract contract TestHelpers is Test, Addresses {
     using stdStorage for StdStorage;
@@ -27,9 +27,9 @@ abstract contract TestHelpers is Test, Addresses {
     function _setUp() public virtual;
 
     function setUp() public virtual {
-        uint256 mainnetFork = vm.createFork(vm.envString("NODE_URL"));
+        uint256 mainnetFork = vm.createFork(vm.envString("MAINNET_NODE_URL"));
         vm.selectFork(mainnetFork);
-        vm.rollFork(mainnetFork, vm.envUint("BLOCK_NUMBER"));
+        vm.rollFork(mainnetFork, vm.envUint("MAINNET_BLOCK_NUMBER"));
 
         _setUp();
     }

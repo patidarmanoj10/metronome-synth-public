@@ -14,7 +14,7 @@ const func = buildDepositTokenDeployFunction({
   underlyingSymbol: 'FRAX',
   underlyingDecimals: 18,
   collateralFactor: parseEther('0.75'), // 75%
-  maxTotalSupply: parseEther('100000'),
+  maxTotalSupply: parseEther('9000000'),
 })
 
 export default func

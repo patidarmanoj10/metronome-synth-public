@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.9;
+pragma solidity 0.8.24;
 
-import "../interfaces/IRewardsDistributor.sol";
+import {IERC20} from "../dependencies/openzeppelin/token/ERC20/IERC20.sol";
+import {IRewardsDistributor} from "../interfaces/IRewardsDistributor.sol";
 
 abstract contract RewardsDistributorStorageV1 is IRewardsDistributor {
     struct TokenState {

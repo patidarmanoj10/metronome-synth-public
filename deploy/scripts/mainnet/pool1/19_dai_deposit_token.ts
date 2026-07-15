@@ -14,7 +14,7 @@ const func = buildDepositTokenDeployFunction({
   underlyingSymbol: 'DAI',
   underlyingDecimals: 18,
   collateralFactor: parseEther('0.75'), // 75%
-  maxTotalSupply: parseEther('100000'),
+  maxTotalSupply: parseEther('10000000'),
 })
 
 export default func

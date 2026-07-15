@@ -3,7 +3,7 @@ pragma solidity ^0.8.9;
 
 import "forge-std/Test.sol";
 import {PoolRegistryHandler} from "./handlers/PoolRegistryHandler.sol";
-import {PoolRegistry, IMasterOracle} from "../../contracts/PoolRegistry.sol";
+import {PoolRegistry, IMasterOracle} from "contracts/PoolRegistry.sol";
 
 contract PoolRegistryInvariant_Test is Test {
     PoolRegistry poolRegistry;

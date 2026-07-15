@@ -40,7 +40,7 @@ abstract contract ComposableOFTCoreUpgradeable is OFTCoreUpgradeable, IComposabl
         // mock the payload for sendAndCall()
         bytes memory payload = abi.encode(
             PT_SEND_AND_CALL,
-            abi.encodePacked(msg.sender),
+            abi.encodePacked(_msgSender()),
             _toAddress,
             _amount,
             _payload,
@@ -130,7 +130,7 @@ abstract contract ComposableOFTCoreUpgradeable is OFTCoreUpgradeable, IComposabl
 
         bytes memory lzPayload = abi.encode(
             PT_SEND_AND_CALL,
-            abi.encodePacked(msg.sender),
+            abi.encodePacked(_msgSender()),
             _toAddress,
             amount,
             _payload,

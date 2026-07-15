@@ -1,27 +1,32 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.9;
+pragma solidity 0.8.24;
 
-import "./dependencies/openzeppelin/utils/math/SafeCast.sol";
-import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
-import "./utils/ReentrancyGuard.sol";
-import "./interfaces/IDebtToken.sol";
-import "./interfaces/IDepositToken.sol";
-import "./access/Manageable.sol";
-import "./storage/RewardsDistributorStorage.sol";
-import "./lib/WadRayMath.sol";
-import "./interfaces/external/IVPool.sol";
-import "./interfaces/external/IPoolRewards.sol";
+import {Initializable} from "./dependencies/openzeppelin-upgradeable/proxy/utils/Initializable.sol";
+import {IERC20} from "./dependencies/openzeppelin/token/ERC20/IERC20.sol";
+import {SafeCast} from "./dependencies/openzeppelin/utils/math/SafeCast.sol";
+import {SafeERC20} from "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
+import {ReentrancyGuardDeprecated} from "./utils/ReentrancyGuardDeprecated.sol";
+import {ReentrancyGuardTransient} from "./utils/ReentrancyGuardTransient.sol";
+import {IDebtToken} from "./interfaces/IDebtToken.sol";
+import {IDepositToken} from "./interfaces/IDepositToken.sol";
+import {Manageable} from "./access/Manageable.sol";
+import {RewardsDistributorStorageV2} from "./storage/RewardsDistributorStorage.sol";
+import {WadRayMath} from "./lib/WadRayMath.sol";
+import {IPool} from "./interfaces/IPool.sol";
+import {IVPool} from "./interfaces/external/IVPool.sol";
+import {IPoolRewards} from "./interfaces/external/IPoolRewards.sol";
 
 /// @notice Updated to IPoolRewards will trigger treasury upgrade and we want to avoid it.
 /// Hence defining new interface here.
 interface IPoolRewardsExt is IPoolRewards {
     function rewardRates(address rewardToken_) external returns (uint256);
+
+    function periodFinish(address rewardToken_) external returns (uint256);
 }
 
 error AddressIsNull();
 error NotTokenSpeedKeeper();
-
 error DistributorDoesNotExist();
 error InvalidToken();
 error RewardTokenIsNull();
@@ -31,12 +36,18 @@ error ArraysLengthDoNotMatch();
 /**
  * @title RewardsDistributor contract
  */
-contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorStorageV2 {
+contract RewardsDistributor is
+    Initializable,
+    ReentrancyGuardDeprecated,
+    ReentrancyGuardTransient,
+    Manageable,
+    RewardsDistributorStorageV2
+{
     using SafeERC20 for IERC20;
     using SafeCast for uint256;
     using WadRayMath for uint256;
 
-    string public constant VERSION = "1.3.0";
+    string public constant VERSION = "1.3.2";
 
     /// @notice The initial index
     uint224 public constant INITIAL_INDEX = 1e18;
@@ -92,7 +103,6 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     function initialize(IPool pool_, IERC20 rewardToken_) external initializer {
         if (address(rewardToken_) == address(0)) revert RewardTokenIsNull();
 
-        __ReentrancyGuard_init();
         __Manageable_init(pool_);
 
         rewardToken = rewardToken_;
@@ -103,7 +113,8 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
      */
     function claimable(address account_) external view override returns (uint256 _claimable) {
         _claimable = tokensAccruedOf[account_];
-        for (uint256 i; i < tokens.length; ++i) {
+        uint256 _len = tokens.length;
+        for (uint256 i; i < _len; ++i) {
             _claimable += _claimableRewards(account_, tokens[i]);
         }
     }
@@ -320,12 +331,19 @@ contract RewardsDistributor is ReentrancyGuard, Manageable, RewardsDistributorSt
     //********************************  TokenSpeed and RewardRate sync fix ***********************************/
     /// @notice This is temporary fix to keep tokenSpeed and rewardRate from Vesper in sync.
     function syncTokenSpeed(IDepositToken depositToken_) external {
-        if (msg.sender != tokenSpeedKeeper) revert NotTokenSpeedKeeper();
+        if (_msgSender() != tokenSpeedKeeper) revert NotTokenSpeedKeeper();
 
         IVPool _vPool = IVPool(address(depositToken_.underlying()));
         IPoolRewardsExt _rewards = IPoolRewardsExt(_vPool.poolRewards());
-        uint256 _speed = (_rewards.rewardRates(address(rewardToken)) * _vPool.balanceOf(address(pool.treasury()))) /
-            _vPool.totalSupply();
+
+        uint256 _speed;
+
+        if (block.timestamp < _rewards.periodFinish(address(rewardToken))) {
+            _speed =
+                (_rewards.rewardRates(address(rewardToken)) * _vPool.balanceOf(address(pool.treasury()))) /
+                _vPool.totalSupply();
+        }
+
         _updateTokenSpeed(IERC20(address(depositToken_)), _speed);
     }
 

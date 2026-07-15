@@ -1,13 +1,18 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.9;
+pragma solidity 0.8.24;
 
-import "./utils/ReentrancyGuard.sol";
-import "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
-import "./access/Manageable.sol";
-import "./storage/TreasuryStorage.sol";
-import "./interfaces/external/IVPool.sol";
-import "./interfaces/external/IPoolRewards.sol";
+import {Initializable} from "./dependencies/openzeppelin-upgradeable/proxy/utils/Initializable.sol";
+import {IERC20} from "./dependencies/openzeppelin/token/ERC20/IERC20.sol";
+import {ReentrancyGuardDeprecated} from "./utils/ReentrancyGuardDeprecated.sol";
+import {ReentrancyGuardTransient} from "./utils/ReentrancyGuardTransient.sol";
+import {SafeERC20} from "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
+import {Manageable} from "./access/Manageable.sol";
+import {IVPool} from "./interfaces/external/IVPool.sol";
+import {IPoolRewards} from "./interfaces/external/IPoolRewards.sol";
+import {IDepositToken} from "./interfaces/IDepositToken.sol";
+import {IPool} from "./interfaces/IPool.sol";
+import {TreasuryStorageV1} from "./storage/TreasuryStorage.sol";
 
 error SenderIsNotDepositToken();
 error AddressIsNull();
@@ -17,26 +22,17 @@ error AmountIsZero();
 /**
  * @title Treasury contract
  */
-contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
+contract Treasury is Initializable, ReentrancyGuardDeprecated, ReentrancyGuardTransient, Manageable, TreasuryStorageV1 {
     using SafeERC20 for IERC20;
     using SafeERC20 for IDepositToken;
 
-    string public constant VERSION = "1.3.0";
-
-    /**
-     * @dev Throws if caller isn't a deposit token
-     */
-    modifier onlyIfDepositToken() {
-        if (!pool.doesDepositTokenExist(IDepositToken(msg.sender))) revert SenderIsNotDepositToken();
-        _;
-    }
+    string public constant VERSION = "1.3.2";
 
     constructor() {
         _disableInitializers();
     }
 
     function initialize(IPool pool_) external initializer {
-        __ReentrancyGuard_init();
         __Manageable_init(pool_);
     }
 
@@ -49,9 +45,9 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
         if (newTreasury_ == address(0)) revert AddressIsNull();
 
         address[] memory _depositTokens = pool.getDepositTokens();
-        uint256 _depositTokensLength = _depositTokens.length;
+        uint256 _len = _depositTokens.length;
 
-        for (uint256 i; i < _depositTokensLength; ++i) {
+        for (uint256 i; i < _len; ++i) {
             IERC20 _underlying = IDepositToken(_depositTokens[i]).underlying();
 
             uint256 _underlyingBalance = _underlying.balanceOf(address(this));
@@ -67,10 +63,12 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
      * @param to_ The transfer recipient
      * @param amount_ The transfer amount
      */
-    function pull(address to_, uint256 amount_) external override nonReentrant onlyIfDepositToken {
+    function pull(address to_, uint256 amount_) external override nonReentrant {
+        address _msgSender = _msgSender();
+        if (!pool.doesDepositTokenExist(IDepositToken(_msgSender))) revert SenderIsNotDepositToken();
         if (to_ == address(0)) revert RecipientIsNull();
         if (amount_ == 0) revert AmountIsZero();
-        IDepositToken(msg.sender).underlying().safeTransfer(to_, amount_);
+        IDepositToken(_msgSender).underlying().safeTransfer(to_, amount_);
     }
 
     /**
@@ -83,6 +81,7 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
         _rewards.updateReward(address(this));
         _rewards.claimReward(address(this));
 
+        IPool _pool = pool;
         address[] memory _rewardTokens = _rewards.getRewardTokens();
         uint256 _len = _rewardTokens.length;
         for (uint256 i; i < _len; ++i) {
@@ -90,7 +89,7 @@ contract Treasury is ReentrancyGuard, Manageable, TreasuryStorageV1 {
             uint256 _amount = _token.balanceOf(address(this));
 
             // Note: If the reward token is a collateral, transfer the surpass balance only
-            IDepositToken _depositToken = pool.depositTokenOf(_token);
+            IDepositToken _depositToken = _pool.depositTokenOf(_token);
             if (address(_depositToken) != address(0)) {
                 _amount -= _depositToken.totalSupply();
             }

@@ -32,13 +32,6 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   await updateParamIfNeeded(hre, {
     contractAlias: Pool2,
-    readMethod: 'isBridgingActive',
-    writeMethod: 'toggleBridgingIsActive',
-    isCurrentValueUpdated: (isActive: boolean) => !isActive,
-  })
-
-  await updateParamIfNeeded(hre, {
-    contractAlias: Pool2,
     readMethod: 'governor',
     writeMethod: 'transferGovernorship',
     writeArgs: [Address.GNOSIS_SAFE_ADDRESS],

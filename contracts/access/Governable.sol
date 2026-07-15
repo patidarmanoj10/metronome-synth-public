@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.9;
+pragma solidity 0.8.24;
 
-import "../dependencies/openzeppelin-upgradeable/proxy/utils/Initializable.sol";
-import "../utils/TokenHolder.sol";
-import "../interfaces/IGovernable.sol";
+import {Initializable} from "../dependencies/openzeppelin-upgradeable/proxy/utils/Initializable.sol";
+import {Context} from "../dependencies/openzeppelin/utils/Context.sol";
+import {TokenHolder} from "../utils/TokenHolder.sol";
+import {IGovernable} from "../interfaces/IGovernable.sol";
 
 error SenderIsNotGovernor();
 error ProposedGovernorIsNull();
@@ -19,7 +20,7 @@ error SenderIsNotTheProposedGovernor();
  * can later be changed with {transferGovernorship}.
  *
  */
-abstract contract Governable is IGovernable, TokenHolder, Initializable {
+abstract contract Governable is IGovernable, Context, TokenHolder, Initializable {
     /**
      * @notice The governor
      * @dev By default the contract deployer is the initial governor
@@ -35,8 +36,9 @@ abstract contract Governable is IGovernable, TokenHolder, Initializable {
     event UpdatedGovernor(address indexed previousGovernor, address indexed proposedGovernor);
 
     constructor() {
-        governor = msg.sender;
-        emit UpdatedGovernor(address(0), msg.sender);
+        address _msgSender = _msgSender();
+        governor = _msgSender;
+        emit UpdatedGovernor(address(0), _msgSender);
     }
 
     /**
@@ -45,15 +47,16 @@ abstract contract Governable is IGovernable, TokenHolder, Initializable {
      */
     // solhint-disable-next-line func-name-mixedcase
     function __Governable_init() internal onlyInitializing {
-        governor = msg.sender;
-        emit UpdatedGovernor(address(0), msg.sender);
+        address _msgSender = _msgSender();
+        governor = _msgSender;
+        emit UpdatedGovernor(address(0), _msgSender);
     }
 
     /**
      * @dev Throws if called by any account other than the governor.
      */
     modifier onlyGovernor() {
-        if (governor != msg.sender) revert SenderIsNotGovernor();
+        if (governor != _msgSender()) revert SenderIsNotGovernor();
         _;
     }
 
@@ -76,7 +79,7 @@ abstract contract Governable is IGovernable, TokenHolder, Initializable {
      */
     function acceptGovernorship() external {
         address _proposedGovernor = proposedGovernor;
-        if (msg.sender != _proposedGovernor) revert SenderIsNotTheProposedGovernor();
+        if (_msgSender() != _proposedGovernor) revert SenderIsNotTheProposedGovernor();
         emit UpdatedGovernor(governor, _proposedGovernor);
         governor = _proposedGovernor;
         proposedGovernor = address(0);

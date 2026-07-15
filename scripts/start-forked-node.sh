@@ -6,13 +6,31 @@
 #   All modifications done by the scripts will appear on the git changes area.
 #
 
+network=$1;
+
+if [[ "$network" == "" ]];
+then
+    echo "Use: $0 <network>"
+    exit
+fi
+
+
+if [ ! -d "deploy/scripts/$network" ];
+then
+    echo "'$network' is invalid"
+    exit
+fi
+
 # Update ENV VARS
 source .env
 
+url=$(eval echo "\$${network^^}_NODE_URL")
+block=$(eval echo "\$${network^^}_BLOCK_NUMBER")
+
 echo "Make sure .env has the correct values."
 echo ""
-echo NODE_URL=$NODE_URL
-echo BLOCK_NUMBER=$BLOCK_NUMBER
+echo NODE_URL=$url
+echo BLOCK_NUMBER=$block
 echo ""
 echo -n "Press <ENTER> to continue: "
 read
@@ -21,8 +39,7 @@ read
 rm  -rf artifacts/ cache/ multisig.batch.tmp.json
 
 # Run node
-npx hardhat node --fork $NODE_URL --fork-block-number $BLOCK_NUMBER --no-deploy
+npx hardhat node --fork $url --fork-block-number $block --no-deploy
 
-# Impersonate deployer
-#npx hardhat impersonate-deployer --network localhost
+
 

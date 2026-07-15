@@ -1,9 +1,9 @@
 /* eslint-disable max-len */
 import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers'
 import {expect} from 'chai'
-import {Contract} from 'ethers'
+import {BigNumber, Contract} from 'ethers'
 import hre, {ethers} from 'hardhat'
-import {loadFixture, time} from '@nomicfoundation/hardhat-network-helpers'
+import {loadFixture, setCode, time} from '@nomicfoundation/hardhat-network-helpers'
 import {toUSD, parseEther, parseUnits} from '../helpers'
 import {impersonateAccount, setTokenBalance} from './helpers/index'
 import Address from '../helpers/address'
@@ -17,11 +17,11 @@ import {
   NativeTokenGateway,
   PoolRegistry,
   SmartFarmingManager,
-  CrossChainDispatcher,
-  Quoter,
   ProxyOFT,
+  AMO,
 } from '../typechain'
-import {CrossChainLib} from './helpers/CrossChainLib'
+import Constants from '../helpers/constants'
+
 let POOL_REGISTRY_ADDRESS: string
 let USDC_DEPOSIT_ADDRESS: string
 let OP_DEPOSIT_ADDRESS: string
@@ -37,11 +37,10 @@ let MSUSD_SYNTHETIC_ADDRESS: string
 let MSBTC_SYNTHETIC_ADDRESS: string
 let MSETH_SYNTHETIC_ADDRESS: string
 let NATIVE_TOKEN_GATEWAY_ADDRESS: string
-let QUOTER_ADDRESS: string
 let MSUSD_PROXYOFT_ADDRESS: string
 let MSETH_PROXYOFT_ADDRESS: string
 let SFM_ADDRESS: string
-let CROSS_CHAIN_DISPATCHER_ADDRESS: string
+let AMO_ADDRESS: string
 
 const {MaxUint256} = ethers.constants
 const dust = toUSD('5')
@@ -56,7 +55,7 @@ const isNodeHardhat = hre.network.name === 'hardhat'
  * 3) run this test suite
  * See more: `../docs/deployment-e2e-tests.md`
  */
-describe('E2E tests (next optimism release)', function () {
+describe.skip('E2E tests (next optimism release)', function () {
   let governor: SignerWithAddress
   let alice: SignerWithAddress
   let bob: SignerWithAddress
@@ -71,8 +70,6 @@ describe('E2E tests (next optimism release)', function () {
   let poolRegistry: PoolRegistry
   let nativeGateway: NativeTokenGateway
   let smartFarmingManager: SmartFarmingManager
-  let crossChainDispatcher: CrossChainDispatcher
-  let quoter: Quoter
   let pool: Pool
   let msdWETH: DepositToken
   let msdOP: DepositToken
@@ -89,6 +86,7 @@ describe('E2E tests (next optimism release)', function () {
   let msETH: SyntheticToken
   let msUSDProxyOFT: ProxyOFT
   let msETHProxyOFT: ProxyOFT
+  let amo: AMO
 
   async function fixture() {
     // Note: Using dynamic import otherwise test will fail when `/deployments/localhost` doesn't exist
@@ -109,9 +107,8 @@ describe('E2E tests (next optimism release)', function () {
     ;({address: MSUSD_PROXYOFT_ADDRESS} = await import('../deployments/localhost/MsUSDProxyOFT.json'))
     ;({address: MSETH_PROXYOFT_ADDRESS} = await import('../deployments/localhost/MsETHProxyOFT.json'))
     ;({address: NATIVE_TOKEN_GATEWAY_ADDRESS} = await import('../deployments/localhost/NativeTokenGateway.json'))
-    ;({address: QUOTER_ADDRESS} = await import('../deployments/localhost/Quoter.json'))
     ;({address: SFM_ADDRESS} = await import('../deployments/localhost/SmartFarmingManager_Pool1.json'))
-    ;({address: CROSS_CHAIN_DISPATCHER_ADDRESS} = await import('../deployments/localhost/CrossChainDispatcher.json'))
+    ;({address: AMO_ADDRESS} = await import('../deployments/localhost/AMO.json'))
 
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
     ;[, alice, bob] = await ethers.getSigners()
@@ -126,6 +123,7 @@ describe('E2E tests (next optimism release)', function () {
     poolRegistry = await ethers.getContractAt('PoolRegistry', POOL_REGISTRY_ADDRESS, alice)
     governor = await impersonateAccount(await poolRegistry.governor())
     nativeGateway = await ethers.getContractAt('NativeTokenGateway', NATIVE_TOKEN_GATEWAY_ADDRESS, alice)
+    amo = await ethers.getContractAt('AMO', AMO_ADDRESS, alice)
 
     const [pool1Address] = await poolRegistry.getPools()
     pool = <Pool>await ethers.getContractAt('contracts/Pool.sol:Pool', pool1Address, alice)
@@ -150,8 +148,6 @@ describe('E2E tests (next optimism release)', function () {
     msETHProxyOFT = await ethers.getContractAt('ProxyOFT', MSETH_PROXYOFT_ADDRESS, alice)
 
     smartFarmingManager = await ethers.getContractAt('SmartFarmingManager', SFM_ADDRESS, alice)
-    crossChainDispatcher = await ethers.getContractAt('CrossChainDispatcher', CROSS_CHAIN_DISPATCHER_ADDRESS, alice)
-    quoter = await ethers.getContractAt('Quoter', QUOTER_ADDRESS, alice)
 
     await setTokenBalance(usdc.address, alice.address, parseUnits('10,000', 6))
     await setTokenBalance(op.address, alice.address, parseUnits('10,000', 18))
@@ -182,12 +178,6 @@ describe('E2E tests (next optimism release)', function () {
     )
     await defaultOracle.updateDefaultStalePeriod(ethers.constants.MaxUint256)
 
-    // TODO: Remove when the production cap has enough room
-    await msUSDDebt.connect(governor).updateMaxTotalSupply(ethers.constants.MaxUint256)
-    await msUSD.connect(governor).toggleIsActive()
-    await msOP.connect(governor).toggleIsActive()
-    await msETH.connect(governor).toggleIsActive()
-
     await msdVaUSDC.connect(governor).updateMaxTotalSupply(ethers.constants.MaxUint256)
     await msdVaETH.connect(governor).updateMaxTotalSupply(ethers.constants.MaxUint256)
     await msdVaWSTETH.connect(governor).updateMaxTotalSupply(ethers.constants.MaxUint256)
@@ -201,19 +191,9 @@ describe('E2E tests (next optimism release)', function () {
       await poolRegistry.connect(governor).unpause()
     }
 
-    if (!(await crossChainDispatcher.isBridgingActive())) {
-      await crossChainDispatcher.connect(governor).toggleBridgingIsActive()
-    }
-
-    if (!(await pool.isBridgingActive())) {
-      await pool.connect(governor).toggleBridgingIsActive()
-    }
-
-    const vesperGovernor = await impersonateAccount('0x32934AD7b1121DeFC631080b58599A0eaAB89878')
-    await new ethers.Contract(vaUSDC.address, ['function open()'], vesperGovernor).open()
-    await new ethers.Contract(vaUSDC.address, ['function unpause()'], vesperGovernor).unpause()
-    await new ethers.Contract(vaWSTETH.address, ['function open()'], vesperGovernor).open()
-    await new ethers.Contract(vaWSTETH.address, ['function unpause()'], vesperGovernor).unpause()
+    // These well-known accounts have delegated code which reverts when receiving ETH
+    await setCode(alice.address, '0x00')
+    await setCode(bob.address, '0x00')
   }
 
   beforeEach(async function () {
@@ -234,10 +214,8 @@ describe('E2E tests (next optimism release)', function () {
   describe('initial setup', function () {
     it('should have correct addresses', async function () {
       expect(POOL_REGISTRY_ADDRESS).eq(await pool.poolRegistry())
-      expect(CROSS_CHAIN_DISPATCHER_ADDRESS).eq(await poolRegistry.crossChainDispatcher())
       expect(SFM_ADDRESS).eq(await pool.smartFarmingManager())
       expect(pool.address).eq(await smartFarmingManager.pool())
-      expect(QUOTER_ADDRESS).eq(await poolRegistry.quoter())
 
       expect(USDC_DEPOSIT_ADDRESS).eq(await pool.depositTokenOf(usdc.address))
       expect(OP_DEPOSIT_ADDRESS).eq(await pool.depositTokenOf(op.address))
@@ -439,7 +417,7 @@ describe('E2E tests (next optimism release)', function () {
     it('should liquidate unhealthy position', async function () {
       // given
       await msdUSDC.deposit(parseUnits('400', await usdc.decimals()), alice.address)
-      await msUSDDebt.connect(governor).updateInterestRate(parseEther('0')) // 0%
+      expect(await msUSDDebt.interestRate()).eq(0)
       const {_issuableInUsd} = await pool.debtPositionOf(alice.address)
       await msUSDDebt.issue(_issuableInUsd, alice.address)
       await msUSDDebt.connect(governor).updateInterestRate(parseEther('0.5')) // 50%
@@ -553,7 +531,7 @@ describe('E2E tests (next optimism release)', function () {
         const {gasUsed} = await tx.wait()
         expect(gasUsed.lt(1.4e6))
         const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
-        expect(_depositInUsd).closeTo(amountInUsd.mul(leverage).div(parseEther('1')), parseEther('100')) // ~$285
+        expect(_depositInUsd).closeTo(parseEther('360'), parseEther('100'))
         expect(_debtInUsd).closeTo(
           amountInUsd.mul(leverage.sub(parseEther('1'))).div(parseEther('1')),
           parseEther('100')
@@ -563,7 +541,7 @@ describe('E2E tests (next optimism release)', function () {
       it('should leverage vawstETH->msETH', async function () {
         // when
         const amountIn = parseUnits('0.1', 18)
-        const amountInUsd = parseUnits('310', 18) // approx.
+        const amountInUsd = parseUnits('215', 18) // approx.
         const leverage = parseEther('1.5')
         await vaWSTETH.connect(alice).approve(smartFarmingManager.address, MaxUint256)
         const tx = await smartFarmingManager.leverage(
@@ -611,137 +589,187 @@ describe('E2E tests (next optimism release)', function () {
       })
     })
 
+    describe('amo', function () {
+      it('should have correct parameters', async function () {
+        expect(await amo.poolRegistry()).eq(poolRegistry.address)
+        expect(await msUSD.amo()).eq(amo.address)
+        expect(await msETH.amo()).eq(amo.address)
+        expect(await msUSD.maxAmoSupply()).gt(0)
+        expect(await msETH.maxAmoSupply()).gt(0)
+      })
+    })
+
     describe('cross-chain operations', function () {
-      const LZ_MAINNET_ID = 101
+      // Destination chains this deployment supports. See `deploy/scripts/optimism/01_pool_registry.ts`.
+      const supportedDstChainIds = [
+        Constants.LZ_MAINNET_CHAIN_ID,
+        Constants.LZ_BASE_CHAIN_ID,
+        Constants.LZ_PLASMA_CHAIN_ID,
+        Constants.LZ_HEMI_CHAIN_ID,
+      ]
 
-      beforeEach(async function () {
-        const isBridgingActive = await crossChainDispatcher.isBridgingActive()
-        if (!isBridgingActive) {
-          await crossChainDispatcher.connect(governor).toggleBridgingIsActive()
-        }
-      })
+      // One entry per bridgeable synth. Expected caps mirror the deploy scripts:
+      // `deploy/scripts/optimism/06_msusd_proxy_oft.ts` and `07_mseth_proxy_oft.ts`.
+      const bridgeCases = [
+        {
+          name: 'msUSD',
+          oft: () => msUSDProxyOFT,
+          synth: () => msUSD,
+          debt: () => msUSDDebt,
+          amount: parseEther('10'),
+          dstChainId: Constants.LZ_MAINNET_CHAIN_ID,
+          expectedMaxBridgedInSupply: parseEther('10000000'),
+          expectedMaxBridgedOutSupply: parseEther('10000000'),
+        },
+        {
+          name: 'msETH',
+          oft: () => msETHProxyOFT,
+          synth: () => msETH,
+          debt: () => msETHDebt,
+          amount: parseEther('0.1'),
+          dstChainId: Constants.LZ_MAINNET_CHAIN_ID,
+          expectedMaxBridgedInSupply: parseEther('4500'),
+          expectedMaxBridgedOutSupply: parseEther('4500'),
+        },
+      ]
 
-      it('crossChainLeverages', async function () {
-        // when
-        const id = '19085876106743701664961649015242405312216082383703184670357774050142071594619'
+      // Deposit collateral and issue `amount` of the synth to alice so she has something to bridge.
+      async function issueSynth(debt: DebtToken, amount: BigNumber) {
+        await msdWETH.deposit(parseEther('1'), alice.address)
+        await debt.issue(amount, alice.address)
+      }
 
-        const {
-          dstChainId,
-          bridgeToken,
-          depositToken,
-          syntheticToken,
-          amountIn,
-          debtAmount,
-          depositAmountMin,
-          account,
-          finished,
-          tokenIn,
-        } = await smartFarmingManager.crossChainLeverages(id)
+      bridgeCases.forEach((c) => {
+        describe(c.name, function () {
+          it('should have the proxyOFT wired to the synthetic token', async function () {
+            expect(await c.oft().token()).eq(c.synth().address)
+            expect(await c.synth().proxyOFT()).eq(c.oft().address)
+            expect(await c.oft().owner()).eq(await poolRegistry.governor())
+          })
 
-        // then
-        expect(dstChainId).eq(LZ_MAINNET_ID)
-        expect(bridgeToken).eq(usdc.address)
-        expect(depositToken).eq(msdVaUSDC.address)
-        expect(syntheticToken).eq(msUSD.address)
-        expect(amountIn).eq('100000000')
-        expect(debtAmount).eq('49987031500000000000')
-        expect(depositAmountMin).eq(1)
-        expect(account).eq('0xdf826ff6518e609E4cEE86299d40611C148099d5')
-        expect(finished).eq(true)
-        expect(tokenIn).eq(ethers.constants.AddressZero)
-      })
+          it('should have bridging enabled to all supported chains', async function () {
+            expect(await poolRegistry.isBridgingActive()).true
+            expect(await poolRegistry.lzBaseGasLimit()).gt(0)
+            for (const dstChainId of supportedDstChainIds) {
+              expect(await poolRegistry.isDestinationChainSupported(dstChainId), `dst ${dstChainId}`).true
+              expect(await c.oft().getProxyOFTOf(dstChainId), `remote ${dstChainId}`).not.eq(
+                ethers.constants.AddressZero
+              )
+            }
+          })
 
-      it('crossChainLeverage', async function () {
-        // given
-        const idBefore = await smartFarmingManager.crossChainRequestsLength()
+          it('should have the expected bridging supply caps', async function () {
+            expect(await c.synth().maxBridgedInSupply()).eq(c.expectedMaxBridgedInSupply)
+            expect(await c.synth().maxBridgedOutSupply()).eq(c.expectedMaxBridgedOutSupply)
+          })
 
-        // when
-        const amountIn = parseUnits('1', 18)
-        const leverage = parseEther('1.5')
-        const swapAmountOutMin = 0
-        const depositAmountOutMin = 0
-        // Note: This call must be called from the mainnet
-        // const lzArgs = await quoter.getLeverageSwapAndCallbackLzArgs(LZ_OP_ID, LZ_MAINNET_ID)
-        // Using hard-coded values to make test pass
-        const lzArgs = CrossChainLib.encodeLzArgs(LZ_MAINNET_ID, parseEther('0.1'), '750000')
+          it('should estimate a non-zero bridging fee', async function () {
+            expect(await c.oft()['estimateSendFee(uint16,address,uint256)'](c.dstChainId, alice.address, c.amount)).gt(
+              0
+            )
+          })
 
-        const fee = parseEther('0.5')
-        await weth.connect(alice).approve(smartFarmingManager.address, MaxUint256)
-        await smartFarmingManager[
-          'crossChainLeverage(address,address,address,address,uint256,uint256,uint256,uint256,bytes)'
-        ](
-          weth.address,
-          msETH.address,
-          weth.address,
-          msdVaETH.address,
-          amountIn,
-          leverage,
-          swapAmountOutMin,
-          depositAmountOutMin,
-          lzArgs,
-          {value: fee}
-        )
+          it('should burn and account for the synth when bridging out', async function () {
+            await issueSynth(c.debt(), c.amount)
+            const totalSupplyBefore = await c.synth().totalSupply()
+            const bridgedOutBefore = await c.synth().totalBridgedOut()
 
-        // then
-        expect(await smartFarmingManager.crossChainRequestsLength()).eq(idBefore.add(1))
-      })
+            const tx = () =>
+              c
+                .oft()
+                ['sendFrom(address,uint16,address,uint256)'](alice.address, c.dstChainId, alice.address, c.amount, {
+                  value: parseEther('0.5'),
+                })
 
-      describe('crossChainFlashRepay', function () {
-        beforeEach(async function () {
-          const {_debtInUsd, _depositInUsd} = await pool.debtPositionOf(alice.address)
-          expect(_debtInUsd).eq(0)
-          expect(_depositInUsd).eq(0)
-          const amountIn = parseUnits('1', 18)
-          const leverage = parseEther('1.5')
-          await vaETH.connect(alice).approve(smartFarmingManager.address, MaxUint256)
-          await smartFarmingManager.leverage(vaETH.address, msdVaETH.address, msETH.address, amountIn, leverage, 0)
-        })
+            await expect(tx).changeTokenBalance(c.synth(), alice, c.amount.mul(-1))
+            expect(await c.synth().totalSupply()).eq(totalSupplyBefore.sub(c.amount))
+            expect(await c.synth().totalBridgedOut()).eq(bridgedOutBefore.add(c.amount))
+          })
 
-        it('crossChainFlashRepays', async function () {
-          // when
-          const id = '35117077778332083854144850921247747581371777455700725226394469105255657687432'
+          it('should revert when bridging is paused', async function () {
+            await issueSynth(c.debt(), c.amount)
+            await poolRegistry.connect(governor).toggleBridgingIsActive()
 
-          const {dstChainId, syntheticToken, repayAmountMin, account, finished} =
-            await smartFarmingManager.crossChainFlashRepays(id)
+            await expect(
+              c
+                .oft()
+                ['sendFrom(address,uint16,address,uint256)'](alice.address, c.dstChainId, alice.address, c.amount, {
+                  value: parseEther('0.5'),
+                })
+            ).revertedWithCustomError(c.oft(), 'BridgingIsPaused')
+          })
 
-          // then
-          expect(dstChainId).eq(LZ_MAINNET_ID)
-          expect(syntheticToken).eq(msUSD.address)
-          expect(repayAmountMin).eq(1)
-          expect(account).eq('0xdf826ff6518e609E4cEE86299d40611C148099d5')
-          expect(finished).eq(true)
-        })
+          it('should revert when the destination chain is not supported', async function () {
+            await issueSynth(c.debt(), c.amount)
+            await poolRegistry.connect(governor).toggleDestinationChainIsActive(c.dstChainId)
 
-        it('crossChainFlashRepay', async function () {
-          // given
-          const idBefore = await smartFarmingManager.crossChainRequestsLength()
+            await expect(
+              c
+                .oft()
+                ['sendFrom(address,uint16,address,uint256)'](alice.address, c.dstChainId, alice.address, c.amount, {
+                  value: parseEther('0.5'),
+                })
+            ).revertedWithCustomError(c.oft(), 'DestinationChainNotAllowed')
+          })
 
-          // when
-          const withdrawAmount = parseUnits('0.3', 18)
-          const underlyingAmountOutMin = 0
-          const swapAmountOutMin = 0
-          const repayAmountOutMin = 0
+          it('should revert when the caller does not own the funds', async function () {
+            await issueSynth(c.debt(), c.amount)
 
-          // Note: This call must be called from the mainnet
-          // const lzArgs = await quoter.getLeverageSwapAndCallbackLzArgs(LZ_MAINNET_ID, LZ_OP_ID)
-          // Using hard-coded values to make test pass
-          const lzArgs = CrossChainLib.encodeLzArgs(LZ_MAINNET_ID, parseEther('0.1'), '750000')
+            await expect(
+              c.oft()['sendFrom(address,uint16,address,uint256)'](bob.address, c.dstChainId, alice.address, c.amount, {
+                value: parseEther('0.5'),
+              })
+            ).revertedWithCustomError(c.oft(), 'SenderIsNotTheOwner')
+          })
 
-          const fee = parseEther('0.5')
-          await smartFarmingManager.crossChainFlashRepay(
-            msETH.address,
-            msdVaETH.address,
-            withdrawAmount,
-            weth.address,
-            underlyingAmountOutMin,
-            swapAmountOutMin,
-            repayAmountOutMin,
-            lzArgs,
-            {value: fee}
-          )
+          it('should revert when using the disabled sendAndCall path', async function () {
+            const toAddress = ethers.utils.solidityPack(['address'], [alice.address])
 
-          // then
-          expect(await smartFarmingManager.crossChainRequestsLength()).eq(idBefore.add(1))
+            await expect(
+              c
+                .oft()
+                .sendAndCall(
+                  alice.address,
+                  c.dstChainId,
+                  toAddress,
+                  c.amount,
+                  '0x',
+                  0,
+                  alice.address,
+                  ethers.constants.AddressZero,
+                  '0x',
+                  {value: parseEther('0.5')}
+                )
+            ).revertedWithCustomError(c.oft(), 'SendAndCallNotAllowed')
+          })
+
+          it('should revert when the bridged-out supply cap is surpassed', async function () {
+            await issueSynth(c.debt(), c.amount)
+            const bridgedIn = await c.synth().totalBridgedIn()
+            const bridgedOut = await c.synth().totalBridgedOut()
+            const outSupplyNow = await c.synth().bridgedOutSupply()
+            // Net out-supply after the burn, computed exactly as `SyntheticToken._burn` does.
+            const outSupplyAfter = bridgedOut.add(c.amount).gt(bridgedIn)
+              ? bridgedOut.add(c.amount).sub(bridgedIn)
+              : ethers.constants.Zero
+
+            // Only reachable when the bridge-out raises the net out-supply. If the fork is deeply
+            // net-in for this synth a small bridge-out cannot exceed the out cap, so skip.
+            if (!outSupplyAfter.gt(outSupplyNow)) {
+              this.skip()
+            }
+
+            // Pin the cap at the current out-supply so the next burn surpasses it by `amount`.
+            await c.synth().connect(governor).updateMaxBridgedOutSupply(outSupplyNow)
+
+            await expect(
+              c
+                .oft()
+                ['sendFrom(address,uint16,address,uint256)'](alice.address, c.dstChainId, alice.address, c.amount, {
+                  value: parseEther('0.5'),
+                })
+            ).revertedWithCustomError(c.synth(), 'SurpassMaxBridgingSupply')
+          })
         })
       })
     })

@@ -1,11 +1,17 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.9;
+pragma solidity 0.8.24;
 
-import "./utils/ReentrancyGuard.sol";
-import "./utils/TokenHolder.sol";
-import "./interfaces/IVesperGateway.sol";
-import "./interfaces/IDepositToken.sol";
+import {SafeERC20} from "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "./dependencies/openzeppelin/token/ERC20/IERC20.sol";
+import {SynthContext} from "./utils/SynthContext.sol";
+import {ReentrancyGuardTransient} from "./utils/ReentrancyGuardTransient.sol";
+import {TokenHolder} from "./utils/TokenHolder.sol";
+import {IVPool} from "./interfaces/external/IVPool.sol";
+import {IPoolRegistry} from "./interfaces/IPoolRegistry.sol";
+import {IVesperGateway} from "./interfaces/IVesperGateway.sol";
+import {IDepositToken} from "./interfaces/IDepositToken.sol";
+import {IPool} from "./interfaces/IPool.sol";
 
 error SenderIsNotGovernor();
 error UnregisteredPool();
@@ -13,22 +19,20 @@ error UnregisteredPool();
 /**
  * @title Helper contract to easily support vTokens as collateral
  */
-contract VesperGateway is ReentrancyGuard, TokenHolder, IVesperGateway {
+contract VesperGateway is SynthContext, ReentrancyGuardTransient, TokenHolder, IVesperGateway {
     using SafeERC20 for IERC20;
     using SafeERC20 for IDepositToken;
     using SafeERC20 for IVPool;
 
-    IPoolRegistry public immutable poolRegistry;
+    IPoolRegistry internal immutable _poolRegistry;
 
     modifier onlyGovernor() {
-        if (poolRegistry.governor() != msg.sender) revert SenderIsNotGovernor();
+        if (_poolRegistry.governor() != _msgSender()) revert SenderIsNotGovernor();
         _;
     }
 
-    constructor(IPoolRegistry poolRegistry_) initializer {
-        // Note: This contract isn't upgradable but extends `ReentrancyGuard` therefore we need to initialize it
-        __ReentrancyGuard_init();
-        poolRegistry = poolRegistry_;
+    constructor(IPoolRegistry poolRegistry_) {
+        _poolRegistry = poolRegistry_;
     }
 
     /**
@@ -38,11 +42,13 @@ contract VesperGateway is ReentrancyGuard, TokenHolder, IVesperGateway {
      * @param amount_ The amount of `underlying` asset to deposit
      */
     function deposit(IPool pool_, IVPool vToken_, uint256 amount_) external override {
-        if (!poolRegistry.isPoolRegistered(address(pool_))) revert UnregisteredPool();
+        if (!_poolRegistry.isPoolRegistered(address(pool_))) revert UnregisteredPool();
+
+        address _msgSender = _msgSender();
 
         // 1. Get `underlying` asset
         IERC20 _underlying = IERC20(vToken_.token());
-        _underlying.safeTransferFrom(msg.sender, address(this), amount_);
+        _underlying.safeTransferFrom(_msgSender, address(this), amount_);
 
         // 2. Deposit `underlying` to `VPool`
         _underlying.safeApprove(address(vToken_), 0);
@@ -51,25 +57,27 @@ contract VesperGateway is ReentrancyGuard, TokenHolder, IVesperGateway {
         vToken_.deposit(amount_);
         uint256 _vTokenAmount = vToken_.balanceOf(address(this)) - _balanceBefore;
 
-        // 3. Deposit `VPool` to `Synth` and send `msdTokens` to the `msg.sender`
+        // 3. Deposit `VPool` to `Synth` and send `msdTokens` to the `_msgSender()`
         IDepositToken _depositToken = pool_.depositTokenOf(vToken_);
         vToken_.safeApprove(address(_depositToken), 0);
         vToken_.safeApprove(address(_depositToken), _vTokenAmount);
-        _depositToken.deposit(_vTokenAmount, msg.sender);
+        _depositToken.deposit(_vTokenAmount, _msgSender);
     }
 
     /**
-     * @notice Withdraws the `vToken` deposit of msg.sender.
+     * @notice Withdraws the `vToken` deposit of _msgSender().
      * @param pool_ The Pool contract
      * @param vToken_ The vToken to withdraw
      * @param amount_ The amount of deposit tokens to withdraw and receive underlying
      */
     function withdraw(IPool pool_, IVPool vToken_, uint256 amount_) external override nonReentrant {
-        if (!poolRegistry.isPoolRegistered(address(pool_))) revert UnregisteredPool();
+        if (!_poolRegistry.isPoolRegistered(address(pool_))) revert UnregisteredPool();
+
+        address _msgSender = _msgSender();
 
         // 1. Get `msdTokens`
         IDepositToken _depositToken = pool_.depositTokenOf(vToken_);
-        _depositToken.safeTransferFrom(msg.sender, address(this), amount_);
+        _depositToken.safeTransferFrom(_msgSender, address(this), amount_);
 
         // 2. Withdraw `vTokens` from `Synth`
         (uint256 _vTokenAmount, ) = _depositToken.withdraw(amount_, address(this));
@@ -80,8 +88,13 @@ contract VesperGateway is ReentrancyGuard, TokenHolder, IVesperGateway {
         vToken_.withdraw(_vTokenAmount);
         uint256 _underlyingAmount = _underlying.balanceOf(address(this)) - _balanceBefore;
 
-        // 4. Transfer `underlying` to the `msg.sender`
-        _underlying.safeTransfer(msg.sender, _underlyingAmount);
+        // 4. Transfer `underlying` to the `_msgSender()`
+        _underlying.safeTransfer(_msgSender, _underlyingAmount);
+    }
+
+    /// @inheritdoc SynthContext
+    function poolRegistry() public view override returns (IPoolRegistry) {
+        return _poolRegistry;
     }
 
     /// @inheritdoc TokenHolder

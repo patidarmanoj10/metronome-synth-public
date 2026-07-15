@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import {Test, console2} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
+import {IERC20Metadata} from "contracts/dependencies/openzeppelin/token/ERC20/extensions/IERC20Metadata.sol";
 import {Pool} from "../../../contracts/Pool.sol";
-import {IERC20Metadata, DepositToken} from "../../../contracts/DepositToken.sol";
+import {DepositToken} from "../../../contracts/DepositToken.sol";
 
 interface IChainlinkOracle {
     function updateCustomStalePeriod(address, uint256) external;
@@ -94,7 +95,7 @@ contract TBY_Test is Test {
     DepositToken tbyDepositToken;
 
     function setUp() public {
-        vm.createSelectFork(vm.envString("NODE_URL"), 18_714_729);
+        vm.createSelectFork(vm.envString("MAINNET_NODE_URL"), 18_714_729);
 
         tbyOracle = new TBYOracle(tbyExchangeRateRegistry);
 
@@ -117,6 +118,7 @@ contract TBY_Test is Test {
 
         vm.prank(SYNTH_GOVERNOR);
         pool.addDepositToken(address(tbyDepositToken));
+        vm.mockCall(address(pool.poolRegistry()), abi.encodeWithSignature("operator()"), abi.encode(address(0)));
     }
 
     function test_oracle() public {

@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
+import "forge-std/Test.sol";
 import "./SynthHandlerBase.sol";
-import {Pool, IPool} from "../../../contracts/Pool.sol";
-import {SyntheticToken, ISyntheticToken} from "../../../contracts/SyntheticToken.sol";
-import {DepositToken, IDepositToken} from "../../../contracts/DepositToken.sol";
-import {DebtToken, IDebtToken} from "../../../contracts/DebtToken.sol";
-import {ERC20Mock, IERC20} from "../../../contracts/mock/ERC20Mock.sol";
+import {Pool, IPool} from "contracts/Pool.sol";
+import {SyntheticToken, ISyntheticToken} from "contracts/SyntheticToken.sol";
+import {IDepositToken} from "contracts/interfaces/IDepositToken.sol";
+import {IDebtToken} from "contracts/interfaces/IDebtToken.sol";
+import {ERC20Mock} from "contracts/mock/ERC20Mock.sol";
 
 contract PoolHandler is SynthHandlerBase {
     constructor(Pool pool_, address[] memory actors_) SynthHandlerBase(pool_) {

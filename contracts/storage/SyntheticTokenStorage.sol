@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.9;
+pragma solidity 0.8.24;
 
-import "../interfaces/ISyntheticToken.sol";
+import {IPoolRegistry} from "../interfaces/IPoolRegistry.sol";
+import {IProxyOFT} from "../interfaces/IProxyOFT.sol";
+import {ISyntheticToken} from "../interfaces/ISyntheticToken.sol";
 
 abstract contract SyntheticTokenStorageV1 is ISyntheticToken {
     /**
@@ -39,7 +41,7 @@ abstract contract SyntheticTokenStorageV1 is ISyntheticToken {
     /**
      * @dev The Pool Registry
      */
-    IPoolRegistry public override poolRegistry;
+    IPoolRegistry internal _poolRegistry;
 
     /**
      * @notice If true, disables msAsset minting globally
@@ -75,4 +77,21 @@ abstract contract SyntheticTokenStorageV1 is ISyntheticToken {
      * @notice Maximum allowed bridged-out (burn-related) supply
      */
     uint256 public maxBridgedOutSupply;
+}
+
+abstract contract SyntheticTokenStorageV2 is SyntheticTokenStorageV1 {
+    /**
+     * @notice Automated Market Operator, it can be a contract, safe or EOA
+     */
+    address public amo;
+
+    /**
+     * @notice Maximum Synth AMO can mint. It can be updated by admin/governor.
+     */
+    uint256 public maxAmoSupply;
+
+    /**
+     * @notice Synth minted by AMO so far. It will be reduced when Synths are burnt by AMO.
+     */
+    uint256 public amoSupply;
 }

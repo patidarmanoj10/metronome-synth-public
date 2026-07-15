@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity 0.8.9;
+pragma solidity ^0.8.9;
 
 import "./IStargateRouter.sol";
 
@@ -32,4 +32,18 @@ interface IStargateComposer {
     ) external view returns (uint256, uint256);
 
     function peers(uint16 _chainId) external view returns (address);
+
+    function payloadHashes(
+        uint16 _srcChainId,
+        bytes calldata _srcAddress,
+        uint256 _nonce
+    ) external view returns (bytes32);
+
+    function clearCachedSwap(
+        uint16 _srcChainId,
+        bytes calldata _srcAddress,
+        uint64 _nonce,
+        address _receiver,
+        bytes calldata _sgReceiveCallData
+    ) external;
 }

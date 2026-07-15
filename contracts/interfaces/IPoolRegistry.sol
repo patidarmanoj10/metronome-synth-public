@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.9;
+pragma solidity 0.8.24;
 
-import "./external/IMasterOracle.sol";
-import "./IPauseable.sol";
-import "./IGovernable.sol";
-import "./ISyntheticToken.sol";
-import "./external/ISwapper.sol";
-import "./IQuoter.sol";
-import "./ICrossChainDispatcher.sol";
+import {IMasterOracle} from "./external/IMasterOracle.sol";
+import {IPauseable} from "./IPauseable.sol";
+import {IGovernable} from "./IGovernable.sol";
+import {ISyntheticToken} from "./ISyntheticToken.sol";
+import {ISwapper} from "./external/ISwapper.sol";
+import {IOperator} from "./IOperator.sol";
 
 interface IPoolRegistry is IPauseable, IGovernable {
     function feeCollector() external view returns (address);
@@ -33,9 +32,15 @@ interface IPoolRegistry is IPauseable, IGovernable {
 
     function swapper() external view returns (ISwapper);
 
-    function quoter() external view returns (IQuoter);
-
-    function crossChainDispatcher() external view returns (ICrossChainDispatcher);
-
     function doesSyntheticTokenExist(ISyntheticToken syntheticToken_) external view returns (bool _exists);
+
+    function operator() external view returns (IOperator);
+
+    function isGuardian(address) external view returns (bool);
+
+    function isBridgingActive() external view returns (bool);
+
+    function lzBaseGasLimit() external view returns (uint256);
+
+    function isDestinationChainSupported(uint16 dstChainId_) external view returns (bool);
 }

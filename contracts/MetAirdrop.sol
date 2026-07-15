@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.9;
+pragma solidity 0.8.24;
 
-import "./dependencies/openzeppelin/utils/math/Math.sol";
-import "./utils/RecurringAirdrop.sol";
-import "./interfaces/external/IESMET.sol";
+import {SafeERC20} from "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "./dependencies/openzeppelin/token/ERC20/IERC20.sol";
+import {Math} from "./dependencies/openzeppelin/utils/math/Math.sol";
+import {RecurringAirdrop} from "./utils/RecurringAirdrop.sol";
+import {IESMET} from "./interfaces/external/IESMET.sol";
 
 /**
  * @title MET Airdrop contract

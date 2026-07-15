@@ -1,0 +1,26 @@
+diff --git a/node_modules/@nomiclabs/hardhat-etherscan/dist/src/solc/version.js b/node_modules/@nomiclabs/hardhat-etherscan/dist/src/solc/version.js
+index 7f3e416..69b2f0e 100644
+--- a/node_modules/@nomiclabs/hardhat-etherscan/dist/src/solc/version.js
++++ b/node_modules/@nomiclabs/hardhat-etherscan/dist/src/solc/version.js
+@@ -4,7 +4,7 @@ exports.getVersions = exports.getLongVersion = void 0;
+ const constants_1 = require("../constants");
+ const errors_1 = require("../errors");
+ const undici_1 = require("../undici");
+-const COMPILERS_LIST_URL = "https://solc-bin.ethereum.org/bin/list.json";
++const COMPILERS_LIST_URL = "https://binaries.soliditylang.org/bin/list.json";
+ // TODO: this could be retrieved from the hardhat config instead.
+ async function getLongVersion(shortVersion) {
+     const versions = await getVersions();
+diff --git a/node_modules/@nomiclabs/hardhat-etherscan/src/solc/version.ts b/node_modules/@nomiclabs/hardhat-etherscan/src/solc/version.ts
+index ee46527..abf7933 100644
+--- a/node_modules/@nomiclabs/hardhat-etherscan/src/solc/version.ts
++++ b/node_modules/@nomiclabs/hardhat-etherscan/src/solc/version.ts
+@@ -2,7 +2,7 @@ import { pluginName } from "../constants";
+ import { HardhatEtherscanPluginError } from "../errors";
+ import { sendGetRequest } from "../undici";
+ 
+-const COMPILERS_LIST_URL = "https://solc-bin.ethereum.org/bin/list.json";
++const COMPILERS_LIST_URL = "https://binaries.soliditylang.org/bin/list.json";
+ 
+ // Non-exhaustive interface for the official compiler list.
+ export interface CompilersList {

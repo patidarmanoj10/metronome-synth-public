@@ -4,9 +4,9 @@ import chalk from 'chalk'
 import {DeployFunction} from 'hardhat-deploy/types'
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import Address from '../../helpers/address'
-import {executeForcedTxUsingMultiSig, saveForMultiSigBatchExecution} from './multisig-helpers'
+import {executeForcedTxUsingMultiSig, saveForMultiSigBatchExecution} from './safe'
 
-const {GNOSIS_SAFE_ADDRESS} = Address
+const {GOVERNOR} = Address
 
 const {log} = console
 const {getAddress} = ethers.utils
@@ -33,14 +33,13 @@ interface UpgradableContractsConfig {
   ProxyOFT: ContractConfig
   SmartFarmingManager_Pool1: ContractConfig
   SmartFarmingManager_Pool2: ContractConfig
-  Quoter: ContractConfig
-  CrossChainDispatcher: ContractConfig
+  AMO: ContractConfig
 }
 
 interface SyntheticDeployFunctionProps {
   name: string
   symbol: string
-  decimals: number
+  decimals?: number
   maxTotalSupply: BigNumber
 }
 
@@ -71,7 +70,7 @@ interface DeployUpgradableFunctionProps {
 }
 
 export const UpgradableContracts: UpgradableContractsConfig = {
-  PoolRegistry: {alias: 'PoolRegistry', contract: 'PoolRegistry', adminContract: 'PoolRegistryUpgraderV2'},
+  PoolRegistry: {alias: 'PoolRegistry', contract: 'PoolRegistry', adminContract: 'PoolRegistryUpgraderV3'},
   Pool1: {alias: 'Pool1', contract: 'contracts/Pool.sol:Pool', adminContract: 'PoolUpgraderV3'},
   Pool2: {alias: 'Pool2', contract: 'contracts/Pool.sol:Pool', adminContract: 'PoolUpgraderV3'},
   Treasury_Pool1: {alias: 'Treasury_Pool1', contract: 'Treasury', adminContract: 'TreasuryUpgrader'},
@@ -89,25 +88,20 @@ export const UpgradableContracts: UpgradableContractsConfig = {
     contract: 'RewardsDistributor',
     adminContract: 'RewardsDistributorUpgrader',
   },
-  FeeProvider_Pool1: {alias: 'FeeProvider_Pool1', contract: 'FeeProvider', adminContract: 'FeeProviderUpgrader'},
-  FeeProvider_Pool2: {alias: 'FeeProvider_Pool2', contract: 'FeeProvider', adminContract: 'FeeProviderUpgrader'},
+  FeeProvider_Pool1: {alias: 'FeeProvider_Pool1', contract: 'FeeProvider', adminContract: 'FeeProviderUpgraderV2'},
+  FeeProvider_Pool2: {alias: 'FeeProvider_Pool2', contract: 'FeeProvider', adminContract: 'FeeProviderUpgraderV2'},
   ProxyOFT: {alias: '', contract: 'ProxyOFT', adminContract: 'ProxyOFTUpgraderV2'},
   SmartFarmingManager_Pool1: {
     alias: 'SmartFarmingManager_Pool1',
     contract: 'SmartFarmingManager',
-    adminContract: 'SmartFarmingManagerUpgrader',
+    adminContract: 'SmartFarmingManagerUpgraderV2',
   },
   SmartFarmingManager_Pool2: {
     alias: 'SmartFarmingManager_Pool2',
     contract: 'SmartFarmingManager',
-    adminContract: 'SmartFarmingManagerUpgrader',
+    adminContract: 'SmartFarmingManagerUpgraderV2',
   },
-  Quoter: {alias: 'Quoter', contract: 'Quoter', adminContract: 'QuoterUpgrader'},
-  CrossChainDispatcher: {
-    alias: 'CrossChainDispatcher',
-    contract: 'CrossChainDispatcher',
-    adminContract: 'CrossChainDispatcherUpgraderV2',
-  },
+  AMO: {alias: 'AMO', contract: 'AMO', adminContract: 'AmoUpgrader'},
 }
 
 const {
@@ -134,7 +128,7 @@ export const deployUpgradable = async ({
   } = hre
   const {deployer} = await getNamedAccounts()
   const {alias, contract, adminContract} = contractConfig
-  const owner = hre.network.name == 'hardhat' ? deployer : GNOSIS_SAFE_ADDRESS
+  const owner = hre.network.name == 'hardhat' ? deployer : GOVERNOR
   const implementationName = alias === contract ? undefined : contract
 
   const deployFunction = () =>
@@ -158,6 +152,8 @@ export const deployUpgradable = async ({
 
   const multiSigDeployTx = await catchUnknownSigner(deployFunction, {log: true})
 
+  await new Promise((r) => setTimeout(r, (Number(process.env.WAIT_SECONDS_BETWEEN_TXS) || 0) * 1000))
+
   if (multiSigDeployTx) {
     if (force) {
       await executeForcedTxUsingMultiSig(hre, multiSigDeployTx)
@@ -167,6 +163,8 @@ export const deployUpgradable = async ({
   }
 
   const {address, implementation: implementationAddress} = await get(alias)
+
+  await new Promise((r) => setTimeout(r, (Number(process.env.WAIT_SECONDS_BETWEEN_TXS) || 0) * 1000))
 
   // Note: `hardhat-deploy` is partially not working when upgrading an implementation used by many proxies
   // because it deploys the new implementation, updates the deployment JSON files but isn't properly calling `upgrade()`
@@ -187,7 +185,7 @@ export const deployUpgradable = async ({
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     if (getAddress(actualImpl) !== getAddress(implementationAddress!)) {
       const multiSigUpgradeTx = await catchUnknownSigner(
-        execute(adminContract, {from: GNOSIS_SAFE_ADDRESS, log: true}, 'upgrade', address, implementationAddress),
+        execute(adminContract, {from: GOVERNOR, log: true}, 'upgrade', address, implementationAddress),
         {log: true}
       )
 
@@ -255,7 +253,7 @@ export const updateParamIfNeeded = async (
 
     // Update value if needed
     if (!isCurrentValueUpdated(currentValue, writeArgs)) {
-      const governor = contractAlias.match(/Pool\d+/)
+      const governor = contractAlias.match(/^Pool\d+$/)
         ? await read(contractAlias, 'governor')
         : await read(PoolRegistry, 'governor')
 
@@ -287,7 +285,7 @@ export const updateParamIfNeeded = async (
 export const buildSyntheticTokenDeployFunction = ({
   name,
   symbol,
-  decimals,
+  decimals = 18,
   maxTotalSupply,
 }: SyntheticDeployFunctionProps): DeployFunction => {
   const syntheticAlias = `${capitalize(symbol)}Synthetic`
@@ -364,6 +362,13 @@ export const buildDebtTokenDeployFunction = ({
       writeArgs: [debtTokenAddress],
       isCurrentValueUpdated: (currentValue: boolean) => currentValue,
     })
+
+    await updateParamIfNeeded(hre, {
+      contractAlias: debtAlias,
+      readMethod: 'maxTotalSupply',
+      writeMethod: 'updateMaxTotalSupply',
+      writeArgs: [maxTotalSupply.toString()],
+    })
   }
 
   deployFunction.tags = [debtAlias]
@@ -413,6 +418,13 @@ export const buildDepositTokenDeployFunction = ({
       writeMethod: 'addDepositToken',
       writeArgs: [msdAddress],
       isCurrentValueUpdated: (currentValue: boolean) => currentValue,
+    })
+
+    await updateParamIfNeeded(hre, {
+      contractAlias: alias,
+      readMethod: 'maxTotalSupply',
+      writeMethod: 'updateMaxTotalSupply',
+      writeArgs: [maxTotalSupply.toString()],
     })
   }
 

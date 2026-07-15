@@ -4,7 +4,7 @@ import chai, {expect} from 'chai'
 import {ethers} from 'hardhat'
 import {RewardsDistributor, ERC20Mock} from '../typechain'
 import {FakeContract, smock} from '@defi-wonderland/smock'
-import {mine, setStorageAt} from '@nomicfoundation/hardhat-network-helpers'
+import {mine, setStorageAt, time} from '@nomicfoundation/hardhat-network-helpers'
 import {increaseTimeOfNextBlock} from './helpers'
 import {BigNumber} from 'ethers'
 
@@ -34,6 +34,7 @@ describe('RewardDistributor', function () {
     vsp = await erc20MockFactory.deploy('VesperToken', 'VSP', 18)
     await vsp.deployed()
 
+    const poolRegistry = await smock.fake('PoolRegistry')
     pool = await smock.fake('contracts/Pool.sol:Pool')
     debtToken1 = await smock.fake('DebtToken')
     msdTOKEN1 = await smock.fake('DepositToken')
@@ -48,6 +49,8 @@ describe('RewardDistributor', function () {
     // Setup
     await rewardDistributor.initialize(pool.address, vsp.address)
 
+    poolRegistry.operator.returns(ethers.constants.AddressZero)
+
     msdTOKEN1.pool.returns(pool.address)
     msdTOKEN2.pool.returns(pool.address)
 
@@ -58,27 +61,31 @@ describe('RewardDistributor', function () {
     pool.doesSyntheticTokenExist.returns(true)
     pool.governor.returns(deployer.address)
     pool.getRewardsDistributors.returns([rewardDistributor.address])
+    pool.poolRegistry.returns(poolRegistry.address)
   })
 
   describe('syncTokenSpeed', function () {
     const rewardRates = parseEther('3')
     const treasuryBalance = parseEther('100')
     const totalSupply = parseEther('200')
+
     beforeEach(async function () {
-      vPool = await smock.fake('IVPool')
+      vPool = await smock.fake('contracts/interfaces/external/IVPool.sol:IVPool')
       poolRewards = await smock.fake('IPoolRewardsExt')
+
+      const now = (await ethers.provider.getBlock('latest')).timestamp
 
       msdTOKEN1.underlying.returns(vPool.address)
       vPool.poolRewards.returns(poolRewards.address)
       vPool.balanceOf.returns(treasuryBalance)
       vPool.totalSupply.returns(totalSupply)
       poolRewards.rewardRates.returns(rewardRates)
+      poolRewards.periodFinish.returns(now + time.duration.days(1))
+
+      await rewardDistributor.updateTokenSpeedKeeper(alice.address)
     })
 
     it('should revert if not keeper', async function () {
-      // given
-      await rewardDistributor.updateTokenSpeedKeeper(alice.address)
-
       // when
       const tx = rewardDistributor.connect(bob).syncTokenSpeed(msdTOKEN1.address)
 
@@ -86,9 +93,22 @@ describe('RewardDistributor', function () {
       await expect(tx).revertedWithCustomError(rewardDistributor, 'NotTokenSpeedKeeper')
     })
 
+    it('should set speed as 0 if period finished', async function () {
+      // given
+      const before = parseEther('1')
+      await rewardDistributor.updateTokenSpeed(msdTOKEN1.address, before)
+
+      // when
+      const now = (await ethers.provider.getBlock('latest')).timestamp
+      poolRewards.periodFinish.returns(now - time.duration.days(1))
+      await rewardDistributor.connect(alice).syncTokenSpeed(msdTOKEN1.address)
+
+      // then
+      expect(await rewardDistributor.tokenSpeeds(msdTOKEN1.address)).eq(0)
+    })
+
     it('should sync speed', async function () {
       // given
-      await rewardDistributor.updateTokenSpeedKeeper(alice.address)
       const before = parseEther('1')
       await rewardDistributor.updateTokenSpeed(msdTOKEN1.address, before)
 

@@ -14,8 +14,6 @@ import {
   RewardsDistributor,
   UpgraderBase,
   SmartFarmingManager,
-  Quoter,
-  CrossChainDispatcher,
 } from '../typechain'
 import {disableForking, enableForking, impersonateAccount} from './helpers'
 import Address from '../helpers/address'
@@ -27,8 +25,6 @@ const {USDC_ADDRESS, NATIVE_TOKEN_ADDRESS, MASTER_ORACLE_ADDRESS} = Address
 describe('Deployments', function () {
   let deployer: SignerWithAddress
   let poolRegistry: PoolRegistry
-  let quoter: Quoter
-  let crossChainDispatcher: CrossChainDispatcher
   let wethGateway: NativeTokenGateway
   let pool1: Pool
   let feeProvider1: FeeProvider
@@ -73,8 +69,6 @@ describe('Deployments', function () {
       MetRewardsDistributor: {address: rewardsDistributorAddress},
       SmartFarmingManager_Pool1: {address: smartFarmingManager1Address},
       SmartFarmingManager_Pool2: {address: smartFarmingManager2Address},
-      Quoter: {address: quoterAddress},
-      CrossChainDispatcher: {address: crossChainDispatcherAddress},
     } = await deployments.fixture()
 
     pool1 = <Pool>await ethers.getContractAt('contracts/Pool.sol:Pool', pool1Address, deployer)
@@ -103,8 +97,6 @@ describe('Deployments', function () {
     smartFarmingManager2 = await ethers.getContractAt('SmartFarmingManager', smartFarmingManager2Address, deployer)
 
     rewardsDistributor = await ethers.getContractAt('RewardsDistributor', rewardsDistributorAddress, deployer)
-    quoter = await ethers.getContractAt('Quoter', quoterAddress, deployer)
-    crossChainDispatcher = await ethers.getContractAt('CrossChainDispatcher', crossChainDispatcherAddress, deployer)
   })
 
   const getProxyAdmin = async function (proxy: Contract): Promise<UpgraderBase> {
@@ -339,7 +331,7 @@ describe('Deployments', function () {
         expect(await msUSDDebt.pool()).eq(pool1.address)
         expect(await msUSDDebt.governor()).eq(deployer.address)
         expect(await msUSDDebt.interestRate()).eq(parseEther('0.01'))
-        expect(await msUSDDebt.maxTotalSupply()).eq(parseEther('750000'))
+        expect(await msUSDDebt.maxTotalSupply()).eq(parseEther('7500000'))
         expect(await msUSDDebt.isActive()).eq(true)
         expect(await msUSDDebt.symbol()).eq('msUSD-Debt-1')
         expect(await msUSDDebt.name()).eq('Metronome Synth USD-Debt')
@@ -361,6 +353,8 @@ describe('Deployments', function () {
       expect(await poolRegistry.masterOracle()).eq(MASTER_ORACLE_ADDRESS)
       expect(await poolRegistry.isPoolRegistered(pool1.address)).true
       expect(await poolRegistry.nativeTokenGateway()).eq(wethGateway.address)
+      expect(await poolRegistry.lzBaseGasLimit()).eq(200000)
+      expect(await poolRegistry.isBridgingActive()).eq(true)
     })
 
     it('should upgrade implementation', async function () {
@@ -386,7 +380,6 @@ describe('Deployments', function () {
       expect(await feeProvider1.issueFee()).eq(parseEther('0'))
       expect(await feeProvider1.withdrawFee()).eq(parseEther('0'))
       expect(await feeProvider1.repayFee()).eq(parseEther('0'))
-      expect(await feeProvider1.defaultSwapFee()).eq(parseEther('0.0025'))
       const {liquidatorIncentive, protocolFee} = await feeProvider1.liquidationFees()
       expect(liquidatorIncentive).eq(parseEther('0.1'))
       expect(protocolFee).eq(parseEther('0.08'))
@@ -430,7 +423,6 @@ describe('Deployments', function () {
 
     it('should have correct params', async function () {
       expect(await smartFarmingManager1.pool()).eq(pool1.address)
-      expect(await smartFarmingManager1.crossChainRequestsLength()).eq(0)
     })
 
     it('should upgrade implementation', async function () {
@@ -439,35 +431,6 @@ describe('Deployments', function () {
 
     it('should fail if implementation breaks storage', async function () {
       await upgradeTestCase({newImplArtifact: 'MasterOracleMock', proxy: smartFarmingManager1, expectToFail: true})
-    })
-  })
-
-  describe('Quoter', function () {
-    it('should have correct params', async function () {
-      expect(await quoter.poolRegistry()).eq(poolRegistry.address)
-    })
-
-    it('should upgrade implementation', async function () {
-      await upgradeTestCase({newImplArtifact: 'Quoter', proxy: quoter, expectToFail: false})
-    })
-
-    it('should fail if implementation breaks storage', async function () {
-      await upgradeTestCase({newImplArtifact: 'MasterOracleMock', proxy: quoter, expectToFail: true})
-    })
-  })
-
-  describe('CrossChainDispatcher', function () {
-    it('should have correct params', async function () {
-      expect(await crossChainDispatcher.poolRegistry()).eq(poolRegistry.address)
-      expect(await crossChainDispatcher.isBridgingActive()).eq(false)
-    })
-
-    it('should upgrade implementation', async function () {
-      await upgradeTestCase({newImplArtifact: 'CrossChainDispatcher', proxy: crossChainDispatcher, expectToFail: false})
-    })
-
-    it('should fail if implementation breaks storage', async function () {
-      await upgradeTestCase({newImplArtifact: 'MasterOracleMock', proxy: crossChainDispatcher, expectToFail: true})
     })
   })
 })

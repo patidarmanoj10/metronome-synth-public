@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.9;
+pragma solidity 0.8.24;
 
-import "../utils/TokenHolder.sol";
+import {TokenHolder} from "../utils/TokenHolder.sol";
 
 contract TokenHolderMock is TokenHolder {
     address public sweeper;

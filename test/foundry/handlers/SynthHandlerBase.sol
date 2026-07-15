@@ -2,8 +2,8 @@
 pragma solidity ^0.8.9;
 
 import "./HandlerBase.sol";
-import {IPool} from "../../../contracts/Pool.sol";
-import {MasterOracleMock} from "../../../contracts/mock/MasterOracleMock.sol";
+import {IPool} from "contracts/Pool.sol";
+import {MasterOracleMock} from "contracts/mock/MasterOracleMock.sol";
 
 contract SynthHandlerBase is HandlerBase {
     uint256 internal constant MAX_FEE = 0.25e18;

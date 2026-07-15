@@ -60,15 +60,16 @@ describe('DepositToken', function () {
 
     const esMET = await smock.fake('IESMET')
 
-    const poolMockRegistry = await smock.fake<PoolRegistry>('PoolRegistry')
-    poolMockRegistry.governor.returns(governor.address)
-    await setCode(poolMockRegistry.address, '0x01') // Workaround "function call to a non-contract account" error
+    const poolRegistryMock = await smock.fake<PoolRegistry>('PoolRegistry')
+    await setBalance(poolRegistryMock.address, parseEther('1')) // Workaround "function call to a non-contract account" error
+    poolRegistryMock.governor.returns(governor.address)
+    poolRegistryMock.operator.returns(ethers.constants.AddressZero)
 
     const feeProviderFactory = await ethers.getContractFactory('FeeProvider', deployer)
     feeProvider = await feeProviderFactory.deploy()
     await feeProvider.deployed()
     await setStorageAt(feeProvider.address, 0, 0) // Undo initialization made by constructor
-    await feeProvider.initialize(poolMockRegistry.address, esMET.address)
+    await feeProvider.initialize(poolRegistryMock.address, esMET.address)
 
     const depositTokenFactory = await ethers.getContractFactory('DepositToken', deployer)
     metDepositToken = await depositTokenFactory.deploy()
@@ -89,6 +90,7 @@ describe('DepositToken', function () {
     poolMock.treasury.returns(treasury.address)
     poolMock.feeProvider.returns(feeProvider.address)
     poolMock.smartFarmingManager.returns(smartFarmingManagerMock.address)
+    poolMock.poolRegistry.returns(poolRegistryMock.address)
 
     smartFarmingManagerMock.pool.returns(poolMock.address)
 

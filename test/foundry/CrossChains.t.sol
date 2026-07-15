@@ -2,53 +2,26 @@
 pragma solidity ^0.8.9;
 
 import "forge-std/Test.sol";
-import {BytesLib} from "../../contracts/dependencies/@layerzerolabs/solidity-examples/util/BytesLib.sol";
-import {ILayerZeroReceiver} from "../../contracts/dependencies/@layerzerolabs/solidity-examples/interfaces/ILayerZeroReceiver.sol";
-import {ILayerZeroEndpoint} from "../../contracts/dependencies/@layerzerolabs/solidity-examples/interfaces/ILayerZeroEndpoint.sol";
-import {Pool as StargatePool} from "../../contracts/dependencies/stargate-protocol/Pool.sol";
-import {IStargateRouter} from "../../contracts/dependencies/stargate-protocol/interfaces/IStargateRouter.sol";
-import {IStargateReceiver} from "../../contracts/dependencies/stargate-protocol/interfaces/IStargateReceiver.sol";
-import {IStargateFactory} from "../../contracts/interfaces/external/IStargateFactory.sol";
-import {IStargatePool} from "../../contracts/interfaces/external/IStargatePool.sol";
-import {IStargateComposerWithRetry} from "../../contracts/interfaces/external/IStargateComposerWithRetry.sol";
-import {PoolRegistry} from "../../contracts/PoolRegistry.sol";
-import {Pool, ISyntheticToken, IERC20} from "../../contracts/Pool.sol";
-import {SmartFarmingManager} from "../../contracts/SmartFarmingManager.sol";
-import {Treasury} from "../../contracts/Treasury.sol";
-import {DepositToken} from "../../contracts/DepositToken.sol";
-import {DebtToken} from "../../contracts/DebtToken.sol";
-import {SyntheticToken} from "../../contracts/SyntheticToken.sol";
-import {ProxyOFT, IProxyOFT, BridgingIsPaused} from "../../contracts/ProxyOFT.sol";
-import {FeeProvider, FeeProviderStorageV1, TiersNotOrderedByMin} from "../../contracts/FeeProvider.sol";
-import {ERC20Mock} from "../../contracts/mock/ERC20Mock.sol";
-import {MasterOracleMock} from "../../contracts/mock/MasterOracleMock.sol";
-import {SwapperMock, ISwapper} from "../../contracts/mock/SwapperMock.sol";
-import {IESMET} from "../../contracts/interfaces/external/IESMET.sol";
-import {Quoter, IQuoter} from "../../contracts/Quoter.sol";
-import {CrossChainDispatcher} from "../../contracts/CrossChainDispatcher.sol";
-import {WadRayMath} from "../../contracts/lib/WadRayMath.sol";
-import {CrossChainLib} from "../../contracts/lib/CrossChainLib.sol";
+import {IERC20} from "contracts/dependencies/openzeppelin/token/ERC20/IERC20.sol";
+import {BytesLib} from "contracts/dependencies/@layerzerolabs/solidity-examples/util/BytesLib.sol";
+import {ILayerZeroEndpoint} from "contracts/dependencies/@layerzerolabs/solidity-examples/interfaces/ILayerZeroEndpoint.sol";
+import {PoolRegistry} from "contracts/PoolRegistry.sol";
+import {SmartFarmingManager} from "contracts/SmartFarmingManager.sol";
+import {Treasury} from "contracts/Treasury.sol";
+import {DepositToken} from "contracts/DepositToken.sol";
+import {DebtToken} from "contracts/DebtToken.sol";
+import {SyntheticToken} from "contracts/SyntheticToken.sol";
+import {MasterOracleMock} from "contracts/mock/MasterOracleMock.sol";
+import {IESMET} from "contracts/interfaces/external/IESMET.sol";
+import {FeeProvider} from "contracts/FeeProvider.sol";
+import {Pool} from "contracts/Pool.sol";
+import {ProxyOFT} from "contracts/ProxyOFT.sol";
+import {SwapperMock} from "contracts/mock/SwapperMock.sol";
+import {WadRayMath} from "contracts/lib/WadRayMath.sol";
+import {BridgingIsPaused} from "contracts/ProxyOFT.sol";
 
 interface ILayerZeroEndpointExtended is ILayerZeroEndpoint {
     function defaultReceiveLibraryAddress() external view returns (address);
-}
-
-interface IStargateRouterExtended is IStargateRouter {
-    function bridge() external view returns (address);
-
-    function swapRemote(
-        uint16 _srcChainId,
-        bytes memory _srcAddress,
-        uint256 _nonce,
-        uint256 _srcPoolId,
-        uint256 _dstPoolId,
-        uint256 _dstGasForCall,
-        address _to,
-        StargatePool.SwapObj memory _s,
-        bytes memory _payload
-    ) external;
-
-    function retryRevert(uint16 _srcChainId, bytes calldata _srcAddress, uint256 _nonce) external payable;
 }
 
 abstract contract CrossChains_Test is Test {
@@ -59,20 +32,17 @@ abstract contract CrossChains_Test is Test {
     uint16 public constant LZ_MAINNET_CHAIN_ID = 101;
     uint16 public constant LZ_OP_CHAIN_ID = 111;
 
-    uint256 public constant SG_USDC_POOL_ID = 1;
-    uint256 public constant SG_WETH_POOL_ID = 13;
-
-    address public constant SG_OP_USDC_POOL = 0xDecC0c09c3B5f6e92EF4184125D5648a66E35298;
-    address public constant SG_MAINNET_USDC_POOL = 0xdf0770dF86a8034b3EFEf0A1Bb3c889B8332FF56;
-
     address public constant WETH_MAINNET = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     address public constant SGETH_MAINNET = 0x72E2F4830b9E45d52F80aC08CB2bEC0FeF72eD9c;
     address public constant WETH_OP = 0x4200000000000000000000000000000000000006;
     address public constant SGETH_OP = 0xb69c8CBCD90A39D8D3d3ccf0a3E968511C3856A0;
 
+    uint16 constant LZ_ADAPTER_PARAMS_VERSION = 1;
+    uint16 constant PT_SEND = 0;
+    uint256 constant SIMPLE_TRANSFER_GAS = 200_000;
+
     address feeCollector = address(999);
-    address alice = address(10);
-    address whale = address(123);
+    address alice = address(101010);
 
     uint256 mainnetFork;
     uint256 optimismFork;
@@ -84,9 +54,6 @@ abstract contract CrossChains_Test is Test {
     IERC20 weth_optimism = IERC20(WETH_OP);
     ILayerZeroEndpointExtended lzEndpoint_optimism =
         ILayerZeroEndpointExtended(0x3c2269811836af69497E5F486A85D7316753cf62);
-    IStargateRouterExtended sgRouter_optimism = IStargateRouterExtended(0xB0D502E938ed5f4df2E681fE6E419ff29631d62b);
-    IStargateComposerWithRetry sgComposer_optimism =
-        IStargateComposerWithRetry(0xeCc19E177d24551aA7ed6Bc6FE566eCa726CC8a9);
     MasterOracleMock masterOracle_optimism;
     SwapperMock swapper_optimism;
     PoolRegistry poolRegistry_optimism;
@@ -96,7 +63,6 @@ abstract contract CrossChains_Test is Test {
     Pool pool_B_optimism;
     SmartFarmingManager smartFarmingManager_optimism;
     SmartFarmingManager smartFarmingManager_B_optimism;
-    CrossChainDispatcher crossChainDispatcher_optimism;
     Treasury treasury_optimism;
     SyntheticToken msUSD_optimism;
     SyntheticToken msBTC_optimism;
@@ -110,16 +76,12 @@ abstract contract CrossChains_Test is Test {
     DepositToken msdVaUSDC_B_optimism;
     DepositToken msdVaETH_optimism;
     ProxyOFT proxyOFT_msUSD_optimism;
-    Quoter quoter_optimism;
 
     // Mainnet
     IERC20 usdc_mainnet = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
     IERC20 weth_mainnet = IERC20(WETH_MAINNET);
     ILayerZeroEndpointExtended lzEndpoint_mainnet =
         ILayerZeroEndpointExtended(0x66A71Dcef29A0fFBDBE3c6a460a3B5BC225Cd675);
-    IStargateRouterExtended sgRouter_mainnet = IStargateRouterExtended(0x8731d54E9D02c286767d56ac03e8037C07e01e98);
-    IStargateComposerWithRetry sgComposer_mainnet =
-        IStargateComposerWithRetry(0xeCc19E177d24551aA7ed6Bc6FE566eCa726CC8a9);
     MasterOracleMock masterOracle_mainnet;
     SwapperMock swapper_mainnet;
     Treasury treasury_mainnet;
@@ -127,20 +89,16 @@ abstract contract CrossChains_Test is Test {
     FeeProvider feeProvider_mainnet;
     Pool pool_mainnet;
     SmartFarmingManager smartFarmingManager_mainnet;
-    CrossChainDispatcher crossChainDispatcher_mainnet;
     SyntheticToken msUSD_mainnet;
     DebtToken msUSDDebt_mainnet;
     DepositToken msdUSDC_mainnet;
     ProxyOFT proxyOFT_msUSD_mainnet;
-    Quoter quoter_mainnet;
 
     function setUp() public virtual {
-        // TODO: Get from .env
-        // Refs: https://github.com/autonomoussoftware/metronome-synth/issues/874
-        mainnetFork = vm.createSelectFork("https://eth-mainnet.g.alchemy.com/v2/DAcPqBIVkeOOgYLlHxFUQ0jySiZ-k8_6");
+        mainnetFork = vm.createSelectFork(vm.envString("MAINNET_NODE_URL"));
         vm.rollFork(mainnetFork, 18262880);
 
-        optimismFork = vm.createSelectFork("https://optimism-mainnet.infura.io/v3/6e804eea3058430b901e7b2853e9672a");
+        optimismFork = vm.createSelectFork(vm.envString("OPTIMISM_NODE_URL"));
         vm.rollFork(optimismFork, 110325800);
 
         //
@@ -174,9 +132,6 @@ abstract contract CrossChains_Test is Test {
 
         smartFarmingManager_B_optimism = new SmartFarmingManager();
         vm.store(address(smartFarmingManager_B_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
-
-        crossChainDispatcher_optimism = new CrossChainDispatcher();
-        vm.store(address(crossChainDispatcher_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
 
         msUSD_optimism = new SyntheticToken();
         vm.store(address(msUSD_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
@@ -214,24 +169,16 @@ abstract contract CrossChains_Test is Test {
         proxyOFT_msUSD_optimism = new ProxyOFT();
         vm.store(address(proxyOFT_msUSD_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
 
-        quoter_optimism = new Quoter();
-        vm.store(address(quoter_optimism), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
-
-        proxyOFT_msUSD_optimism.initialize(address(lzEndpoint_optimism), msUSD_optimism);
         poolRegistry_optimism.initialize({masterOracle_: masterOracle_optimism, feeCollector_: feeCollector});
-        poolRegistry_optimism.updateQuoter(quoter_optimism);
-        poolRegistry_optimism.updateCrossChainDispatcher(crossChainDispatcher_optimism);
+        poolRegistry_optimism.toggleBridgingIsActive();
+        poolRegistry_optimism.toggleDestinationChainIsActive(LZ_MAINNET_CHAIN_ID);
         feeProvider_optimism.initialize({poolRegistry_: poolRegistry_optimism, esMET_: IESMET(address(0))});
         feeProvider_B_optimism.initialize({poolRegistry_: poolRegistry_optimism, esMET_: IESMET(address(0))});
         pool_optimism.initialize(poolRegistry_optimism);
         pool_B_optimism.initialize(poolRegistry_optimism);
-        crossChainDispatcher_optimism.initialize(poolRegistry_optimism, WETH_OP, SGETH_OP);
-        crossChainDispatcher_optimism.toggleBridgingIsActive();
-        crossChainDispatcher_optimism.toggleDestinationChainIsActive(LZ_MAINNET_CHAIN_ID);
         smartFarmingManager_optimism.initialize(pool_optimism);
         smartFarmingManager_B_optimism.initialize(pool_B_optimism);
         treasury_optimism.initialize(pool_optimism);
-        quoter_optimism.initialize(poolRegistry_optimism);
 
         msdUSDC_optimism.initialize({
             underlying_: usdc_optimism,
@@ -279,6 +226,8 @@ abstract contract CrossChains_Test is Test {
             decimals_: 18,
             poolRegistry_: pool_optimism.poolRegistry()
         });
+        proxyOFT_msUSD_optimism.initialize(address(lzEndpoint_optimism), msUSD_optimism);
+
         msUSDDebt_optimism.initialize({
             name_: "msUSD-Debt-1",
             symbol_: "msUSD-Debt-1",
@@ -329,8 +278,6 @@ abstract contract CrossChains_Test is Test {
         poolRegistry_optimism.registerPool(address(pool_optimism));
         poolRegistry_optimism.registerPool(address(pool_B_optimism));
         poolRegistry_optimism.updateSwapper(swapper_optimism);
-        poolRegistry_optimism.toggleCrossChainFlashRepayIsActive();
-        pool_optimism.toggleBridgingIsActive();
         pool_optimism.updateFeeProvider(feeProvider_optimism);
         pool_optimism.updateTreasury(treasury_optimism);
         pool_optimism.updateSmartFarmingManager(smartFarmingManager_optimism);
@@ -339,7 +286,6 @@ abstract contract CrossChains_Test is Test {
         pool_optimism.addDepositToken(address(msdVaETH_optimism));
         pool_optimism.addDebtToken(msUSDDebt_optimism);
         pool_optimism.addDebtToken(msBTCDebt_optimism);
-        pool_B_optimism.toggleBridgingIsActive();
         pool_B_optimism.updateFeeProvider(feeProvider_B_optimism);
         pool_B_optimism.updateTreasury(treasury_optimism);
         pool_B_optimism.updateSmartFarmingManager(smartFarmingManager_B_optimism);
@@ -354,7 +300,6 @@ abstract contract CrossChains_Test is Test {
         masterOracle_optimism.updatePrice(address(msUSD_optimism), 1e18);
         masterOracle_optimism.updatePrice(address(msETH_optimism), 2000e18);
         masterOracle_optimism.updatePrice(address(msBTC_optimism), 30000e18);
-        crossChainDispatcher_optimism.updateStargateComposer(sgComposer_optimism);
         proxyOFT_msUSD_optimism.setUseCustomAdapterParams(true);
         proxyOFT_msUSD_optimism.setMinDstGas(LZ_MAINNET_CHAIN_ID, proxyOFT_msUSD_optimism.PT_SEND(), 200_000);
         msUSD_optimism.updateProxyOFT(proxyOFT_msUSD_optimism);
@@ -385,9 +330,6 @@ abstract contract CrossChains_Test is Test {
         smartFarmingManager_mainnet = new SmartFarmingManager();
         vm.store(address(smartFarmingManager_mainnet), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
 
-        crossChainDispatcher_mainnet = new CrossChainDispatcher();
-        vm.store(address(crossChainDispatcher_mainnet), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
-
         msUSD_mainnet = new SyntheticToken();
         vm.store(address(msUSD_mainnet), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
 
@@ -400,21 +342,13 @@ abstract contract CrossChains_Test is Test {
         proxyOFT_msUSD_mainnet = new ProxyOFT();
         vm.store(address(proxyOFT_msUSD_mainnet), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
 
-        quoter_mainnet = new Quoter();
-        vm.store(address(quoter_mainnet), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
-
-        proxyOFT_msUSD_mainnet.initialize(address(lzEndpoint_mainnet), msUSD_mainnet);
         poolRegistry_mainnet.initialize({masterOracle_: masterOracle_mainnet, feeCollector_: feeCollector});
-        poolRegistry_mainnet.updateQuoter(quoter_mainnet);
-        poolRegistry_mainnet.updateCrossChainDispatcher(crossChainDispatcher_mainnet);
+        poolRegistry_mainnet.toggleBridgingIsActive();
+        poolRegistry_mainnet.toggleDestinationChainIsActive(LZ_OP_CHAIN_ID);
         feeProvider_mainnet.initialize({poolRegistry_: poolRegistry_mainnet, esMET_: IESMET(address(0))});
         pool_mainnet.initialize(poolRegistry_mainnet);
         treasury_mainnet.initialize(pool_mainnet);
-        crossChainDispatcher_mainnet.initialize(poolRegistry_mainnet, WETH_MAINNET, SGETH_MAINNET);
-        crossChainDispatcher_mainnet.toggleBridgingIsActive();
-        crossChainDispatcher_mainnet.toggleDestinationChainIsActive(LZ_OP_CHAIN_ID);
         smartFarmingManager_mainnet.initialize(pool_mainnet);
-        quoter_mainnet.initialize(poolRegistry_mainnet);
 
         msdUSDC_mainnet.initialize({
             underlying_: usdc_mainnet,
@@ -432,6 +366,8 @@ abstract contract CrossChains_Test is Test {
             decimals_: 18,
             poolRegistry_: pool_mainnet.poolRegistry()
         });
+        proxyOFT_msUSD_mainnet.initialize(address(lzEndpoint_mainnet), msUSD_mainnet);
+
         msUSDDebt_mainnet.initialize({
             name_: "msUSD-Debt",
             symbol_: "msUSD-Debt",
@@ -443,8 +379,6 @@ abstract contract CrossChains_Test is Test {
 
         poolRegistry_mainnet.registerPool(address(pool_mainnet));
         poolRegistry_mainnet.updateSwapper(swapper_mainnet);
-        crossChainDispatcher_mainnet.updateStargateComposer(sgComposer_mainnet);
-        pool_mainnet.toggleBridgingIsActive();
         pool_mainnet.updateFeeProvider(feeProvider_mainnet);
         pool_mainnet.updateSmartFarmingManager(smartFarmingManager_mainnet);
         pool_mainnet.addDepositToken(address(msdUSDC_mainnet));
@@ -464,16 +398,13 @@ abstract contract CrossChains_Test is Test {
         vm.label(alice, "Alice");
         vm.label(feeCollector, "FeeCollector");
 
-        vm.label(address(sgRouter_optimism), "SgRouter OP");
         vm.label(address(lzEndpoint_optimism), "LzEndpoint OP");
         vm.label(address(msUSD_optimism), "msUSD OP");
         vm.label(address(msBTC_optimism), "msBTC OP");
         vm.label(address(msETH_optimism), "msETH OP");
         vm.label(address(usdc_optimism), "USDC OP");
         vm.label(address(vaUSDC_optimism), "vaUSDC OP");
-        vm.label(address(sgComposer_optimism), "SgComposer");
 
-        vm.label(address(sgRouter_mainnet), "SgRouter Mainnet");
         vm.label(address(lzEndpoint_mainnet), "LzEndpoint Mainnet");
         vm.label(address(msUSD_mainnet), "msUSD Mainnet");
         vm.label(address(usdc_mainnet), "USDC Mainnet");
@@ -485,13 +416,6 @@ abstract contract CrossChains_Test is Test {
             LZ_MAINNET_CHAIN_ID,
             abi.encodePacked(address(proxyOFT_msUSD_mainnet), address(proxyOFT_msUSD_optimism))
         );
-        crossChainDispatcher_optimism.updateCrossChainDispatcherOf(
-            LZ_MAINNET_CHAIN_ID,
-            address(crossChainDispatcher_mainnet)
-        );
-
-        crossChainDispatcher_optimism.updateStargatePoolIdOf(address(usdc_optimism), SG_USDC_POOL_ID);
-        crossChainDispatcher_optimism.updateStargatePoolIdOf(address(weth_optimism), SG_WETH_POOL_ID);
 
         deal(address(usdc_optimism), address(swapper_optimism), 1000000000000000e6);
         deal(address(vaUSDC_optimism), address(swapper_optimism), 1000000000000000e18);
@@ -504,455 +428,187 @@ abstract contract CrossChains_Test is Test {
             LZ_OP_CHAIN_ID,
             abi.encodePacked(address(proxyOFT_msUSD_optimism), address(proxyOFT_msUSD_mainnet))
         );
-        crossChainDispatcher_mainnet.updateCrossChainDispatcherOf(
-            LZ_OP_CHAIN_ID,
-            address(crossChainDispatcher_optimism)
-        );
-
-        crossChainDispatcher_mainnet.updateStargatePoolIdOf(address(usdc_mainnet), SG_USDC_POOL_ID);
-        crossChainDispatcher_mainnet.updateStargatePoolIdOf(address(weth_mainnet), SG_WETH_POOL_ID);
 
         deal(address(usdc_mainnet), address(swapper_mainnet), 1000000000e6);
         deal(address(msUSD_mainnet), address(swapper_mainnet), 1000000000e18);
         deal(address(weth_mainnet), address(swapper_mainnet), 100000e18);
     }
 
-    function _doNativeAirdropIfNeeded(Vm.Log memory RelayerParams) internal {
-        if (RelayerParams.data.length != 192) return;
+    function _issueOnMainnet(uint256 _issueAmount) private {
+        vm.selectFork(mainnetFork);
 
-        // Airdrop ETH
-        // Note: Adapter params uses (uint16 version, uint256 gasAmount, uint256 nativeForDst, address addressOnDst)
-        // See more: https://layerzero.gitbook.io/docs/evm-guides/advanced/relayer-adapter-parameters
-        (bytes memory adapterParams, ) = abi.decode(RelayerParams.data, (bytes, uint16));
-        uint256 nativeForDst = adapterParams.toUint256(34);
-        if (nativeForDst > 0) {
-            address destination = adapterParams.toAddress(66);
-            assertEq(destination.balance, 0);
-            payable(destination).transfer(nativeForDst);
-        }
+        uint256 _depositAmount = 1000e6;
+
+        vm.startPrank(alice);
+        deal(address(usdc_mainnet), alice, _depositAmount);
+        usdc_mainnet.approve(address(msdUSDC_mainnet), type(uint256).max);
+        msdUSDC_mainnet.deposit(_depositAmount, alice);
+        msUSDDebt_mainnet.issue(_issueAmount, alice);
+        vm.stopPrank();
     }
 
-    function _executeSgSwapArrivalTx(Vm.Log memory Swap, Vm.Log memory Packet, Vm.Log memory RelayerParams) internal {
-        _executeSgSwapArrivalTx(Swap, Packet, RelayerParams, true);
+    function _issueOnOptimism(uint256 _issueAmount) private {
+        vm.selectFork(optimismFork);
+
+        uint256 _depositAmount = 1000e6;
+
+        vm.startPrank(alice);
+        deal(address(usdc_optimism), alice, _depositAmount);
+        usdc_optimism.approve(address(msdUSDC_optimism), type(uint256).max);
+        msdUSDC_optimism.deposit(_depositAmount, alice);
+        msUSDDebt_optimism.issue(_issueAmount, alice);
+        vm.stopPrank();
     }
 
-    function _executeSgSwapArrivalTx(
-        Vm.Log memory Swap,
-        Vm.Log memory Packet,
-        Vm.Log memory RelayerParams,
-        bool doAirdrop
-    ) internal {
-        (
-            uint16 srcChainId,
-            address from,
-            ,
-            uint256 srcPoolId,
-            uint256 dstPoolId,
-            uint256 dstGasForCall,
-            StargatePool.SwapObj memory swapObj,
-            bytes memory payload
-        ) = _decodeSgSwapEvents(Swap, Packet);
+    function test_transferSynthFromLayer1ToLayer2() external {
+        vm.recordLogs();
+        uint256 amount = 200e18;
+        uint16 srcChainId = LZ_MAINNET_CHAIN_ID;
+        uint16 dstChainId = LZ_OP_CHAIN_ID;
 
-        uint256 fork;
-        ILayerZeroEndpointExtended lz;
-        IStargateRouterExtended sg;
-        address to;
+        //
+        // given
+        //
+        _issueOnMainnet(amount);
+        assertEq(msUSD_mainnet.balanceOf(alice), amount);
+        vm.selectFork(optimismFork);
+        assertEq(msUSD_optimism.balanceOf(alice), 0);
 
-        if (srcChainId == LZ_OP_CHAIN_ID) {
-            fork = mainnetFork;
-            lz = lzEndpoint_mainnet;
-            sg = sgRouter_mainnet;
-            to = address(sgComposer_mainnet);
-        } else {
-            fork = optimismFork;
-            lz = lzEndpoint_optimism;
-            sg = sgRouter_optimism;
-            to = address(sgComposer_optimism);
+        //
+        // when
+        //
+        bytes memory toAddress = abi.encodePacked(alice);
+        {
+            vm.selectFork(mainnetFork);
+            uint256 fee = proxyOFT_msUSD_mainnet.estimateSendFee(dstChainId, alice, amount);
+
+            vm.startPrank(alice);
+            deal(alice, fee);
+            proxyOFT_msUSD_mainnet.sendFrom{value: fee}(alice, dstChainId, alice, amount);
+            vm.stopPrank();
         }
 
-        vm.selectFork(fork);
+        address lzAppFrom = address(proxyOFT_msUSD_mainnet);
+        address lzAppTo = address(proxyOFT_msUSD_optimism);
 
-        if (doAirdrop) {
-            _doNativeAirdropIfNeeded(RelayerParams);
-        }
-        uint64 nonce = lz.getInboundNonce(srcChainId, abi.encode(from)) + 1;
-
-        vm.prank(sg.bridge());
-        sg.swapRemote({
+        vm.selectFork(optimismFork);
+        vm.startPrank(lzEndpoint_optimism.defaultReceiveLibraryAddress());
+        lzEndpoint_optimism.receivePayload({
             _srcChainId: srcChainId,
-            _srcAddress: abi.encode(from),
-            _nonce: nonce,
-            _srcPoolId: srcPoolId,
-            _dstPoolId: dstPoolId,
-            _dstGasForCall: dstGasForCall,
-            _to: to,
-            _s: swapObj,
-            _payload: payload
+            _srcAddress: abi.encodePacked(lzAppFrom, lzAppTo),
+            _dstAddress: lzAppTo,
+            _nonce: lzEndpoint_optimism.getInboundNonce(srcChainId, abi.encode(lzAppFrom)) + 1,
+            _gasLimit: SIMPLE_TRANSFER_GAS,
+            _payload: abi.encode(PT_SEND, toAddress, amount)
         });
+
+        //
+        // then
+        //
+        assertEq(msUSD_optimism.balanceOf(alice), amount);
+        vm.selectFork(mainnetFork);
+        assertEq(msUSD_mainnet.balanceOf(alice), 0);
     }
 
-    function _executeOftTransferArrivalTx(
-        Vm.Log memory SendToChain,
-        Vm.Log memory Packet,
-        Vm.Log memory RelayerParams
-    ) internal {
-        _executeOftTransferArrivalTx(SendToChain, Packet, RelayerParams, true);
+    function test_revertWhenBridgingIsPaused_transferSynthFromLayer1ToLayer2() external {
+        uint256 amount = 200e18;
+        uint16 dstChainId = LZ_OP_CHAIN_ID;
+
+        //
+        // given
+        //
+        _issueOnMainnet(amount);
+
+        //
+        // when
+        //
+        poolRegistry_mainnet.toggleBridgingIsActive();
+
+        //
+        // then
+        //
+        uint256 fee = proxyOFT_msUSD_mainnet.estimateSendFee(dstChainId, alice, amount);
+
+        deal(alice, fee);
+        vm.startPrank(alice);
+        vm.expectRevert(BridgingIsPaused.selector);
+        proxyOFT_msUSD_mainnet.sendFrom{value: fee}(alice, dstChainId, alice, amount);
+        vm.stopPrank();
     }
 
-    function _executeOftTransferArrivalTx(
-        Vm.Log memory SendToChain,
-        Vm.Log memory Packet,
-        Vm.Log memory RelayerParams,
-        bool doAirdrop
-    ) internal {
-        // TODO get from/to from trusted path
-        // (uint16 _dstChainId, address from, address to) = _decodeSendToChainEvent(SendToChain);
-        (uint16 _dstChainId, , ) = _decodeSendToChainEvent(SendToChain);
-        (, bytes memory payload) = _decodeOftPacketEvent(Packet);
+    function test_transferSynthFromLayer2ToLayer1() external {
+        vm.recordLogs();
+        uint256 amount = 200e18;
+        uint16 srcChainId = LZ_OP_CHAIN_ID;
+        uint16 dstChainId = LZ_MAINNET_CHAIN_ID;
 
-        // Note: Adapter params uses (uint16 version, uint256 gasAmount, uint256 nativeForDst, address addressOnDst)
-        // See more: https://layerzero.gitbook.io/docs/evm-guides/advanced/relayer-adapter-parameters
-        (bytes memory adapterParams, ) = abi.decode(RelayerParams.data, (bytes, uint16));
-        uint256 _dstGasForCall = adapterParams.toUint256(2);
+        //
+        // given
+        //
+        _issueOnOptimism(amount);
+        assertEq(msUSD_optimism.balanceOf(alice), amount);
+        vm.selectFork(mainnetFork);
+        assertEq(msUSD_mainnet.balanceOf(alice), 0);
 
-        uint256 fork;
-        uint16 _srcChainId;
-        ILayerZeroEndpointExtended lz;
-        address from;
-        address to;
+        //
+        // when
+        //
+        bytes memory toAddress = abi.encodePacked(alice);
+        {
+            vm.selectFork(optimismFork);
+            uint256 fee = proxyOFT_msUSD_optimism.estimateSendFee(dstChainId, alice, amount);
 
-        if (_dstChainId == LZ_MAINNET_CHAIN_ID) {
-            from = address(proxyOFT_msUSD_optimism);
-            to = address(proxyOFT_msUSD_mainnet);
-            fork = mainnetFork;
-            _srcChainId = LZ_OP_CHAIN_ID;
-            lz = lzEndpoint_mainnet;
-        } else {
-            from = address(proxyOFT_msUSD_mainnet);
-            to = address(proxyOFT_msUSD_optimism);
-            fork = optimismFork;
-            _srcChainId = LZ_MAINNET_CHAIN_ID;
-            lz = lzEndpoint_optimism;
+            vm.startPrank(alice);
+            deal(alice, fee);
+            proxyOFT_msUSD_optimism.sendFrom{value: fee}(alice, dstChainId, alice, amount);
+            vm.stopPrank();
         }
 
-        vm.selectFork(fork);
+        address lzAppFrom = address(proxyOFT_msUSD_optimism);
+        address lzAppTo = address(proxyOFT_msUSD_mainnet);
 
-        if (doAirdrop) {
-            _doNativeAirdropIfNeeded(RelayerParams);
-        }
-
-        uint64 nonce = lz.getInboundNonce(_srcChainId, abi.encode(from)) + 1;
-
-        vm.prank(lz.defaultReceiveLibraryAddress());
-        lz.receivePayload({
-            _srcChainId: _srcChainId,
-            _srcAddress: abi.encodePacked(from, to),
-            _dstAddress: to,
-            _nonce: nonce,
-            _gasLimit: _dstGasForCall,
-            _payload: payload
+        vm.selectFork(mainnetFork);
+        vm.startPrank(lzEndpoint_mainnet.defaultReceiveLibraryAddress());
+        lzEndpoint_mainnet.receivePayload({
+            _srcChainId: srcChainId,
+            _srcAddress: abi.encodePacked(lzAppFrom, lzAppTo),
+            _dstAddress: lzAppTo,
+            _nonce: lzEndpoint_mainnet.getInboundNonce(srcChainId, abi.encode(lzAppFrom)) + 1,
+            _gasLimit: SIMPLE_TRANSFER_GAS,
+            _payload: abi.encode(PT_SEND, toAddress, amount)
         });
+
+        //
+        // then
+        //
+        assertEq(msUSD_mainnet.balanceOf(alice), amount);
+        vm.selectFork(optimismFork);
+        assertEq(msUSD_optimism.balanceOf(alice), 0);
     }
 
-    function _addSgLiquidity(address sgPool, uint256 amountIn) internal {
-        if (sgPool == SG_MAINNET_USDC_POOL) {
-            deal(address(usdc_mainnet), whale, amountIn);
-            vm.startPrank(whale);
-            usdc_mainnet.approve(address(sgRouter_mainnet), type(uint256).max);
-            sgRouter_mainnet.addLiquidity(SG_USDC_POOL_ID, amountIn, whale);
-            vm.stopPrank();
-            vm.prank(address(sgRouter_mainnet));
-            StargatePool(sgPool).creditChainPath(
-                LZ_OP_CHAIN_ID,
-                SG_USDC_POOL_ID,
-                StargatePool.CreditObj({credits: 1000000000e6, idealBalance: 1000000000e6})
-            );
-            // Note: Increase chainPath[chainPathIndex].lkb to avoid underflow
-            stdstore
-                .target(SG_MAINNET_USDC_POOL)
-                .sig("chainPaths(uint256)")
-                .with_key(StargatePool(SG_MAINNET_USDC_POOL).chainPathIndexLookup(LZ_OP_CHAIN_ID, SG_USDC_POOL_ID))
-                .depth(5)
-                .checked_write(100000000000e6);
-        } else {
-            deal(address(usdc_optimism), whale, amountIn);
-            vm.startPrank(whale);
-            usdc_optimism.approve(address(sgRouter_optimism), type(uint256).max);
-            sgRouter_optimism.addLiquidity(SG_USDC_POOL_ID, amountIn, whale);
-            vm.stopPrank();
-            vm.prank(address(sgRouter_optimism));
-            StargatePool(SG_OP_USDC_POOL).creditChainPath(
-                LZ_MAINNET_CHAIN_ID,
-                SG_USDC_POOL_ID,
-                StargatePool.CreditObj({credits: 1000000000e6, idealBalance: 1000000000e6})
-            );
-            // Note: Increase chainPath[chainPathIndex].lkb to avoid underflow
-            stdstore
-                .target(SG_OP_USDC_POOL)
-                .sig("chainPaths(uint256)")
-                .with_key(StargatePool(SG_OP_USDC_POOL).chainPathIndexLookup(LZ_MAINNET_CHAIN_ID, SG_USDC_POOL_ID))
-                .depth(5)
-                .checked_write(100000000000e6);
-        }
-    }
+    function test_revertWhenBridgingIsPaused_transferSynthFromLayer2ToLayer1() external {
+        uint256 amount = 200e18;
+        uint16 dstChainId = LZ_MAINNET_CHAIN_ID;
 
-    function _decodeSendToChainEvent(
-        Vm.Log memory SendToChain
-    ) internal pure returns (uint16 _dstChainId, address from, address to) {
-        (bytes memory _toAddress, ) = abi.decode(SendToChain.data, (bytes, uint256));
-        _dstChainId = uint16(abi.encodePacked(SendToChain.topics[1]).toUint256(0));
-        bytes memory _from = abi.encodePacked(SendToChain.topics[2]);
+        //
+        // given
+        //
+        _issueOnOptimism(amount);
 
-        from = abi.decode(_from, (address));
-        to = _toAddress.toAddress(0);
-    }
+        //
+        // when
+        //
+        poolRegistry_optimism.toggleBridgingIsActive();
 
-    function _decodeOftPacketEvent(
-        Vm.Log memory Packet
-    ) internal pure returns (uint64 _dstGasForCall, bytes memory payload) {
-        // Note: Remove prefix added for `Packet` event
-        // uint64 nonce, uint16 localChainId, address ua, uint16 dstChainId, bytes dstAddress, bytes payload
-        // bytes memory encodedPayload = abi.encodePacked(nonce, localChainId, ua, dstChainId, dstAddress, payload);
-        // emit Packet(encodedPayload);
-        bytes memory encodedPayload = abi.decode(Packet.data, (bytes));
-        payload = encodedPayload.slice(52, encodedPayload.length - 52);
-        (, , , , , _dstGasForCall) = abi.decode(payload, (uint16, bytes, bytes, uint256, bytes, uint64));
-    }
+        //
+        // then
+        //
+        uint256 fee = proxyOFT_msUSD_optimism.estimateSendFee(dstChainId, alice, amount);
 
-    function _decodeSgSwapEvents(
-        Vm.Log memory Swap,
-        Vm.Log memory Packet
-    )
-        internal
-        pure
-        returns (
-            uint16 srcChainId,
-            address from,
-            uint256 amount,
-            uint256 srcPoolId,
-            uint256 dstPoolId,
-            uint256 dstGasForCall,
-            StargatePool.SwapObj memory swapObj,
-            bytes memory payload
-        )
-    {
-        {
-            (, , from, amount, , , , ) = abi.decode(
-                Swap.data,
-                (uint16, uint256, address, uint256, uint256, uint256, uint256, uint256)
-            );
-        }
-
-        {
-            bytes memory encodedPayload = abi.decode(Packet.data, (bytes));
-            // Note: Remove prefix added for `Packet` event
-            // uint64 nonce, uint16 localChainId, address ua, uint16 dstChainId, bytes dstAddress, bytes payload
-            // bytes memory encodedPayload = abi.encodePacked(nonce, localChainId, ua, dstChainId, dstAddress, payload);
-            // emit Packet(encodedPayload);
-            srcChainId = encodedPayload.toUint16(8);
-            bytes memory payloadWithStargateArgs = encodedPayload.slice(52, encodedPayload.length - 52);
-
-            // Note: Stargate adds additional data to the payload, we have to extract ours from it
-            (, srcPoolId, dstPoolId, dstGasForCall, , swapObj, , payload) = abi.decode(
-                payloadWithStargateArgs,
-                (uint8, uint256, uint256, uint256, StargatePool.CreditObj, StargatePool.SwapObj, bytes, bytes)
-            );
-        }
-    }
-
-    function _decodeRevertEvent(
-        Vm.Log memory Revert
-    ) internal pure returns (uint16 chainId, bytes memory srcAddress, uint256 nonce) {
-        (, chainId, srcAddress, nonce) = abi.decode(Revert.data, (uint8, uint16, bytes, uint256));
-    }
-
-    function _decodeCallOFTReceivedFailureEvent(
-        Vm.Log memory CallOFTReceivedFailure
-    )
-        internal
-        pure
-        returns (
-            uint16 srcChainId,
-            address to,
-            bytes memory srcAddress,
-            uint64 nonce,
-            bytes memory from,
-            uint amount,
-            bytes memory payload,
-            bytes memory reason
-        )
-    {
-        (srcAddress, nonce, from, amount, payload, reason) = abi.decode(
-            CallOFTReceivedFailure.data,
-            (bytes, uint64, bytes, uint, bytes, bytes)
-        );
-        srcChainId = uint16(uint256(CallOFTReceivedFailure.topics[1])); // uint16 indexed srcChainId
-        to = address(uint160(uint256(CallOFTReceivedFailure.topics[2]))); // address indexed to
-    }
-
-    function _decodePayloadStoredEvent(
-        Vm.Log memory PayloadStored
-    )
-        internal
-        pure
-        returns (
-            uint16 srcChainId,
-            bytes memory srcAddress,
-            address dstAddress,
-            uint64 nonce,
-            bytes memory payload,
-            bytes memory reason
-        )
-    {
-        (srcChainId, srcAddress, dstAddress, nonce, payload, reason) = abi.decode(
-            PayloadStored.data,
-            (uint16, bytes, address, uint64, bytes, bytes)
-        );
-    }
-
-    // Emitted by StargateRouter (deprecated)
-    function _decodeCachedSwapSavedSgRouterEvent(
-        Vm.Log memory CachedSwapSaved
-    )
-        internal
-        pure
-        returns (
-            uint16 chainId,
-            bytes memory srcAddress,
-            uint256 nonce,
-            address token,
-            uint amountLD,
-            address to,
-            bytes memory payload,
-            bytes memory reason
-        )
-    {
-        (chainId, srcAddress, nonce, token, amountLD, to, payload, reason) = abi.decode(
-            CachedSwapSaved.data,
-            (uint16, bytes, uint256, address, uint256, address, bytes, bytes)
-        );
-    }
-
-    // Emitted by StargateComposer
-    function _decodeCachedSwapSavedSgComposerEvent(
-        Vm.Log memory CachedSwapSaved,
-        Vm.Log memory SwapRemote
-    )
-        internal
-        pure
-        returns (uint16 chainId, bytes memory srcAddress, uint256 amount, uint256 nonce, bytes memory reason)
-    {
-        (chainId, srcAddress, nonce, reason) = abi.decode(CachedSwapSaved.data, (uint16, bytes, uint256, bytes));
-        (, amount, , ) = abi.decode(SwapRemote.data, (address, uint256, uint256, uint256));
-    }
-
-    function _getSgSwapEvents()
-        internal
-        returns (Vm.Log memory Swap, Vm.Log memory Packet, Vm.Log memory RelayerParams)
-    {
-        Vm.Log[] memory entries = vm.getRecordedLogs();
-        for (uint256 i; i < entries.length; ++i) {
-            Vm.Log memory entry = entries[i];
-            if (entry.topics[0] == keccak256("Swap(uint16,uint256,address,uint256,uint256,uint256,uint256,uint256)")) {
-                // Emitted when a SG swap is called
-                // event Swap(uint16 chainId,uint256 dstPoolId,address from,uint256 amountSD,uint256 eqReward,uint256 eqFee,uint256 protocolFee,uint256 lpFee);
-                Swap = entry;
-            } else if (entry.topics[0] == keccak256("Packet(bytes)")) {
-                // Emitted when LZ message is sent
-                // bytes memory encodedPayload = abi.encodePacked(uint64 nonce, uint16 localChainId, address ua, uint16 dstChainId, bytes dstAddress, bytes payload);
-                // event Packet(bytes encodedPayload);
-                Packet = entry;
-            } else if (entry.topics[0] == keccak256("RelayerParams(bytes,uint16)")) {
-                // Emitted when LZ parameters are passed to a relayer
-                // event RelayerParams(bytes adapterParams, uint16 outboundProofType);
-                RelayerParams = entry;
-            }
-        }
-    }
-
-    function _getOftTransferEvents()
-        internal
-        returns (Vm.Log memory SendToChain, Vm.Log memory Packet, Vm.Log memory RelayerParams)
-    {
-        Vm.Log[] memory entries = vm.getRecordedLogs();
-        for (uint256 i; i < entries.length; ++i) {
-            Vm.Log memory entry = entries[i];
-            if (entry.topics[0] == keccak256("SendToChain(uint16,address,bytes,uint256)")) {
-                // Emitted when OFT amount is sent
-                // event SendToChain(uint16 indexed _dstChainId, address indexed _from, bytes _toAddress, uint _amount);
-                SendToChain = entry;
-            } else if (entry.topics[0] == keccak256("Packet(bytes)")) {
-                // Emitted when LZ message is sent
-                // bytes memory encodedPayload = abi.encodePacked(uint64 nonce, uint16 localChainId, address ua, uint16 dstChainId, bytes dstAddress, bytes payload);
-                // event Packet(bytes encodedPayload);
-                Packet = entry;
-            } else if (entry.topics[0] == keccak256("RelayerParams(bytes,uint16)")) {
-                // Emitted when LZ parameters are passed to a relayer
-                // event RelayerParams(bytes adapterParams, uint16 outboundProofType);
-                RelayerParams = entry;
-            }
-        }
-    }
-
-    function _getSgSwapErrorEvents()
-        internal
-        returns (
-            Vm.Log memory CachedSwapSavedSgRouter, // deprecated
-            Vm.Log memory CachedSwapSavedSgComposer,
-            Vm.Log memory Revert,
-            Vm.Log memory SwapRemote
-        )
-    {
-        Vm.Log[] memory entries = vm.getRecordedLogs();
-        for (uint256 i; i < entries.length; ++i) {
-            Vm.Log memory entry = entries[i];
-            if (
-                entry.topics[0] ==
-                keccak256("CachedSwapSaved(uint16,bytes,uint256,address,uint256,address,bytes,bytes)")
-            ) {
-                // Note: Emitted from SG Router when `sgReceive()` fails
-                // event CachedSwapSaved(uint16 chainId, bytes srcAddress, uint256 nonce, address token, uint256 amountLD, address to, bytes payload, bytes reason);
-                CachedSwapSavedSgRouter = entry;
-            }
-            if (entry.topics[0] == keccak256("CachedSwapSaved(uint16,bytes,uint256,bytes)")) {
-                // Note: Emitted from SG Composer when `sgReceive()` fails
-                // event CachedSwapSaved(uint16 chainId, bytes srcAddress, uint256 nonce, bytes reason);
-                CachedSwapSavedSgComposer = entry;
-            } else if (entry.topics[0] == keccak256("Revert(uint8,uint16,bytes,uint256)")) {
-                // Note: Emitted from SG Router when swap fails on the destination
-                // event Revert(uint8 bridgeFunctionType, uint16 chainId, bytes srcAddress, uint256 nonce);
-                Revert = entry;
-            } else if (entry.topics[0] == keccak256("SwapRemote(address,uint256,uint256,uint256)")) {
-                // Note: Emitted when SG swap arrives to the Pool
-                // event SwapRemote(address to, uint256 amountSD, uint256 protocolFee, uint256 dstFee);
-                SwapRemote = entry;
-            }
-        }
-    }
-
-    function _getOftTransferErrorEvents()
-        internal
-        returns (Vm.Log memory MessageFailed, Vm.Log memory CallOFTReceivedFailure, Vm.Log memory PayloadStored)
-    {
-        Vm.Log[] memory entries = vm.getRecordedLogs();
-        for (uint256 i; i < entries.length; ++i) {
-            Vm.Log memory entry = entries[i];
-            if (entry.topics[0] == keccak256("MessageFailed(uint16,bytes,uint64,bytes,bytes)")) {
-                // Note: Emitted from `LzApp` when message fails on the destination
-                // event MessageFailed(uint16 _srcChainId, bytes _srcAddress, uint64 _nonce, bytes _payload, bytes _reason)
-                MessageFailed = entry;
-            } else if (
-                entry.topics[0] ==
-                keccak256("CallOFTReceivedFailure(uint16,bytes,uint64,bytes,address,uint256,bytes,bytes)")
-            ) {
-                // Note: Emitted from OFT when `onOFTReceived()` fails
-                // event CallOFTReceivedFailure(uint16 indexed _srcChainId, bytes _srcAddress, uint64 _nonce, bytes _from, address indexed _to, uint _amount, bytes _payload, bytes _reason);
-                CallOFTReceivedFailure = entry;
-            } else if (entry.topics[0] == keccak256("PayloadStored(uint16,bytes,address,uint64,bytes,bytes)")) {
-                // Note: Emitted from `LzApp` when message fails on the destination
-                // event PayloadStored(uint16 srcChainId, bytes srcAddress, address dstAddress, uint64 nonce, bytes payload, bytes reason);
-                PayloadStored = entry;
-            }
-        }
+        deal(alice, fee);
+        vm.startPrank(alice);
+        vm.expectRevert(BridgingIsPaused.selector);
+        proxyOFT_msUSD_optimism.sendFrom{value: fee}(alice, dstChainId, alice, amount);
+        vm.stopPrank();
     }
 }

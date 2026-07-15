@@ -3,13 +3,13 @@ pragma solidity ^0.8.9;
 
 import "forge-std/Test.sol";
 import {TestHelpers} from "./helpers/TestHelpers.sol";
-import {PoolRegistry} from "../../contracts/PoolRegistry.sol";
-import {Pool, ISyntheticToken} from "../../contracts/Pool.sol";
-import {FeeProvider, FeeProviderStorageV1, TiersNotOrderedByMin} from "../../contracts/FeeProvider.sol";
-import {ERC20Mock} from "../../contracts/mock/ERC20Mock.sol";
-import {MasterOracleMock} from "../../contracts/mock/MasterOracleMock.sol";
-import {IESMET} from "../../contracts/interfaces/external/IESMET.sol";
-import {WadRayMath} from "../../contracts/lib/WadRayMath.sol";
+import {PoolRegistry} from "contracts/PoolRegistry.sol";
+import {Pool} from "contracts/Pool.sol";
+import {FeeProvider} from "contracts/FeeProvider.sol";
+import {ERC20Mock} from "contracts/mock/ERC20Mock.sol";
+import {MasterOracleMock} from "contracts/mock/MasterOracleMock.sol";
+import {IESMET} from "contracts/interfaces/external/IESMET.sol";
+import {WadRayMath} from "contracts/lib/WadRayMath.sol";
 
 contract Pool_Test is TestHelpers {
     using stdStorage for StdStorage;
@@ -42,12 +42,6 @@ contract Pool_Test is TestHelpers {
         feeProvider = new FeeProvider();
         vm.store(address(feeProvider), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor
         feeProvider.initialize({poolRegistry_: poolRegistry, esMET_: IESMET(address(esMET))});
-        FeeProviderStorageV1.Tier[] memory tiers = new FeeProviderStorageV1.Tier[](4);
-        tiers[0] = FeeProviderStorageV1.Tier({min: 500e18, discount: 0.2e18});
-        tiers[1] = FeeProviderStorageV1.Tier({min: 5000e18, discount: 0.4e18});
-        tiers[2] = FeeProviderStorageV1.Tier({min: 50000e18, discount: 0.6e18});
-        tiers[3] = FeeProviderStorageV1.Tier({min: 500000e18, discount: 0.8e18});
-        feeProvider.updateTiers(tiers);
 
         pool = new Pool();
         vm.store(address(pool), bytes32(uint256(0)), bytes32(uint256(0))); // Undo initialization made by constructor

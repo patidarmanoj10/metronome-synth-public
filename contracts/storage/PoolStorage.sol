@@ -1,11 +1,20 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.9;
+pragma solidity 0.8.24;
 
-import "../dependencies/openzeppelin/utils/structs/EnumerableSet.sol";
-import "../lib/MappedEnumerableSet.sol";
-import "../interfaces/IPool.sol";
-import "../interfaces/ISmartFarmingManager.sol";
+import {IERC20} from "../dependencies/openzeppelin/token/ERC20/IERC20.sol";
+import {EnumerableSet} from "../dependencies/openzeppelin/utils/structs/EnumerableSet.sol";
+import {MappedEnumerableSet} from "../lib/MappedEnumerableSet.sol";
+import {ISwapper} from "../interfaces/external/ISwapper.sol";
+import {IPool} from "../interfaces/IPool.sol";
+import {ISmartFarmingManager} from "../interfaces/ISmartFarmingManager.sol";
+import {IPoolRegistry} from "../interfaces/IPoolRegistry.sol";
+import {ITreasury} from "../interfaces/ITreasury.sol";
+import {IDepositToken} from "../interfaces/IDepositToken.sol";
+import {IRewardsDistributor} from "../interfaces/IRewardsDistributor.sol";
+import {ISyntheticToken} from "../interfaces/ISyntheticToken.sol";
+import {IDebtToken} from "../interfaces/IDebtToken.sol";
+import {IFeeProvider} from "../interfaces/IFeeProvider.sol";
 
 // solhint-disable var-name-mixedcase, max-states-count
 abstract contract PoolStorageV1 is IPool {
@@ -36,7 +45,7 @@ abstract contract PoolStorageV1 is IPool {
     /**
      * @notice PoolRegistry
      */
-    IPoolRegistry public override poolRegistry;
+    IPoolRegistry internal _poolRegistry;
 
     /**
      * @notice Swap feature on/off flag
@@ -109,5 +118,5 @@ abstract contract PoolStorageV4 is PoolStorageV3 {
     /**
      * @notice Flag that pause/unpause pool's cross-chain activities
      */
-    bool public isBridgingActive;
+    bool private isBridgingActive_DEPRECATED;
 }

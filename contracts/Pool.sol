@@ -1,11 +1,30 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.9;
+pragma solidity 0.8.24;
 
-import "./utils/ReentrancyGuard.sol";
-import "./storage/PoolStorage.sol";
-import "./lib/WadRayMath.sol";
-import "./utils/Pauseable.sol";
+import {Initializable} from "./dependencies/openzeppelin-upgradeable/proxy/utils/Initializable.sol";
+import {SafeERC20} from "./dependencies/openzeppelin/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "./dependencies/openzeppelin/token/ERC20/IERC20.sol";
+import {EnumerableSet} from "./dependencies/openzeppelin/utils/structs/EnumerableSet.sol";
+import {Context, SynthContext} from "./utils/SynthContext.sol";
+import {Pauseable} from "./utils/Pauseable.sol";
+import {ReentrancyGuardDeprecated} from "./utils/ReentrancyGuardDeprecated.sol";
+import {ReentrancyGuardTransient} from "./utils/ReentrancyGuardTransient.sol";
+import {MappedEnumerableSet} from "./lib/MappedEnumerableSet.sol";
+import {WadRayMath} from "./lib/WadRayMath.sol";
+import {IMasterOracle} from "./interfaces/external/IMasterOracle.sol";
+import {ISyntheticToken} from "./interfaces/ISyntheticToken.sol";
+import {IPool} from "./interfaces/IPool.sol";
+import {ISmartFarmingManager} from "./interfaces/ISmartFarmingManager.sol";
+import {IPoolRegistry} from "./interfaces/IPoolRegistry.sol";
+import {ITreasury} from "./interfaces/ITreasury.sol";
+import {IDepositToken} from "./interfaces/IDepositToken.sol";
+import {IRewardsDistributor} from "./interfaces/IRewardsDistributor.sol";
+import {ISyntheticToken} from "./interfaces/ISyntheticToken.sol";
+import {IDebtToken} from "./interfaces/IDebtToken.sol";
+import {IFeeProvider} from "./interfaces/IFeeProvider.sol";
+import {IPauseable} from "./interfaces/IPauseable.sol";
+import {PoolStorageV4} from "./storage/PoolStorage.sol";
 
 error SyntheticDoesNotExist();
 error SenderIsNotDebtToken();
@@ -38,22 +57,26 @@ error MaxLiquidableTooHigh();
 /**
  * @title Pool contract
  */
-contract Pool is ReentrancyGuard, Pauseable, PoolStorageV4 {
+contract Pool is
+    SynthContext,
+    Initializable,
+    ReentrancyGuardDeprecated,
+    ReentrancyGuardTransient,
+    Pauseable,
+    PoolStorageV4
+{
     using SafeERC20 for IERC20;
     using SafeERC20 for ISyntheticToken;
     using WadRayMath for uint256;
     using EnumerableSet for EnumerableSet.AddressSet;
     using MappedEnumerableSet for MappedEnumerableSet.AddressSet;
 
-    string public constant VERSION = "1.3.0";
+    string public constant VERSION = "1.3.2";
 
     /**
      * @notice Maximum tokens per pool a user may have
      */
     uint256 public constant MAX_TOKENS_PER_USER = 30;
-
-    /// @notice Emitted when flag for pause bridge transfer is toggled
-    event BridgingIsActiveUpdated(bool newIsActive);
 
     /// @notice Emitted when protocol liquidation fee is updated
     event DebtFloorUpdated(uint256 oldDebtFloorInUsd, uint256 newDebtFloorInUsd);
@@ -140,34 +163,36 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV4 {
         _;
     }
 
-    /**
-     * @dev Throws if `msg.sender` isn't a debt token
-     */
-    modifier onlyIfMsgSenderIsDebtToken() {
-        if (!doesDebtTokenExist(IDebtToken(msg.sender))) revert SenderIsNotDebtToken();
-        _;
-    }
-
-    /**
-     * @dev Throws if `msg.sender` isn't a deposit token
-     */
-    modifier onlyIfMsgSenderIsDepositToken() {
-        if (!doesDepositTokenExist(IDepositToken(msg.sender))) revert SenderIsNotDepositToken();
-        _;
-    }
-
     constructor() {
         _disableInitializers();
     }
 
+    /// @inheritdoc Context
+    function _msgSender() internal view virtual override(Context, SynthContext) returns (address) {
+        return SynthContext._msgSender();
+    }
+
     function initialize(IPoolRegistry poolRegistry_) public initializer {
         if (address(poolRegistry_) == address(0)) revert PoolRegistryIsNull();
-        __ReentrancyGuard_init();
         __Pauseable_init();
 
-        poolRegistry = poolRegistry_;
+        _poolRegistry = poolRegistry_;
         isSwapActive = true;
         maxLiquidable = 0.5e18; // 50%
+    }
+
+    /**
+     * @dev Throws if `_msgSender()` isn't a debt token
+     */
+    function _revertIfSenderIsNotDebtToken(address sender_) private view {
+        if (!doesDebtTokenExist(IDebtToken(sender_))) revert SenderIsNotDebtToken();
+    }
+
+    /**
+     * @dev Throws if `_msgSender()` isn't a deposit token
+     */
+    function _revertIfSenderIsNotDepositToken(address sender_) private view {
+        if (!doesDepositTokenExist(IDepositToken(sender_))) revert SenderIsNotDepositToken();
     }
 
     /**
@@ -176,10 +201,10 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV4 {
      * @dev The caller should ensure to not pass `address(0)` as `_account`
      * @param account_ The account address
      */
-    function addToDebtTokensOfAccount(
-        address account_
-    ) external onlyIfMsgSenderIsDebtToken onlyIfAdditionWillNotReachMaxTokens(account_) {
-        if (!debtTokensOfAccount.add(account_, msg.sender)) revert DebtTokenAlreadyExists();
+    function addToDebtTokensOfAccount(address account_) external onlyIfAdditionWillNotReachMaxTokens(account_) {
+        address _debtToken = _msgSender();
+        _revertIfSenderIsNotDebtToken(_debtToken);
+        if (!debtTokensOfAccount.add(account_, _debtToken)) revert DebtTokenAlreadyExists();
     }
 
     /**
@@ -188,10 +213,10 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV4 {
      * @dev The caller should ensure to not pass `address(0)` as `_account`
      * @param account_ The account address
      */
-    function addToDepositTokensOfAccount(
-        address account_
-    ) external onlyIfMsgSenderIsDepositToken onlyIfAdditionWillNotReachMaxTokens(account_) {
-        if (!depositTokensOfAccount.add(account_, msg.sender)) revert DepositTokenAlreadyExists();
+    function addToDepositTokensOfAccount(address account_) external onlyIfAdditionWillNotReachMaxTokens(account_) {
+        address _depositToken = _msgSender();
+        _revertIfSenderIsNotDepositToken(_depositToken);
+        if (!depositTokensOfAccount.add(account_, _depositToken)) revert DepositTokenAlreadyExists();
     }
 
     /**
@@ -266,14 +291,14 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV4 {
      * @inheritdoc Pauseable
      */
     function everythingStopped() public view override(IPauseable, Pauseable) returns (bool) {
-        return super.everythingStopped() || poolRegistry.everythingStopped();
+        return super.everythingStopped() || _poolRegistry.everythingStopped();
     }
 
     /**
      * @notice Returns fee collector address
      */
     function feeCollector() external view override returns (address) {
-        return poolRegistry.feeCollector();
+        return _poolRegistry.feeCollector();
     }
 
     /**
@@ -459,13 +484,13 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV4 {
         ISyntheticToken syntheticTokenOut_,
         uint256 amountOut_
     ) external view override returns (uint256 _amountIn, uint256 _fee) {
-        uint256 _swapFee = feeProvider.swapFeeFor(msg.sender);
+        uint256 _swapFee = feeProvider.swapFees(address(syntheticTokenIn_), address(syntheticTokenOut_));
         if (_swapFee > 0) {
             amountOut_ = amountOut_.wadDiv(1e18 - _swapFee);
             _fee = amountOut_.wadMul(_swapFee);
         }
 
-        _amountIn = poolRegistry.masterOracle().quote(
+        _amountIn = _poolRegistry.masterOracle().quote(
             address(syntheticTokenOut_),
             address(syntheticTokenIn_),
             amountOut_
@@ -485,13 +510,14 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV4 {
         ISyntheticToken syntheticTokenOut_,
         uint256 amountIn_
     ) public view override returns (uint256 _amountOut, uint256 _fee) {
-        _amountOut = poolRegistry.masterOracle().quote(
+        _amountOut = _poolRegistry.masterOracle().quote(
             address(syntheticTokenIn_),
             address(syntheticTokenOut_),
             amountIn_
         );
 
-        uint256 _swapFee = feeProvider.swapFeeFor(msg.sender);
+        uint256 _swapFee = feeProvider.swapFees(address(syntheticTokenIn_), address(syntheticTokenOut_));
+
         if (_swapFee > 0) {
             _fee = _amountOut.wadMul(_swapFee);
             _amountOut -= _fee;
@@ -522,8 +548,10 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV4 {
         onlyIfDepositTokenExists(depositToken_)
         returns (uint256 _totalSeized, uint256 _toLiquidator, uint256 _fee)
     {
+        address _msgSender = _msgSender();
+
         if (amountToRepay_ == 0) revert AmountIsZero();
-        if (msg.sender == account_) revert CanNotLiquidateOwnPosition();
+        if (_msgSender == account_) revert CanNotLiquidateOwnPosition();
 
         IDebtToken _debtToken = debtTokenOf[syntheticToken_];
         _debtToken.accrueInterest();
@@ -540,10 +568,8 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV4 {
             revert AmountGreaterThanMaxLiquidable();
         }
 
-        IMasterOracle _masterOracle = masterOracle();
-
         if (debtFloorInUsd > 0) {
-            uint256 _newDebtInUsd = _masterOracle.quoteTokenToUsd(
+            uint256 _newDebtInUsd = masterOracle().quoteTokenToUsd(
                 address(syntheticToken_),
                 _debtTokenBalance - amountToRepay_
             );
@@ -558,29 +584,29 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV4 {
             revert AmountIsTooHigh();
         }
 
-        syntheticToken_.burn(msg.sender, amountToRepay_);
+        syntheticToken_.burn(_msgSender, amountToRepay_);
         _debtToken.burn(account_, amountToRepay_);
-        depositToken_.seize(account_, msg.sender, _toLiquidator);
+        depositToken_.seize(account_, _msgSender, _toLiquidator);
 
         if (_fee > 0) {
-            depositToken_.seize(account_, poolRegistry.feeCollector(), _fee);
+            depositToken_.seize(account_, _poolRegistry.feeCollector(), _fee);
         }
 
-        emit PositionLiquidated(msg.sender, account_, syntheticToken_, amountToRepay_, _totalSeized, _fee);
+        emit PositionLiquidated(_msgSender, account_, syntheticToken_, amountToRepay_, _totalSeized, _fee);
     }
 
     /**
      * @notice Get MasterOracle contract
      */
     function masterOracle() public view override returns (IMasterOracle) {
-        return poolRegistry.masterOracle();
+        return _poolRegistry.masterOracle();
     }
 
     /**
      * @inheritdoc Pauseable
      */
     function paused() public view override(IPauseable, Pauseable) returns (bool) {
-        return super.paused() || poolRegistry.paused();
+        return super.paused() || _poolRegistry.paused();
     }
 
     /**
@@ -589,8 +615,10 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV4 {
      * @dev The caller should ensure to not pass `address(0)` as `_account`
      * @param account_ The account address
      */
-    function removeFromDebtTokensOfAccount(address account_) external onlyIfMsgSenderIsDebtToken {
-        if (!debtTokensOfAccount.remove(account_, msg.sender)) revert DebtTokenDoesNotExist();
+    function removeFromDebtTokensOfAccount(address account_) external {
+        address _debtToken = _msgSender();
+        _revertIfSenderIsNotDebtToken(_debtToken);
+        if (!debtTokensOfAccount.remove(account_, _debtToken)) revert DebtTokenDoesNotExist();
     }
 
     /**
@@ -599,8 +627,10 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV4 {
      * @dev The caller should ensure to not pass `address(0)` as `_account`
      * @param account_ The account address
      */
-    function removeFromDepositTokensOfAccount(address account_) external onlyIfMsgSenderIsDepositToken {
-        if (!depositTokensOfAccount.remove(account_, msg.sender)) revert DepositTokenDoesNotExist();
+    function removeFromDepositTokensOfAccount(address account_) external {
+        address _depositToken = _msgSender();
+        _revertIfSenderIsNotDepositToken(_depositToken);
+        if (!depositTokensOfAccount.remove(account_, _depositToken)) revert DepositTokenDoesNotExist();
     }
 
     /**
@@ -622,20 +652,27 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV4 {
         onlyIfSyntheticTokenExists(syntheticTokenOut_)
         returns (uint256 _amountOut, uint256 _fee)
     {
-        if (!isSwapActive) revert SwapFeatureIsInactive();
-        if (amountIn_ == 0 || amountIn_ > syntheticTokenIn_.balanceOf(msg.sender)) revert AmountInIsInvalid();
+        address _msgSender = _msgSender();
 
-        syntheticTokenIn_.burn(msg.sender, amountIn_);
+        if (!isSwapActive) revert SwapFeatureIsInactive();
+        if (amountIn_ == 0 || amountIn_ > syntheticTokenIn_.balanceOf(_msgSender)) revert AmountInIsInvalid();
+
+        syntheticTokenIn_.burn(_msgSender, amountIn_);
 
         (_amountOut, _fee) = quoteSwapOut(syntheticTokenIn_, syntheticTokenOut_, amountIn_);
 
         if (_fee > 0) {
-            syntheticTokenOut_.mint(poolRegistry.feeCollector(), _fee);
+            syntheticTokenOut_.mint(_poolRegistry.feeCollector(), _fee);
         }
 
-        syntheticTokenOut_.mint(msg.sender, _amountOut);
+        syntheticTokenOut_.mint(_msgSender, _amountOut);
 
-        emit SyntheticTokenSwapped(msg.sender, syntheticTokenIn_, syntheticTokenOut_, amountIn_, _amountOut, _fee);
+        emit SyntheticTokenSwapped(_msgSender, syntheticTokenIn_, syntheticTokenOut_, amountIn_, _amountOut, _fee);
+    }
+
+    /// @inheritdoc SynthContext
+    function poolRegistry() public view override(IPool, SynthContext) returns (IPoolRegistry) {
+        return _poolRegistry;
     }
 
     /**
@@ -786,11 +823,9 @@ contract Pool is ReentrancyGuard, Pauseable, PoolStorageV4 {
     }
 
     /**
-     * @notice Pause/Unpause bridge transfers
+     * @inheritdoc Pauseable
      */
-    function toggleBridgingIsActive() external onlyGovernor {
-        bool _newIsBridgingActive = !isBridgingActive;
-        emit BridgingIsActiveUpdated(_newIsBridgingActive);
-        isBridgingActive = _newIsBridgingActive;
+    function isGuardian(address sender_) public view override returns (bool) {
+        return _poolRegistry.isGuardian(sender_);
     }
 }

@@ -47,13 +47,6 @@ async function fixture() {
   await setStorageAt(feeProvider.address, 0, 0) // Undo initialization made by constructor
   await feeProvider.initialize(poolRegistry.address, Address.ESMET)
 
-  // Set fee discount tiers
-  const newTiers = [
-    {min: parseEther('10'), discount: parseEther('0.1')},
-    {min: parseEther('20'), discount: parseEther('0.2')},
-  ]
-  await feeProvider.updateTiers(newTiers)
-
   const msETH = await syntheticTokenFactory.deploy()
   await msETH.deployed()
   await setStorageAt(msETH.address, 0, 0) // Undo initialization made by constructor
@@ -65,6 +58,11 @@ async function fixture() {
   const msUSD = await syntheticTokenFactory.deploy()
   await msUSD.deployed()
   await setStorageAt(msUSD.address, 0, 0) // Undo initialization made by constructor
+
+  // Set swap fees (0.25%) for the pairs exercised by the tests
+  await feeProvider.updateSwapFee(msETH.address, msUSD.address, parseEther('0.0025'))
+  await feeProvider.updateSwapFee(msDOGE.address, msUSD.address, parseEther('0.0025'))
+  await feeProvider.updateSwapFee(msUSD.address, msETH.address, parseEther('0.0025'))
 
   // Pool A: Deposit [MET,DAI], Mint [msETH,msDOGE,msUSD]
   const poolA = await poolFactory.deploy()
@@ -329,14 +327,12 @@ describe('Integration tests', function () {
         })
 
         it('should verify swap fee', async function () {
-          const defaultSwapFee = await feeProvider.defaultSwapFee()
-          expect(await feeProvider.swapFeeFor(alice.address)).eq(defaultSwapFee)
+          // Swap fees are configured per direction (`synthIn => synthOut`)
+          expect(await feeProvider.swapFees(msETH.address, msUSD.address)).eq(parseEther('0.0025'))
+          expect(await feeProvider.swapFees(msUSD.address, msETH.address)).eq(parseEther('0.0025'))
 
-          const esMET = await ethers.getContractAt('IESMET', Address.ESMET, alice)
-          await met.connect(alice).approve(esMET.address, parseEther('100'))
-          await esMET.connect(alice).lock(parseEther('10'), 8 * 24 * 60 * 60)
-          await expect(await esMET.balanceOf(alice.address)).gt(0)
-          expect(await feeProvider.swapFeeFor(alice.address)).lt(defaultSwapFee)
+          // Directions without a configured fee default to zero
+          expect(await feeProvider.swapFees(msETH.address, msDOGE.address)).eq(0)
         })
 
         describe('repay', function () {

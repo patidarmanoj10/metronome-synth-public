@@ -1,16 +1,19 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.9;
+pragma solidity 0.8.24;
 
-import "./IDepositToken.sol";
-import "./IDebtToken.sol";
-import "./ITreasury.sol";
-import "./IRewardsDistributor.sol";
-import "./IPoolRegistry.sol";
-import "./IFeeProvider.sol";
-import "./ISmartFarmingManager.sol";
-import "./external/ISwapper.sol";
-import "../interfaces/IFeeProvider.sol";
+import {IERC20} from "../dependencies/openzeppelin/token/ERC20/IERC20.sol";
+import {IDepositToken} from "./IDepositToken.sol";
+import {IDebtToken} from "./IDebtToken.sol";
+import {ITreasury} from "./ITreasury.sol";
+import {IPoolRegistry} from "./IPoolRegistry.sol";
+import {IFeeProvider} from "./IFeeProvider.sol";
+import {ISmartFarmingManager} from "./ISmartFarmingManager.sol";
+import {IFeeProvider} from "../interfaces/IFeeProvider.sol";
+import {IPauseable} from "../interfaces/IPauseable.sol";
+import {IGovernable} from "../interfaces/IGovernable.sol";
+import {ISyntheticToken} from "../interfaces/ISyntheticToken.sol";
+import {IMasterOracle} from "../interfaces/external/IMasterOracle.sol";
 
 /**
  * @notice Pool interface

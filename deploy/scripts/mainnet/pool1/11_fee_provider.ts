@@ -1,6 +1,7 @@
 /* eslint-disable camelcase */
 import {HardhatRuntimeEnvironment} from 'hardhat/types'
 import {DeployFunction} from 'hardhat-deploy/types'
+import {parseEther} from 'ethers/lib/utils'
 import {UpgradableContracts, deployUpgradable, updateParamIfNeeded} from '../../../helpers'
 import Address from '../../../../helpers/address'
 
@@ -28,8 +29,29 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     writeMethod: 'updateFeeProvider',
     writeArgs: [feeProviderAddress],
   })
+
+  const {address: msUSD} = await get('MsUSDSynthetic')
+  const {address: msETH} = await get('MsETHSynthetic')
+
+  await updateParamIfNeeded(hre, {
+    contractAlias: FeeProvider_Pool1,
+    readMethod: 'swapFees',
+    readArgs: [msUSD, msETH],
+    writeMethod: 'updateSwapFee',
+    writeArgs: [msUSD, msETH, parseEther('0.01').toString()], // 1%
+    isCurrentValueUpdated: (current, writeArgs) => current.toString() === writeArgs[2].toString(),
+  })
+
+  await updateParamIfNeeded(hre, {
+    contractAlias: FeeProvider_Pool1,
+    readMethod: 'swapFees',
+    readArgs: [msETH, msUSD],
+    writeMethod: 'updateSwapFee',
+    writeArgs: [msETH, msUSD, parseEther('0.0055').toString()], // 0.55%
+    isCurrentValueUpdated: (current, writeArgs) => current.toString() === writeArgs[2].toString(),
+  })
 }
 
 export default func
 func.tags = [FeeProvider_Pool1]
-func.dependencies = [Pool1]
+func.dependencies = [Pool1, 'MsUSDSynthetic', 'MsETHSynthetic']

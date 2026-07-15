@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.9;
+pragma solidity 0.8.24;
 
-import "./IPool.sol";
-import "./external/IVPool.sol";
+import {IPool} from "./IPool.sol";
+import {IVPool} from "./external/IVPool.sol";
 
 interface IVesperGateway {
     function deposit(IPool pool_, IVPool vToken_, uint256 amount_) external;
